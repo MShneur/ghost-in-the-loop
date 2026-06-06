@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.2.0
+// @version      4.2.1
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
