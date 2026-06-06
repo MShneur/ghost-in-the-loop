@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.4.0
+// @version      4.4.1
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -32,7 +32,7 @@
             hostMatch: /chatgpt\.com|chat\.openai\.com/,
             label: 'ChatGPT',
             inputSelectors: ['#prompt-textarea','textarea[data-id="root"]','div[contenteditable="true"][id="prompt-textarea"]','textarea'],
-            sendSelectors: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','form button[class*="bottom"]'],
+            sendSelectors: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[class*="bottom"]','button[class*="send"]'],
             generatingSelectors: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]'],
             continueSelectors: ['button.btn-neutral:has(svg)'],
             continueText: ['Continue generating','Continue'],
@@ -251,6 +251,7 @@ Why this matters: accurate output comes from focused responses, not compressed o
         panelPos: GM_getValue('panelPos', null),
         lastProgress: null, // { step, total, desc }
         customProceed: GM_getValue('customProceed', ''),
+        staleTicks: 0,      // counts ticks with no progress
         customStop: GM_getValue('customStop', '')
         collapsed: GM_getValue('panelCollapsed', false),
         position: GM_getValue('panelPosition', 'top-right')
@@ -282,7 +283,9 @@ Why this matters: accurate output comes from focused responses, not compressed o
         if (el.getAttribute('contenteditable') === 'true') {
             el.focus(); el.innerHTML = '';
             if (!document.execCommand('insertText', false, text)) el.textContent = text;
+            // Dispatch both Event and InputEvent — React may listen to either
             el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
             return true;
         }
         if (PLATFORM.useNativeSetter && el.tagName === 'TEXTAREA') {
@@ -295,15 +298,42 @@ Why this matters: accurate output comes from focused responses, not compressed o
         return true;
     }
 
+    function simulateEnter(el) {
+        // Simulate Enter keypress — universal fallback when send button can't be found
+        ['keydown','keypress','keyup'].forEach(type => {
+            el.dispatchEvent(new KeyboardEvent(type, {
+                key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                bubbles: true, cancelable: true
+            }));
+        });
+    }
+
     function injectAndSend(text) {
         const input = getInput();
         if (!input) { setRunMode('ERROR', 'Input not found'); return false; }
         if (!injectText(input, text)) { setRunMode('ERROR', 'Inject failed'); return false; }
-        setTimeout(() => {
+
+        // Chain of send attempts with escalating delays
+        const attempt = (n) => {
             if (STATE.mode !== 'RUNNING') return;
-            const tryClick = () => { const btn = getSendBtn(); if (btn && !btn.disabled) { btn.click(); STATE.rounds++; render(); return true; } return false; };
-            if (!tryClick()) setTimeout(tryClick, 800);
-        }, 600);
+            const btn = getSendBtn();
+            if (btn && !btn.disabled) {
+                btn.click();
+                STATE.rounds++;
+                render();
+                return;
+            }
+            if (n < 3) {
+                // Retry after delay — mobile can be slow to enable the button
+                setTimeout(() => attempt(n + 1), 700);
+            } else {
+                // All button attempts failed — try Enter key as last resort
+                simulateEnter(input);
+                STATE.rounds++;
+                render();
+            }
+        };
+        setTimeout(() => attempt(0), 600);
         return true;
     }
 
@@ -381,13 +411,19 @@ Why this matters: accurate output comes from focused responses, not compressed o
 
         const tail = lastText.slice(-300);
         const signal = detectSignal(tail);
-        if (signal === 'halt')    { halt('✅ Done!'); return; }
-        if (signal === 'proceed') { statusDetail = ''; injectAndSend(PROCEED_TEXT); return; }
+        if (signal === 'halt')    { STATE.staleTicks=0; halt('✅ Done!'); return; }
+        if (signal === 'proceed') { STATE.staleTicks=0; statusDetail = ''; injectAndSend(PROCEED_TEXT); return; }
 
-        // No signal detected — AI deviated or didn't follow protocol
-        STATE.mode = 'PAUSED';
-        clearInterval(STATE.loopTimer);
-        setRunMode('PAUSED', 'No signal — review & resume');
+        // No signal — might be mid-generation or stuck
+        STATE.staleTicks++;
+        if (STATE.staleTicks >= 4) {
+            // Stuck for ~10s with no signal — pause and flag
+            STATE.staleTicks = 0;
+            STATE.mode = 'PAUSED';
+            clearInterval(STATE.loopTimer);
+            setRunMode('PAUSED', 'No signal — review & resume');
+        }
+        // Otherwise keep polling (AI might still be generating or page is slow)
     }
 
     function halt(reason) {
