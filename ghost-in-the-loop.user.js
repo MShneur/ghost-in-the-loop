@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.3.0
+// @version      4.4.0
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -197,6 +197,42 @@ Why this matters: accurate output comes from focused responses, not compressed o
     const PROCEED_KEYWORD = 'PROCEED';
     const PROCEED_TEXT    = 'Continue';
 
+    // ── Fuzzy detection patterns (lowercase substring match) ──────────────────
+    // These fire when our exact keywords aren't present but the AI clearly
+    // wants you to continue, or is signalling task completion.
+    const FUZZY_PROCEED = [
+        'to proceed',          // "► P to proceed", "click to proceed"
+        'shall i continue',
+        'should i continue',
+        'want me to continue',
+        'ready for the next',
+        "type 'continue'",
+        'type "continue"',
+        'type continue',
+        'press continue',
+        'say continue',
+        'let me know to continue',
+        'continue?',
+        'next section?',
+        'go on?',
+        'want me to go on',
+        'ready to proceed',
+        'awaiting your',
+    ];
+    const FUZZY_HALT = [
+        'session complete',    // "SESSION 6 COMPLETE"
+        'task complete',
+        'all sections complete',
+        'all parts complete',
+        'that concludes',
+        'this concludes',
+        'fully complete',
+        'everything is complete',
+        'all done',
+        'final section complete',
+        'sequence complete',
+    ];
+
     const CONFIG = {
         checkInterval: 2500,
         maxRounds: GM_getValue('maxRounds', 50),
@@ -214,6 +250,8 @@ Why this matters: accurate output comes from focused responses, not compressed o
         loopTimer: null,
         panelPos: GM_getValue('panelPos', null),
         lastProgress: null, // { step, total, desc }
+        customProceed: GM_getValue('customProceed', ''),
+        customStop: GM_getValue('customStop', '')
         collapsed: GM_getValue('panelCollapsed', false),
         position: GM_getValue('panelPosition', 'top-right')
     };
@@ -304,6 +342,28 @@ Why this matters: accurate output comes from focused responses, not compressed o
         render();
     }
 
+    function detectSignal(tail) {
+        const low = tail.toLowerCase();
+
+        // User custom keywords (comma-separated, case-insensitive)
+        const cStop    = STATE.customStop.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+        const cProceed = STATE.customProceed.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+
+        const isHalt = tail.includes(STOP_KEYWORD)
+            || FUZZY_HALT.some(p => low.includes(p))
+            || cStop.some(p => low.includes(p));
+
+        const isProceed = tail.includes(PROCEED_KEYWORD)
+            || FUZZY_PROCEED.some(p => low.includes(p))
+            || cProceed.some(p => low.includes(p))
+            || !!parseProgress(tail); // progress bar found = mid-task = proceed
+
+        // Proceed beats halt (safer: user can always press ■ to stop)
+        if (isProceed) return 'proceed';
+        if (isHalt)    return 'halt';
+        return null;
+    }
+
     function tick() {
         if (STATE.mode !== 'RUNNING') return;
         if (STATE.rounds >= CONFIG.maxRounds) { halt('Round limit hit'); return; }
@@ -320,13 +380,14 @@ Why this matters: accurate output comes from focused responses, not compressed o
         if (progress) { STATE.lastProgress = progress; render(); }
 
         const tail = lastText.slice(-300);
-        if (tail.includes(STOP_KEYWORD))    { halt('✅ Done!'); return; }
-        if (tail.includes(PROCEED_KEYWORD)) { statusDetail = ''; injectAndSend(PROCEED_TEXT); return; }
+        const signal = detectSignal(tail);
+        if (signal === 'halt')    { halt('✅ Done!'); return; }
+        if (signal === 'proceed') { statusDetail = ''; injectAndSend(PROCEED_TEXT); return; }
 
-        // AI deviated — auto-pause
+        // No signal detected — AI deviated or didn't follow protocol
         STATE.mode = 'PAUSED';
         clearInterval(STATE.loopTimer);
-        setRunMode('PAUSED', 'AI deviated — review then resume');
+        setRunMode('PAUSED', 'No signal — review & resume');
     }
 
     function halt(reason) {
@@ -507,6 +568,16 @@ Why this matters: accurate output comes from focused responses, not compressed o
         .g-peek.open { display:block; }
 
         .g-shortcuts { font-size:9px; color:#444; text-align:center; margin-top:5px; }
+        .g-kw-toggle { font-size:9px; color:#555; cursor:pointer; margin-top:6px;
+            padding-top:5px; border-top:1px solid #25262b; }
+        .g-kw-toggle:hover { color:#999; }
+        .g-kw-box { display:none; margin-top:5px; }
+        .g-kw-box.open { display:block; }
+        .g-kw-row { display:flex; flex-direction:column; gap:2px; margin-bottom:5px; }
+        .g-kw-row label { font-size:9px; color:#666; }
+        .g-kw-row input { background:#111; border:1px solid #2e2f35; border-radius:4px;
+            color:#ccc; font-size:9px; padding:3px 5px; font-family:inherit; width:100%; }
+        .g-kw-row input:focus { outline:none; border-color:#4338ca; }
         .g-pos-btns { display:flex; gap:3px; }
         .g-pos { background:#25262b; border:1px solid #3a3b42; color:#888;
             font-size:12px; width:22px; height:20px; cursor:pointer; border-radius:4px;
@@ -614,6 +685,18 @@ Why this matters: accurate output comes from focused responses, not compressed o
                     <button class="g-pos${STATE.position==='bottom-bar'?' act':''}" data-pos="bottom-bar" title="Bottom Bar" style="font-size:9px;padding:2px 5px">━━</button>
                 </div>
             </div>
+            <div class="g-kw-toggle" id="gitl-kw-toggle">⚙ Custom keywords</div>
+            <div class="g-kw-box${(STATE.customProceed||STATE.customStop)?' open':''}" id="gitl-kw-box">
+                <div class="g-kw-row">
+                    <label>▶ Proceed on:</label>
+                    <input id="gitl-cproceed" type="text" placeholder="e.g. next step, go on" value="${STATE.customProceed}">
+                </div>
+                <div class="g-kw-row">
+                    <label>■ Stop on:</label>
+                    <input id="gitl-cstop" type="text" placeholder="e.g. finished, all done" value="${STATE.customStop}">
+                </div>
+                <div style="font-size:8px;color:#555;margin-top:3px">Comma-separated · case-insensitive · substring match</div>
+            </div>
             <div class="g-peek-btn" id="gitl-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
             <div class="g-peek${peekOpen?' open':''}" id="gitl-peek">${PAYLOADS[pm].preview}</div>
             <div class="g-shortcuts">Alt+P toggle · Alt+S stop</div>
@@ -664,6 +747,19 @@ Why this matters: accurate output comes from focused responses, not compressed o
                 applyPosition(STATE.position);
                 render();
             });
+        });
+
+        document.getElementById('gitl-kw-toggle')?.addEventListener('click', () => {
+            const box = document.getElementById('gitl-kw-box');
+            if (box) box.classList.toggle('open');
+        });
+        document.getElementById('gitl-cproceed')?.addEventListener('change', e => {
+            STATE.customProceed = e.target.value;
+            GM_setValue('customProceed', e.target.value);
+        });
+        document.getElementById('gitl-cstop')?.addEventListener('change', e => {
+            STATE.customStop = e.target.value;
+            GM_setValue('customStop', e.target.value);
         });
 
         document.getElementById('gitl-peek-btn')?.addEventListener('click', () => {
