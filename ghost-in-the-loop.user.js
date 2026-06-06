@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.2.2
+// @version      4.2.3
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -320,7 +320,7 @@ Why this matters: accurate output comes from focused responses, not compressed o
 
         const tail = lastText.slice(-300);
         if (tail.includes(STOP_KEYWORD))    { halt('✅ Done!'); return; }
-        if (tail.includes(PROCEED_KEYWORD)) { injectAndSend(PROCEED_TEXT); return; }
+        if (tail.includes(PROCEED_KEYWORD)) { statusDetail = ''; injectAndSend(PROCEED_TEXT); return; }
 
         // AI deviated — auto-pause
         STATE.mode = 'PAUSED';
@@ -336,26 +336,54 @@ Why this matters: accurate output comes from focused responses, not compressed o
         if (CONFIG.soundOnComplete) playBeep();
     }
 
+    function hasConversation() {
+        // Returns true if there are already assistant messages on the page
+        return qAll(PLATFORM.assistantSelector).length > 0;
+    }
+
     function startLoop() {
         if (STATE.mode === 'RUNNING') return;
-        if (STATE.needsPayload) {
-            const input = getInput();
+
+        const input = getInput();
+        const typedText = input ? (input.value || input.textContent || '').trim() : '';
+
+        // CASE 1: Resume from pause — already mid-loop, no payload needed
+        if (!STATE.needsPayload) {
+            STATE.mode = 'RUNNING';
+            STATE.loopTimer = setInterval(tick, CONFIG.checkInterval);
+            render();
+            tick();
+            return;
+        }
+
+        // CASE 2: Input has text — new cycle with payload injection
+        if (typedText) {
             if (!input) { setRunMode('ERROR', 'No input element'); return; }
-            const currentText = (input.value || input.textContent || '').trim();
-            if (!currentText) { setRunMode('ERROR', 'Type a prompt first'); return; }
             STATE.needsPayload = false;
             STATE.rounds = 0;
             STATE.lastProgress = null;
             STATE.mode = 'RUNNING';
-            injectAndSend(currentText + PAYLOADS[STATE.payloadMode].inject);
+            injectAndSend(typedText + PAYLOADS[STATE.payloadMode].inject);
             STATE.loopTimer = setInterval(tick, CONFIG.checkInterval);
             render();
             return;
         }
-        STATE.mode = 'RUNNING';
-        STATE.loopTimer = setInterval(tick, CONFIG.checkInterval);
-        render();
-        tick();
+
+        // CASE 3: Input empty but conversation exists — resume mid-session
+        // (covers crashes, refreshes, or manual mid-conversation starts)
+        if (hasConversation()) {
+            STATE.needsPayload = false;
+            STATE.rounds = 0;
+            STATE.lastProgress = null;
+            STATE.mode = 'RUNNING';
+            setRunMode('RUNNING', 'Resuming existing session…');
+            injectAndSend(PROCEED_TEXT);
+            STATE.loopTimer = setInterval(tick, CONFIG.checkInterval);
+            return;
+        }
+
+        // CASE 4: Nothing to work with
+        setRunMode('ERROR', 'Type a prompt or open an existing chat');
     }
 
     function pauseLoop() {
@@ -513,7 +541,7 @@ Why this matters: accurate output comes from focused responses, not compressed o
         const colors = { IDLE:'#666', RUNNING:'#34d399', PAUSED:'#fbbf24', COMPLETE:'#818cf8', ERROR:'#f87171' };
         const labels = {
             IDLE: 'Ready — type a prompt and press ▶',
-            RUNNING: `Round ${STATE.rounds} of ${CONFIG.maxRounds}`,
+            RUNNING: statusDetail || `Round ${STATE.rounds} of ${CONFIG.maxRounds}`,
             PAUSED: statusDetail || 'Paused',
             COMPLETE: statusDetail || 'Complete',
             ERROR: statusDetail || 'Error'
