@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.2.3
+// @version      4.3.0
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -214,7 +214,8 @@ Why this matters: accurate output comes from focused responses, not compressed o
         loopTimer: null,
         panelPos: GM_getValue('panelPos', null),
         lastProgress: null, // { step, total, desc }
-        collapsed: GM_getValue('panelCollapsed', false)
+        collapsed: GM_getValue('panelCollapsed', false),
+        position: GM_getValue('panelPosition', 'top-right')
     };
 
     // ═══════════════════════════════════════════════════════════════
@@ -370,14 +371,17 @@ Why this matters: accurate output comes from focused responses, not compressed o
         }
 
         // CASE 3: Input empty but conversation exists — resume mid-session
-        // (covers crashes, refreshes, or manual mid-conversation starts)
+        // Inject a brief protocol reminder so the AI knows to output PROCEED/SYSTEM_HALT
         if (hasConversation()) {
+            const resumeText = `Continue.
+
+[Reminder: end each response with a progress line — ████░░░░ [Step X of Y] — then PROCEED if more steps remain, or SYSTEM_HALT when fully done.]`;
             STATE.needsPayload = false;
             STATE.rounds = 0;
             STATE.lastProgress = null;
             STATE.mode = 'RUNNING';
-            setRunMode('RUNNING', 'Resuming existing session…');
-            injectAndSend(PROCEED_TEXT);
+            setRunMode('RUNNING', 'Resuming session…');
+            injectAndSend(resumeText);
             STATE.loopTimer = setInterval(tick, CONFIG.checkInterval);
             return;
         }
@@ -503,6 +507,13 @@ Why this matters: accurate output comes from focused responses, not compressed o
         .g-peek.open { display:block; }
 
         .g-shortcuts { font-size:9px; color:#444; text-align:center; margin-top:5px; }
+        .g-pos-btns { display:flex; gap:3px; }
+        .g-pos { background:#25262b; border:1px solid #3a3b42; color:#888;
+            font-size:12px; width:22px; height:20px; cursor:pointer; border-radius:4px;
+            display:flex; align-items:center; justify-content:center; transition:all .15s; }
+        .g-pos:hover { background:#3a3b42; color:#fff; }
+        .g-pos.act { background:#1e1b4b; border-color:#4338ca; color:#a5b4fc; }
+        #gitl-panel.pos-bottom-bar { border-radius:10px 10px 0 0 !important; }
         /* Collapse */
         #gitl-panel.collapsed { width:auto; min-width:180px; }
         #gitl-panel.collapsed .g-body { display:none; }
@@ -593,6 +604,16 @@ Why this matters: accurate output comes from focused responses, not compressed o
                 <span>🔔 Sound on complete</span>
                 <div class="g-toggle${CONFIG.soundOnComplete?' on':''}" id="gitl-sound"></div>
             </div>
+            <div class="g-setting" style="margin-top:5px">
+                <span>📍 Position</span>
+                <div class="g-pos-btns">
+                    <button class="g-pos${STATE.position==='top-left'?' act':''}" data-pos="top-left" title="Top Left">↖</button>
+                    <button class="g-pos${STATE.position==='top-right'?' act':''}" data-pos="top-right" title="Top Right">↗</button>
+                    <button class="g-pos${STATE.position==='bot-left'?' act':''}" data-pos="bot-left" title="Bottom Left">↙</button>
+                    <button class="g-pos${STATE.position==='bot-right'?' act':''}" data-pos="bot-right" title="Bottom Right">↘</button>
+                    <button class="g-pos${STATE.position==='bottom-bar'?' act':''}" data-pos="bottom-bar" title="Bottom Bar" style="font-size:9px;padding:2px 5px">━━</button>
+                </div>
+            </div>
             <div class="g-peek-btn" id="gitl-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
             <div class="g-peek${peekOpen?' open':''}" id="gitl-peek">${PAYLOADS[pm].preview}</div>
             <div class="g-shortcuts">Alt+P toggle · Alt+S stop</div>
@@ -636,6 +657,15 @@ Why this matters: accurate output comes from focused responses, not compressed o
             render();
         });
 
+        document.querySelectorAll('.g-pos').forEach(btn => {
+            btn.addEventListener('click', () => {
+                STATE.position = btn.dataset.pos;
+                GM_setValue('panelPosition', STATE.position);
+                applyPosition(STATE.position);
+                render();
+            });
+        });
+
         document.getElementById('gitl-peek-btn')?.addEventListener('click', () => {
             const box = document.getElementById('gitl-peek');
             const btn = document.getElementById('gitl-peek-btn');
@@ -651,17 +681,29 @@ Why this matters: accurate output comes from focused responses, not compressed o
     render();
 
     // ═══════════════════════════════════════════════════════════════
-    // 11. DRAGGABLE
+    // 11. POSITION PRESETS (replaces drag — works on mobile + desktop)
     // ═══════════════════════════════════════════════════════════════
-    let dragging=false, offX=0, offY=0;
-    function bindDrag() {
-        const handle = document.getElementById('gitl-drag');
-        if (!handle) return;
-        if (STATE.panelPos) { panel.style.right='auto'; panel.style.left=STATE.panelPos.x+'px'; panel.style.top=STATE.panelPos.y+'px'; }
-        handle.addEventListener('mousedown', e => { dragging=true; const r=panel.getBoundingClientRect(); offX=e.clientX-r.left; offY=e.clientY-r.top; e.preventDefault(); });
+    function applyPosition(pos) {
+        const p = panel;
+        // Reset all positioning
+        p.style.top = p.style.bottom = p.style.left = p.style.right = 'auto';
+        p.style.width = '248px';
+        p.style.transform = '';
+        p.classList.remove('pos-bottom-bar');
+
+        const GAP = '12px';
+        if (pos === 'top-right')    { p.style.top=GAP; p.style.right=GAP; }
+        else if (pos === 'top-left'){ p.style.top=GAP; p.style.left=GAP; }
+        else if (pos === 'bot-right'){ p.style.bottom=GAP; p.style.right=GAP; }
+        else if (pos === 'bot-left'){ p.style.bottom=GAP; p.style.left=GAP; }
+        else if (pos === 'bottom-bar'){
+            p.style.bottom='0'; p.style.left='0'; p.style.right='0';
+            p.style.width='100%'; p.style.borderRadius='10px 10px 0 0';
+            p.classList.add('pos-bottom-bar');
+        }
     }
-    document.addEventListener('mousemove', e => { if(!dragging) return; panel.style.right='auto'; panel.style.left=(e.clientX-offX)+'px'; panel.style.top=(e.clientY-offY)+'px'; });
-    document.addEventListener('mouseup', () => { if(!dragging) return; dragging=false; const r=panel.getBoundingClientRect(); STATE.panelPos={x:r.left,y:r.top}; GM_setValue('panelPos',STATE.panelPos); });
+
+    function bindDrag() { applyPosition(STATE.position); }
 
     // ═══════════════════════════════════════════════════════════════
     // 12. KEYBOARD SHORTCUTS
