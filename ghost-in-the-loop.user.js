@@ -211,7 +211,8 @@ Why this matters: accurate output comes from focused responses, not compressed o
         needsPayload: true,
         loopTimer: null,
         panelPos: GM_getValue('panelPos', null),
-        lastProgress: null  // { step, total, desc }
+        lastProgress: null, // { step, total, desc }
+        collapsed: GM_getValue('panelCollapsed', false)
     };
 
     // ═══════════════════════════════════════════════════════════════
@@ -472,6 +473,20 @@ Why this matters: accurate output comes from focused responses, not compressed o
         .g-peek.open { display:block; }
 
         .g-shortcuts { font-size:9px; color:#444; text-align:center; margin-top:5px; }
+        /* Collapse */
+        #gitl-panel.collapsed { width:auto; min-width:160px; }
+        #gitl-panel.collapsed .g-body { display:none; }
+        .g-collapse { background:none; border:none; color:#555; font-size:11px;
+            cursor:pointer; padding:0 0 0 6px; line-height:1; font-family:inherit; }
+        .g-collapse:hover { color:#aaa; }
+        .g-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
+            background:#555; margin-left:6px; vertical-align:middle;
+            transition:background .3s; }
+        .g-dot.running { background:#34d399; box-shadow:0 0 4px #34d399; }
+        .g-dot.paused  { background:#fbbf24; }
+        .g-dot.error   { background:#f87171; }
+        .g-dot.done    { background:#818cf8; }
+
     `);
 
     const panel = document.createElement('div');
@@ -505,11 +520,13 @@ Why this matters: accurate output comes from focused responses, not compressed o
         const pm = STATE.payloadMode;
         const hint = PAYLOADS[pm].hint;
 
+        panel.className = STATE.collapsed ? 'collapsed' : '';
         panel.innerHTML = `
             <div class="g-header" id="gitl-drag">
-                <span class="g-title">👻 Ghost Loop</span>
-                <span class="g-plat">${PLATFORM.label}</span>
+                <span class="g-title">👻 Ghost Loop<span class="g-dot ${STATE.mode==='RUNNING'?'running':STATE.mode==='PAUSED'?'paused':STATE.mode==='COMPLETE'?'done':STATE.mode==='ERROR'?'error':''}" id="gitl-dot"></span></span>
+                <span style="display:flex;align-items:center;gap:4px"><span class="g-plat">${PLATFORM.label}</span><button class="g-collapse" id="gitl-collapse" title="Collapse / Expand">${STATE.collapsed?'↗':'↙'}</button></span>
             </div>
+            <div class="g-body">
             <div class="g-modes">
                 <button class="g-mode${pm==='loop'?' active':''}" id="mode-loop">${PAYLOADS.loop.label}</button>
                 <button class="g-mode${pm==='think'?' active':''}" id="mode-think">${PAYLOADS.think.label}</button>
@@ -533,6 +550,7 @@ Why this matters: accurate output comes from focused responses, not compressed o
             <div class="g-peek-btn" id="gitl-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
             <div class="g-peek${peekOpen?' open':''}" id="gitl-peek">${PAYLOADS[pm].preview}</div>
             <div class="g-shortcuts">Alt+P toggle · Alt+S stop</div>
+            </div>
         `;
 
         // ——— Bind events ———
@@ -560,6 +578,12 @@ Why this matters: accurate output comes from focused responses, not compressed o
             this.classList.toggle('on');
             CONFIG.soundOnComplete = this.classList.contains('on');
             GM_setValue('soundOnComplete', CONFIG.soundOnComplete);
+        });
+
+        document.getElementById('gitl-collapse')?.addEventListener('click', () => {
+            STATE.collapsed = !STATE.collapsed;
+            GM_setValue('panelCollapsed', STATE.collapsed);
+            render();
         });
 
         document.getElementById('gitl-peek-btn')?.addEventListener('click', () => {
