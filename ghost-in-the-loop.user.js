@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      4.2.1
+// @version      4.2.2
 // @description  👻 Your AI never shuts up (on purpose). Universal auto-proceed for ChatGPT, Perplexity, Gemini, DeepSeek, Copilot, Grok.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -476,11 +476,23 @@ Why this matters: accurate output comes from focused responses, not compressed o
 
         .g-shortcuts { font-size:9px; color:#444; text-align:center; margin-top:5px; }
         /* Collapse */
-        #gitl-panel.collapsed { width:auto; min-width:160px; }
+        #gitl-panel.collapsed { width:auto; min-width:180px; }
         #gitl-panel.collapsed .g-body { display:none; }
-        .g-collapse { background:none; border:none; color:#555; font-size:11px;
-            cursor:pointer; padding:0 0 0 6px; line-height:1; font-family:inherit; }
-        .g-collapse:hover { color:#aaa; }
+        #gitl-panel.collapsed .g-header { margin-bottom:6px; }
+        .g-collapsed-controls { display:none; align-items:center; gap:8px;
+            padding:4px 0 2px; }
+        #gitl-panel.collapsed .g-collapsed-controls { display:flex; }
+        .g-quickbtn { flex:none; width:36px; height:28px; border:none; border-radius:6px;
+            font-size:14px; cursor:pointer; transition:all .15s; font-family:inherit; }
+        .g-quickbtn.play { background:#064e3b; color:#34d399; }
+        .g-quickbtn.play:hover { background:#065f46; }
+        .g-quickbtn.pause { background:#422006; color:#fbbf24; border:1px solid #78350f; }
+        .g-quickbtn.pause:hover { background:#78350f; }
+        .g-quickstatus { font-size:10px; font-weight:600; }
+        .g-collapse { background:#25262b; border:1px solid #3a3b42; color:#aaa;
+            font-size:10px; cursor:pointer; padding:2px 6px; border-radius:4px;
+            line-height:1.4; font-family:inherit; font-weight:700; transition:all .15s; }
+        .g-collapse:hover { background:#3a3b42; color:#fff; }
         .g-dot { display:inline-block; width:6px; height:6px; border-radius:50%;
             background:#555; margin-left:6px; vertical-align:middle;
             transition:background .3s; }
@@ -526,7 +538,11 @@ Why this matters: accurate output comes from focused responses, not compressed o
         panel.innerHTML = `
             <div class="g-header" id="gitl-drag">
                 <span class="g-title">👻 Ghost Loop<span class="g-dot ${STATE.mode==='RUNNING'?'running':STATE.mode==='PAUSED'?'paused':STATE.mode==='COMPLETE'?'done':STATE.mode==='ERROR'?'error':''}" id="gitl-dot"></span></span>
-                <span style="display:flex;align-items:center;gap:4px"><span class="g-plat">${PLATFORM.label}</span><button class="g-collapse" id="gitl-collapse" title="Collapse / Expand">${STATE.collapsed?'↗':'↙'}</button></span>
+                <span style="display:flex;align-items:center;gap:6px"><span class="g-plat">${PLATFORM.label}</span><button class="g-collapse" id="gitl-collapse" title="${STATE.collapsed?'Expand':'Minimize'}">${STATE.collapsed?'▲':'▼'}</button></span>
+            </div>
+            <div class="g-collapsed-controls" id="gitl-collapsed-ctrl">
+                <button class="g-quickbtn ${STATE.mode==='RUNNING'?'pause':'play'}" id="gitl-quick">${STATE.mode==='RUNNING'?'⏸':'▶'}</button>
+                <span class="g-quickstatus" style="color:${STATE.mode==='RUNNING'?'#34d399':STATE.mode==='PAUSED'?'#fbbf24':STATE.mode==='COMPLETE'?'#818cf8':'#555'}">${STATE.mode==='RUNNING'?'Running…':STATE.mode==='PAUSED'?'Paused':STATE.mode==='COMPLETE'?'Done':'Idle'}</span>
             </div>
             <div class="g-body">
             <div class="g-modes">
@@ -580,6 +596,10 @@ Why this matters: accurate output comes from focused responses, not compressed o
             this.classList.toggle('on');
             CONFIG.soundOnComplete = this.classList.contains('on');
             GM_setValue('soundOnComplete', CONFIG.soundOnComplete);
+        });
+
+        document.getElementById('gitl-quick')?.addEventListener('click', () => {
+            STATE.mode === 'RUNNING' ? pauseLoop() : startLoop();
         });
 
         document.getElementById('gitl-collapse')?.addEventListener('click', () => {

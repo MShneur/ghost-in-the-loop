@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop — v4.2.1
+# 👻 Ghost in the Loop — v4.2.2
 
 > *You've already done this. More than once. You handed the AI something large, received back something that was almost right, and accepted it because asking again felt like admitting something. This fixes that.*
 
