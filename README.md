@@ -1,166 +1,158 @@
-# 👻 Ghost in the Loop
+# 👻 Ghost in the Loop — v4.2.0
 
-**Your AI never shuts up — on purpose.**
+> *You've already done this. More than once. You handed the AI something large, received back something that was almost right, and accepted it because asking again felt like admitting something. This fixes that.*
 
-A Tampermonkey/Violentmonkey userscript that automates multi-step AI conversations. Type your prompt, press Play, and walk away. The script injects a loop protocol, watches for progress signals, and keeps sending "Continue" until the AI says it's done.
-
-Works across **6 platforms**. Zero configuration. No API keys needed.
+A Tampermonkey userscript that automates multi-step AI conversations across six platforms. Press play. Walk away. Come back when the chime plays.
 
 ---
 
-## Supported Platforms
+## The Problem
 
-| Platform | Status | Notes |
-|----------|--------|-------|
-| **ChatGPT** (chatgpt.com) | ✅ Tested | Full support incl. "Continue generating" auto-click |
-| **Perplexity** (perplexity.ai) | ✅ Tested | Multi-fallback selectors for their SPA |
-| **Gemini** (gemini.google.com) | 🔶 Beta | ContentEditable injection |
-| **DeepSeek** (chat.deepseek.com) | 🔶 Beta | Convention-based selectors |
-| **Copilot** (copilot.microsoft.com) | 🔶 Beta | Convention-based selectors |
-| **Grok** (grok.com) | 🔶 Beta | Convention-based selectors |
+Every model you're using — GPT-4o, Claude, Gemini, Perplexity, DeepSeek — runs on a fixed reasoning budget. When you hand it a large task all at once, it doesn't slow down and think harder. It compresses. It fills the back half of your response with things that *sound* correct. It does this without flagging it, because it doesn't know it's doing it.
 
-> **Beta** means the DOM selectors are based on common patterns but haven't been battle-tested on every UI revision. If something breaks, open an issue with the platform name and I'll fix the selectors.
+The people who consistently get exceptional output break the work into focused steps — one piece per response, each verified before the next. The quality difference isn't subtle.
+
+The problem is that someone has to sit there and type *proceed* after every response. For a ten-step task, that's ten interruptions. Most people abandon perfectly good workflows around step four because they got up for coffee. Ghost in the Loop handles the relay.
 
 ---
 
-## How It Works
+## Two Modes
 
-```
-You type a prompt
-        │
-        ▼
-   Press ▶ Play
-        │
-        ▼
-Script silently appends the Loop Protocol ──────────────────────┐
-        │                                                       │
-        ▼                                                       │
-   AI receives your prompt + hidden instructions:               │
-   "End each response with [Step X/Y] progress bar.             │
-    Last word = PROCEED if more steps, SYSTEM_HALT if done."    │
-        │                                                       │
-        ▼                                                       │
-   AI responds: "...████░░░░ [Step 2/8] — built schema PROCEED"│
-        │                                                       │
-        ▼                                                       │
-   Script sees PROCEED → sends "Continue" ──────────── loops ──┘
-        │
-        ▼ (when AI outputs SYSTEM_HALT)
-        │
-   🔔 Chime plays. Script stops. Panel shows ✅ Complete.
-        │
-        ▼
-   Type new prompt → Press ▶ → Fresh cycle starts automatically.
-```
+### ▶ Loop
+You know your task is multi-step. Press play. The script appends a loop protocol to your prompt, watches every response for the continuation signal, sends "Continue" automatically, and stops with a chime when the AI declares it's done.
+
+*Best for:* structured tasks where you already know the scope — writing a document in sections, building a feature, refactoring a module.
+
+### 🧠 Think First
+For complex or open-ended tasks where you don't know how many steps are needed. The AI reads the task, decides how many focused batches are appropriate at ~80% response capacity (a deliberate safety margin), states the plan explicitly, and then executes it. You come back to a completed plan *and* a completed task.
+
+*Best for:* research, open-ended writing, anything where the scope isn't obvious upfront.
 
 ---
 
 ## Install
 
-### Prerequisites
-- [Tampermonkey](https://www.tampermonkey.net/) (Chrome, Firefox, Edge) **or** [Violentmonkey](https://violentmonkey.github.io/) (Chrome, Firefox)
+1. Install **[Tampermonkey](https://www.tampermonkey.net/)** for Chrome, Firefox, or Edge
+2. Open Tampermonkey → **Create a new script** → delete the template
+3. Paste the contents of **[ghost-in-the-loop.user.js](ghost-in-the-loop.user.js)** → Save
+4. Navigate to any supported platform — the panel appears in the top-right corner
 
-### One-Click Install
-> Coming soon — Greasy Fork listing
-
-### Manual Install
-1. Open Tampermonkey → **Create a new script**
-2. Delete the template code
-3. Copy the entire contents of [`ghost-in-the-loop.user.js`](ghost-in-the-loop.user.js) and paste it in
-4. **Ctrl+S** to save
-5. Navigate to any supported AI chat — the panel appears in the top-right corner
+**Supported platforms:** ChatGPT · Perplexity · Gemini · DeepSeek · Copilot · Grok
 
 ---
 
 ## Usage
 
-### The Basic Loop
-1. **Type your prompt** into the AI's chat input (don't send it yourself)
-2. **Press ▶** on the Ghost panel
-3. The script appends the loop protocol and sends for you
-4. Watch the progress bar fill up as the AI works through steps
-5. When the AI outputs `SYSTEM_HALT`, the script stops and plays a chime
-6. **Type a new prompt → Press ▶ again** — fresh cycle, fresh protocol injection
+```
+Type your prompt → Select a mode → Press ▶ → Do something else.
+```
+
+The panel handles everything from here. When the AI finishes, a chime plays and the panel shows ✅ Done. Type your next prompt and press ▶ again — the payload resets automatically.
 
 ### Panel Controls
 
-| Button | Action | Shortcut |
-|--------|--------|----------|
-| **▶** | Start new cycle / Resume from pause | `Alt+P` |
-| **⏸** | Pause the loop (won't send next "Continue") | `Alt+P` |
-| **■** | Full stop — resets round counter | `Alt+S` |
-
-### Panel Features
-- **Live progress bar** — mirrors the AI's `[Step X/Y]` output
-- **Round counter** — how many Continue messages sent
-- **Round limit** — safety cap (default 50, configurable)
-- **Sound toggle** — two-tone chime on completion
-- **▸ Show injected prompt** — expand to see exactly what protocol text is appended
-- **Draggable** — grab the header to reposition; position persists across sessions
+| Control | Action | Shortcut |
+|---------|--------|----------|
+| **▶** | Start / Resume | `Alt+P` |
+| **⏸** | Pause the loop | `Alt+P` |
+| **■** | Stop and reset | `Alt+S` |
+| Mode toggle | Switch between Loop / Think First | Click |
+| `▸ What gets injected` | See exactly what text is appended | Click |
 
 ### Safety Features
-- **Round limit**: Caps at 50 by default (configurable 1–999) to prevent runaway token burn
-- **Deviation detection**: If the AI responds without `PROCEED` or `SYSTEM_HALT`, the script **auto-pauses** and flags "AI deviated — review output"
-- **No hidden behavior**: Click "Show injected prompt" to see every word that gets appended
+
+- **Round limit** — configurable cap (default 50) prevents token runaway
+- **Deviation detection** — if the AI goes off-script, the loop auto-pauses and flags it
+- **80% response margin** *(Think First only)* — the AI is instructed to use ~80% of its comfortable response length per batch, leaving room for clean, accurate output rather than a rushed finish
+- **Payload transparency** — every word appended to your prompt is visible in the panel
 
 ---
 
-## The Injected Protocol
+## What Gets Appended to Your Prompt
 
-This is what gets silently appended to your first message each cycle. You can view it anytime in the panel.
-
+### Loop Mode
 ```
-[LOOP PROTOCOL — follow exactly]
-1. Execute this task step by step. One logical chunk per response.
-2. At the END of every response, print a progress bar in this exact format:
-   ████░░░░ [Step X/Y] — short description of what you just completed
-3. After the progress bar, on a new line:
-   - If MORE steps remain, your absolute last word must be: PROCEED
-   - If the ENTIRE task is COMPLETE, your absolute last word must be: SYSTEM_HALT
-4. Do NOT ask clarifying questions. Make reasonable assumptions and execute.
-5. Do NOT skip the progress bar or the final keyword. The automation depends on it.
+[Ghost in the Loop — loop mode]
+Execute this task step by step. One focused section per response.
+
+At the end of every response, print:
+████░░░░ [Step X of Y] — one line describing what you just completed
+
+Then: PROCEED if more steps remain, SYSTEM_HALT when fully done.
+```
+
+### Think First Mode
+```
+[Ghost in the Loop — think first mode]
+Before doing any work, read this task and plan how to complete it in focused batches.
+
+Response 1 — plan only: Decide how many batches the task needs at ~80% response
+capacity. List the plan briefly. End with: PROCEED
+
+Each subsequent response: complete one batch, end with:
+████░░░░ [Batch X of Y] — description
+Then: PROCEED or SYSTEM_HALT
 ```
 
 ---
 
 ## Configuration
 
-Settings persist across sessions via `GM_getValue`/`GM_setValue`:
+All settings persist via `GM_getValue`/`GM_setValue`:
 
-| Setting | Default | Where to change |
-|---------|---------|----------------|
-| Round limit | 50 | Panel input field |
+| Setting | Default | Where |
+|---------|---------|-------|
+| Mode (Loop / Think First) | Loop | Mode toggle |
+| Round limit | 50 | Panel input |
 | Sound on complete | On | Panel toggle |
 | Panel position | Top-right | Drag the header |
 
-To modify the injected protocol text, edit the `PAYLOAD_INJECT` constant in the script source.
+---
+
+## Platform Notes
+
+| Platform | Input Method | Notes |
+|----------|-------------|-------|
+| ChatGPT | React native setter | Full support including "Continue generating" auto-click |
+| Perplexity | ContentEditable + fallback chain | 7 selector fallbacks for their SPA |
+| Gemini | ContentEditable | Beta — DOM changes frequently |
+| DeepSeek | Plain textarea | Beta — convention-based selectors |
+| Copilot | Plain textarea | Beta — convention-based selectors |
+| Grok | Mixed | Beta — convention-based selectors |
+
+> **Beta** means selectors are based on observed patterns, not hardened against every UI revision. Open an issue with the platform name if something breaks — selector fixes take ten minutes.
 
 ---
 
 ## Troubleshooting
 
-**Script doesn't appear on the page**
-- Check Tampermonkey dashboard — is the script enabled?
-- Verify the URL matches one of the `@match` patterns
+**Panel doesn't appear**
+Check that the script is enabled in Tampermonkey and the URL matches one of the `@match` patterns.
 
-**Play button shows "No input element"**
-- The platform may have changed its DOM. Open an issue with the platform name.
+**"Type a prompt first" error**
+The input field wasn't detected before you pressed play. Try clicking into the chat input first, then press play.
 
 **AI doesn't follow the protocol**
-- Some models ignore system-style instructions more than others. Works best with ChatGPT (GPT-4/4o), Perplexity Pro, and DeepSeek.
-- If the AI asks a clarifying question instead of executing, the script will auto-pause. Answer the question manually, then press ▶ to resume.
+Works most reliably on ChatGPT (GPT-4o), Perplexity Pro, and DeepSeek. If the AI asks a clarifying question instead of executing, the loop auto-pauses — answer the question manually, then press ▶ to resume.
 
-**Progress bar not showing in panel**
-- The AI needs to output `[Step X/Y]` format. If it uses a different format, the regex won't catch it. The loop still works — you just won't see the visual progress.
+**Progress bar not updating**
+The AI needs to output `[Step X of Y]` or `[Batch X of Y]` format. The loop still works without it — you just won't see visual progress.
 
 ---
 
 ## Contributing
 
-PRs welcome, especially for:
-- **New platform support** — add a profile to the `PLATFORMS` object
-- **Selector fixes** — when platforms update their DOM
-- **Better protocol text** — if you find wording that gets more reliable compliance from models
+PRs welcome. Most useful contributions:
+
+- **Selector fixes** when platforms update their DOM
+- **New platform profiles** — add an entry to the `PLATFORMS` object
+- **Protocol improvements** — better wording that gets more consistent compliance across models
+
+---
+
+## Related
+
+- [CTRL-AI](https://github.com/MShneur/CTRL-AI) — AI governance framework by the same author
 
 ---
 
@@ -170,14 +162,4 @@ PRs welcome, especially for:
 
 ---
 
-## Related Projects
-
-- [chatgpt-auto-continue](https://github.com/adamlui/chatgpt-auto-continue) — Auto-clicks "Continue generating" (single-platform, different use case)
-- [CTRL-AI](https://github.com/MShneur/CTRL-AI) — AI governance framework by the same author
-
----
-
-<p align="center">
-  <i>Named after the ghost that refuses to leave the machine.</i><br>
-  <sub>A <a href="https://github.com/MShneur/CTRL-AI">CTRL-AI</a> project.</sub>
-</p>
+<p align="center"><sub>Named after the ghost that refuses to leave the machine.</sub></p>
