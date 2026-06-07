@@ -72,3 +72,35 @@ V3 introduced a strict three-state machine: RUNNING, PAUSED, and COMPLETE. Devia
 ---
 
 *All version numbers follow [Semantic Versioning](https://semver.org).*
+
+---
+
+## [5.0.0] — Reliability Core
+
+**The question that drove this release:** what if every assumption about signal detection, text injection, and loop lifecycle was wrong?
+
+An extended audit — cross-referencing Code Copilot's architectural proposals, a PHP developer's DOM resilience review, competitive analysis of adamlui/chatgpt-auto-continue, fogel.dev's MutationObserver research, and Mozilla's WebExtension documentation — revealed that the v4 architecture was correct in intention but fragile in execution. The selector chains worked but weren't cached. The signal detection worked but couldn't distinguish a quoted `PROCEED` from a real one. The send engine worked but had no lock, no fallback timing, and no defense against automation detection heuristics.
+
+v5.0 is a clean rewrite around six principles:
+
+1. **Halt-first priority.** HALT always wins. A false halt costs one click to resume; a false proceed costs tokens, context, and potentially an automation flag. The prior "proceed beats halt" rule was reversed after red-team analysis showed it created silent runaway conditions.
+
+2. **Confidence scoring.** Signals are weighted: unique sigils (`[[GITL::PROCEED]]`) score +4, legacy keywords +3, fuzzy patterns +2, progress bars +2. Minimum threshold of 3 required to act. The panel shows the score so the user can see exactly why the script did or didn't continue.
+
+3. **Randomized inter-message delay.** 8–15 seconds, drawn uniformly at random. This is not a performance feature — it is a defense against automation detection on platforms that monitor message cadence. The delay adds latency the user is already absent for and costs nothing.
+
+4. **Watchdog timer.** Borrowed from embedded systems practice. Stage 1 (soft, 90s) logs a warning. Stage 2 (hard, 180s) pauses the loop. Every successful DOM mutation or send operation resets the timer. If feeds stop, the script assumes it's stuck — selector break, network failure, or platform error state — and fails safely.
+
+5. **Send lock + triple fallback.** The send engine acquires a lock (preventing double-sends from tick/observer race conditions), injects text, waits 500ms for the platform to enable the send button, clicks it if found, retries once at 600ms, and falls back to a synthetic Enter keypress if both button attempts fail. The lock releases after 1500ms. The panel reports which path succeeded.
+
+6. **Unique signal tokens.** `[[GITL::PROCEED]]` and `[[GITL::HALT]]` are vanishingly unlikely to appear in normal AI output, code blocks, or quoted text. The engine still recognizes legacy `PROCEED`/`SYSTEM_HALT` (weighted lower) for backward compatibility and third-party workflows.
+
+**Also in this release:**
+- Firefox Manifest V3 extension with GM↔browser.storage shim
+- SPA route detection via pushState/replaceState monkey-patching
+- Selector caching with route-change invalidation
+- TXT and JSON export of full conversations
+- Crash recovery via beforeunload state persistence
+- Default round cap reduced from 50 to 20
+- Diagnostic event log visible in the panel
+- Collapsible panel with corner/bottom-bar position presets

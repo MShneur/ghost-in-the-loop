@@ -1,26 +1,35 @@
-// ==UserScript==
-// @name         Ghost in the Loop
-// @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      5.0.0
-// @description  👻 Universal auto-proceed for AI chats. Multi-platform, halt-first, watchdog-protected.
-// @author       Michael S (CTRL-AI)
-// @match        https://chatgpt.com/*
-// @match        https://chat.openai.com/*
-// @match        https://www.perplexity.ai/*
-// @match        https://gemini.google.com/*
-// @match        https://chat.deepseek.com/*
-// @match        https://copilot.microsoft.com/*
-// @match        https://grok.com/*
-// @match        https://claude.ai/*
-// @updateURL    https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
-// @downloadURL  https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
-// @grant        GM_addStyle
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @run-at       document-idle
-// @license      AGPL-3.0
-// ==/UserScript==
+/*
+ * Ghost in the Loop v5.0.0 — Firefox Extension Content Script
+ * GM_* API shim → browser.storage.local
+ */
 
+// ── GM Shim ──────────────────────────────────────────────────
+const _gitlCache = {};
+
+async function _gitlLoadStorage() {
+  try {
+    const result = await browser.storage.local.get('gitl_data');
+    Object.assign(_gitlCache, result.gitl_data || {});
+  } catch(e) { console.warn('[GITL] Storage load failed:', e); }
+}
+
+function GM_getValue(key, defaultValue) {
+  return key in _gitlCache ? _gitlCache[key] : defaultValue;
+}
+
+function GM_setValue(key, value) {
+  _gitlCache[key] = value;
+  browser.storage.local.set({ gitl_data: _gitlCache }).catch(() => {});
+}
+
+function GM_addStyle(css) {
+  const style = document.createElement('style');
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
+// Load storage then boot
+_gitlLoadStorage().then(() => {
 (() => {
 'use strict';
 if (window.__GITL_V5__) return;
@@ -769,3 +778,4 @@ window.addEventListener('beforeunload', () => {
  ****************************************************************/
 log(`Loaded on ${SITE.label}`);
 })();
+}).catch(e => console.error("[GITL] Boot failed:", e));
