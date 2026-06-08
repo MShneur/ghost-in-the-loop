@@ -1,4 +1,52 @@
-# Changelog — Ghost in the Loop
+# Changelog
+
+## [6.0.0] — 2026-06-07
+
+### Architecture
+- Complete rewrite: 5-layer architecture (adapters → state → diagnostics → signal → engine)
+- Loop engine never touches DOM — all DOM access through platform adapters
+- Single GHOST state object replaces split CONFIG/STATE
+- Generic fallback adapter for unknown platforms
+
+### New Features
+- **Claude platform support** with ProseMirror-aware selectors
+- **Workflow pipelines** (6): Deep Research, R&D Lab, Shipyard, Debate, Pre-Mortem, Trollproof
+- **Persona library** (8): Researcher, Builder, Red Team, Devil's Advocate, Tester, Customer Voice, Executive, Round Table
+- **Tabbed UI**: Run | Flow | Personas | Export | Settings
+- **Project ticker**: persistent name used as export filename prefix
+- **Enhanced export**: Markdown/JSON format, filter by role or code blocks, role labels toggle, filename preview
+- **Diagnostics panel**: adapter, platform, selector, send path, signal, round, state, errors
+- **First-run hint**: shows onboarding tooltip for new users
+- **Workflow auto-advance**: HALT signal on active workflow injects next stage prompt automatically
+- **Pause between stages** toggle for workflow pipelines
+
+### Reliability
+- Unique sigils `[[GITL::PROCEED]]` / `[[GITL::HALT]]` as primary signals (legacy keywords as fallback)
+- Confidence-scored signal detection (sigils +4, legacy +3, fuzzy +2, progress +2)
+- Halt-first priority: HALT always wins when both signals present
+- Randomized 8–15s delay with adaptive shortening on planning rounds (2s for round 1)
+- 5-path send: contenteditable → native setter → direct value → button retries → Enter key
+- ProseMirror fix: selectAll+insertText instead of innerHTML clear (preserves editor state)
+- MutationObserver gated by sendInProgress flag (prevents double-fire race condition)
+- Minimum response length guard (< 50 chars → don't evaluate signal)
+- SPA route detection via pushState/replaceState patching + selector cache invalidation
+- Send lock with 1.5s cooldown prevents double-sends
+- Crash recovery with manual-refresh disambiguation (only flags recovery if loop was RUNNING)
+- Two-stage watchdog: 90s soft warning, 180s hard pause
+- Selector cache with route-change invalidation
+
+### UI
+- Collapsible panel with single play/pause button when minimized
+- 5 position presets (4 corners + bottom bar)
+- Drag-to-reposition
+- Keyboard shortcuts: Alt+P toggle, Alt+S stop
+- Completion chime
+
+### Firefox Extension
+- Updated MV3 wrapper with GM↔browser.storage.local shim
+
+---
+
 
 *A record of decisions made, problems identified, and improvements implemented with varying degrees of elegance.*
 
