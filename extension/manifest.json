@@ -23,5 +23,11 @@
   "icons": {
     "48": "icon-48.png",
     "96": "icon-96.png"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "ghost-in-the-loop@mshneur.dev",
+      "strict_min_version": "109.0"
+    }
   }
 }
