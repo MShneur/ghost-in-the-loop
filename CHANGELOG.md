@@ -1,5 +1,24 @@
 # Changelog
 
+## [6.1.0] — The Open Door
+
+**Root cause fixed: the generic adapter was dead code.** v6.0's generic fallback could never run — Tampermonkey only injects on `@match` domains, and only the 8 dedicated platforms were listed. Any unlisted site (like Manus) never loaded the script at all. v6.1.0 opens the door.
+
+### Added
+- **Manus** dedicated platform profile (`manus.im`) with best-effort fallback selector chains
+- **13 labeled generic platforms** now in the `@match` list, routed through a widened generic adapter: Mistral, Kimi, Qwen, Meta AI, Poe, HuggingChat, You.com, Pi, Z.ai, Genspark, MiniMax, LMArena, Duck.ai
+- **Custom sites** (Settings): per-host selector overrides as JSON, persisted via GM storage and prepended at adapter init — fix any platform without touching code. Pair with Tampermonkey "User matches" to activate on any URL.
+- **Selector probe** (Settings → Diagnostics): one click live-tests input/send/stop/assistant chains and reports the winning selector + match count — the fast path for diagnosing a broken or new platform
+- **Quick-start card**: 3-step onboarding on first run, dismissible, reopenable from Settings (closes the onboarding gap flagged in the v6.0 pre-build committee)
+
+### Changed
+- Generic adapter selector chains widened (role="textbox", data-testid send/stop, markdown/prose/assistant message patterns) — substantially higher hit rate on unknown chat UIs
+- Generic adapter now labels known hosts (shows "Kimi", not "Generic")
+
+### Notes
+- Manus and generic-roster selectors are unverified fallback chains by design — run Probe on first use and report winners (or paste overrides into Custom sites)
+
+
 ## [6.0.0] — 2026-06-07
 
 ### Architecture

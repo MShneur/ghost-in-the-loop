@@ -2,7 +2,7 @@
 
 **Universal AI workflow engine.** Auto-proceed through multi-step AI conversations with loop control, workflow pipelines, personas, structured export, and diagnostics.
 
-Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok** — plus a generic fallback for any chat interface.
+Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus** — plus a labeled generic adapter for **Mistral, Kimi, Qwen, Meta AI, Poe, HuggingChat, You.com, Pi, Z.ai, Genspark, MiniMax, LMArena, Duck.ai** and any other chat interface via custom selectors.
 
 ---
 
@@ -44,7 +44,9 @@ Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · 
 
 | Feature | Description |
 |---------|-------------|
-| **7 platforms + fallback** | ChatGPT, Claude, Perplexity, Gemini, DeepSeek, Copilot, Grok, plus generic |
+| **8 platforms + 13 generic** | ChatGPT, Claude, Perplexity, Gemini, DeepSeek, Copilot, Grok, Manus — generic adapter pre-wired for Mistral, Kimi, Qwen, Meta AI, Poe, HuggingChat, You.com, Pi, Z.ai, Genspark, MiniMax, LMArena, Duck.ai |
+| **Add any site yourself** | Settings → Custom sites: paste per-host selectors (JSON), then add the URL under Tampermonkey → script settings → User matches. No code edit needed. |
+| **Selector probe** | Settings → Diagnostics → Probe: live-tests every selector chain and shows the winner, so broken platforms are diagnosed in one click |
 | **Unique signal tokens** | `[[GITL::PROCEED]]` / `[[GITL::HALT]]` — no false positives from code blocks |
 | **Halt-first priority** | HALT always wins over PROCEED. No exception. |
 | **Confidence scoring** | Weighted detection: sigils +4, legacy keywords +3, fuzzy patterns +2 |

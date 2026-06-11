@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      6.0.0
-// @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok.
+// @version      6.1.0
+// @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -12,6 +12,25 @@
 // @match        https://copilot.microsoft.com/*
 // @match        https://grok.com/*
 // @match        https://claude.ai/*
+// @match        https://manus.im/*
+// @match        https://www.manus.im/*
+// @match        https://chat.mistral.ai/*
+// @match        https://kimi.com/*
+// @match        https://www.kimi.com/*
+// @match        https://kimi.moonshot.cn/*
+// @match        https://chat.qwen.ai/*
+// @match        https://meta.ai/*
+// @match        https://www.meta.ai/*
+// @match        https://poe.com/*
+// @match        https://huggingface.co/chat*
+// @match        https://you.com/*
+// @match        https://pi.ai/*
+// @match        https://chat.z.ai/*
+// @match        https://genspark.ai/*
+// @match        https://www.genspark.ai/*
+// @match        https://chat.minimax.io/*
+// @match        https://lmarena.ai/*
+// @match        https://duck.ai/*
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -29,7 +48,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.0.0';
+const VER = '6.1.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -110,8 +129,36 @@ const PROFILES = {
     assistant: ['div[data-is-streaming]','div.font-claude-message','.claude-message'],
     continueLabels: [],
     useCE: true, useNS: false
+  },
+  manus: {
+    host: /manus\.im/,
+    label: 'Manus',
+    // Selectors are best-effort fallback chains — use Diag → Probe to confirm the live winner.
+    input: ['textarea[placeholder*="task" i]','textarea[placeholder*="Manus" i]','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]','textarea:not([disabled])'],
+    send: ['button[type="submit"]','button[aria-label*="Send" i]','button[data-testid*="send"]','button[class*="send" i]'],
+    stop: ['button[aria-label*="Stop" i]','button[class*="stop" i]'],
+    assistant: ['div[class*="message" i]','div[class*="markdown" i]','div[class*="prose" i]','div[class*="assistant" i]'],
+    continueLabels: [],
+    useCE: false, useNS: false
   }
 };
+
+// Known platforms that run on the generic adapter (labeled, no dedicated selectors yet)
+const GENERIC_HOSTS = [
+  [/chat\.mistral\.ai/, 'Mistral'],
+  [/kimi\.com|kimi\.moonshot\.cn/, 'Kimi'],
+  [/chat\.qwen\.ai/, 'Qwen'],
+  [/meta\.ai/, 'Meta AI'],
+  [/poe\.com/, 'Poe'],
+  [/huggingface\.co/, 'HuggingChat'],
+  [/you\.com/, 'You.com'],
+  [/pi\.ai/, 'Pi'],
+  [/chat\.z\.ai/, 'Z.ai'],
+  [/genspark\.ai/, 'Genspark'],
+  [/chat\.minimax\.io/, 'MiniMax'],
+  [/lmarena\.ai/, 'LMArena'],
+  [/duck\.ai/, 'Duck.ai']
+];
 
 // Detect platform or use generic fallback
 let PLAT = null;
@@ -119,16 +166,35 @@ for (const [, p] of Object.entries(PROFILES)) {
   if (p.host.test(location.hostname)) { PLAT = p; break; }
 }
 if (!PLAT) {
+  let gLabel = 'Generic';
+  for (const [rx, label] of GENERIC_HOSTS) { if (rx.test(location.hostname)) { gLabel = label; break; } }
   PLAT = {
-    label: 'Generic',
-    input: ['textarea','div[contenteditable="true"]','input[type="text"]'],
-    send: ['button[type="submit"]','button[aria-label*="Send"]','button[aria-label*="Submit"]'],
-    stop: ['button[aria-label*="Stop"]'],
-    assistant: ['[role="assistant"]','div[class*="response"]','div[class*="message"]'],
+    label: gLabel,
+    input: ['textarea:not([disabled])','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]','textarea','input[type="text"]'],
+    send: ['button[type="submit"]','button[aria-label*="Send" i]','button[aria-label*="Submit" i]','button[data-testid*="send"]','button[class*="send" i]'],
+    stop: ['button[aria-label*="Stop" i]','button[data-testid*="stop"]','button[class*="stop" i]'],
+    assistant: ['[data-message-author-role="assistant"]','[role="assistant"]','div[class*="markdown" i]','div[class*="prose" i]','div[class*="assistant" i]','div[class*="response" i]','div[class*="message" i]'],
     continueLabels: [],
     useCE: false, useNS: false
   };
 }
+
+// User-defined selector overrides (Settings → Custom sites). Prepended so they win.
+// Shape: { "hostname-fragment": { label, input:[], send:[], stop:[], assistant:[], useCE, useNS } }
+try {
+  const _custom = JSON.parse(GM_getValue('customSites','{}'));
+  for (const [hostKey, o] of Object.entries(_custom)) {
+    if (hostKey && location.hostname.includes(hostKey)) {
+      for (const k of ['input','send','stop','assistant']) {
+        if (Array.isArray(o[k]) && o[k].length) PLAT[k] = [...o[k], ...(PLAT[k]||[])];
+      }
+      if (o.label) PLAT.label = o.label + ' (custom)';
+      if (typeof o.useCE === 'boolean') PLAT.useCE = o.useCE;
+      if (typeof o.useNS === 'boolean') PLAT.useNS = o.useNS;
+      break;
+    }
+  }
+} catch(_){}
 
 // Selector cache with route-change invalidation
 const _cache = new Map();
@@ -296,6 +362,7 @@ const GHOST = {
     tab: 'run',
     soundOn: GM_getValue('soundOn',true),
     showDiag: false,
+    showSites: false,
     firstRun: GM_getValue('firstRun',true)
   }
 };
@@ -311,12 +378,25 @@ const DIAG = {
   sendPath: '',
   lastSignal: '',
   lastTail: '',
+  probe: '',
   errors: [],
   push(msg) {
     const e = `[${new Date().toISOString().slice(11,19)}] ${msg}`;
     this.errors.unshift(e);
     if (this.errors.length > 15) this.errors.pop();
-    console.warn('[Ghost 6.0]', msg);
+    console.warn('[Ghost 6.1]', msg);
+  },
+  runProbe() {
+    // Live-test every selector chain; report the winning selector + match count per role.
+    const out = [];
+    for (const k of ['input','send','stop','assistant']) {
+      let win = '', n = 0;
+      for (const s of PLAT[k] || []) {
+        try { const m = document.querySelectorAll(s); if (m.length) { win = s; n = m.length; break; } } catch(_){}
+      }
+      out.push(n ? `✓ ${k}: ${win} (${n})` : `✗ ${k}: NO MATCH`);
+    }
+    this.probe = out.join('\n');
   }
 };
 
@@ -768,6 +848,9 @@ GM_addStyle(`
 .g-exp-btn:hover{background:#064e3b}
 .g-div{height:1px;background:#1c1d22;margin:7px 0}
 .g-diag{font-size:9px;color:#444;line-height:1.6;padding:5px 6px;background:#0c0d10;border:1px solid #27282e;border-radius:5px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.g-sites{width:100%;box-sizing:border-box;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
+.g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid #3730a3;border-radius:5px;background:#1a1b2e;color:#a5b4fc;font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-btn-sm:hover{background:#222345}
 .g-diag .ok{color:#34d399}.g-diag .warn{color:#f87171}
 .g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#c9cad0;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
 .g-persona-btn.act{background:#1a1b2e;border-color:#3730a3;color:#c7d2fe}
@@ -815,7 +898,7 @@ function renderRunTab() {
   const peekOpen = panel.querySelector('.g-peek')?.classList.contains('open');
   const firstRun = GHOST.ui.firstRun;
   return `
-    ${firstRun ? '<div class="g-firstrun">Type a prompt in the chat → press ▶ to start the loop</div>' : ''}
+    ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your big task in the chat box<br>2. Press ▶ — Ghost wraps it in the loop protocol<br>3. Walk away. Ghost auto-continues, stops on [[GITL::HALT]]<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
     <div class="g-modes">
       <button class="g-md${pm==='loop'?' act':''}" data-m="loop">${PAYLOADS.loop.label}</button>
       <button class="g-md${pm==='think'?' act':''}" data-m="think">${PAYLOADS.think.label}</button>
@@ -888,7 +971,13 @@ function renderSettingsTab() {
       ).join('')}</div>
     </div>
     <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
-    ${GHOST.ui.showDiag ? renderDiag() : ''}`;
+    ${GHOST.ui.showDiag ? renderDiag() : ''}
+    <div class="g-div"></div>
+    <div class="g-row"><label>🌐 Custom sites</label><div class="g-tog${GHOST.ui.showSites?' on':''}" id="cfg-sites-tog"></div></div>
+    ${GHOST.ui.showSites ? `
+      <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${GM_getValue('customSites','').replace(/</g,'&lt;')}</textarea>
+      <div class="g-hint" id="cfg-sites-status">Per-host selector overrides (JSON). Also add the site under Tampermonkey → script settings → User matches.</div>` : ''}
+    <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs">Show</button></div>`;
 }
 
 function renderDiag() {
@@ -904,9 +993,10 @@ function renderDiag() {
     `<span>State:</span> ${L.state}`,
     `<span>Stale:</span> ${L.staleTicks}`,
     `<span>Tick:</span> ${L.lastActivity ? Math.round((Date.now()-L.lastActivity)/1000)+'s ago' : '—'}`,
+    DIAG.probe ? `<span class="ok">Probe:</span>\n${DIAG.probe}` : '',
     DIAG.errors.length ? `<span class="warn">Errors:</span>\n${DIAG.errors.slice(0,5).join('\n')}` : ''
   ].filter(Boolean).join('\n');
-  return `<div class="g-diag">${lines}</div>`;
+  return `<div class="g-diag">${lines}</div><button class="g-btn-sm" id="g-probe">🔍 Probe selectors</button>`;
 }
 
 function applyPosition(pos) {
@@ -1016,6 +1106,16 @@ function bindEvents() {
   $('#cfg-snd')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.soundOn=this.classList.contains('on'); _save('soundOn',GHOST.ui.soundOn); });
   $$('.g-pos').forEach(b => b.addEventListener('click', () => { GHOST.ui.position=b.dataset.pos; _save('panelPosition',GHOST.ui.position); applyPosition(GHOST.ui.position); render(); }));
   $('#cfg-diag')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.showDiag=this.classList.contains('on'); render(); });
+  $('#g-probe')?.addEventListener('click', () => { DIAG.runProbe(); render(); });
+  $('#cfg-sites-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.showSites=this.classList.contains('on'); render(); });
+  $('#cfg-sites')?.addEventListener('change', e => {
+    const raw = e.target.value.trim(), st = $('#cfg-sites-status');
+    if (!raw) { _save('customSites',''); if(st) st.textContent='Cleared. Reload the page to apply.'; return; }
+    try { JSON.parse(raw); _save('customSites', raw); if(st) st.textContent='✓ Saved. Reload the page to apply.'; }
+    catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
+  });
+  $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#g-onb-done')?.addEventListener('click', () => { GHOST.ui.firstRun=false; _save('firstRun',false); render(); });
 
   bindDrag();
 }

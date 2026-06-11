@@ -1,9 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "6.0.0",
+  "version": "6.1.0",
   "description": "👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics.",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -14,9 +16,30 @@
         "https://chat.deepseek.com/*",
         "https://copilot.microsoft.com/*",
         "https://grok.com/*",
-        "https://claude.ai/*"
+        "https://claude.ai/*",
+        "https://manus.im/*",
+        "https://www.manus.im/*",
+        "https://chat.mistral.ai/*",
+        "https://kimi.com/*",
+        "https://www.kimi.com/*",
+        "https://kimi.moonshot.cn/*",
+        "https://chat.qwen.ai/*",
+        "https://meta.ai/*",
+        "https://www.meta.ai/*",
+        "https://poe.com/*",
+        "https://huggingface.co/chat*",
+        "https://you.com/*",
+        "https://pi.ai/*",
+        "https://chat.z.ai/*",
+        "https://genspark.ai/*",
+        "https://www.genspark.ai/*",
+        "https://chat.minimax.io/*",
+        "https://lmarena.ai/*",
+        "https://duck.ai/*"
       ],
-      "js": ["content.js"],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
