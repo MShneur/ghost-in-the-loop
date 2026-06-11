@@ -47,6 +47,12 @@ Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · 
 | **8 platforms + 13 generic** | ChatGPT, Claude, Perplexity, Gemini, DeepSeek, Copilot, Grok, Manus — generic adapter pre-wired for Mistral, Kimi, Qwen, Meta AI, Poe, HuggingChat, You.com, Pi, Z.ai, Genspark, MiniMax, LMArena, Duck.ai |
 | **Add any site yourself** | Settings → Custom sites: paste per-host selectors (JSON), then add the URL under Tampermonkey → script settings → User matches. No code edit needed. |
 | **Selector probe** | Settings → Diagnostics → Probe: live-tests every selector chain and shows the winner, so broken platforms are diagnosed in one click |
+| **🗺 Roadmap Autopilot** | Third mode: AI researches the task → outputs a numbered roadmap → Ghost runs every step as its own prompt + a final synthesis. True fire-and-forget. |
+| **Prompt Queue** | Flow tab: paste your own steps, one per line — Ghost runs them hands-free on the roadmap engine |
+| **📦 Handoff Capsule** | One-click export of mission, roadmap position, last outputs, and a next-lens contract — paste into any fresh model to continue with zero drift |
+| **Lens Relay** | Workflow built for real model-switch round tables (Perplexity model selector, or manual switches) — pause between turns, swap the model, press ▶ |
+| **Walk-away alerts** | Desktop notification when the loop completes, pauses, or errors |
+| **Config backup** | Export/restore every Ghost setting as one JSON file |
 | **Unique signal tokens** | `[[GITL::PROCEED]]` / `[[GITL::HALT]]` — no false positives from code blocks |
 | **Halt-first priority** | HALT always wins over PROCEED. No exception. |
 | **Confidence scoring** | Weighted detection: sigils +4, legacy keywords +3, fuzzy patterns +2 |

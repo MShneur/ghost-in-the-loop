@@ -1,5 +1,36 @@
 # Changelog
 
+## [6.2.0] — The Autopilot
+
+**Walk away with everything ready.** The roadmap is no longer something you write — the AI researches the task, plans it, and Ghost executes the whole plan unattended.
+
+### Added
+- **🗺 Roadmap Autopilot** (third mode): response 1 is research + a machine-readable plan under `[[GITL::ROADMAP]]`; Ghost parses the numbered steps, runs each one as its own focused prompt, then fires a final synthesis prompt that compiles the deliverable and HALTs. Steps persist across crashes; Flow tab shows live ✓/▶/· progress.
+- **Prompt Queue**: paste your own steps (one per line) in the Flow tab — they run hands-free on the same roadmap engine. AI-planned or user-planned, one executor.
+- **📦 Handoff Capsule** (Export tab): one file containing mission/state YAML, roadmap position, the last 3 outputs, and an explicit next-lens contract (independent assessment, continue from ▶, deliverable-first, sigil protocol). Built for model-to-model relay — the state-export pattern, productized.
+- **Lens Relay workflow**: a real model-switch round table. Pause-between on → swap the model (Perplexity selector or any manual switch) → press ▶. Four escalating lens turns: independent take → gaps → synthesis candidate → verified consensus.
+- **Live Round Table on Perplexity**: the Round Table persona auto-switches to a model-relay variant on Perplexity — independent assessment, no default agreement, code-block output, names the next model each turn.
+- **Walk-away notifications**: desktop notification on complete / pause / error (Settings toggle, permission requested on enable).
+- **Config backup & restore**: every Ghost setting to/from one JSON file (Export tab).
+- **Shadow DOM piercing**: when normal selectors miss, the adapter walks shadow roots (throttled, depth-capped) — Copilot-style shadow UIs and future platforms become reachable.
+- **Auto-probe on failure**: input-missing, inject-failed, and no-output pauses now run the selector probe automatically and open Diagnostics — the panel tells you what broke.
+
+### UI/UX — Small Package, Many Options
+- **Hard mobile guarantee**: panel body is capped at min(52vh, 380px) and scrolls internally — the panel can never over-cover the chat on a phone, regardless of tab content. Panel width also capped to the viewport.
+- **Six focused icon tabs** (with tooltips): ▶ Run · 🗺 Autopilot · 🔁 Workflows · 🎭 Personas · ⬇ Export · ⚙ Settings. The first tab is the standard continue experience and nothing else.
+- **Autopilot gets its own tab**: roadmap progress + prompt queue moved out of Workflows — each tab now does one job.
+- **Progressive disclosure**: Export and Settings show only the essentials; everything power-user (filters, slug, backup/restore, signal window, custom keywords, custom sites, diagnostics) lives behind a persisted "Advanced ▾" expander.
+- Settings basics reduced to: max rounds, sound, notify, position, quick start.
+
+### Changed
+- Roadmap mode and workflows are mutually exclusive (roadmap wins) to prevent prompt collisions
+- Crash recovery message reports roadmap position
+- Mode buttons compacted to fit three modes
+
+### Notes
+- Roadmap capture requires the numbered list format; if the AI free-styles, Ghost pauses with a clear message instead of guessing
+
+
 ## [6.1.0] — The Open Door
 
 **Root cause fixed: the generic adapter was dead code.** v6.0's generic fallback could never run — Tampermonkey only injects on `@match` domains, and only the 8 dedicated platforms were listed. Any unlisted site (like Manus) never loaded the script at all. v6.1.0 opens the door.

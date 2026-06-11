@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "6.1.0",
-  "description": "👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics.",
+  "version": "6.2.0",
+  "description": "👻 AI workflow engine — roadmap autopilot, prompt queue, handoff capsules, personas, diagnostics.",
   "permissions": [
     "storage"
   ],

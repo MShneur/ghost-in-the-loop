@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      6.1.0
-// @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
+// @version      6.2.0
+// @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -48,7 +48,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.1.0';
+const VER = '6.2.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -200,12 +200,36 @@ try {
 const _cache = new Map();
 let _lastHref = location.href;
 
+const _deepLast = new Map(); // throttle shadow walks per key
+function _shadowQS(sel) {
+  const walk = (root, depth) => {
+    if (depth > 4) return null;
+    for (const host of root.querySelectorAll('*')) {
+      if (host.shadowRoot) {
+        try { const hit = host.shadowRoot.querySelector(sel); if (hit) return hit; } catch(_){}
+        const deep = walk(host.shadowRoot, depth + 1); if (deep) return deep;
+      }
+    }
+    return null;
+  };
+  try { return walk(document, 0); } catch(_) { return null; }
+}
+
 function _q(key, sels) {
   const c = _cache.get(key);
   if (c?.isConnected) return c;
   _cache.delete(key);
   for (const s of sels || []) {
     try { const el = document.querySelector(s); if (el) { _cache.set(key, el); return el; } } catch(_){}
+  }
+  // Shadow DOM fallback (Copilot-style shadow roots) — throttled to once per 5s per key
+  const now = Date.now();
+  if ((now - (_deepLast.get(key) || 0)) > 5000) {
+    _deepLast.set(key, now);
+    for (const s of sels || []) {
+      const el = _shadowQS(s);
+      if (el) { _cache.set(key, el); return el; }
+    }
   }
   return null;
 }
@@ -284,6 +308,15 @@ const PERSONA_LIBRARY = {
   roundtable: { label: 'Round Table', inject: 'Simulate a compact round-table: Researcher, Builder, Red Team, Customer Voice, and Executive. Let each contribute distinct viewpoints, then synthesize a stronger consensus with disagreements preserved.' }
 };
 
+// Perplexity (and any model-switcher) variant — a REAL round table across models, not a simulated one.
+const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
+
+function resolvePersonaInject() {
+  const sel = GHOST.persona.selected;
+  if (sel === 'roundtable' && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
+  return PERSONA_LIBRARY[sel]?.inject || '';
+}
+
 const WORKFLOW_LIBRARY = {
   none:          { label: 'Manual', desc: 'Standard Ghost loop — no automatic stage prompts.', stages: [] },
   deep_research: { label: 'Deep Research', desc: 'Research → branch → red team → synthesis.', stages: [
@@ -317,6 +350,12 @@ const WORKFLOW_LIBRARY = {
     'Simulate the most damaging negative feedback, mocking reactions, bad-faith interpretations, and hostile public criticism this could attract.',
     'Determine which criticisms are unfair noise and which reveal a real weakness that should be fixed.',
     'Rewrite the output so it is clearer, more resilient, and better prepared for hostile interpretation.'
+  ]},
+  lens_relay:    { label: 'Lens Relay', desc: 'Real model-switch round table. Turn on "Pause between" — swap the model each pause, press ▶.', stages: [
+    'New lens turn. Give your OWN independent assessment of all work so far. Do not agree by default — challenge assumptions, surface gaps, add what only your perspective adds. All substantive output in one code block, no fluff. Name which model should go next.',
+    'New lens turn. Focus on what every previous lens underestimated or missed entirely. Independent take, code block, no fluff. Name the next model.',
+    'New lens turn. Draft the synthesis candidate: merge the strongest points across all lenses, preserve real disagreements explicitly. Code block, no fluff.',
+    'Final lens. Verify the synthesis against every prior critique. Deliver the consensus result — complete, deliverable-grade, in one code block.'
   ]}
 };
 
@@ -330,6 +369,12 @@ const GHOST = {
     active: false
   },
   persona: { selected: GM_getValue('persona','none') },
+  roadmap: {
+    steps: JSON.parse(GM_getValue('rmSteps','[]')),
+    index: GM_getValue('rmIndex',0),
+    captured: GM_getValue('rmCaptured',false),
+    synthSent: false
+  },
   loop: {
     state: 'IDLE', // IDLE | RUNNING | PAUSED | COMPLETE | ERROR
     payloadMode: GM_getValue('payloadMode','loop'),
@@ -361,6 +406,9 @@ const GHOST = {
     position: GM_getValue('panelPosition','top-right'),
     tab: 'run',
     soundOn: GM_getValue('soundOn',true),
+    notifyOn: GM_getValue('notifyOn',false),
+    cfgAdv: GM_getValue('cfgAdv',false),
+    expAdv: GM_getValue('expAdv',false),
     showDiag: false,
     showSites: false,
     firstRun: GM_getValue('firstRun',true)
@@ -468,10 +516,71 @@ const PAYLOADS = {
     hint: 'AI plans batches at ~80% capacity, then executes.',
     inject: `\n\n---\n[Ghost in the Loop v${VER} — Think First Mode]\nBefore doing any work, read this task and plan how to complete it in focused batches.\n\nKeep each batch to ~80% of your comfortable response length.\n\nYour FIRST response: plan only — list batches briefly, end with [[GITL::PROCEED]]\n\nEach subsequent response: complete one batch, end with:\n████░░░░ [Batch X of Y] — what this batch covered\nThen: [[GITL::PROCEED]] or [[GITL::HALT]]\n\nThe script sends "Continue" automatically.\n---`,
     preview: '🧠 THINK FIRST — AI self-plans.\nResponse 1: plan + batch count.\nEach batch ends with:\n████░░░░ [Batch X of Y]\n[[GITL::PROCEED]] or [[GITL::HALT]]'
+  },
+  roadmap: {
+    label: '🗺 Roadmap',
+    hint: 'AI researches → builds a roadmap → Ghost runs every step. Walk away.',
+    inject: `\n\n---\n[Ghost in the Loop v${VER} — Roadmap Autopilot]\nPhase 1 (this response): RESEARCH ONLY. Analyze this task deeply — context, constraints, unknowns, best approach. Do no execution work yet.\nThen output a machine-readable roadmap in EXACTLY this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each one self-contained and executable in a single response)\nEnd with [[GITL::PROCEED]]\n\nPhase 2: The script will then send you each step as its own prompt. Complete each step fully, end each with [[GITL::PROCEED]]. A final synthesis prompt will close the run.\n---`,
+    preview: '🗺 ROADMAP — Fire & forget.\nResponse 1: research + numbered\nroadmap under [[GITL::ROADMAP]].\nGhost then auto-runs every step\n+ final synthesis. [[GITL::HALT]] ends.'
   }
 };
 
 const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ████░░░░ [Step X of Y] then [[GITL::PROCEED]] if more remain, or [[GITL::HALT]] when fully done.]`;
+
+/* ── Roadmap Autopilot ───────────────────────────────────────── */
+const SIGIL_ROADMAP = '[[GITL::ROADMAP]]';
+
+function resetRoadmap() {
+  GHOST.roadmap = { steps: [], index: 0, captured: false, synthSent: false };
+  _save('rmSteps','[]'); _save('rmIndex',0); _save('rmCaptured',false);
+}
+
+function parseRoadmap(fullText) {
+  const at = fullText.lastIndexOf(SIGIL_ROADMAP);
+  if (at < 0) return false;
+  const after = fullText.slice(at + SIGIL_ROADMAP.length);
+  const steps = [];
+  for (const line of after.split('\n')) {
+    if (line.includes(SIGIL_PROCEED) || line.includes(SIGIL_HALT)) break;
+    const m = line.match(/^\s*(?:\d+[.)]\s+|[-*]\s+)(.+)$/);
+    if (m && m[1].trim().length > 3) steps.push(m[1].trim());
+    if (steps.length >= 30) break;
+  }
+  if (steps.length < 2) return false;
+  GHOST.roadmap.steps = steps; GHOST.roadmap.index = 0;
+  GHOST.roadmap.captured = true; GHOST.roadmap.synthSent = false;
+  _save('rmSteps', JSON.stringify(steps)); _save('rmIndex', 0); _save('rmCaptured', true);
+  return true;
+}
+
+function sendRoadmapStep() {
+  const R = GHOST.roadmap, i = R.index, n = R.steps.length;
+  GHOST.loop.detail = `🗺 Step ${i+1}/${n}`;
+  engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.`, false)
+    .then(ok => { if (ok) { R.index = i + 1; _save('rmIndex', R.index); render(); } });
+}
+
+function sendRoadmapSynthesis() {
+  GHOST.roadmap.synthSent = true;
+  GHOST.loop.detail = '🗺 Final synthesis';
+  engineSend(`Continue.\n\n[Ghost roadmap — final synthesis]\nAll roadmap steps are complete. Compile the final deliverable: merge every step's output into one clean, complete, ready-to-use result. No recap of process, no fluff. End with [[GITL::HALT]].`, false);
+}
+
+/* ── Walk-away notifications ─────────────────────────────────── */
+function notify(body) {
+  if (!GHOST.ui.notifyOn) return;
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification('👻 Ghost in the Loop', { body });
+    }
+  } catch(_){}
+}
+
+/* ── Auto-probe on adapter failure ───────────────────────────── */
+function pauseWithProbe(reason) {
+  try { DIAG.runProbe(); GHOST.ui.showDiag = true; } catch(_){}
+  enginePause(reason + ' — probe ran, see ⚙ Diagnostics');
+}
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 5 — LOOP ENGINE (state transitions, no DOM)
@@ -497,8 +606,8 @@ async function engineSend(text, skipDelay) {
     }
     if (L.state !== 'RUNNING') return false;
     const input = Adapter.getInput();
-    if (!input) { DIAG.push('No input element'); enginePause('Input element missing'); return false; }
-    if (!Adapter.injectText(input, text)) { DIAG.push('Inject failed'); enginePause('Text injection failed'); return false; }
+    if (!input) { DIAG.push('No input element'); pauseWithProbe('Input element missing'); return false; }
+    if (!Adapter.injectText(input, text)) { DIAG.push('Inject failed'); pauseWithProbe('Text injection failed'); return false; }
     await sleep(500);
     // 5-path send: button → retry → retry → retry → Enter key
     let sent = false;
@@ -529,6 +638,7 @@ function engineHalt(reason) {
   clearInterval(L.timer); L.timer = null;
   render();
   if (GHOST.ui.soundOn) playBeep();
+  notify(reason);
 }
 
 function enginePause(reason) {
@@ -536,6 +646,7 @@ function enginePause(reason) {
   L.state = 'PAUSED'; L.detail = reason;
   clearInterval(L.timer); L.timer = null;
   render();
+  notify('⏸ ' + reason);
 }
 
 function engineTick() {
@@ -558,7 +669,7 @@ function engineTick() {
 
   // Read output
   const text = Adapter.getLastText();
-  if (!text) { L.staleTicks++; if (L.staleTicks >= 5) enginePause('No output detected'); return; }
+  if (!text) { L.staleTicks++; if (L.staleTicks >= 5) pauseWithProbe('No output detected'); return; }
 
   // Detect signal
   const result = detectSignal(text);
@@ -586,12 +697,24 @@ function engineTick() {
       GHOST.workflow.active = false;
       GHOST.workflow.stageIndex = 0; _save('wfStage', 0);
     }
+    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) { engineHalt('✅ Roadmap complete'); resetRoadmap(); return; }
     engineHalt('✅ Task complete');
     return;
   }
 
   if (result.signal === 'proceed') {
     L.staleTicks = 0;
+    if (L.payloadMode === 'roadmap') {
+      const R = GHOST.roadmap;
+      if (!R.captured) {
+        if (parseRoadmap(text)) { L.detail = `🗺 Roadmap captured: ${R.steps.length} steps`; render(); sendRoadmapStep(); }
+        else { enginePause('Roadmap mode: no [[GITL::ROADMAP]] list found — review output, then ▶ to retry'); }
+        return;
+      }
+      if (R.index < R.steps.length) { sendRoadmapStep(); return; }
+      if (!R.synthSent) { sendRoadmapSynthesis(); return; }
+      engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
+    }
     engineSend('Continue', false);
     return;
   }
@@ -632,7 +755,8 @@ function startLoop() {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
     L.state = 'RUNNING'; L.lastActivity = Date.now();
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    const personaInject = PERSONA_LIBRARY[GHOST.persona.selected]?.inject || '';
+    if (L.payloadMode === 'roadmap') { resetRoadmap(); GHOST.workflow.active = false; }
+    const personaInject = resolvePersonaInject();
     const full = typed + (personaInject ? `\n\n[Active persona]\n${personaInject}` : '') + PAYLOADS[L.payloadMode].inject;
     engineSend(full, true);
     L.timer = setInterval(engineTick, 2500);
@@ -655,12 +779,30 @@ function startLoop() {
   render();
 }
 
+function startQueue(rawLines) {
+  const L = GHOST.loop;
+  if (L.state === 'RUNNING') return;
+  const steps = rawLines.split('\n').map(s => s.replace(/^\s*(?:\d+[.)]\s+|[-*]\s+)?/,'').trim()).filter(s => s.length > 2).slice(0, 30);
+  if (!steps.length) { L.detail = 'Queue is empty'; render(); return; }
+  L.payloadMode = 'roadmap'; _save('payloadMode','roadmap');
+  GHOST.roadmap = { steps, index: 0, captured: true, synthSent: false };
+  _save('rmSteps', JSON.stringify(steps)); _save('rmIndex', 0); _save('rmCaptured', true);
+  L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
+  L.state = 'RUNNING'; L.lastActivity = Date.now();
+  GHOST.workflow.active = false;
+  if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
+  L.timer = setInterval(engineTick, 2500);
+  sendRoadmapStep();
+  render();
+}
+
 function pauseLoop() { enginePause('Paused'); }
 function stopLoop() {
   const L = GHOST.loop;
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   clearInterval(L.timer); L.timer = null;
+  resetRoadmap();
   render();
 }
 
@@ -704,7 +846,8 @@ window.addEventListener('beforeunload', () => {
     if (cs.url !== location.href) return;
     // Only flag as crash if it was running (not manual refresh)
     if (cs.wasRunning) {
-      GHOST.loop.detail = `Crash recovery: ${cs.round} rounds. Press ▶ to resume.`;
+      const rm = GHOST.roadmap.captured && GHOST.roadmap.steps.length ? ` Roadmap at step ${GHOST.roadmap.index}/${GHOST.roadmap.steps.length}.` : '';
+      GHOST.loop.detail = `Crash recovery: ${cs.round} rounds.${rm} Press ▶ to resume.`;
     }
   } catch(_){}
 })();
@@ -743,6 +886,69 @@ function applyFilter(msgs) {
   if (f === 'assistant') return msgs.filter(m => m.role === 'assistant');
   if (f === 'code') return msgs.filter(m => /```/.test(m.text));
   return msgs;
+}
+
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured'];
+
+function downloadText(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+function exportCapsule() {
+  const msgs = extractMessages().filter(m => m.role !== 'user').slice(-3);
+  const R = GHOST.roadmap, W = GHOST.workflow;
+  const wf = (WORKFLOW_LIBRARY[W.selected]||WORKFLOW_LIBRARY.none).label;
+  const steps = R.steps.length ? R.steps.map((s,i) =>
+    `${i < R.index ? '✓' : i === R.index ? '▶' : '·'} ${i+1}. ${s}`).join('\n') : '(none)';
+  const md = [
+    '# 👻 GITL Handoff Capsule',
+    '```yaml',
+    `project: ${GHOST.project.name || 'Untitled'}`,
+    `platform: ${PLAT.label}`,
+    `exported: ${new Date().toISOString()}`,
+    `mode: ${GHOST.loop.payloadMode}`,
+    `persona: ${(PERSONA_LIBRARY[GHOST.persona.selected]||PERSONA_LIBRARY.none).label}`,
+    `workflow: ${wf} (stage ${W.stageIndex})`,
+    `rounds: ${GHOST.loop.round}`,
+    `last_signal: ${GHOST.loop.lastSignal}`,
+    '```',
+    '',
+    '## Roadmap state',
+    steps,
+    '',
+    '## Instructions for the next model',
+    'You are a NEW LENS picking up this work. Read the state above and the outputs below.',
+    '1. Give your own independent assessment first — do not agree by default.',
+    '2. Continue from the current roadmap position (▶), not from the beginning.',
+    '3. Deliverable-first output, single code block where possible, no fluff.',
+    '4. End every response with [[GITL::PROCEED]] (more work remains) or [[GITL::HALT]] (fully done).',
+    '',
+    '## Last outputs (most recent last)',
+    ...msgs.map((m,i) => `### Output ${i+1}\n${m.text}\n`),
+    '---',
+    `*Capsule generated by Ghost in the Loop v${VER}*`
+  ].join('\n');
+  downloadText(md, buildFilename('capsule').replace(/\.\w+$/,'') + '.md', 'text/markdown');
+}
+
+function backupConfig() {
+  const cfg = {};
+  for (const k of GM_KEYS) cfg[k] = GM_getValue(k, undefined);
+  downloadText(JSON.stringify({ gitl_version: VER, exported: new Date().toISOString(), config: cfg }, null, 2),
+    'gitl-config-backup.json', 'application/json');
+}
+
+function restoreConfig(jsonText) {
+  try {
+    const data = JSON.parse(jsonText);
+    const cfg = data.config || data;
+    let n = 0;
+    for (const k of GM_KEYS) { if (k in cfg && cfg[k] !== undefined) { GM_setValue(k, cfg[k]); n++; } }
+    return `✓ Restored ${n} settings — reload the page to apply.`;
+  } catch(e) { return '⚠ Invalid backup file.'; }
 }
 
 function runExport() {
@@ -790,11 +996,15 @@ function playBeep() {
    UI — STYLES
    ═══════════════════════════════════════════════════════════════ */
 GM_addStyle(`
-#gitl{position:fixed;z-index:2147483647;width:268px;background:#111214;border:1px solid #27282e;
+#gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:#111214;border:1px solid #27282e;
   border-radius:12px;padding:10px 12px;font:11.5px 'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;
   color:#c9cad0;box-shadow:0 10px 32px rgba(0,0,0,.65);user-select:none;transition:width .2s}
 #gitl *{box-sizing:border-box}
 #gitl.collapsed .g-body{display:none} #gitl.collapsed{width:auto;min-width:180px}
+.g-body{max-height:min(52vh,380px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#2e2f35 transparent}
+.g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:#2e2f35;border-radius:2px}
+.g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed #27282e;background:transparent;color:#555;font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
+.g-adv:hover{color:#888}
 .g-hdr{display:flex;justify-content:space-between;align-items:center;cursor:grab;padding:2px 0;margin-bottom:6px}
 .g-hdr:active{cursor:grabbing}
 .g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:#555;letter-spacing:.6px;display:flex;align-items:center;gap:5px}
@@ -818,7 +1028,7 @@ GM_addStyle(`
 .g-tab{flex:1;padding:4px 0;border:1px solid #27282e;border-radius:5px;background:#18191c;color:#555;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
 .g-tab:hover{background:#222329;color:#888}.g-tab.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
 .g-modes{display:flex;gap:3px;margin-bottom:6px}
-.g-md{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:10px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-md{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
 .g-md:hover{background:#222329}.g-md.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
 .g-hint{font-size:9px;color:#484a57;margin-bottom:7px;padding:4px 6px;background:#16171b;border-radius:4px;border-left:2px solid #27282e;line-height:1.4}
 .g-btns{display:flex;gap:3px;margin-bottom:7px}
@@ -902,6 +1112,7 @@ function renderRunTab() {
     <div class="g-modes">
       <button class="g-md${pm==='loop'?' act':''}" data-m="loop">${PAYLOADS.loop.label}</button>
       <button class="g-md${pm==='think'?' act':''}" data-m="think">${PAYLOADS.think.label}</button>
+      <button class="g-md${pm==='roadmap'?' act':''}" data-m="roadmap">${PAYLOADS.roadmap.label}</button>
     </div>
     <div class="g-hint">${PAYLOADS[pm].hint}</div>
     <div class="g-btns">
@@ -938,6 +1149,23 @@ function renderFlowTab() {
     <button class="g-exp-btn" id="wf-reset" style="background:#18191c;border-color:#2e2f35;color:#ccc;margin-top:5px">Reset stage</button>`;
 }
 
+function renderAutoTab() {
+  const R = GHOST.roadmap;
+  const list = R.steps.length
+    ? `<div class="g-diag" style="max-height:120px">${R.steps.map((s,i) =>
+        `${i < R.index ? '<span class="ok">✓</span>' : i === R.index ? '<span style="color:#a5b4fc">▶</span>' : '·'} ${i+1}. ${s.slice(0,70)}${s.length>70?'…':''}`).join('\n')}</div>
+       <button class="g-btn-sm" id="rm-clear">Clear roadmap</button>`
+    : '';
+  return `
+    <div class="g-hint">🗺 <b>Autopilot.</b> Select Roadmap on the ▶ tab and start — the AI plans, Ghost runs every step. Or paste your own steps below.</div>
+    <div style="font-size:9px;color:#777;font-weight:700;margin:6px 0 4px">ROADMAP ${R.steps.length ? `(${R.index}/${R.steps.length})` : '(none yet)'}</div>
+    ${list}
+    <div class="g-div"></div>
+    <div style="font-size:9px;color:#777;font-weight:700;margin-bottom:4px">PROMPT QUEUE</div>
+    <textarea id="q-steps" class="g-sites" rows="3" spellcheck="false" placeholder="One step per line — runs hands-free."></textarea>
+    <button class="g-btn-sm" id="q-start" style="margin-top:0">▶ Run queue</button>`;
+}
+
 function renderPersonasTab() {
   return Object.entries(PERSONA_LIBRARY).map(([k,v]) =>
     `<button class="g-persona-btn${GHOST.persona.selected===k?' act':''}" data-p="${k}"><span class="plbl">${v.label}</span><div class="pdesc">${v.inject||'No persona framing.'}</div></button>`
@@ -946,38 +1174,49 @@ function renderPersonasTab() {
 
 function renderExportTab() {
   const fn = buildFilename('export');
+  const adv = GHOST.ui.expAdv;
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
+    <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
+    <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">📦 Handoff Capsule</button>
+    <div class="g-hint" style="margin-top:4px">Capsule: state + roadmap + last outputs + next-lens contract — paste into any fresh model.</div>
+    <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
+    ${adv ? `
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
     <div class="g-row"><label>Roles</label><div class="g-tog${GHOST.export.includeRoles?' on':''}" id="exp-roles"></div></div>
     <div class="g-row"><label>Slug</label><input type="text" id="exp-slug" placeholder="auto" value="${GHOST.export.customSlug}" style="width:100px"></div>
-    <div class="g-div"></div>
     <div style="font-size:8.5px;color:#383940;margin-bottom:5px;word-break:break-all">${fn}</div>
-    <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>`;
+    <div style="display:flex;gap:5px">
+      <button class="g-btn-sm" id="g-backup" style="flex:1;margin-top:0">⚙ Backup config</button>
+      <button class="g-btn-sm" id="g-restore" style="flex:1;margin-top:0">↩ Restore</button>
+    </div>
+    <input type="file" id="g-restore-file" accept=".json" style="display:none">
+    <div class="g-hint" id="g-restore-status" style="margin-top:4px;display:none"></div>` : ''}`;
 }
 
 function renderSettingsTab() {
+  const adv = GHOST.ui.cfgAdv;
   return `
     <div class="g-row"><label>Max rounds</label><input type="number" id="cfg-max" min="1" max="999" value="${GHOST.loop.maxRounds}"></div>
-    <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
-    <div class="g-div"></div>
-    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${GHOST.signals.customProceed}"></div>
-    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${GHOST.signals.customStop}"></div>
-    <div class="g-div"></div>
     <div class="g-row"><label>🔔 Sound</label><div class="g-tog${GHOST.ui.soundOn?' on':''}" id="cfg-snd"></div></div>
+    <div class="g-row"><label>💬 Notify when done</label><div class="g-tog${GHOST.ui.notifyOn?' on':''}" id="cfg-ntf"></div></div>
     <div class="g-row"><label>📍 Position</label>
       <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar'].map(p=>
         `<button class="g-pos${GHOST.ui.position===p?' act':''}" data-pos="${p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':'━'}</button>`
       ).join('')}</div>
     </div>
-    <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
-    ${GHOST.ui.showDiag ? renderDiag() : ''}
-    <div class="g-div"></div>
+    <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
+    <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
+    ${adv ? `
+    <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
+    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${GHOST.signals.customProceed}"></div>
+    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${GHOST.signals.customStop}"></div>
     <div class="g-row"><label>🌐 Custom sites</label><div class="g-tog${GHOST.ui.showSites?' on':''}" id="cfg-sites-tog"></div></div>
     ${GHOST.ui.showSites ? `
       <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${GM_getValue('customSites','').replace(/</g,'&lt;')}</textarea>
       <div class="g-hint" id="cfg-sites-status">Per-host selector overrides (JSON). Also add the site under Tampermonkey → script settings → User matches.</div>` : ''}
-    <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs">Show</button></div>`;
+    <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
+    ${GHOST.ui.showDiag ? renderDiag() : ''}` : ''}`;
 }
 
 function renderDiag() {
@@ -1033,14 +1272,15 @@ function render() {
         <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${GHOST.project.name}">
       </div>
       <div class="g-tabs">
-        <button class="g-tab${tab==='run'?' act':''}" data-t="run">▶ Run</button>
-        <button class="g-tab${tab==='flow'?' act':''}" data-t="flow">🗺 Flow</button>
-        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas">🎭</button>
-        <button class="g-tab${tab==='export'?' act':''}" data-t="export">⬇</button>
-        <button class="g-tab${tab==='settings'?' act':''}" data-t="settings">⚙</button>
+        <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Run — standard continue">▶</button>
+        <button class="g-tab${tab==='auto'?' act':''}" data-t="auto" title="Autopilot — roadmap & queue">🗺</button>
+        <button class="g-tab${tab==='flow'?' act':''}" data-t="flow" title="Workflows">🔁</button>
+        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas">🎭</button>
+        <button class="g-tab${tab==='export'?' act':''}" data-t="export" title="Export">⬇</button>
+        <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">⚙</button>
       </div>
       <div id="g-tc">
-        ${tab==='run'?renderRunTab():''}${tab==='flow'?renderFlowTab():''}
+        ${tab==='run'?renderRunTab():''}${tab==='auto'?renderAutoTab():''}${tab==='flow'?renderFlowTab():''}
         ${tab==='personas'?renderPersonasTab():''}${tab==='export'?renderExportTab():''}
         ${tab==='settings'?renderSettingsTab():''}
       </div>
@@ -1097,6 +1337,19 @@ function bindEvents() {
   $('#exp-roles')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.includeRoles=this.classList.contains('on'); _save('expRoles',GHOST.export.includeRoles); });
   $('#exp-slug')?.addEventListener('change', e => { GHOST.export.customSlug=e.target.value.trim(); _save('expSlug',GHOST.export.customSlug); render(); });
   $('#g-export')?.addEventListener('click', runExport);
+  $('#g-capsule')?.addEventListener('click', exportCapsule);
+  $('#g-backup')?.addEventListener('click', backupConfig);
+  $('#g-restore')?.addEventListener('click', () => $('#g-restore-file')?.click());
+  $('#g-restore-file')?.addEventListener('change', e => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { const st = $('#g-restore-status'); if (st) { st.style.display='block'; st.textContent = restoreConfig(String(r.result)); } };
+    r.readAsText(f);
+  });
+
+  // Flow tab — roadmap / queue
+  $('#q-start')?.addEventListener('click', () => { const t = $('#q-steps'); if (t && t.value.trim()) startQueue(t.value); });
+  $('#rm-clear')?.addEventListener('click', () => { resetRoadmap(); render(); });
 
   // Settings tab
   $('#cfg-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v);} });
@@ -1104,6 +1357,10 @@ function bindEvents() {
   $('#cfg-cp')?.addEventListener('change', e => { GHOST.signals.customProceed=e.target.value; _save('customProceed',e.target.value); });
   $('#cfg-cs')?.addEventListener('change', e => { GHOST.signals.customStop=e.target.value; _save('customStop',e.target.value); });
   $('#cfg-snd')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.soundOn=this.classList.contains('on'); _save('soundOn',GHOST.ui.soundOn); });
+  $('#cfg-ntf')?.addEventListener('click', function(){
+    this.classList.toggle('on'); GHOST.ui.notifyOn=this.classList.contains('on'); _save('notifyOn',GHOST.ui.notifyOn);
+    if (GHOST.ui.notifyOn) { try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission(); } catch(_){} }
+  });
   $$('.g-pos').forEach(b => b.addEventListener('click', () => { GHOST.ui.position=b.dataset.pos; _save('panelPosition',GHOST.ui.position); applyPosition(GHOST.ui.position); render(); }));
   $('#cfg-diag')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.showDiag=this.classList.contains('on'); render(); });
   $('#g-probe')?.addEventListener('click', () => { DIAG.runProbe(); render(); });
@@ -1115,6 +1372,8 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#cfg-adv')?.addEventListener('click', () => { GHOST.ui.cfgAdv=!GHOST.ui.cfgAdv; _save('cfgAdv',GHOST.ui.cfgAdv); render(); });
+  $('#exp-adv')?.addEventListener('click', () => { GHOST.ui.expAdv=!GHOST.ui.expAdv; _save('expAdv',GHOST.ui.expAdv); render(); });
   $('#g-onb-done')?.addEventListener('click', () => { GHOST.ui.firstRun=false; _save('firstRun',false); render(); });
 
   bindDrag();
