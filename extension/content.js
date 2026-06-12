@@ -1,4 +1,4 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.5.0 engine
+// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.6.0 engine
 (function() {
   'use strict';
   const _storageCache = {};
@@ -24,7 +24,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.5.0';
+const VER = '6.6.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -842,6 +842,55 @@ function buildFilename(mode) {
   return `${proj}_${mode}_${ts}_${slug}.${ext}`;
 }
 
+/* ── The Veil: export progress overlay ───────────────────────── */
+const VEIL = {
+  el: null, steps: [], idx: 0, cancelled: false, lastBeat: 0, _wd: null,
+  ensure() {
+    if (this.el) return;
+    this.el = document.createElement('div');
+    this.el.id = 'gitl-veil';
+    this.el.innerHTML = `
+      <div class="gv-card">
+        <div class="gv-ringwrap"><div class="gv-ring"></div><div class="gv-ghost">👻</div></div>
+        <div class="gv-title" id="gv-title">Working…</div>
+        <div class="gv-steps" id="gv-steps"></div>
+        <div class="gv-barwrap"><div class="gv-bar" id="gv-bar"></div></div>
+        <div class="gv-pct" id="gv-pct"></div>
+        <div class="gv-note" id="gv-note">Please don't reload the page</div>
+        <button class="gv-cancel" id="gv-cancel">Cancel</button>
+      </div>`;
+    document.body.appendChild(this.el);
+    this.el.querySelector('#gv-cancel').addEventListener('click', () => { this.cancelled = true; this.el.querySelector('#gv-title').textContent = 'Stopping…'; });
+  },
+  show(steps) {
+    this.ensure(); this.steps = steps; this.idx = 0; this.cancelled = false; this.lastBeat = Date.now();
+    this.el.style.display = 'flex'; this.renderSteps(); this.beat(null);
+    this._wd = setInterval(() => {
+      const quiet = Date.now() - this.lastBeat;
+      const note = this.el.querySelector('#gv-note');
+      if (quiet > 8000) note.textContent = '⏳ Still working — the page is slow. Don\'t reload.';
+      if (quiet > 25000) note.textContent = '⚠️ This looks stuck. Cancel is safe — Ghost keeps what it collected.';
+    }, 2000);
+  },
+  step(i, label) {
+    this.idx = i; this.lastBeat = Date.now();
+    this.el.querySelector('#gv-title').textContent = label || this.steps[i] || 'Working…';
+    this.renderSteps(); this.beat(null);
+  },
+  renderSteps() {
+    this.el.querySelector('#gv-steps').innerHTML = this.steps.map((s, i) =>
+      `<div class="gv-step${i < this.idx ? ' done' : i === this.idx ? ' act' : ''}">${i < this.idx ? '✓' : i === this.idx ? '▶' : '·'} ${s}</div>`).join('');
+  },
+  beat(pct) {
+    this.lastBeat = Date.now();
+    const bar = this.el.querySelector('#gv-bar'), p = this.el.querySelector('#gv-pct');
+    const note = this.el.querySelector('#gv-note'); if (note) note.textContent = "Please don't reload the page";
+    if (pct == null) { bar.classList.add('indet'); bar.style.width = '40%'; p.textContent = ''; }
+    else { bar.classList.remove('indet'); bar.style.width = Math.min(100, pct) + '%'; p.textContent = Math.round(Math.min(100, pct)) + '%'; }
+  },
+  hide() { if (this._wd) clearInterval(this._wd); this._wd = null; if (this.el) this.el.style.display = 'none'; }
+};
+
 /* ── Deep Export: capture thinking logs, not just chat ───────── */
 const THINK_TOGGLE_RX = /\b(thinking|thought|thoughts|reasoning|chain of thought|thought for|show (?:steps|work|reasoning|thinking)|view (?:steps|reasoning))\b/i;
 
@@ -919,14 +968,12 @@ async function harvestManus() {
   sc.scrollTop = 0; await sleep(420); grab();
   let guard = 0;
   while (sc.scrollTop + sc.clientHeight < sc.scrollHeight - 10 && guard++ < maxIter) {
+    if (VEIL.cancelled) break; // user cancelled — keep what we have
     sc.scrollTop += step; await sleep(240); grab();
-    if (guard % 10 === 0) {
-      GHOST.loop.detail = `🌾 Harvesting… ${Math.min(99, Math.round(100 * sc.scrollTop / sc.scrollHeight))}%`;
-      render();
-    }
+    if (guard % 3 === 0) VEIL.beat(100 * sc.scrollTop / sc.scrollHeight);
   }
   // Bottom settle: virtualizers render the tail late — force bottom twice
-  for (let i = 0; i < 2; i++) { sc.scrollTop = sc.scrollHeight; await sleep(550); grab(); }
+  if (!VEIL.cancelled) for (let i = 0; i < 2; i++) { sc.scrollTop = sc.scrollHeight; await sleep(550); grab(); VEIL.beat(100); }
   sc.scrollTop = orig;
   let arr = [...seen.values()].sort((a, b) => a.pos - b.pos)
     .map((m, i) => ({ role: m.role, index: i, text: m.text }));
@@ -1004,13 +1051,19 @@ function downloadText(content, filename, mime) {
 }
 
 function exportCapsule() {
-  const msgs = extractMessages().filter(m => m.role !== 'user').slice(-3);
+  const all = extractMessages();
+  const mission = (all.find(m => m.role === 'user')?.text || '').slice(0, 600);
+  const msgs = all.filter(m => m.role !== 'user').slice(-5);
   const R = GHOST.roadmap, W = GHOST.workflow;
+  const idle = !R.steps.length && !W.active && GHOST.loop.round === 0;
+  if (idle) { GHOST.loop.detail = '💡 No loop state to capture — "Ask in chat" or Export may serve better'; render(); }
   const wf = (WORKFLOW_LIBRARY[W.selected]||WORKFLOW_LIBRARY.none).label;
   const steps = R.steps.length ? R.steps.map((s,i) =>
     `${i < R.index ? '✓' : i === R.index ? '▶' : '·'} ${i+1}. ${s}`).join('\n') : '(none)';
   const md = [
     '# 👻 GITL Handoff Capsule',
+    '*This is a baton, not a record: paste it into a fresh AI chat to continue this work. For the complete transcript, use Export instead.*',
+    '',
     '```yaml',
     `project: ${GHOST.project.name || 'Untitled'}`,
     `platform: ${PLAT.label}`,
@@ -1021,6 +1074,9 @@ function exportCapsule() {
     `rounds: ${GHOST.loop.round}`,
     `last_signal: ${GHOST.loop.lastSignal}`,
     '```',
+    '',
+    '## Mission (first prompt)',
+    mission || '(not captured — describe the task to the next AI yourself)',
     '',
     '## Roadmap state',
     steps,
@@ -1076,18 +1132,25 @@ function restoreConfig(jsonText) {
 }
 
 async function runExport() {
-  if (GHOST.export.thinking) {
-    GHOST.loop.detail = '💭 Expanding thinking blocks…'; render();
-    const n = await expandThinking();
-    await sleep(n ? 600 : 0);
-    GHOST.loop.detail = ''; render();
-  }
+  const isManus = /Manus/i.test(PLAT.label);
+  const steps = ['Reading chat', ...(GHOST.export.thinking ? ['Opening thinking blocks'] : []), ...(isManus ? ['Collecting every message'] : []), 'Building your file'];
+  VEIL.show(steps);
   let raw = null;
-  if (/Manus/i.test(PLAT.label)) {
-    GHOST.loop.detail = '🌾 Harvesting virtualized chat…'; render();
-    raw = await harvestManus();
-    GHOST.loop.detail = ''; render();
-  }
+  try {
+    VEIL.step(0);
+    await sleep(250);
+    if (GHOST.export.thinking) {
+      VEIL.step(1, 'Opening thinking blocks…');
+      const n = await expandThinking();
+      await sleep(n ? 600 : 0);
+    }
+    if (isManus && !VEIL.cancelled) {
+      VEIL.step(steps.indexOf('Collecting every message'), 'Collecting every message…');
+      raw = await harvestManus();
+    }
+    VEIL.step(steps.length - 1, 'Building your file…');
+    await sleep(200);
+  } finally { VEIL.hide(); GHOST.loop.detail = ''; render(); }
   const msgs = applyFilter(raw || extractMessages(GHOST.export.thinking));
   if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
   const proj = GHOST.project.name || 'Untitled';
@@ -1208,6 +1271,25 @@ GM_addStyle(`
 .g-hpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
 .g-hpill{padding:3px 7px;border:1px solid #27282e;border-radius:10px;background:#18191c;color:#666;font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
 .g-hpill.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+#gitl-veil{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;background:rgba(8,9,12,.55);backdrop-filter:blur(1.5px);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.gv-card{background:#111214;border:1px solid #27282e;border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6)}
+.gv-ringwrap{position:relative;width:64px;height:64px;margin:0 auto 12px}
+.gv-ring{position:absolute;inset:0;border:3px solid #25262c;border-top-color:#a5b4fc;border-radius:50%;animation:gvspin 1s linear infinite}
+.gv-ghost{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;animation:gvbob 2s ease-in-out infinite}
+@keyframes gvspin{to{transform:rotate(360deg)}}
+@keyframes gvbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+.gv-title{color:#e7e7ea;font-size:12px;font-weight:700;margin-bottom:8px}
+.gv-steps{text-align:left;margin:0 auto 10px;display:inline-block}
+.gv-step{font-size:9.5px;color:#555;line-height:1.8}
+.gv-step.act{color:#a5b4fc}.gv-step.done{color:#4a5}
+.gv-barwrap{height:5px;background:#1c1d22;border-radius:3px;overflow:hidden;margin-bottom:5px}
+.gv-bar{height:100%;background:linear-gradient(90deg,#6366f1,#a5b4fc);border-radius:3px;width:0;transition:width .25s}
+.gv-bar.indet{animation:gvslide 1.2s ease-in-out infinite}
+@keyframes gvslide{0%{margin-left:-40%}100%{margin-left:100%}}
+.gv-pct{font-size:9px;color:#777;height:12px;margin-bottom:6px}
+.gv-note{font-size:8.5px;color:#666;margin-bottom:10px}
+.gv-cancel{padding:4px 14px;border:1px solid #3a2a2a;border-radius:6px;background:#1c1416;color:#c88;font-size:9px;cursor:pointer;font-family:inherit}
+.gv-cancel:hover{background:#241719}
 #gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
 #gitl.pos-dock.collapsed{width:32px!important;min-width:0}
 #gitl.pos-dock.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}

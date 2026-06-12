@@ -1,5 +1,21 @@
 # Changelog
 
+## [6.6.0] — The Veil
+
+Export is no longer a silent mystery. Users see what's happening, how far along it is, and have a safe way out.
+
+### Added — export progress overlay ("the Veil")
+- Screen dims softly; a 👻 with a spinning ring sits center-stage with a named step list: Reading chat → Opening thinking blocks → Collecting every message → Building your file (✓ done / ▶ current)
+- **Real progress bar** with % — computed from the actual page length on virtualized chats; indeterminate slide animation when a phase has no measurable length
+- **Stall watchdog**: quiet for 8s → "Still working — the page is slow. Don't reload." Quiet for 25s → "This looks stuck. Cancel is safe — Ghost keeps what it collected."
+- **Safe Cancel**: aborts the harvest mid-scroll and exports everything collected so far — no more page reloads out of uncertainty
+
+### Changed — the Capsule earns its keep
+- Now opens with a one-line purpose statement: *a baton, not a record — paste into a fresh AI to continue; use Export for the full transcript*
+- Captures the **Mission** (your first prompt) and the last **5** outputs, alongside roadmap position and state
+- **Idle guidance**: exporting a capsule with no loop state (no roadmap, no workflow, zero rounds) now tells you "Ask in chat" or Export may serve better, instead of silently producing a generic file
+
+
 ## [6.5.0] — The Friendly Ghost
 
 UX pass driven by real user testing. The goal: nobody should need a tutorial.
