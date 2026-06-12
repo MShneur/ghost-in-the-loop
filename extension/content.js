@@ -1,4 +1,4 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.7.0 engine
+// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.8.0 engine
 (function() {
   'use strict';
   const _storageCache = {};
@@ -24,7 +24,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.7.0';
+const VER = '6.8.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -927,6 +927,32 @@ async function expandThinking() {
   return clicked;
 }
 
+function tableToMd(t) {
+  const rows = [...t.querySelectorAll('tr')].map(tr =>
+    [...tr.children].map(c => (c.innerText || '').trim().replace(/\|/g, '/').replace(/\s*\n+\s*/g, ' ')));
+  if (!rows.length || !rows[0].length) return '';
+  const out = ['| ' + rows[0].join(' | ') + ' |', '| ' + rows[0].map(() => '---').join(' | ') + ' |'];
+  rows.slice(1).forEach(r => out.push('| ' + r.join(' | ') + ' |'));
+  return out.join('\n');
+}
+
+// innerText, but with <table> elements serialized as markdown tables so structure survives export
+function textWithTables(el) {
+  if (!el.querySelector || !el.querySelector('table')) return el.innerText || '';
+  try {
+    const clone = el.cloneNode(true);
+    clone.querySelectorAll('table').forEach(t => {
+      const pre = document.createElement('pre');
+      pre.textContent = '\n' + tableToMd(t) + '\n';
+      t.replaceWith(pre);
+    });
+    // clone must be in-document for innerText to compute layout; use a detached fallback
+    return clone.innerText || clone.textContent || el.innerText;
+  } catch(_) { return el.innerText || ''; }
+}
+
+const FILE_NAME_RX = /^[\w][\w\-. ()]{0,60}\.(md|py|js|ts|jsx|tsx|json|csv|txt|html|css|pdf|docx|xlsx|pptx|zip|yaml|yml|sh|sql)$/;
+
 const MANUS_CHROME = new Set(['Lite','Accepted','View more','View all files in this task','Task completed','How was this result?','Suggested follow-ups','Knowledge recalled']);
 
 function cleanManusText(raw) {
@@ -954,7 +980,7 @@ async function harvestManus() {
     document.querySelectorAll('[data-event-id]').forEach(el => {
       if (el.parentElement?.closest('[data-event-id]')) return; // top-level turns only
       const id = el.getAttribute('data-event-id');
-      const text = cleanManusText(el.innerText);
+      const text = cleanManusText(textWithTables(el));
       if (!text) return;
       const role = /items-end/.test(el.className) ? 'user' : 'assistant';
       const pos = el.getBoundingClientRect().top + (sc.scrollTop || 0);
@@ -986,6 +1012,17 @@ async function harvestManus() {
     } else merged.push({ ...m });
   }
   merged.forEach((m, i) => m.index = i);
+  // Manus creates files during the task — surface them as a manifest (contents live in Manus's file panel)
+  const files = new Set();
+  for (const m of merged) for (const line of m.text.split('\n')) {
+    const t = line.trim();
+    if (FILE_NAME_RX.test(t)) files.add(t);
+  }
+  if (files.size) merged.push({
+    role: 'assistant', index: merged.length,
+    text: '## 📎 Files created in this task\n' + [...files].map(f => '- ' + f).join('\n') +
+          '\n\n*(File contents are not in the chat DOM — download them from Manus via "View all files in this task" before the session expires.)*'
+  });
   return merged.length ? merged : null;
 }
 
@@ -1008,7 +1045,7 @@ function extractMessages(withThinking) {
   const allTurns = document.querySelectorAll('[data-message-author-role], .human-turn, .bot-turn, div[class*="user-message"], div[class*="assistant-message"]');
   const messages = [];
   const push = (el, role, i) => {
-    let text = el.innerText.trim();
+    let text = textWithTables(el).trim();
     let thinking = '';
     if (withThinking && role === 'assistant') {
       thinking = extractThinking(el);

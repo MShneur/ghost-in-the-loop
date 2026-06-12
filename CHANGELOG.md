@@ -1,5 +1,18 @@
 # Changelog
 
+## [6.8.0] — Structure Survives
+
+### Fixed
+- **Tables export as tables**: Manus (and any platform's) HTML tables were flattening into numbered-list soup in exports. Extraction now serializes every `<table>` into a proper markdown pipe table in place.
+
+### Added
+- **📎 File manifest**: Manus creates files mid-task (scripts, PRDs, syntheses — its working artifacts). Exports now end with a "Files created in this task" list so nothing silently vanishes, with a reminder that contents live in Manus's file panel and should be downloaded before the session expires.
+- **FUNDING.yml scaffold** (commented/inert): uncomment a line and add a handle to activate GitHub's Sponsor button.
+
+### Honest limits
+- File CONTENTS can't be scraped from the chat DOM — Manus stores them server-side behind its viewer. The manifest tells you what to download; pulling actual contents would need Manus's authenticated API and is out of scope for a userscript.
+
+
 ## [6.7.0] — Evidence-Based Handoff
 
 The generic "Capsule" is gone. We researched how the community actually transfers context between AI models (handoff extensions, claude-chat-handoff, the Handoff Prompt pattern, conversation-handoff MCP) and rebuilt around the validated patterns.
