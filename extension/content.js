@@ -1,4 +1,4 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.4.0 engine
+// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.5.0 engine
 (function() {
   'use strict';
   const _storageCache = {};
@@ -24,7 +24,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.4.0';
+const VER = '6.5.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -385,6 +385,7 @@ const GHOST = {
     soundOn: GM_getValue('soundOn',true),
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
+    helpSec: 'start',
     qDraft: (()=>{ try { const a = JSON.parse(GM_getValue('qDraft','[""]')); return Array.isArray(a)&&a.length?a:['']; } catch(_){ return ['']; } })(),
     expAdv: GM_getValue('expAdv',false),
     showDiag: false,
@@ -913,15 +914,32 @@ async function harvestManus() {
     });
   };
   const orig = sc.scrollTop;
-  sc.scrollTop = 0; await sleep(380); grab();
+  const step = Math.max(300, (sc.clientHeight || 600) * 0.85);
+  const maxIter = Math.min(800, Math.ceil(sc.scrollHeight / step) + 20); // sized to the chat, not a blind cap
+  sc.scrollTop = 0; await sleep(420); grab();
   let guard = 0;
-  const step = Math.max(300, (sc.clientHeight || 600) * 0.7);
-  while (sc.scrollTop + sc.clientHeight < sc.scrollHeight - 10 && guard++ < 150) {
-    sc.scrollTop += step; await sleep(300); grab();
+  while (sc.scrollTop + sc.clientHeight < sc.scrollHeight - 10 && guard++ < maxIter) {
+    sc.scrollTop += step; await sleep(240); grab();
+    if (guard % 10 === 0) {
+      GHOST.loop.detail = `🌾 Harvesting… ${Math.min(99, Math.round(100 * sc.scrollTop / sc.scrollHeight))}%`;
+      render();
+    }
   }
+  // Bottom settle: virtualizers render the tail late — force bottom twice
+  for (let i = 0; i < 2; i++) { sc.scrollTop = sc.scrollHeight; await sleep(550); grab(); }
   sc.scrollTop = orig;
-  const arr = [...seen.values()].sort((a, b) => a.pos - b.pos);
-  return arr.length ? arr.map((m, i) => ({ role: m.role, index: i, text: m.text })) : null;
+  let arr = [...seen.values()].sort((a, b) => a.pos - b.pos)
+    .map((m, i) => ({ role: m.role, index: i, text: m.text }));
+  // Merge consecutive same-role fragments (Manus plan steps) into readable blocks
+  const merged = [];
+  for (const m of arr) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === m.role && (m.text.length < 200 || last.text.length < 200)) {
+      last.text += '\n' + m.text;
+    } else merged.push({ ...m });
+  }
+  merged.forEach((m, i) => m.index = i);
+  return merged.length ? merged : null;
 }
 
 const THINK_BLOCK_SELS = ['[class*="thinking" i]','[class*="thought" i]','[class*="reasoning" i]','[data-testid*="thought"]','[data-testid*="reasoning"]','details'];
@@ -1187,6 +1205,9 @@ GM_addStyle(`
 .g-qdel:hover{color:#e66}
 .g-qtext{flex:1;font-size:9.5px;color:#999;line-height:1.4;word-break:break-word}
 .g-qtext.done{color:#4a5;text-decoration:line-through;text-decoration-color:#2a3}
+.g-hpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.g-hpill{padding:3px 7px;border:1px solid #27282e;border-radius:10px;background:#18191c;color:#666;font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-hpill.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
 #gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
 #gitl.pos-dock.collapsed{width:32px!important;min-width:0}
 #gitl.pos-dock.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
@@ -1283,22 +1304,52 @@ function renderFlowTab() {
     <button class="g-exp-btn" id="wf-reset" style="background:#18191c;border-color:#2e2f35;color:#ccc;margin-top:5px">Reset stage</button>`;
 }
 
+const HELP_SECTIONS = {
+  start: { label: 'Start', html: `
+    <b>What is Ghost?</b><br>You give the AI a big task. Ghost keeps pressing "continue" for you — through every step — until the AI says it's truly done.<br><br>
+    <b>The 30-second version:</b><br>1. Type your task in the chat box<br>2. Press the big ▶<br>3. Walk away ☕<br><br>
+    <b>How does it know when to stop?</b><br>Ghost teaches the AI two signals: <code>[[GITL::PROCEED]]</code> = "more to do", <code>[[GITL::HALT]]</code> = "finished". Ghost reads them and acts.` },
+  run: { label: 'Run', html: `
+    <b>The Run tab</b> is the classic loop.<br><br>
+    <b>Three modes:</b><br>· <b>Loop</b> — AI works in batches, Ghost continues each one<br>· <b>Think First</b> — AI plans before working, then batches<br>· <b>Roadmap</b> — AI researches, writes its own plan, Ghost runs every step (see Auto)<br><br>
+    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⏹ stop &amp; reset<br><br>
+    <b>Q: It paused by itself?</b><br>The status line says why — usually round limit reached or the page changed. Press ▶ to resume.` },
+  auto: { label: 'Auto', html: `
+    <b>The Auto tab</b> = fire &amp; forget.<br><br>
+    <b>Roadmap</b> (AI plans): pick Roadmap on Run, press ▶. The AI studies your task, writes a numbered plan, and Ghost executes every step + a final synthesis. Watch steps get ✓ here.<br><br>
+    <b>Queue</b> (you plan): write your own steps — one box each, ＋ to add more — and hit ▶ Run queue.<br><br>
+    <b>Q: Roadmap vs Workflow?</b><br><i>Workflow</i> = you know the recipe, same stages every time.<br><i>Roadmap</i> = the AI invents the plan for THIS task.<br>Example, "build a landing page": a workflow always runs draft→critique→refine; a roadmap might plan research→copy→HTML→styling→review, because that's what this task needed.` },
+  flow: { label: 'Flow', html: `
+    <b>The Flow tab</b> holds fixed recipes (workflows): stages you pick up-front, like Draft → Critique → Polish. Ghost moves to the next stage every time the AI HALTs.<br><br>
+    <b>Pause between</b> stops after each stage so you can review — or switch the model.<br><br>
+    <b>Lens Relay</b> is built for that: turn Pause between ON, swap the model at every pause (e.g. Perplexity's selector), press ▶. Each model gives an independent take, then a verified consensus.` },
+  roles: { label: 'Roles', html: `
+    <b>The Roles tab</b> injects a persona into your first prompt — Red Team attacks the work, Round Table simulates a committee, and so on.<br><br>
+    <b>On Perplexity</b>, Round Table automatically becomes a REAL round table: it expects you to switch models between turns, and each model must give its own independent assessment, in a code block, naming who goes next.` },
+  export: { label: 'Export', html: `
+    <b>Q: Export vs Capsule — what's the difference?</b><br><br>
+    <b>⬇ Export</b> = the whole conversation as a file (Markdown or JSON), with 💭 thinking logs if enabled. Use it to archive or read later.<br><br>
+    <b>📦 Capsule file</b> = a small briefing for the NEXT AI: current state, roadmap position, last outputs, and instructions to continue. Paste it into a fresh chat — the new model picks up where this one stopped.<br><br>
+    <b>📦 Ask in chat</b> = Ghost asks the AI itself to write a full handoff report in the chat. Best on agent platforms (like Manus) where scraping misses things.<br><br>
+    <i>Rule of thumb: keeping records → Export. Moving to another model → Capsule.</i>` },
+  setup: { label: 'Setup', html: `
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — safety cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, or ▐ <b>Dock</b>: a slim edge tab that never covers the chat<br><br>
+    <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
+  feedback: { label: 'Feedback', html: `
+    <b>Found a bug? Have an idea?</b><br><br>
+    Open an issue: <a href="https://github.com/MShneur/ghost-in-the-loop/issues" target="_blank" rel="noopener" style="color:#a5b4fc">github.com/MShneur/ghost-in-the-loop</a><br><br>
+    <b>Please include:</b><br>· Ghost version (v${VER}) and the platform<br>· What you did, what you expected, what happened<br>· Setup → Advanced → Diagnostics → <b>Probe</b> output — it tells us exactly what Ghost can and can't see<br><br>
+    ⭐ A star on GitHub helps more people find Ghost.` }
+};
+
 function renderInfoTab() {
+  const sec = GHOST.ui.helpSec || 'start';
+  const pills = Object.entries(HELP_SECTIONS).map(([k, s]) =>
+    `<button class="g-hpill${k===sec?' act':''}" data-h="${k}">${s.label}</button>`).join('');
   return `
-    <div class="g-hint" style="line-height:1.7">
-    <b>Run</b> — the classic loop. Type your task in the chat, press ▶. Ghost keeps sending "continue" until the AI signals [[GITL::HALT]].<br><br>
-    <b>Auto</b> — fire &amp; forget. Two ways:<br>
-    · <b>Roadmap</b> (pick it on Run): the AI studies YOUR task, writes its own numbered plan, and Ghost executes every step + a final synthesis.<br>
-    · <b>Queue</b>: you write the steps yourself, Ghost runs them.<br><br>
-    <b>Flow</b> — fixed recipes you pick up-front (Draft → Critique → Polish). Same stages every time, any task.<br><br>
-    <b>🗺 Roadmap vs 🔁 Workflow?</b><br>
-    Workflow = <i>you</i> know the recipe, AI follows it.<br>
-    Roadmap = <i>AI</i> invents the plan for this specific task.<br>
-    <i>Example — "build me a landing page":</i> the <b>Polish Pipeline</b> workflow always runs draft→critique→refine. <b>Roadmap</b> might plan: 1. research competitors → 2. write copy → 3. HTML → 4. styling → 5. review — because that's what THIS task needed.<br><br>
-    <b>Roles</b> — personas injected into the first prompt (Red Team, Round Table…).<br>
-    <b>Export</b> — save the chat (with 💭 thinking logs) or a 📦 Handoff Capsule to continue in any other model.<br>
-    <b>Setup</b> — rounds, sounds, position, advanced.</div>
-    <button class="g-btn-sm" id="g-info-back">← Back</button>`;
+    <div class="g-hpills">${pills}</div>
+    <div class="g-hint" style="line-height:1.75;font-size:9.5px">${HELP_SECTIONS[sec].html}</div>
+    <button class="g-btn-sm" id="g-info-back">← Back to Ghost</button>`;
 }
 
 function renderAutoTab() {
@@ -1430,8 +1481,8 @@ function render() {
       <span class="g-logo">👻 Ghost<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${PLAT.label}</span>
-        <button class="g-minbtn" id="g-info" title="What does each tab do?">?</button>
-        <button class="g-minbtn" id="g-col">${col?'▲':'▼'}</button>
+        <button class="g-minbtn" id="g-info" title="Help & FAQ">?</button>
+        <button class="g-minbtn" id="g-col" title="${col?'Expand':'Minimize'}">${GHOST.ui.position==='dock' ? (col?'◀':'▶') : (col?'＋':'－')}</button>
       </span>
     </div>
     <div class="g-coll-row">
@@ -1469,6 +1520,13 @@ function bindEvents() {
   const $$ = s => panel.querySelectorAll(s);
 
   $('#g-col')?.addEventListener('click', () => { GHOST.ui.collapsed=!GHOST.ui.collapsed; _save('panelCollapsed',GHOST.ui.collapsed); render(); });
+  // Docked + collapsed: the whole strip is the expand target (the play button stays play)
+  if (GHOST.ui.position==='dock' && GHOST.ui.collapsed) {
+    panel.addEventListener('click', e => {
+      if (e.target.closest('#g-quick') || e.target.closest('#g-col')) return;
+      GHOST.ui.collapsed = false; _save('panelCollapsed', false); render();
+    }, { once: true });
+  }
   $('#g-quick')?.addEventListener('click', () => { GHOST.loop.state==='RUNNING'?pauseLoop():startLoop(); });
   $('#g-projname')?.addEventListener('change', e => {
     GHOST.project.name = e.target.value.trim();
@@ -1561,6 +1619,7 @@ function bindEvents() {
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
   $('#g-info')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.tab==='info' ? 'run' : 'info'; render(); });
   $('#g-info-back')?.addEventListener('click', () => { GHOST.ui.tab='run'; render(); });
+  $$('.g-hpill').forEach(b => b.addEventListener('click', e => { GHOST.ui.helpSec = e.target.dataset.h; render(); }));
   $('#cfg-adv')?.addEventListener('click', () => { GHOST.ui.cfgAdv=!GHOST.ui.cfgAdv; _save('cfgAdv',GHOST.ui.cfgAdv); render(); });
   $('#exp-adv')?.addEventListener('click', () => { GHOST.ui.expAdv=!GHOST.ui.expAdv; _save('expAdv',GHOST.ui.expAdv); render(); });
   $('#g-onb-done')?.addEventListener('click', () => { GHOST.ui.firstRun=false; _save('firstRun',false); render(); });

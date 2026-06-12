@@ -1,5 +1,24 @@
 # Changelog
 
+## [6.5.0] — The Friendly Ghost
+
+UX pass driven by real user testing. The goal: nobody should need a tutorial.
+
+### Fixed — Manus export completeness (root cause from field evidence)
+- The harvest's blind 150-step safety cap stopped ~⅔ through long chats (this one was 115,000px tall and needed ~235 steps). The cap is now computed from the actual chat height (up to 800 steps), with live "Harvesting… N%" progress.
+- **Bottom settle**: virtualizers render the tail late — harvest now forces scroll-to-bottom twice with longer waits, so the last outputs are captured.
+- **Fragment merging**: Manus plan-steps exported as ~170 separate one-line "Assistant" sections; consecutive same-role fragments now merge into readable blocks.
+
+### UX — window controls that behave like windows
+- Collapse control is now context-aware: docked panels use ◀ expand / ▶ collapse (horizontal, matching the edge), floating panels use ＋ / － like every window the user already knows.
+- Docked + collapsed: the entire strip is the tap-to-expand target — only ▶ stays the play button.
+
+### UX — Help Center (the ? button)
+- One topic per view, picked by pills: Start · Run · Auto · Flow · Roles · Export · Setup · Feedback — FAQ-style, written in plain language.
+- Answers the real questions: "Export vs Capsule?", "Roadmap vs Workflow?", "Why did it pause?"
+- Feedback section links GitHub issues and tells users exactly what to include (version, platform, Probe output).
+
+
 ## [6.4.0] — Field Repairs
 
 Built from real-world Manus testing: actual exported files and saved page DOM drove every fix.
