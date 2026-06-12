@@ -1,5 +1,19 @@
 # Changelog
 
+## [6.3.0] — Deep Export
+
+**Export the thinking, not just the chat.** Reasoning logs on most platforms hide behind collapsed "Thinking" toggles that scrapers miss — the known workaround is expanding every toggle by hand before exporting. Ghost now does that automatically, from inside the page.
+
+### Added
+- **💭 Thinking logs** (Export tab, on by default): before extracting, Ghost auto-expands collapsed reasoning — opens every `<details>` block and clicks Thinking/Thought/Reasoning/Show-steps toggles (3 passes, marks what it clicked, never touches its own panel) — then captures thinking blocks per message.
+- Markdown exports render thinking as `> 💭 Thinking` blockquotes above each response; JSON exports carry a `thinking` field per message.
+- Works on Manus, DeepSeek, ChatGPT, Gemini, Claude and any platform using standard collapse patterns — no separate exporter extension needed.
+
+### Notes
+- Thinking text is subtracted from the main body to avoid double-capture; if a platform interleaves it non-contiguously, minor duplication may remain
+- Handoff Capsules intentionally stay thinking-free (final outputs only)
+
+
 ## [6.2.0] — The Autopilot
 
 **Walk away with everything ready.** The roadmap is no longer something you write — the AI researches the task, plans it, and Ghost executes the whole plan unattended.

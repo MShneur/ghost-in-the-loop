@@ -1,4 +1,4 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.2.0 engine
+// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.3.0 engine
 (function() {
   'use strict';
   const _storageCache = {};
@@ -24,7 +24,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.2.0';
+const VER = '6.3.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -375,6 +375,7 @@ const GHOST = {
     format: GM_getValue('expFormat','markdown'),
     filter: GM_getValue('expFilter','all'),
     includeRoles: GM_getValue('expRoles',true),
+    thinking: GM_getValue('expThinking',true),
     customSlug: GM_getValue('expSlug','')
   },
   ui: {
@@ -839,19 +840,67 @@ function buildFilename(mode) {
   return `${proj}_${mode}_${ts}_${slug}.${ext}`;
 }
 
-function extractMessages() {
+/* ── Deep Export: capture thinking logs, not just chat ───────── */
+const THINK_TOGGLE_RX = /\b(thinking|thought|thoughts|reasoning|chain of thought|thought for|show (?:steps|work|reasoning|thinking)|view (?:steps|reasoning))\b/i;
+
+async function expandThinking() {
+  // Auto-click collapsed "Thinking" toggles so reasoning text enters the DOM.
+  let clicked = 0;
+  for (let pass = 0; pass < 3; pass++) {
+    let n = 0;
+    document.querySelectorAll('details:not([open])').forEach(d => {
+      if (!d.closest('#gitl')) { try { d.open = true; n++; } catch(_){} }
+    });
+    document.querySelectorAll('button,[role="button"],summary').forEach(b => {
+      try {
+        if (b.closest('#gitl') || b.dataset.gitlExpanded) return;
+        const label = ((b.innerText || '') + ' ' + (b.getAttribute('aria-label') || '')).slice(0, 80);
+        if (THINK_TOGGLE_RX.test(label) && b.getAttribute('aria-expanded') !== 'true') {
+          b.click(); b.dataset.gitlExpanded = '1'; n++;
+        }
+      } catch(_){}
+    });
+    clicked += n;
+    if (!n) break;
+    await sleep(450);
+  }
+  return clicked;
+}
+
+const THINK_BLOCK_SELS = ['[class*="thinking" i]','[class*="thought" i]','[class*="reasoning" i]','[data-testid*="thought"]','[data-testid*="reasoning"]','details'];
+
+function extractThinking(el) {
+  const parts = [];
+  for (const s of THINK_BLOCK_SELS) {
+    try {
+      el.querySelectorAll(s).forEach(t => {
+        const txt = (t.innerText || '').trim();
+        if (txt && txt.length > 40 && !parts.some(p => p.includes(txt.slice(0, 80)))) parts.push(txt);
+      });
+    } catch(_){}
+  }
+  return parts.join('\n\n');
+}
+
+function extractMessages(withThinking) {
   const allTurns = document.querySelectorAll('[data-message-author-role], .human-turn, .bot-turn, div[class*="user-message"], div[class*="assistant-message"]');
   const messages = [];
+  const push = (el, role, i) => {
+    let text = el.innerText.trim();
+    let thinking = '';
+    if (withThinking && role === 'assistant') {
+      thinking = extractThinking(el);
+      if (thinking) text = text.replace(thinking, '').trim(); // avoid double-capture
+    }
+    if (text || thinking) messages.push(thinking ? { role, index: i, text, thinking } : { role, index: i, text });
+  };
   if (allTurns.length > 0) {
     allTurns.forEach((el, i) => {
       const role = el.dataset?.messageAuthorRole || (el.className.includes('user') || el.className.includes('human') ? 'user' : 'assistant');
-      const text = el.innerText.trim();
-      if (text) messages.push({ role, index: i, text });
+      push(el, role, i);
     });
   } else {
-    _qAll(PLAT.assistant).forEach((el, i) => {
-      messages.push({ role: 'assistant', index: i, text: el.innerText.trim() });
-    });
+    _qAll(PLAT.assistant).forEach((el, i) => push(el, 'assistant', i));
   }
   return messages;
 }
@@ -864,7 +913,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -927,8 +976,14 @@ function restoreConfig(jsonText) {
   } catch(e) { return '⚠ Invalid backup file.'; }
 }
 
-function runExport() {
-  const msgs = applyFilter(extractMessages());
+async function runExport() {
+  if (GHOST.export.thinking) {
+    GHOST.loop.detail = '💭 Expanding thinking blocks…'; render();
+    const n = await expandThinking();
+    await sleep(n ? 600 : 0);
+    GHOST.loop.detail = ''; render();
+  }
+  const msgs = applyFilter(extractMessages(GHOST.export.thinking));
   if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
   const proj = GHOST.project.name || 'Untitled';
   const ts = new Date().toLocaleString();
@@ -940,6 +995,7 @@ function runExport() {
     const lines = [`# Ghost Export — ${proj}`, `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`, '', '---', ''];
     for (const m of msgs) {
       if (GHOST.export.includeRoles) lines.push(`## ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}`, '');
+      if (m.thinking) lines.push('> 💭 **Thinking**', ...m.thinking.split('\n').map(l => '> ' + l), '');
       lines.push(m.text, '', '---', '');
     }
     content = lines.join('\n');
@@ -1153,6 +1209,7 @@ function renderExportTab() {
   const adv = GHOST.ui.expAdv;
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
+    <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
     <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">📦 Handoff Capsule</button>
     <div class="g-hint" style="margin-top:4px">Capsule: state + roadmap + last outputs + next-lens contract — paste into any fresh model.</div>
@@ -1313,6 +1370,7 @@ function bindEvents() {
   $('#exp-roles')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.includeRoles=this.classList.contains('on'); _save('expRoles',GHOST.export.includeRoles); });
   $('#exp-slug')?.addEventListener('change', e => { GHOST.export.customSlug=e.target.value.trim(); _save('expSlug',GHOST.export.customSlug); render(); });
   $('#g-export')?.addEventListener('click', runExport);
+  $('#exp-think')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.thinking=this.classList.contains('on'); _save('expThinking',GHOST.export.thinking); });
   $('#g-capsule')?.addEventListener('click', exportCapsule);
   $('#g-backup')?.addEventListener('click', backupConfig);
   $('#g-restore')?.addEventListener('click', () => $('#g-restore-file')?.click());
