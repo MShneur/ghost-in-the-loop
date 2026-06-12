@@ -1,5 +1,20 @@
 # Changelog
 
+## [6.7.0] — Evidence-Based Handoff
+
+The generic "Capsule" is gone. We researched how the community actually transfers context between AI models (handoff extensions, claude-chat-handoff, the Handoff Prompt pattern, conversation-handoff MCP) and rebuilt around the validated patterns.
+
+### What the research said
+- Context transfer between models is a real, established need — it's a whole product category
+- The consensus format is an **AI-written structured briefing**, not a scraped transcript: raw transcripts bury decisions in noise
+- A scraped file has exactly one irreplaceable job: a chat that's **full/stuck and can't be prompted anymore**
+
+### Changed
+- **📦 Capsule file → 🛟 Rescue file**: purpose-named for its real use case (dead/stuck chats). Now includes the last 10 messages VERBATIM (both roles), mission, state, and resumption instructions — modeled on the proven stuck-chat recovery format.
+- **📦 Ask in chat → 🤝 Handoff**: promoted to the primary transfer path, since the AI's own structured briefing is the community-validated format.
+- Export tab and Help now teach the three-purpose model: *Working chat → Handoff. Dead chat → Rescue. Records → Export.*
+
+
 ## [6.6.0] — The Veil
 
 Export is no longer a silent mystery. Users see what's happening, how far along it is, and have a safe way out.

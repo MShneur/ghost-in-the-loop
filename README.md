@@ -55,7 +55,7 @@ Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · 
 | **Config backup** | Export/restore every Ghost setting as one JSON file |
 | **💭 Deep Export** | Auto-expands collapsed Thinking/Reasoning toggles (incl. Manus grid-collapse steps), then exports reasoning logs alongside responses |
 | **🌾 Virtualized harvest** | On Manus, export scrolls the whole virtualized chat collecting every turn — full history, correct roles, UI chrome stripped |
-| **📦 Ask in chat** | One click prompts the AI to write its own complete handoff report in-chat — the scrape-proof capsule |
+| **🤝 Handoff & 🛟 Rescue** | Handoff: the AI writes a structured briefing in-chat for the next model. Rescue: a stuck/full chat gets scraped (state + last 10 messages verbatim + resumption instructions) into a file for a fresh chat |
 | **Unique signal tokens** | `[[GITL::PROCEED]]` / `[[GITL::HALT]]` — no false positives from code blocks |
 | **Halt-first priority** | HALT always wins over PROCEED. No exception. |
 | **Confidence scoring** | Weighted detection: sigils +4, legacy keywords +3, fuzzy patterns +2 |
