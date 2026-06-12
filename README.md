@@ -53,7 +53,9 @@ Works on: **ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · 
 | **Lens Relay** | Workflow built for real model-switch round tables (Perplexity model selector, or manual switches) — pause between turns, swap the model, press ▶ |
 | **Walk-away alerts** | Desktop notification when the loop completes, pauses, or errors |
 | **Config backup** | Export/restore every Ghost setting as one JSON file |
-| **💭 Deep Export** | Auto-expands collapsed Thinking/Reasoning toggles, then exports reasoning logs alongside responses (Markdown blockquotes / JSON field) — Manus, DeepSeek, ChatGPT, Gemini, Claude |
+| **💭 Deep Export** | Auto-expands collapsed Thinking/Reasoning toggles (incl. Manus grid-collapse steps), then exports reasoning logs alongside responses |
+| **🌾 Virtualized harvest** | On Manus, export scrolls the whole virtualized chat collecting every turn — full history, correct roles, UI chrome stripped |
+| **📦 Ask in chat** | One click prompts the AI to write its own complete handoff report in-chat — the scrape-proof capsule |
 | **Unique signal tokens** | `[[GITL::PROCEED]]` / `[[GITL::HALT]]` — no false positives from code blocks |
 | **Halt-first priority** | HALT always wins over PROCEED. No exception. |
 | **Confidence scoring** | Weighted detection: sigils +4, legacy keywords +3, fuzzy patterns +2 |

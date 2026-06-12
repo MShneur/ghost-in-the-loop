@@ -1,5 +1,25 @@
 # Changelog
 
+## [6.4.0] — Field Repairs
+
+Built from real-world Manus testing: actual exported files and saved page DOM drove every fix.
+
+### Fixed — Manus export (evidence-based)
+- **Root causes found in the real DOM**: Manus virtualizes the chat (off-screen turns don't exist in the DOM), nests `data-event-id` containers (one match contained the whole thread → duplicated mega-blobs), uses a Tiptap ProseMirror input (the visible `<textarea>` belongs to the Monaco code viewer — a decoy), and collapses steps with CSS grid animation instead of `<details>`/aria-expanded.
+- **Scroll harvest**: on Manus, export now scrolls the virtualized list top→bottom collecting every turn by event id, in order, with correct user/assistant roles
+- **Chrome stripping**: UI noise (Task completed, Suggested follow-ups, View more, Knowledge recalled, counters) removed from exports
+- **Nested-match dedupe** in the generic extractor: ancestors of other matches are dropped, duplicate texts skipped
+- **Manus profile corrected**: ProseMirror-first input (useCE), `[data-event-id]` turns
+- **Thinking expansion** now opens Manus-style grid-collapsed step sections (only genuinely collapsed ones)
+
+### Added
+- **Word tabs**: Run · Auto · Flow · Roles · Export · Setup — no more emoji guessing
+- **? help view** (header button): what every tab does, plus Roadmap-vs-Workflow explained with a concrete example (Workflow = your fixed recipe; Roadmap = AI invents the plan for this task)
+- **📦 Ask in chat**: second capsule path — Ghost prompts the AI to write its own complete handoff report (mission, everything tried, failures + why, current state, next steps, fresh-AI instructions) in one code block. Works even where DOM scraping is hostile.
+- **Structured queue editor**: one input per step, ＋ Add step, ✕ remove; during a run each step shows ✓ done / ▶ current / · pending with strikethrough on completion
+- **Dock position** (▐): panel docks to the screen edge; collapsed it's a 32px vertical tab that blocks nothing — the closest safe equivalent to living inside the site's own UI
+
+
 ## [6.3.0] — Deep Export
 
 **Export the thinking, not just the chat.** Reasoning logs on most platforms hide behind collapsed "Thinking" toggles that scrapers miss — the known workaround is expanding every toggle by hand before exporting. Ghost now does that automatically, from inside the page.

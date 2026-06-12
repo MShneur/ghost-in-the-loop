@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      6.3.0
+// @version      6.4.0
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.3.0';
+const VER = '6.4.0';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -133,13 +133,13 @@ const PROFILES = {
   manus: {
     host: /manus\.im/,
     label: 'Manus',
-    // Selectors are best-effort fallback chains — use Diag → Probe to confirm the live winner.
-    input: ['textarea[placeholder*="task" i]','textarea[placeholder*="Manus" i]','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]','textarea:not([disabled])'],
-    send: ['button[type="submit"]','button[aria-label*="Send" i]','button[data-testid*="send"]','button[class*="send" i]'],
+    // Verified against real Manus DOM: Tiptap ProseMirror input; Monaco code viewer has a decoy <textarea>.
+    input: ['div.ProseMirror[contenteditable="true"]','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]:not(.monaco-editor *)'],
+    send: ['button[type="submit"]','button[aria-label*="Send" i]','button[data-testid*="send"]'],
     stop: ['button[aria-label*="Stop" i]','button[class*="stop" i]'],
-    assistant: ['div[class*="message" i]','div[class*="markdown" i]','div[class*="prose" i]','div[class*="assistant" i]'],
+    assistant: ['[data-event-id]','div.manus-markdown'],
     continueLabels: [],
-    useCE: false, useNS: false
+    useCE: true, useNS: false
   }
 };
 
@@ -409,6 +409,7 @@ const GHOST = {
     soundOn: GM_getValue('soundOn',true),
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
+    qDraft: (()=>{ try { const a = JSON.parse(GM_getValue('qDraft','[""]')); return Array.isArray(a)&&a.length?a:['']; } catch(_){ return ['']; } })(),
     expAdv: GM_getValue('expAdv',false),
     showDiag: false,
     showSites: false,
@@ -884,11 +885,67 @@ async function expandThinking() {
         }
       } catch(_){}
     });
+    // Manus-style collapsed steps: clickable group/header divs driving grid-rows-[0fr] panels
+    document.querySelectorAll('[class*="group/header"][class*="clickable"]').forEach(h => {
+      try {
+        if (h.closest('#gitl') || h.dataset.gitlExpanded) return;
+        const wrap = h.parentElement?.parentElement || h.parentElement;
+        if (!wrap || !wrap.querySelector('[class*="grid-rows-[0fr]"]')) return; // only genuinely collapsed sections
+        h.click(); h.dataset.gitlExpanded = '1'; n++;
+      } catch(_){}
+    });
     clicked += n;
     if (!n) break;
     await sleep(450);
   }
   return clicked;
+}
+
+const MANUS_CHROME = new Set(['Lite','Accepted','View more','View all files in this task','Task completed','How was this result?','Suggested follow-ups','Knowledge recalled']);
+
+function cleanManusText(raw) {
+  return (raw || '').split('\n').filter(l => {
+    const t = l.trim();
+    if (!t) return false;
+    if (MANUS_CHROME.has(t)) return false;
+    if (/^Knowledge recalled/.test(t)) return false;
+    if (/^\d+\/\d+$/.test(t)) return false;     // virtual-list counters like 5/16
+    if (/^Code · [\d.]+ [KMG]B$/.test(t)) return false;
+    return true;
+  }).join('\n').trim();
+}
+
+// Manus virtualizes the chat — off-screen turns don't exist in the DOM.
+// Harvest: scroll the list top→bottom, collecting top-level [data-event-id] turns by id.
+async function harvestManus() {
+  const first = document.querySelector('[data-event-id]');
+  if (!first) return null;
+  let sc = first.parentElement;
+  while (sc && sc !== document.body && sc.scrollHeight <= sc.clientHeight * 1.5) sc = sc.parentElement;
+  if (!sc || sc === document.body) sc = document.scrollingElement;
+  const seen = new Map();
+  const grab = () => {
+    document.querySelectorAll('[data-event-id]').forEach(el => {
+      if (el.parentElement?.closest('[data-event-id]')) return; // top-level turns only
+      const id = el.getAttribute('data-event-id');
+      const text = cleanManusText(el.innerText);
+      if (!text) return;
+      const role = /items-end/.test(el.className) ? 'user' : 'assistant';
+      const pos = el.getBoundingClientRect().top + (sc.scrollTop || 0);
+      const prev = seen.get(id);
+      if (!prev || prev.text.length < text.length) seen.set(id, { role, text, pos });
+    });
+  };
+  const orig = sc.scrollTop;
+  sc.scrollTop = 0; await sleep(380); grab();
+  let guard = 0;
+  const step = Math.max(300, (sc.clientHeight || 600) * 0.7);
+  while (sc.scrollTop + sc.clientHeight < sc.scrollHeight - 10 && guard++ < 150) {
+    sc.scrollTop += step; await sleep(300); grab();
+  }
+  sc.scrollTop = orig;
+  const arr = [...seen.values()].sort((a, b) => a.pos - b.pos);
+  return arr.length ? arr.map((m, i) => ({ role: m.role, index: i, text: m.text })) : null;
 }
 
 const THINK_BLOCK_SELS = ['[class*="thinking" i]','[class*="thought" i]','[class*="reasoning" i]','[data-testid*="thought"]','[data-testid*="reasoning"]','details'];
@@ -924,7 +981,13 @@ function extractMessages(withThinking) {
       push(el, role, i);
     });
   } else {
-    _qAll(PLAT.assistant).forEach((el, i) => push(el, 'assistant', i));
+    const els = [..._qAll(PLAT.assistant)];
+    const leaves = els.filter(el => !els.some(o => o !== el && el.contains(o))); // drop ancestors of other matches
+    const texts = new Set();
+    leaves.forEach((el, i) => {
+      const t = el.innerText.trim();
+      if (t && !texts.has(t)) { texts.add(t); push(el, 'assistant', i); }
+    });
   }
   return messages;
 }
@@ -937,7 +1000,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -983,6 +1046,24 @@ function exportCapsule() {
   downloadText(md, buildFilename('capsule').replace(/\.\w+$/,'') + '.md', 'text/markdown');
 }
 
+const HANDOFF_IN_CHAT = `Stop all other work. Produce a COMPLETE HANDOFF REPORT for this entire conversation, in ONE markdown code block, structured exactly as:
+# Handoff Report
+## Mission — what we are building and why
+## Everything tried — every approach/version, what worked, what failed and WHY
+## Current state — exactly where things stand right now
+## Key decisions & reasoning
+## Open items — unresolved problems, risks, unknowns
+## Next steps — concrete, ordered
+## Instructions for a fresh AI — how to pick this up with zero prior knowledge
+Be exhaustive — this report is the only memory the next AI will have. No fluff outside the code block. End with [[GITL::HALT]]`;
+
+function capsuleInChat() {
+  if (GHOST.loop.state === 'RUNNING') { GHOST.loop.detail = 'Pause the loop first'; render(); return; }
+  GHOST.loop.detail = '📦 Handoff prompt sent — export the chat when it finishes';
+  engineSend(HANDOFF_IN_CHAT, false);
+  render();
+}
+
 function backupConfig() {
   const cfg = {};
   for (const k of GM_KEYS) cfg[k] = GM_getValue(k, undefined);
@@ -1007,7 +1088,13 @@ async function runExport() {
     await sleep(n ? 600 : 0);
     GHOST.loop.detail = ''; render();
   }
-  const msgs = applyFilter(extractMessages(GHOST.export.thinking));
+  let raw = null;
+  if (/Manus/i.test(PLAT.label)) {
+    GHOST.loop.detail = '🌾 Harvesting virtualized chat…'; render();
+    raw = await harvestManus();
+    GHOST.loop.detail = ''; render();
+  }
+  const msgs = applyFilter(raw || extractMessages(GHOST.export.thinking));
   if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
   const proj = GHOST.project.name || 'Untitled';
   const ts = new Date().toLocaleString();
@@ -1081,7 +1168,7 @@ GM_addStyle(`
 .g-proj-in{flex:1;background:transparent;border:none;color:#a5b4fc;font-size:10px;font-family:inherit;font-weight:600;outline:none;min-width:0}
 .g-proj-in::placeholder{color:#333}
 .g-tabs{display:flex;gap:3px;margin-bottom:8px}
-.g-tab{flex:1;padding:4px 0;border:1px solid #27282e;border-radius:5px;background:#18191c;color:#555;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-tab{flex:1;padding:4px 0;border:1px solid #27282e;border-radius:5px;background:#18191c;color:#555;font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
 .g-tab:hover{background:#222329;color:#888}.g-tab.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
 .g-modes{display:flex;gap:3px;margin-bottom:6px}
 .g-md{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
@@ -1117,6 +1204,21 @@ GM_addStyle(`
 .g-sites{width:100%;box-sizing:border-box;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
 .g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid #3730a3;border-radius:5px;background:#1a1b2e;color:#a5b4fc;font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
 .g-btn-sm:hover{background:#222345}
+.g-qrow{display:flex;align-items:center;gap:5px;margin-bottom:4px}
+.g-qin{flex:1;min-width:0;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#aab;font-size:9.5px;padding:4px 6px;font-family:inherit}
+.g-qin:focus{border-color:#3730a3;outline:none}
+.g-qdel{border:none;background:transparent;color:#444;cursor:pointer;font-size:10px;padding:2px}
+.g-qdel:hover{color:#e66}
+.g-qtext{flex:1;font-size:9.5px;color:#999;line-height:1.4;word-break:break-word}
+.g-qtext.done{color:#4a5;text-decoration:line-through;text-decoration-color:#2a3}
+#gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
+#gitl.pos-dock.collapsed{width:32px!important;min-width:0}
+#gitl.pos-dock.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
+#gitl.pos-dock.collapsed .g-hdr > span:last-child{flex-direction:column}
+#gitl.pos-dock.collapsed .g-plat{display:none}
+#gitl.pos-dock.collapsed .g-logo{writing-mode:vertical-rl;font-size:11px}
+#gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px}
+#gitl.pos-dock.collapsed .g-qstat{display:none}
 .g-diag .ok{color:#34d399}.g-diag .warn{color:#f87171}
 .g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#c9cad0;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
 .g-persona-btn.act{background:#1a1b2e;border-color:#3730a3;color:#c7d2fe}
@@ -1205,21 +1307,53 @@ function renderFlowTab() {
     <button class="g-exp-btn" id="wf-reset" style="background:#18191c;border-color:#2e2f35;color:#ccc;margin-top:5px">Reset stage</button>`;
 }
 
+function renderInfoTab() {
+  return `
+    <div class="g-hint" style="line-height:1.7">
+    <b>Run</b> — the classic loop. Type your task in the chat, press ▶. Ghost keeps sending "continue" until the AI signals [[GITL::HALT]].<br><br>
+    <b>Auto</b> — fire &amp; forget. Two ways:<br>
+    · <b>Roadmap</b> (pick it on Run): the AI studies YOUR task, writes its own numbered plan, and Ghost executes every step + a final synthesis.<br>
+    · <b>Queue</b>: you write the steps yourself, Ghost runs them.<br><br>
+    <b>Flow</b> — fixed recipes you pick up-front (Draft → Critique → Polish). Same stages every time, any task.<br><br>
+    <b>🗺 Roadmap vs 🔁 Workflow?</b><br>
+    Workflow = <i>you</i> know the recipe, AI follows it.<br>
+    Roadmap = <i>AI</i> invents the plan for this specific task.<br>
+    <i>Example — "build me a landing page":</i> the <b>Polish Pipeline</b> workflow always runs draft→critique→refine. <b>Roadmap</b> might plan: 1. research competitors → 2. write copy → 3. HTML → 4. styling → 5. review — because that's what THIS task needed.<br><br>
+    <b>Roles</b> — personas injected into the first prompt (Red Team, Round Table…).<br>
+    <b>Export</b> — save the chat (with 💭 thinking logs) or a 📦 Handoff Capsule to continue in any other model.<br>
+    <b>Setup</b> — rounds, sounds, position, advanced.</div>
+    <button class="g-btn-sm" id="g-info-back">← Back</button>`;
+}
+
 function renderAutoTab() {
   const R = GHOST.roadmap;
-  const list = R.steps.length
-    ? `<div class="g-diag" style="max-height:120px">${R.steps.map((s,i) =>
-        `${i < R.index ? '<span class="ok">✓</span>' : i === R.index ? '<span style="color:#a5b4fc">▶</span>' : '·'} ${i+1}. ${s.slice(0,70)}${s.length>70?'…':''}`).join('\n')}</div>
-       <button class="g-btn-sm" id="rm-clear">Clear roadmap</button>`
-    : '';
+  // Active roadmap → live progress rows with ✓ / ▶ / ·
+  if (R.steps.length) {
+    const rows = R.steps.map((s,i) => {
+      const mark = i < R.index ? '<span class="ok" style="width:14px">✓</span>' : i === R.index ? '<span style="color:#a5b4fc;width:14px">▶</span>' : '<span style="color:#3a3b40;width:14px">·</span>';
+      return `<div class="g-qrow">${mark}<span class="g-qtext${i<R.index?' done':''}">${i+1}. ${s.replace(/</g,'&lt;')}</span></div>`;
+    }).join('');
+    return `
+      <div style="font-size:9px;color:#777;font-weight:700;margin-bottom:4px">🗺 ROADMAP — step ${Math.min(R.index+1,R.steps.length)} of ${R.steps.length}</div>
+      <div style="max-height:170px;overflow-y:auto">${rows}</div>
+      <button class="g-btn-sm" id="rm-clear">Clear roadmap</button>`;
+  }
+  // No roadmap → step editor: one input per step, + to add
+  const d = GHOST.ui.qDraft;
+  const rows = d.map((s,i) => `
+    <div class="g-qrow">
+      <span style="color:#555;width:14px;font-size:9px">${i+1}.</span>
+      <input type="text" class="g-qin" data-qi="${i}" value="${(s||'').replace(/"/g,'&quot;')}" placeholder="Step ${i+1}…">
+      <button class="g-qdel" data-qd="${i}">✕</button>
+    </div>`).join('');
   return `
-    <div class="g-hint">🗺 <b>Autopilot.</b> Select Roadmap on the ▶ tab and start — the AI plans, Ghost runs every step. Or paste your own steps below.</div>
-    <div style="font-size:9px;color:#777;font-weight:700;margin:6px 0 4px">ROADMAP ${R.steps.length ? `(${R.index}/${R.steps.length})` : '(none yet)'}</div>
-    ${list}
-    <div class="g-div"></div>
-    <div style="font-size:9px;color:#777;font-weight:700;margin-bottom:4px">PROMPT QUEUE</div>
-    <textarea id="q-steps" class="g-sites" rows="3" spellcheck="false" placeholder="One step per line — runs hands-free."></textarea>
-    <button class="g-btn-sm" id="q-start" style="margin-top:0">▶ Run queue</button>`;
+    <div class="g-hint">🗺 <b>Autopilot.</b> Pick <b>Roadmap</b> on the Run tab and press ▶ — the AI plans this task itself. Or write your own steps below; each gets a ✓ as it completes.</div>
+    <div style="font-size:9px;color:#777;font-weight:700;margin:6px 0 4px">PROMPT QUEUE</div>
+    ${rows}
+    <div style="display:flex;gap:5px">
+      <button class="g-btn-sm" id="q-add" style="flex:1;margin-top:4px">＋ Add step</button>
+      <button class="g-btn-sm" id="q-start" style="flex:1;margin-top:4px">▶ Run queue</button>
+    </div>`;
 }
 
 function renderPersonasTab() {
@@ -1235,8 +1369,11 @@ function renderExportTab() {
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
-    <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">📦 Handoff Capsule</button>
-    <div class="g-hint" style="margin-top:4px">Capsule: state + roadmap + last outputs + next-lens contract — paste into any fresh model.</div>
+    <div style="display:flex;gap:5px;margin-top:5px">
+      <button class="g-exp-btn" id="g-capsule" style="flex:1;margin-top:0">📦 Capsule file</button>
+      <button class="g-exp-btn" id="g-capsule-chat" style="flex:1;margin-top:0">📦 Ask in chat</button>
+    </div>
+    <div class="g-hint" style="margin-top:4px">File = Ghost scrapes state + outputs. Ask in chat = the AI writes its own full handoff report (best on agent platforms).</div>
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
@@ -1258,8 +1395,8 @@ function renderSettingsTab() {
     <div class="g-row"><label>🔔 Sound</label><div class="g-tog${GHOST.ui.soundOn?' on':''}" id="cfg-snd"></div></div>
     <div class="g-row"><label>💬 Notify when done</label><div class="g-tog${GHOST.ui.notifyOn?' on':''}" id="cfg-ntf"></div></div>
     <div class="g-row"><label>📍 Position</label>
-      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar'].map(p=>
-        `<button class="g-pos${GHOST.ui.position===p?' act':''}" data-pos="${p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':'━'}</button>`
+      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar','dock'].map(p=>
+        `<button class="g-pos${GHOST.ui.position===p?' act':''}" data-pos="${p}" title="${p==='dock'?'Dock — slim edge tab, blocks nothing':p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':p==='bottom-bar'?'━':'▐'}</button>`
       ).join('')}</div>
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
@@ -1305,17 +1442,19 @@ function applyPosition(pos) {
   else if(pos==='bot-right'){panel.style.bottom=G;panel.style.right=G}
   else if(pos==='bot-left'){panel.style.bottom=G;panel.style.left=G}
   else if(pos==='bottom-bar'){panel.classList.add('pos-bb')}
+  else if(pos==='dock'){panel.style.top='30%';panel.style.right='0';panel.style.width=''}
 }
 
 function render() {
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
-  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':''].filter(Boolean).join(' ');
+  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':''].filter(Boolean).join(' ');
   const qc = statColor(), ql = L.state==='RUNNING'?'Running…':L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   panel.innerHTML = `
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">👻 Ghost<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${PLAT.label}</span>
+        <button class="g-minbtn" id="g-info" title="What does each tab do?">?</button>
         <button class="g-minbtn" id="g-col">${col?'▲':'▼'}</button>
       </span>
     </div>
@@ -1329,15 +1468,15 @@ function render() {
         <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${GHOST.project.name}">
       </div>
       <div class="g-tabs">
-        <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Run — standard continue">▶</button>
-        <button class="g-tab${tab==='auto'?' act':''}" data-t="auto" title="Autopilot — roadmap & queue">🗺</button>
-        <button class="g-tab${tab==='flow'?' act':''}" data-t="flow" title="Workflows">🔁</button>
-        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas">🎭</button>
-        <button class="g-tab${tab==='export'?' act':''}" data-t="export" title="Export">⬇</button>
-        <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">⚙</button>
+        <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Standard continue loop">Run</button>
+        <button class="g-tab${tab==='auto'?' act':''}" data-t="auto" title="Roadmap autopilot & prompt queue">Auto</button>
+        <button class="g-tab${tab==='flow'?' act':''}" data-t="flow" title="Multi-stage workflows">Flow</button>
+        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas">Roles</button>
+        <button class="g-tab${tab==='export'?' act':''}" data-t="export" title="Export & handoff">Export</button>
+        <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">Setup</button>
       </div>
       <div id="g-tc">
-        ${tab==='run'?renderRunTab():''}${tab==='auto'?renderAutoTab():''}${tab==='flow'?renderFlowTab():''}
+        ${tab==='run'?renderRunTab():''}${tab==='auto'?renderAutoTab():''}${tab==='info'?renderInfoTab():''}${tab==='flow'?renderFlowTab():''}
         ${tab==='personas'?renderPersonasTab():''}${tab==='export'?renderExportTab():''}
         ${tab==='settings'?renderSettingsTab():''}
       </div>
@@ -1396,6 +1535,7 @@ function bindEvents() {
   $('#g-export')?.addEventListener('click', runExport);
   $('#exp-think')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.thinking=this.classList.contains('on'); _save('expThinking',GHOST.export.thinking); });
   $('#g-capsule')?.addEventListener('click', exportCapsule);
+  $('#g-capsule-chat')?.addEventListener('click', capsuleInChat);
   $('#g-backup')?.addEventListener('click', backupConfig);
   $('#g-restore')?.addEventListener('click', () => $('#g-restore-file')?.click());
   $('#g-restore-file')?.addEventListener('change', e => {
@@ -1405,8 +1545,21 @@ function bindEvents() {
     r.readAsText(f);
   });
 
-  // Flow tab — roadmap / queue
-  $('#q-start')?.addEventListener('click', () => { const t = $('#q-steps'); if (t && t.value.trim()) startQueue(t.value); });
+  // Auto tab — roadmap / queue
+  $$('.g-qin').forEach(inp => inp.addEventListener('change', e => {
+    const i = +e.target.dataset.qi; GHOST.ui.qDraft[i] = e.target.value;
+    _save('qDraft', JSON.stringify(GHOST.ui.qDraft));
+  }));
+  $$('.g-qdel').forEach(b => b.addEventListener('click', e => {
+    const i = +e.target.dataset.qd; GHOST.ui.qDraft.splice(i,1);
+    if (!GHOST.ui.qDraft.length) GHOST.ui.qDraft = [''];
+    _save('qDraft', JSON.stringify(GHOST.ui.qDraft)); render();
+  }));
+  $('#q-add')?.addEventListener('click', () => { GHOST.ui.qDraft.push(''); render(); setTimeout(()=>{ const ins=$$('.g-qin'); ins[ins.length-1]?.focus(); },50); });
+  $('#q-start')?.addEventListener('click', () => {
+    const steps = GHOST.ui.qDraft.map(s=>s.trim()).filter(Boolean);
+    if (steps.length) startQueue(steps.join('\n'));
+  });
   $('#rm-clear')?.addEventListener('click', () => { resetRoadmap(); render(); });
 
   // Settings tab
@@ -1430,6 +1583,8 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#g-info')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.tab==='info' ? 'run' : 'info'; render(); });
+  $('#g-info-back')?.addEventListener('click', () => { GHOST.ui.tab='run'; render(); });
   $('#cfg-adv')?.addEventListener('click', () => { GHOST.ui.cfgAdv=!GHOST.ui.cfgAdv; _save('cfgAdv',GHOST.ui.cfgAdv); render(); });
   $('#exp-adv')?.addEventListener('click', () => { GHOST.ui.expAdv=!GHOST.ui.expAdv; _save('expAdv',GHOST.ui.expAdv); render(); });
   $('#g-onb-done')?.addEventListener('click', () => { GHOST.ui.firstRun=false; _save('firstRun',false); render(); });
