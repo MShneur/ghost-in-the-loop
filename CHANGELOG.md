@@ -1,5 +1,33 @@
 # Changelog
 
+## [7.0.0-patch1] — CI Bug Fixes (2026-06-13, same day as v7.0.0)
+
+Found by the 126-test CI suite that was added alongside v7.0.0. Both bugs were in the code before CI existed — they shipped silently.
+
+### Bug fixes
+
+**HALT-first bypass (CRITICAL)**
+- `LEGACY_PROCEED = 'PROCEED'` is a substring of `'[[GITL::PROCEED]]'`. When the sigil fired, the legacy keyword check also fired, adding 3 unearned points to `pScore`. With both sigils present: `hScore=4`, `pScore=7` → condition `hScore >= pScore` failed → proceed won.
+- Impact: any response containing both sigils would always proceed, never halt. The most important invariant was silently broken.
+- Fix: `else-if` — legacy check only fires when the sigil is absent. See `detectSignal()`.
+- Test: `signal.test.js` — "HALT wins when both sigils present"
+
+**Non-deterministic SHA-256 fallback (MEDIUM)**
+- `gitlSha256()` catch block used `Math.random()`. When `crypto.subtle.digest` throws, identical messages got different hashes every time → deduplication silently failed.
+- Fix: Replaced `Math.random()` with deterministic djb2 hash in fallback path.
+- Test: `capsule.test.js` — "same input → same hash"
+
+### CI infrastructure added
+- `tests/setup.js` — VM harness with GM_* mocks, crypto shim, history shim, IIFE export hook
+- `tests/version.test.js` — version consistency (8 tests)
+- `tests/structure.test.js` — S0-S5 module presence + security invariants (44 tests)
+- `tests/signal.test.js` — `detectSignal()` + `parseProgress()` (21 tests)
+- `tests/timeline.test.js` — Timeline record/cap/query/persistence (8 tests)
+- `tests/health.test.js` — `platformHealth()` scoring + `randomDelay()` bounds (9 tests)
+- `tests/capsule.test.js` — SHA-256 dedup + capsule v2 schema (15 tests)
+- `tests/tablock.test.js` — tab lock claim/release/expiry/corrupt (13 tests)
+- `.github/workflows/test.yml` — runs on every push + PR to main
+
 ## [7.0.0] — The Runtime Controller
 
 Built from a multi-AI research synthesis: 7 analysis documents, 5 ChatGPT GPT sessions (Code, Ethical Hacker, HTML/CSS/JS, Software Architect), DeepSeek, Gemini, Perplexity, and Kimi — each analyzing the codebase, competitors, and failure modes independently. Claude synthesized, critiqued, and built.
