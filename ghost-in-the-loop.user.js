@@ -901,9 +901,11 @@ function detectSignal(fullText) {
   // Unique sigils (highest weight)
   if (tail.includes(SIGIL_HALT))     hScore += 4;
   if (tail.includes(SIGIL_PROCEED))  pScore += 4;
-  // Legacy keywords
-  if (tail.includes(LEGACY_HALT))    hScore += 3;
-  if (tail.includes(LEGACY_PROCEED)) pScore += 3;
+  // Legacy keywords — only fire if sigil NOT already present (prevents substring double-count:
+  // LEGACY_PROCEED='PROCEED' is a substring of '[[GITL::PROCEED]]' which would otherwise
+  // add 3 extra points to pScore when sigil fires, defeating the halt-first invariant)
+  if (!tail.includes(SIGIL_HALT)    && tail.includes(LEGACY_HALT))    hScore += 3;
+  if (!tail.includes(SIGIL_PROCEED) && tail.includes(LEGACY_PROCEED)) pScore += 3;
   // Fuzzy
   if (FUZZY_HALT.some(p => low.includes(p)))    hScore += 2;
   if (FUZZY_PROCEED.some(p => low.includes(p))) pScore += 2;
@@ -1763,7 +1765,13 @@ async function gitlSha256(text) {
     const data = new TextEncoder().encode(text || '');
     const hash = await crypto.subtle.digest('SHA-256', data);
     return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch { return `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+  } catch {
+    // Deterministic fallback: djb2 hash (used when crypto.subtle unavailable)
+    const s = String(text || '');
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+    return `djb2-${(h >>> 0).toString(16).padStart(8, '0')}`;
+  }
 }
 
 async function buildCapsuleV2(rawMessages) {

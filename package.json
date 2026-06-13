@@ -1,0 +1,26 @@
+{
+  "name": "ghost-in-the-loop",
+  "version": "7.0.0",
+  "description": "Ghost in the Loop — test harness",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --coverage",
+    "lint": "node -e \"require('fs').readFileSync('ghost-in-the-loop.user.js');console.log('Syntax OK');\""
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "setupFiles": [
+      "./tests/setup.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ]
+  }
+}
