@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.8.1]
+
+### Added
+- Quiet "♡ Support Ghost" link: footer of the Setup tab and the Help → Feedback section, in both the userscript and the Firefox extension. Points at GitHub Sponsors via a single `SUPPORT_URL` constant (one-line swap if the destination ever changes). Deliberately muted styling — visible to those who look, invisible to those who don't.
+
+
 ## [6.8.0] — Structure Survives
 
 ### Fixed

@@ -1,4 +1,4 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.8.0 engine
+// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.8.1 engine
 (function() {
   'use strict';
   const _storageCache = {};
@@ -24,7 +24,8 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.8.0';
+const VER = '6.8.1';
+const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -1306,6 +1307,9 @@ GM_addStyle(`
 .g-hpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
 .g-hpill{padding:3px 7px;border:1px solid #27282e;border-radius:10px;background:#18191c;color:#666;font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
 .g-hpill.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-support{text-align:center;font-size:8px;color:#3a3b40;margin-top:8px;padding-top:6px;border-top:1px solid #1c1d22}
+.g-support a{color:#4a4b55;text-decoration:none}
+.g-support a:hover{color:#a5b4fc}
 #gitl-veil{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;background:rgba(8,9,12,.55);backdrop-filter:blur(1.5px);font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
 .gv-card{background:#111214;border:1px solid #27282e;border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6)}
 .gv-ringwrap{position:relative;width:64px;height:64px;margin:0 auto 12px}
@@ -1456,7 +1460,8 @@ const HELP_SECTIONS = {
     <b>Found a bug? Have an idea?</b><br><br>
     Open an issue: <a href="https://github.com/MShneur/ghost-in-the-loop/issues" target="_blank" rel="noopener" style="color:#a5b4fc">github.com/MShneur/ghost-in-the-loop</a><br><br>
     <b>Please include:</b><br>· Ghost version (v${VER}) and the platform<br>· What you did, what you expected, what happened<br>· Setup → Advanced → Diagnostics → <b>Probe</b> output — it tells us exactly what Ghost can and can't see<br><br>
-    ⭐ A star on GitHub helps more people find Ghost.` }
+    ⭐ A star on GitHub helps more people find Ghost.<br>
+    ♡ And if Ghost saved you real time: <a href="${SUPPORT_URL}" target="_blank" rel="noopener" style="color:#a5b4fc">support its development</a> — entirely optional, it stays free either way.` }
 };
 
 function renderInfoTab() {
@@ -1552,7 +1557,8 @@ function renderSettingsTab() {
       <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${GM_getValue('customSites','').replace(/</g,'&lt;')}</textarea>
       <div class="g-hint" id="cfg-sites-status">Per-host selector overrides (JSON). Also add the site under Tampermonkey → script settings → User matches.</div>` : ''}
     <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
-    ${GHOST.ui.showDiag ? renderDiag() : ''}` : ''}`;
+    ${GHOST.ui.showDiag ? renderDiag() : ''}` : ''}
+    <div class="g-support"><a href="${SUPPORT_URL}" target="_blank" rel="noopener">♡ Support Ghost</a> · free forever</div>`;
 }
 
 function renderDiag() {
