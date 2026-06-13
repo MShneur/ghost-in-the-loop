@@ -1,36 +1,239 @@
-// Firefox MV3 Extension wrapper — GM shim + Ghost in the Loop v6.9.0 engine
-(function() {
-  'use strict';
-  const _storageCache = {};
-  let _ready = false;
-  function _initStorage() {
-    return new Promise(resolve => {
-      try {
-        browser.storage.local.get(null).then(data => {
-          Object.assign(_storageCache, data);
-          _ready = true;
-          resolve();
-        });
-      } catch(_) { _ready = true; resolve(); }
-    });
-  }
-  function GM_getValue(key, def) { return key in _storageCache ? _storageCache[key] : def; }
-  function GM_setValue(key, val) { _storageCache[key] = val; try { browser.storage.local.set({ [key]: val }); } catch(_){} }
-  function GM_addStyle(css) { const s = document.createElement('style'); s.textContent = css; document.head.appendChild(s); }
-
-  _initStorage().then(() => {
-window.__GITL_V6__ = true;
+/* Ghost in the Loop — Firefox MV3 Extension Wrapper
+   GM_* API shim for browser.storage.local */
+const _store = typeof browser !== 'undefined' ? browser.storage.local : chrome.storage.local;
+const _cache = {};
+async function _initStore() {
+  try { const d = await _store.get(null); Object.assign(_cache, d); } catch(_){}
+}
+function GM_getValue(k, d) { return _cache[k] !== undefined ? _cache[k] : d; }
+function GM_setValue(k, v) { _cache[k] = v; _store.set({ [k]: v }).catch(()=>{}); }
+function GM_addStyle(css) {
+  const s = document.createElement('style');
+  s.textContent = css;
+  (document.head || document.documentElement).appendChild(s);
+}
+_initStore().then(() => {
+(() => {
+'use strict';
+if (window.__GITL_V7__) return;
+window.__GITL_V7__ = true;
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.9.0';
+const VER = '7.0.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
 const LEGACY_HALT    = 'SYSTEM_HALT';
 const MIN_RESPONSE_LEN = 50;
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYER 0.5 — BOOT SAFETY + TAB LOCK + FOCUS GUARD
+   Fixes v7.0-alpha loading failures: race conditions, multi-tab
+   conflicts, background token burn.
+   Sources: Kimi Deep Dive, Software Architect GPT, HTML/CSS GPT
+   ═══════════════════════════════════════════════════════════════ */
+const GITL_TAB_ID = crypto.randomUUID?.() || `tab-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+let _tabLockInterval = null;
+
+/* safeBoot: guarantees document.body exists before any DOM work.
+   If body isn't ready, retries via rAF. Catches and logs boot errors. */
+function safeBoot(fn) {
+  const boot = () => {
+    try {
+      if (!document.body) { requestAnimationFrame(boot); return; }
+      fn();
+    } catch (err) {
+      console.error('[GITL] boot failed:', err);
+      try { GM_setValue('lastBootError', JSON.stringify({ msg: String(err?.message||err), stack: String(err?.stack||''), at: new Date().toISOString() })); } catch(_){}
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  } else { boot(); }
+}
+
+/* Tab lock: prevents multi-tab race conditions. Only one GITL
+   instance per conversation route can run the loop engine.
+   Uses GM_getValue heartbeat with 8s expiry. */
+function _tabLockKey() {
+  return `gitl:lock:${location.hostname}:${location.pathname.split('/').slice(0,3).join('/')}`;
+}
+
+function claimTabLock() {
+  const key = _tabLockKey();
+  const now = Date.now();
+  try {
+    const raw = GM_getValue(key, null);
+    const lock = raw ? JSON.parse(raw) : null;
+    if (lock && lock.tabId !== GITL_TAB_ID && (now - lock.ts < 8000)) {
+      return false; // another tab owns it
+    }
+  } catch(_){}
+  GM_setValue(key, JSON.stringify({ tabId: GITL_TAB_ID, ts: now }));
+  return true;
+}
+
+function releaseTabLock() {
+  try {
+    const key = _tabLockKey();
+    const raw = GM_getValue(key, null);
+    if (raw) {
+      const lock = JSON.parse(raw);
+      if (lock.tabId === GITL_TAB_ID) GM_setValue(key, '');
+    }
+  } catch(_){}
+}
+
+function startTabHeartbeat() {
+  if (_tabLockInterval) clearInterval(_tabLockInterval);
+  _tabLockInterval = setInterval(() => {
+    if (!claimTabLock()) {
+      // lost ownership — pause if running
+      if (typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
+        GHOST.loop.state = 'PAUSED';
+        GHOST.loop.detail = '⚠ Tab lock lost — paused';
+        if (typeof render === 'function') render();
+      }
+    }
+  }, 5000);
+}
+
+/* Focus guard: prevents background tabs from burning tokens
+   by auto-sending prompts while user isn't looking. */
+function isTabSafeToAct() {
+  if (!document.hasFocus()) return false;
+  if (document.hidden) return false;
+  return claimTabLock();
+}
+
+/* Pre-send safety gate: called before every engineSend.
+   Returns { ok, reason } */
+function assertInteractionSafe() {
+  if (!document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
+    return { ok: false, reason: 'tab-not-focused' };
+  }
+  if (!claimTabLock()) {
+    return { ok: false, reason: 'tab-lock-held-by-other' };
+  }
+  return { ok: true, reason: 'ok' };
+}
+
+/* Cleanup on tab close */
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    releaseTabLock();
+    if (_tabLockInterval) clearInterval(_tabLockInterval);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LAYER 0.7 — NETWORK INTERCEPTOR (S1)
+   Captures AI responses from fetch/XHR streams BEFORE they hit
+   the DOM. Supplements DOM-based detection — does NOT replace it.
+   Sources: Gemini Phase 0, Kimi Deep Dive, DeepSeek cascade
+   ═══════════════════════════════════════════════════════════════ */
+const GITL_NET = {
+  bus: new EventTarget(),
+  lastChunk: '',
+  lastComplete: '',
+  capturedAt: 0,
+  active: false,
+
+  AI_ENDPOINTS: [
+    '/backend-api/conversation',   // ChatGPT
+    '/api/organizations',          // Claude
+    '/socket.io/',                 // Perplexity
+    '/api/v1/chat/completions',    // DeepSeek / OpenAI-compat
+    '/chat/conversation',          // HuggingChat
+    '/api/chat',                   // Generic
+    '/bard',                       // Gemini
+    '/turn/',                      // Copilot
+  ],
+
+  _isChat(url) {
+    if (!url) return false;
+    const s = typeof url === 'string' ? url : url?.url || String(url);
+    return this.AI_ENDPOINTS.some(ep => s.includes(ep));
+  },
+
+  _emit(raw, isDone) {
+    if (raw === '[DONE]') isDone = true;
+    this.lastChunk = raw;
+    this.capturedAt = Date.now();
+    if (isDone) this.lastComplete = raw;
+    this.bus.dispatchEvent(new CustomEvent('gitl:net', {
+      detail: { raw, isDone, ts: Date.now() }
+    }));
+  },
+
+  install() {
+    if (this.active) return;
+    this.active = true;
+
+    /* Fetch proxy — captures SSE / JSON streams */
+    const origFetch = window.fetch;
+    const self = this;
+    window.fetch = async function(...args) {
+      const response = await origFetch.apply(this, args);
+      if (self._isChat(args[0])) {
+        try {
+          const cloned = response.clone();
+          if (cloned.body) {
+            const reader = cloned.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            (async () => {
+              let buf = '';
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) { if (buf) self._emit(buf, true); break; }
+                  buf += decoder.decode(value, { stream: true });
+                  const lines = buf.split('\n');
+                  buf = lines.pop() || '';
+                  for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('data: ')) {
+                      self._emit(trimmed.slice(6), false);
+                    }
+                  }
+                }
+              } catch(_) { /* stream aborted — normal on navigation */ }
+            })();
+          }
+        } catch(err) {
+          console.warn('[GITL] fetch intercept error:', err);
+        }
+      }
+      return response;
+    };
+
+    /* XHR proxy — fallback for platforms not using fetch */
+    const origOpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+      this._gitlUrl = url;
+      return origOpen.call(this, method, url, ...rest);
+    };
+    const origSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function(...args) {
+      if (self._isChat(this._gitlUrl)) {
+        this.addEventListener('load', function() {
+          if (this.status >= 200 && this.status < 300 && this.responseText) {
+            self._emit(this.responseText, true);
+          }
+        });
+      }
+      return origSend.apply(this, args);
+    };
+
+    console.log('[GITL] Network interceptor active');
+  }
+};
+
+/* Install immediately — safe even before DOM */
+GITL_NET.install();
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 1 — PLATFORM ADAPTERS (all DOM access lives here)
@@ -412,10 +615,10 @@ const DIAG = {
     const e = `[${new Date().toISOString().slice(11,19)}] ${msg}`;
     this.errors.unshift(e);
     if (this.errors.length > 15) this.errors.pop();
-    console.warn('[Ghost 6.1]', msg);
+    console.warn('[GITL]', msg);
+    Timeline.record('diag', { msg });
   },
   runProbe() {
-    // Live-test every selector chain; report the winning selector + match count per role.
     const out = [];
     for (const k of ['input','send','stop','assistant']) {
       let win = '', n = 0;
@@ -425,6 +628,218 @@ const DIAG = {
       out.push(n ? `✓ ${k}: ${win} (${n})` : `✗ ${k}: NO MATCH`);
     }
     this.probe = out.join('\n');
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   S2 — SELECTOR DOCTOR + HEALTH SCORING
+   Scores platform readiness 0-100. Exposes 🟢🟡🔴 badge.
+   Sources: HTML/CSS GPT capability scoring, Software Architect GPT
+   ═══════════════════════════════════════════════════════════════ */
+function platformHealth() {
+  const input = Adapter.getInput();
+  const send  = Adapter.getSendBtn();
+  const stop  = _q('gen', PLAT.stop);
+  const msgs  = _qAll(PLAT.assistant);
+  const canRead   = msgs.length > 0;
+  const canInject  = !!input;
+  const canSend    = !!send;
+  const canExport  = canRead;
+  const score = (canRead ? 25 : 0) + (canInject ? 30 : 0) + (canSend ? 30 : 0) + (canExport ? 15 : 0);
+  return {
+    platform: PLAT.label, score,
+    input: canInject, send: canSend, stop: !!stop,
+    assistantCount: msgs.length, ready: canInject && canSend,
+    badge: score >= 80 ? '🟢' : score >= 40 ? '🟡' : '🔴',
+    netActive: GITL_NET.active,
+    netAge: GITL_NET.capturedAt ? Date.now() - GITL_NET.capturedAt : -1
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   S3 — TIMELINE (lightweight event log with capped GM store)
+   Append-only log for observability, failure learning, metrics.
+   Sources: Kimi Timeline, ChatGPT Export 4 Metrics pattern
+   ═══════════════════════════════════════════════════════════════ */
+const Timeline = {
+  key: 'gitlTimeline',
+  _cache: null,
+  all() {
+    if (this._cache) return this._cache;
+    try { this._cache = JSON.parse(GM_getValue(this.key, '[]')); } catch { this._cache = []; }
+    return this._cache;
+  },
+  record(type, data = {}) {
+    const items = this.all();
+    items.push({
+      type, data,
+      platform: PLAT?.label || '?',
+      wf: (typeof GHOST !== 'undefined' && GHOST.workflow) ? GHOST.workflow.selected : 'none',
+      at: new Date().toISOString()
+    });
+    if (items.length > 500) items.splice(0, items.length - 500);
+    this._cache = items;
+    GM_setValue(this.key, JSON.stringify(items));
+  },
+  failures() { return this.all().filter(e => e.type === 'failure' || e.type === 'send_fail'); },
+  since(ms) { const cutoff = new Date(Date.now() - ms).toISOString(); return this.all().filter(e => e.at > cutoff); }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   S4 — RECOVERY ENGINE (escalating send strategies)
+   When primary send fails, tries alternative injection paths
+   with exponential backoff. Logs every attempt to Timeline.
+   Sources: Kimi Deep Dive, DeepSeek fallback chain
+   ═══════════════════════════════════════════════════════════════ */
+const RecoveryEngine = {
+  async recoverSend(text) {
+    const strategies = [
+      { name: 'ce-reinsert', fn: () => this._tryCE(text) },
+      { name: 'native-setter', fn: () => this._tryNative(text) },
+      { name: 'direct-value', fn: () => this._tryDirect(text) },
+      { name: 'enter-dispatch', fn: () => this._tryEnterKey(text) },
+      { name: 'refocus-retry', fn: () => this._tryRefocus(text) }
+    ];
+    let attempt = 0;
+    for (const s of strategies) {
+      attempt++;
+      try {
+        const result = await s.fn();
+        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: result.ok });
+        if (result.ok) return { ok: true, path: s.name, attempt };
+      } catch(e) {
+        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: false, error: String(e) });
+      }
+      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+    }
+    Timeline.record('recovery_exhausted', { text: text.slice(0, 80) });
+    return { ok: false, path: 'exhausted', attempt };
+  },
+
+  _getInput() { return Adapter.getInput(); },
+
+  async _tryCE(text) {
+    const el = this._getInput();
+    if (!el || el.getAttribute('contenteditable') !== 'true') return { ok: false };
+    el.focus();
+    document.execCommand('selectAll', false, null);
+    const ok = document.execCommand('insertText', false, text);
+    if (ok) el.dispatchEvent(new Event('input', { bubbles: true }));
+    await this._clickSend();
+    return { ok };
+  },
+
+  async _tryNative(text) {
+    const el = this._getInput();
+    if (!el || el.tagName !== 'TEXTAREA') return { ok: false };
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    if (!setter) return { ok: false };
+    el.focus();
+    setter.call(el, text);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    await this._clickSend();
+    return { ok: true };
+  },
+
+  async _tryDirect(text) {
+    const el = this._getInput();
+    if (!el) return { ok: false };
+    el.focus();
+    el.value = text;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    await this._clickSend();
+    return { ok: true };
+  },
+
+  async _tryEnterKey(text) {
+    const el = this._getInput();
+    if (!el) return { ok: false };
+    el.focus();
+    Adapter.pressEnter(el);
+    return { ok: true };
+  },
+
+  async _tryRefocus(text) {
+    const el = this._getInput();
+    if (!el) return { ok: false };
+    el.scrollIntoView({ behavior: 'instant', block: 'center' });
+    el.focus();
+    await new Promise(r => setTimeout(r, 300));
+    el.value = text;
+    el.textContent = text;
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+    await this._clickSend();
+    return { ok: true };
+  },
+
+  async _clickSend() {
+    await new Promise(r => setTimeout(r, 400));
+    const btn = Adapter.getSendBtn();
+    if (btn && !btn.disabled) { btn.click(); return true; }
+    const input = this._getInput();
+    if (input) Adapter.pressEnter(input);
+    return true;
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   S4.5 — GHOST BUS (BroadcastChannel cross-tab relay)
+   Enables cooperative multi-tab handoff. User-initiated only —
+   never auto-executes received prompts (security).
+   Sources: ChatGPT Export 4, Gemini Phase 5 (with security fix)
+   ═══════════════════════════════════════════════════════════════ */
+const GhostBus = {
+  channel: null,
+  peers: new Map(),
+
+  init() {
+    try {
+      this.channel = new BroadcastChannel('gitl.bus.v1');
+      this.channel.onmessage = (e) => this._onMessage(e.data);
+      this.announce();
+    } catch(err) {
+      console.warn('[GITL] BroadcastChannel unavailable:', err);
+    }
+  },
+
+  announce() {
+    this._send('discover', { platform: PLAT?.label, url: location.href });
+  },
+
+  sendHandoff(text) {
+    this._send('handoff', { text, from: PLAT?.label, url: location.href });
+    Timeline.record('bus_handoff_sent', { to: 'broadcast', chars: text.length });
+  },
+
+  _send(type, payload) {
+    if (!this.channel) return;
+    this.channel.postMessage({
+      type, payload,
+      tabId: GITL_TAB_ID,
+      at: Date.now()
+    });
+  },
+
+  _onMessage(msg) {
+    if (msg.tabId === GITL_TAB_ID) return; // ignore self
+    if (msg.type === 'discover') {
+      this.peers.set(msg.tabId, { platform: msg.payload.platform, url: msg.payload.url, seen: Date.now() });
+    }
+    if (msg.type === 'handoff') {
+      // Store received handoff for user to manually apply — NOT auto-injected
+      GM_setValue('pendingHandoff', JSON.stringify(msg.payload));
+      Timeline.record('bus_handoff_received', { from: msg.payload.from, chars: msg.payload.text?.length });
+      if (typeof render === 'function') render();
+    }
+  },
+
+  getPendingHandoff() {
+    try { return JSON.parse(GM_getValue('pendingHandoff', 'null')); } catch { return null; }
+  },
+
+  clearPendingHandoff() {
+    GM_setValue('pendingHandoff', '');
   }
 };
 
@@ -576,6 +991,9 @@ function randomDelay(round) {
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
+  /* S0: pre-send safety gate */
+  const safe = assertInteractionSafe();
+  if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
   try {
     if (!skipDelay) {
@@ -586,8 +1004,19 @@ async function engineSend(text, skipDelay) {
     }
     if (L.state !== 'RUNNING') return false;
     const input = Adapter.getInput();
-    if (!input) { DIAG.push('No input element'); pauseWithProbe('Input element missing'); return false; }
-    if (!Adapter.injectText(input, text)) { DIAG.push('Inject failed'); pauseWithProbe('Text injection failed'); return false; }
+    if (!input) {
+      /* S4: try recovery engine before giving up */
+      DIAG.push('No input — trying recovery');
+      const r = await RecoveryEngine.recoverSend(text);
+      if (r.ok) { DIAG.sendPath = `recovery-${r.path}`; L.round++; L.lastActivity = Date.now(); L.staleTicks = 0; L.detail = ''; Timeline.record('send_ok', { round: L.round, path: `recovery-${r.path}` }); render(); return true; }
+      pauseWithProbe('Input element missing — recovery exhausted'); return false;
+    }
+    if (!Adapter.injectText(input, text)) {
+      DIAG.push('Inject failed — trying recovery');
+      const r = await RecoveryEngine.recoverSend(text);
+      if (r.ok) { DIAG.sendPath = `recovery-${r.path}`; L.round++; L.lastActivity = Date.now(); L.staleTicks = 0; L.detail = ''; Timeline.record('send_ok', { round: L.round, path: `recovery-${r.path}` }); render(); return true; }
+      pauseWithProbe('Text injection failed — recovery exhausted'); return false;
+    }
     await sleep(500);
     // 5-path send: button → retry → retry → retry → Enter key
     let sent = false;
@@ -601,10 +1030,12 @@ async function engineSend(text, skipDelay) {
     L.lastActivity = Date.now();
     L.staleTicks = 0;
     L.detail = '';
+    Timeline.record('send_ok', { round: L.round, path: DIAG.sendPath });
     render();
     return true;
   } catch(e) {
     DIAG.push('Send error: ' + String(e));
+    Timeline.record('send_fail', { error: String(e) });
     enginePause('Send failed');
     return false;
   } finally {
@@ -616,6 +1047,7 @@ function engineHalt(reason) {
   const L = GHOST.loop;
   L.state = 'COMPLETE'; L.detail = reason; L.needsPayload = true;
   clearInterval(L.timer); L.timer = null;
+  Timeline.record('halt', { reason, round: L.round });
   render();
   if (GHOST.ui.soundOn) playBeep();
   notify(reason);
@@ -625,6 +1057,7 @@ function enginePause(reason) {
   const L = GHOST.loop;
   L.state = 'PAUSED'; L.detail = reason;
   clearInterval(L.timer); L.timer = null;
+  Timeline.record('pause', { reason, round: L.round });
   render();
   notify('⏸ ' + reason);
 }
@@ -1293,6 +1726,72 @@ async function runExport() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   S5 — ENHANCED EXPORT: SHA-256 DEDUP + CAPSULE V2
+   Deduplicates messages from virtualized DOM re-renders.
+   Produces resumable capsule with DAG links + resume token.
+   Sources: Kimi capsule, ChatGPT Export 3 capsule builder
+   ═══════════════════════════════════════════════════════════════ */
+async function gitlSha256(text) {
+  try {
+    const data = new TextEncoder().encode(text || '');
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch { return `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+}
+
+async function buildCapsuleV2(rawMessages) {
+  const seen = new Set();
+  const graph = [];
+  for (let i = 0; i < rawMessages.length; i++) {
+    const m = rawMessages[i];
+    const text = (m.text || '').trim();
+    if (!text || text.length < 5) continue;
+    const hash = await gitlSha256(`${m.role}:${text}`);
+    if (seen.has(hash)) continue;
+    seen.add(hash);
+    graph.push({
+      id: `m_${graph.length + 1}`,
+      role: m.role || 'unknown',
+      text,
+      sha256: hash.slice(0, 16),
+      parentId: graph.length > 0 ? graph[graph.length - 1].id : null
+    });
+  }
+  const h = typeof platformHealth === 'function' ? platformHealth() : {};
+  return {
+    schema: 'gitl.capsule.v2',
+    version: VER,
+    exported_at: new Date().toISOString(),
+    platform: PLAT.label,
+    url: location.href,
+    title: document.title || '',
+    project: GHOST.project || {},
+    workflow: { selected: GHOST.workflow.selected, stage: GHOST.workflow.stageIndex },
+    health: { score: h.score, badge: h.badge },
+    messages: graph,
+    deduplicated: rawMessages.length - graph.length,
+    resume: {
+      last_id: graph.length ? graph[graph.length - 1].id : null,
+      next_action: 'continue_from_capsule',
+      instruction: 'Read this capsule. Preserve decisions. Continue from resume.next_action without restarting.'
+    },
+    timeline_summary: {
+      total_events: Timeline.all().length,
+      recent_failures: Timeline.failures().slice(-5).map(f => f.data)
+    }
+  };
+}
+
+async function exportCapsuleV2() {
+  const raw = extractMessages(GHOST.export.thinking);
+  const capsule = await buildCapsuleV2(raw);
+  const json = JSON.stringify(capsule, null, 2);
+  const fname = buildFilename('capsule').replace(/\.\w+$/, '') + '.gitl.json';
+  downloadText(json, fname, 'application/json');
+  Timeline.record('export_capsule', { messages: capsule.messages.length, deduped: capsule.deduplicated });
+}
+
+/* ═══════════════════════════════════════════════════════════════
    AUDIO
    ═══════════════════════════════════════════════════════════════ */
 function playBeep() {
@@ -1599,6 +2098,7 @@ function renderExportTab() {
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
+    <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">💊 Capsule v2 — resumable JSON</button>
     <button class="g-exp-btn" id="g-handoff" style="margin-top:5px">🤝 Handoff — AI writes the baton</button>
     <button class="g-exp-btn" id="g-rescue" style="margin-top:5px;background:#18191c;border-color:#2e2f35;color:#ccc">🛟 Rescue file (chat stuck/full)</button>
     <div class="g-hint" style="margin-top:4px"><b>Export</b> = full record. <b>Handoff</b> = the AI writes a briefing in-chat for the next model. <b>Rescue</b> = chat won't respond anymore — scrape the tail + instructions into a file for a fresh chat.</div>
@@ -1644,7 +2144,9 @@ function renderSettingsTab() {
 
 function renderDiag() {
   const L = GHOST.loop;
+  const h = typeof platformHealth === 'function' ? platformHealth() : null;
   const lines = [
+    h ? `<span class="ok">Health:</span> ${h.badge} ${h.score}/100 (in:${h.input?'✓':'✗'} send:${h.send?'✓':'✗'} read:${h.assistantCount} net:${h.netActive?'✓':'✗'})` : '',
     `<span class="ok">Adapter:</span> ${DIAG.adapter}`,
     `<span class="ok">Platform:</span> ${PLAT.label}`,
     `<span>Selector:</span> ${DIAG.selector || '—'}`,
@@ -1655,6 +2157,7 @@ function renderDiag() {
     `<span>State:</span> ${L.state}`,
     `<span>Stale:</span> ${L.staleTicks}`,
     `<span>Tick:</span> ${L.lastActivity ? Math.round((Date.now()-L.lastActivity)/1000)+'s ago' : '—'}`,
+    `<span>Tab:</span> ${GITL_TAB_ID.slice(0,8)}`,
     DIAG.probe ? `<span class="ok">Probe:</span>\n${DIAG.probe}` : '',
     DIAG.errors.length ? `<span class="warn">Errors:</span>\n${DIAG.errors.slice(0,5).join('\n')}` : ''
   ].filter(Boolean).join('\n');
@@ -1682,7 +2185,7 @@ function render() {
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">👻 Ghost<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
-        <span class="g-plat">${PLAT.label}</span>
+        <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
         <button class="g-minbtn" id="g-info" title="Help & FAQ">?</button>
         <button class="g-minbtn" id="g-col" title="${col?'Expand':'Minimize'}">${GHOST.ui.position==='dock' ? (col?'◀':'▶') : (col?'＋':'－')}</button>
       </span>
@@ -1769,6 +2272,7 @@ function bindEvents() {
   $('#exp-roles')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.includeRoles=this.classList.contains('on'); _save('expRoles',GHOST.export.includeRoles); });
   $('#exp-slug')?.addEventListener('change', e => { GHOST.export.customSlug=e.target.value.trim(); _save('expSlug',GHOST.export.customSlug); render(); });
   $('#g-export')?.addEventListener('click', runExport);
+  $('#g-capsule')?.addEventListener('click', () => { exportCapsuleV2(); });
   $('#exp-think')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.thinking=this.classList.contains('on'); _save('expThinking',GHOST.export.thinking); });
   $('#g-handoff')?.addEventListener('click', handoffInChat);
   $('#g-rescue')?.addEventListener('click', exportRescue);
@@ -1850,16 +2354,22 @@ document.addEventListener('keydown', e => {
    MUTATION OBSERVER (gated by sendInProgress to prevent double-fire)
    ═══════════════════════════════════════════════════════════════ */
 let _mutDebounce;
-new MutationObserver(() => {
-  if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
-  clearTimeout(_mutDebounce);
-  _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
-}).observe(document.body, { childList: true, subtree: true });
 
 /* ═══════════════════════════════════════════════════════════════
-   BOOT
+   BOOT — wrapped in safeBoot to prevent v7.0-alpha loading failures
    ═══════════════════════════════════════════════════════════════ */
-render();
-console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter}`);
-  });
-})();
+safeBoot(() => {
+  new MutationObserver(() => {
+    if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
+    clearTimeout(_mutDebounce);
+    _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
+  }).observe(document.body, { childList: true, subtree: true });
+
+  startTabHeartbeat();
+  claimTabLock();
+  GhostBus.init();
+  render();
+  Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
+  console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
+});
+});

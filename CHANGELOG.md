@@ -1,5 +1,47 @@
 # Changelog
 
+## [7.0.0] — The Runtime Controller
+
+Built from a multi-AI research synthesis: 7 analysis documents, 5 ChatGPT GPT sessions (Code, Ethical Hacker, HTML/CSS/JS, Software Architect), DeepSeek, Gemini, Perplexity, and Kimi — each analyzing the codebase, competitors, and failure modes independently. Claude synthesized, critiqued, and built.
+
+### S0 — Boot Safety (fixes v7.0-alpha loading failures)
+- **`safeBoot()`**: rAF + DOMContentLoaded boot guard — MutationObserver and render only fire once document.body exists. Catches and logs boot errors to GM storage.
+- **Tab lock**: `crypto.randomUUID()` per-tab identity, heartbeat every 5s via `GM_setValue` with 8s expiry. Only one GITL instance per conversation route runs the loop. Auto-pauses if lock is lost.
+- **Focus guard**: `assertInteractionSafe()` gate on every `engineSend` — blocks sends when tab lacks focus or another tab holds the lock. Prevents background token burn.
+- **`beforeunload` cleanup**: releases tab lock on tab close.
+
+### S1 — Network Interceptor
+- **Fetch proxy**: intercepts `window.fetch` responses to known AI endpoints, clones the stream, parses SSE `data:` lines in a non-blocking background reader.
+- **XHR proxy**: fallback for platforms not using fetch — hooks `XMLHttpRequest.prototype.open/send`.
+- **8 endpoint patterns**: ChatGPT, Claude, Perplexity, DeepSeek, HuggingChat, Gemini, Copilot, generic.
+- **`GITL_NET.bus`**: `EventTarget` emitting `gitl:net` custom events with `{raw, isDone, ts}`. Supplements DOM detection — does not replace it.
+
+### S2 — Selector Doctor + Health Badge
+- **`platformHealth()`**: scores platform readiness 0–100 across four axes: canRead (25), canInject (30), canSend (30), canExport (15).
+- **🟢🟡🔴 badge**: visible in panel header next to platform name. Green ≥80, Yellow ≥40, Red <40.
+- **Diagnostics integration**: health score, network interceptor status, and tab ID shown in Diagnostics panel.
+
+### S3 — Timeline (Event Log)
+- **Append-only event log**: capped at 500 entries in `GM_setValue`. Records boot, send success/failure, halt, pause, diagnostics, recovery attempts, exports.
+- **`Timeline.record(type, data)`**: every significant system event is logged with platform, workflow, and ISO timestamp.
+- **`Timeline.failures()`** and **`Timeline.since(ms)`**: query helpers for observability and failure learning.
+
+### S4 — Recovery Engine + GhostBus
+- **`RecoveryEngine.recoverSend(text)`**: 5-strategy escalation chain with exponential backoff (500ms→1s→2s→4s→8s): contenteditable reinsert → native setter → direct value → Enter key dispatch → refocus + retry. Every attempt logged to Timeline.
+- **Wired into `engineSend`**: when primary inject or input-finding fails, RecoveryEngine takes over before pausing.
+- **`GhostBus`**: `BroadcastChannel('gitl.bus.v1')` for cross-tab communication. Discovers peer tabs, sends handoff capsules. **Security**: received handoffs are stored for user to manually apply — never auto-injected.
+
+### S5 — Enhanced Export: Capsule v2
+- **`gitlSha256(text)`**: Web Crypto API hash for message deduplication — eliminates duplicates from virtualized DOM re-renders.
+- **`buildCapsuleV2(messages)`**: produces `gitl.capsule.v2` JSON with DAG-linked messages (parentId), SHA-256 fingerprints, resume token, health snapshot, and timeline summary.
+- **💊 Capsule v2 button**: new export option in the Export tab. Downloads `.gitl.json` files.
+- **Deduplication count**: capsule reports how many duplicate messages were removed.
+
+### Architecture
+- Version guard updated to `__GITL_V7__`
+- All v6.9.0 features preserved: 20+ platform adapters, workflows, personas, diagnostics, export modes, handoff, roadmap autopilot, prompt queue, API-first export, rescue mode, walk-away alerts.
+- Extension wrapper rebuilt for Firefox MV3.
+
 ## [6.9.0] — Standing on Shoulders
 
 We audited the top open-source exporters' actual code (pionxzh/chatgpt-exporter 2.5k★, socketteer/Claude-Conversation-Exporter, SaveMyPhind, claude-chat-handoff) to absorb their lessons instead of re-living their bugs.

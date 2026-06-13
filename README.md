@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop — v6.0.0
+# 👻 Ghost in the Loop — v7.0.0
 
 **Universal AI workflow engine.** Auto-proceed through multi-step AI conversations with loop control, workflow pipelines, personas, structured export, and diagnostics.
 
