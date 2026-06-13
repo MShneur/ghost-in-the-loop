@@ -1,5 +1,19 @@
 # Changelog
 
+## [6.9.0] — Standing on Shoulders
+
+We audited the top open-source exporters' actual code (pionxzh/chatgpt-exporter 2.5k★, socketteer/Claude-Conversation-Exporter, SaveMyPhind, claude-chat-handoff) to absorb their lessons instead of re-living their bugs.
+
+### The lesson
+The mature exporters don't scrape the DOM — they call the platform's own conversation API: complete history, exact roles, structured thinking, immune to virtualization and UI redesigns.
+
+### Added — API-first export
+- **ChatGPT**: session token via `/api/auth/session`, conversation via `backend-api/conversation/{id}`, then a parent-pointer walk of the node tree from `current_node` — which correctly resolves branches and regenerations, something DOM scraping can never do (technique: pionxzh)
+- **Claude**: `/api/organizations/{org}/chat_conversations/{id}?tree=True&render_all_tools=true` — full tool calls and thinking blocks as structured data (technique: socketteer), **improved**: orgId is auto-fetched from `/api/organizations` instead of making the user paste it manually (their #1 setup complaint)
+- DOM extraction remains as automatic fallback (and the primary path on Manus, Gemini and others without a mined API — our virtualized harvest stays unique there)
+- Veil shows a short "Fetching from platform archive" flow on the API path; failures log to Diagnostics and fall through silently to DOM
+
+
 ## [6.8.1]
 
 ### Added

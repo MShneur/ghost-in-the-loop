@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      6.8.1
+// @version      6.9.0
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ window.__GITL_V6__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '6.8.1';
+const VER = '6.9.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
@@ -867,6 +867,73 @@ function buildFilename(mode) {
   return `${proj}_${mode}_${ts}_${slug}.${ext}`;
 }
 
+/* ── API-first exporters (lesson from the top GitHub exporters: the platform's own
+      conversation API beats DOM scraping — complete history, exact roles, structured
+      thinking, immune to virtualization and redesigns). DOM remains the fallback. ── */
+
+// ChatGPT — technique from pionxzh/chatgpt-exporter: session token + backend-api, walk the node tree
+async function apiExportChatGPT() {
+  const id = location.pathname.match(/\/c\/([\w-]+)/)?.[1];
+  if (!id) return null;
+  const sess = await (await fetch(location.origin + '/api/auth/session')).json();
+  if (!sess?.accessToken) return null;
+  const r = await fetch(location.origin + '/backend-api/conversation/' + id, {
+    headers: { 'Authorization': 'Bearer ' + sess.accessToken }
+  });
+  if (!r.ok) return null;
+  const conv = await r.json();
+  if (!conv?.mapping || !conv.current_node) return null;
+  // Walk parent pointers from current_node → linear thread (correctly resolves branches/regenerations)
+  const chain = [];
+  let node = conv.mapping[conv.current_node];
+  while (node) { chain.unshift(node); node = node.parent ? conv.mapping[node.parent] : null; }
+  const out = [];
+  for (const n of chain) {
+    const m = n.message;
+    if (!m || !m.author || m.author.role === 'system' || m.author.role === 'tool') continue;
+    const c = m.content || {};
+    let text = '';
+    if (Array.isArray(c.parts)) text = c.parts.map(p => typeof p === 'string' ? p : (p?.text || '')).join('\n').trim();
+    else if (typeof c.text === 'string') text = c.text.trim();
+    if (c.content_type === 'code' && text) text = '```\n' + text + '\n```';
+    let thinking = '';
+    if (GHOST.export.thinking && Array.isArray(c.thoughts)) thinking = c.thoughts.map(t => t?.content || t?.summary || '').filter(Boolean).join('\n\n');
+    if (text || thinking) out.push(thinking ? { role: m.author.role, index: out.length, text, thinking } : { role: m.author.role, index: out.length, text });
+  }
+  return out.length ? out : null;
+}
+
+// Claude — technique from socketteer/Claude-Conversation-Exporter, improved: orgId auto-fetched
+// (their users had to paste it manually — their top setup complaint)
+async function apiExportClaude() {
+  const convId = location.pathname.match(/\/chat\/([\w-]+)/)?.[1];
+  if (!convId) return null;
+  const orgs = await (await fetch('/api/organizations', { credentials: 'include' })).json();
+  const orgId = Array.isArray(orgs) ? orgs[0]?.uuid : null;
+  if (!orgId) return null;
+  const r = await fetch(`/api/organizations/${orgId}/chat_conversations/${convId}?tree=True&rendering_mode=messages&render_all_tools=true`, { credentials: 'include' });
+  if (!r.ok) return null;
+  const data = await r.json();
+  const msgs = data?.chat_messages;
+  if (!Array.isArray(msgs)) return null;
+  const out = [];
+  for (const m of msgs) {
+    const role = m.sender === 'human' ? 'user' : 'assistant';
+    let text = '', thinking = '';
+    for (const b of (m.content || [])) {
+      if (b.type === 'text' && b.text) text += (text ? '\n\n' : '') + b.text;
+      else if (b.type === 'thinking' && GHOST.export.thinking) thinking += (thinking ? '\n\n' : '') + (b.thinking || b.text || '');
+      else if (b.type === 'tool_use') text += (text ? '\n' : '') + `[tool: ${b.name || 'call'}]`;
+    }
+    if (!text && typeof m.text === 'string') text = m.text;
+    text = text.trim();
+    if (text || thinking) out.push(thinking ? { role, index: out.length, text, thinking } : { role, index: out.length, text });
+  }
+  return out.length ? out : null;
+}
+
+const API_EXPORTERS = { 'ChatGPT': apiExportChatGPT, 'Claude': apiExportClaude };
+
 /* ── The Veil: export progress overlay ───────────────────────── */
 const VEIL = {
   el: null, steps: [], idx: 0, cancelled: false, lastBeat: 0, _wd: null,
@@ -1193,24 +1260,38 @@ function restoreConfig(jsonText) {
 
 async function runExport() {
   const isManus = /Manus/i.test(PLAT.label);
-  const steps = ['Reading chat', ...(GHOST.export.thinking ? ['Opening thinking blocks'] : []), ...(isManus ? ['Collecting every message'] : []), 'Building your file'];
-  VEIL.show(steps);
+  const apiFn = API_EXPORTERS[PLAT.label];
   let raw = null;
-  try {
-    VEIL.step(0);
-    await sleep(250);
-    if (GHOST.export.thinking) {
-      VEIL.step(1, 'Opening thinking blocks…');
-      const n = await expandThinking();
-      await sleep(n ? 600 : 0);
-    }
-    if (isManus && !VEIL.cancelled) {
-      VEIL.step(steps.indexOf('Collecting every message'), 'Collecting every message…');
-      raw = await harvestManus();
-    }
-    VEIL.step(steps.length - 1, 'Building your file…');
-    await sleep(200);
-  } finally { VEIL.hide(); GHOST.loop.detail = ''; render(); }
+  // Path 1 — the platform's own archive: complete, exact, virtualization-proof
+  if (apiFn) {
+    VEIL.show(['Fetching from platform archive', 'Building your file']);
+    try {
+      VEIL.step(0, 'Fetching from platform archive…');
+      raw = await apiFn().catch(e => { DIAG.push('API export failed: ' + e.message); return null; });
+      VEIL.step(1, 'Building your file…');
+      await sleep(150);
+    } finally { if (raw) { VEIL.hide(); } }
+  }
+  // Path 2 — DOM (fallback, and the only path on platforms without a known API)
+  if (!raw) {
+    const steps = ['Reading chat', ...(GHOST.export.thinking ? ['Opening thinking blocks'] : []), ...(isManus ? ['Collecting every message'] : []), 'Building your file'];
+    VEIL.show(steps);
+    try {
+      VEIL.step(0);
+      await sleep(250);
+      if (GHOST.export.thinking) {
+        VEIL.step(1, 'Opening thinking blocks…');
+        const n = await expandThinking();
+        await sleep(n ? 600 : 0);
+      }
+      if (isManus && !VEIL.cancelled) {
+        VEIL.step(steps.indexOf('Collecting every message'), 'Collecting every message…');
+        raw = await harvestManus();
+      }
+      VEIL.step(steps.length - 1, 'Building your file…');
+      await sleep(200);
+    } finally { VEIL.hide(); GHOST.loop.detail = ''; render(); }
+  } else { VEIL.hide(); GHOST.loop.detail = ''; render(); }
   const msgs = applyFilter(raw || extractMessages(GHOST.export.thinking));
   if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
   const proj = GHOST.project.name || 'Untitled';
