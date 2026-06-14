@@ -1,6 +1,25 @@
 # Changelog
 
-## [7.0.0-patch4] — Observer attribute watching (2026-06-13)
+## [7.0.0] — STABLE (2026-06-14)
+
+**51/51 e2e tests passing across 11 Playwright spec files. 140/140 unit tests passing.**
+
+All real bugs found by Replit's test suite have been fixed. The boot-a failure that persisted across multiple Replit rounds was confirmed as stale-code false positive — our fix was already in main, and Replit's fresh-checkout run confirms 51/51 green.
+
+### Test coverage at stable
+135 unit tests (jest) + 51 e2e tests (Playwright chromium). Runs on every push via GitHub Actions two-job CI (unit + e2e jobs).
+
+### Complete bug history for this version
+
+| Patch | Bug | Found by | Fixed |
+|-------|-----|----------|-------|
+| patch1 | HALT-first bypass — `LEGACY_PROCEED` is substring of sigil, double-counting defeated halt invariant | CI (jest signal.test.js) | else-if guard on legacy keywords |
+| patch1 | Non-deterministic SHA-256 fallback used Math.random() | CI (jest capsule.test.js) | djb2 deterministic hash |
+| patch2 | `GM_addStyle` + `panel.appendChild` at module scope crashed at document-start | Replit Playwright round 1 | `injectStyles()` + `mountPanel()` inside `safeBoot()` |
+| patch3 | Input selectors matched GITL's own settings textarea | Replit Playwright round 2 | `_isOwnUI()` excludes `#gitl` descendants from all DOM queries |
+| patch4 | MutationObserver blind to CSS-revealed Continue buttons | Replit Playwright round 3 | Added `attributes: true` with `attributeFilter` to observer |
+
+
 
 From Replit e2e round 3.
 

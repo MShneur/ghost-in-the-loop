@@ -11,7 +11,46 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
-## Session: v7.0.0-patch4 — Replit e2e round 3 (2026-06-13)
+## Session: v7.0.0 — Replit e2e final round: 51/51 (2026-06-14)
+
+### Result
+51/51 tests passing across 11 spec files. All real bugs found and fixed.
+
+### The boot-a story (resolved)
+Every Replit round after patch2 reported "boot-a" failing at "line 1978 — document.body.appendChild(panel) at module scope." Each time it was stale code: Replit's `boot.spec.js` `buildInjectable()` was evaluating a pre-patch2 checkout.
+
+What Replit described as "the fix" after their final round:
+```js
+const panel = document.createElement('div');
+panel.id = 'gitl';
+function mountPanel() {
+  if (!document.getElementById('gitl')) document.body.appendChild(panel);
+}
+```
+
+Our code (since patch2/patch3) already had exactly this — with a stronger guard (`_panelMounted || !document.body`) plus defense-in-depth removal of stale `#gitl` nodes. Functionally identical. They arrived at the same answer on fresh code.
+
+### Lesson: map injected line numbers to source before diagnosing
+Injected line number ≠ source file line number. Header strip = 41 lines. Injected line N = file line N+41. When a Replit report says "line 1978 crash" and our file has that call at line 2018 INSIDE a guarded function, the report is stale. Always verify with `grep -nP "^document\.body\."` (zero-indented = true module scope).
+
+### Final coverage (11 spec files, 51 tests)
+| Spec | What it covers |
+|------|----------------|
+| boot | document-start safety, panel mount, Timeline event, VER, PLAT.label |
+| capsule | dedup, SHA-256 hex field, parentId chain, short-message filter, ISO timestamp, resume block |
+| focusguard | isTabSafeToAct (3 failure modes), assertInteractionSafe (3 cases) |
+| ghostbus | init, sendHandoff Timeline, self-filter, peer discovery, handoff receive + GM store, round-trip clear, cross-page BroadcastChannel |
+| heartbeat | expired-lock reclaim, fresh-lock block, stolen-lock pause, releaseTabLock |
+| idempotency | no panel duplication, no duplicate style injection |
+| recovery | full exhaustion chain (all 5 strategies), native-setter partial success, ce-reinsert skip |
+| send | send_ok recorded, focus gate, re-entrancy guard, round counter, state guard |
+| spa | loop pause on pushState, cache clear, _lastHref update, rapid pushState |
+| tablock | lock claimed on boot, tabId match, cross-context block, key format |
+| veil | lazy mount, show visibility + labels, step title update, hide, cancel button |
+
+---
+
+
 
 Replit ran behavioral tests: 2 reported failures. One real improvement, one test artifact.
 
