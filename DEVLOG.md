@@ -11,6 +11,49 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## Session: v7.0.0-patch2 — Boot crash found by Replit Playwright test (2026-06-13)
+
+### What broke (CRITICAL — script never loaded)
+Replit ran a headful Playwright test injecting the script at `document-start` against a mock chat page. The script crashed with:
+
+```
+TypeError: Cannot read properties of null (reading 'appendChild')
+  at window.GM_addStyle (line 18)
+  at <anonymous> (line 1850)
+```
+
+### Root cause
+Two DOM mutations ran at **top-level during script eval**, outside the `safeBoot()` guard:
+1. `GM_addStyle(...)` at line ~1849 — `GM_addStyle` internally does `document.head.appendChild()`, but `document.head` is `null` at `document-start`.
+2. `document.body.appendChild(panel)` at line ~1996 — `document.body` also null at `document-start`.
+
+The crash halted the script before any `GM_setValue` ran, so the test saw an empty store.
+
+### The irony
+v7.0.0 *added* `safeBoot()` specifically to fix "DOM not ready" crashes — but only the MutationObserver and `render()` were moved inside it. The two static top-level DOM mutations were never moved. The guard existed; the dangerous calls were just outside it.
+
+### Fix
+- Wrapped `GM_addStyle` in a deferred `injectStyles()` function with a `document.head || document.documentElement` fallback and try/catch.
+- Wrapped `document.body.appendChild(panel)` in a deferred `mountPanel()` with a null-body guard.
+- Both now called inside `safeBoot()` before `render()`.
+- Added idempotency guards (`_stylesInjected`, `_panelMounted`) so they can't double-fire.
+
+### Lesson — generalizable
+`safeBoot()` only protects the code path *inside its callback*. Any DOM-touching statement at module scope runs immediately at eval time, before the guard. **Rule: zero DOM mutation at top level. `createElement` is fine (no tree needed); `appendChild`/`GM_addStyle`/`head`/`body` access must be deferred into safeBoot.**
+
+### Test that now guards it
+`tests/boot.test.js` (9 static-analysis tests):
+- GM_addStyle not called at top level
+- panel appendChild not at top level
+- both wrapped in named functions with null guards
+- both called inside safeBoot before render
+- idempotency guards present
+
+### Why our existing CI didn't catch it
+Our 126 tests were unit tests of pure logic in a jsdom environment where `document.body` already exists. They never simulated `document-start` injection timing. The Replit test used real Playwright at `document-start`, which is the only way to catch this class of bug. **Takeaway: add a Playwright/browser-timing test tier for boot-order bugs. Unit tests can't see them.**
+
+---
+
 ## Session: v7.0.0 — The Runtime Controller (2026-06-13)
 
 ### Research method

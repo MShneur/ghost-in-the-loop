@@ -1,5 +1,20 @@
 # Changelog
 
+## [7.0.0-patch2] — Boot Crash Fix (2026-06-13)
+
+Found by a Replit headful Playwright test injecting at `document-start` — the timing our unit tests couldn't simulate.
+
+### Bug fix (CRITICAL — script failed to load)
+- **Top-level DOM mutation crash:** `GM_addStyle()` and `document.body.appendChild(panel)` ran at module-eval time, outside `safeBoot()`. At `document-start`, `document.head` and `document.body` are null → `TypeError: Cannot read properties of null (reading 'appendChild')` → script halted before any storage write.
+- **Fix:** Wrapped both in deferred functions (`injectStyles()` with head/documentElement fallback; `mountPanel()` with null-body guard), called inside `safeBoot()` before `render()`. Added idempotency guards.
+- **Lesson:** `safeBoot()` only protects code inside its callback. Zero DOM mutation allowed at top level.
+
+### Tests added
+- `tests/boot.test.js` — 9 static-analysis tests ensuring no unguarded top-level DOM mutation. Total suite now 135 tests.
+
+### Known gap
+- Unit tests run in jsdom where `document.body` already exists — they cannot catch `document-start` boot-order bugs. A Playwright browser-timing test tier is needed (see DEVLOG).
+
 ## [7.0.0-patch1] — CI Bug Fixes (2026-06-13, same day as v7.0.0)
 
 Found by the 126-test CI suite that was added alongside v7.0.0. Both bugs were in the code before CI existed — they shipped silently.

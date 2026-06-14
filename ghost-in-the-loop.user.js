@@ -1845,8 +1845,14 @@ function playBeep() {
 
 /* ═══════════════════════════════════════════════════════════════
    UI — STYLES
+   Deferred: GM_addStyle / appendChild require document.head, which is
+   null at document-start. Called inside safeBoot() once DOM exists.
    ═══════════════════════════════════════════════════════════════ */
-GM_addStyle(`
+let _stylesInjected = false;
+function injectStyles() {
+  if (_stylesInjected) return;
+  _stylesInjected = true;
+  const css = `
 #gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:#111214;border:1px solid #27282e;
   border-radius:12px;padding:10px 12px;font:11.5px 'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;
   color:#c9cad0;box-shadow:0 10px 32px rgba(0,0,0,.65);user-select:none;transition:width .2s}
@@ -1967,14 +1973,35 @@ GM_addStyle(`
 .g-shortcuts{font-size:8.5px;color:#333;text-align:center;margin-top:4px}
 .g-firstrun{padding:6px 8px;background:#1a1b2e;border:1px solid #3730a3;border-radius:6px;font-size:9.5px;color:#a5b4fc;line-height:1.4;margin-bottom:7px;text-align:center}
 #gitl.pos-bb{bottom:0!important;left:0!important;right:0!important;width:100%!important;border-radius:10px 10px 0 0!important;top:auto!important}
-`);
+`;
+  try {
+    GM_addStyle(css);
+  } catch (e) {
+    /* GM_addStyle itself can throw if head is null — inject manually with fallback */
+    try {
+      const style = document.createElement('style');
+      style.textContent = css;
+      (document.head || document.documentElement).appendChild(style);
+    } catch (e2) {
+      console.error('[GITL] style injection failed:', e2);
+    }
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    UI — RENDER + TABS
+   panel element is created at top level (safe — no DOM tree needed),
+   but attached to document.body inside safeBoot() (body may be null
+   at document-start).
    ═══════════════════════════════════════════════════════════════ */
 const panel = document.createElement('div');
 panel.id = 'gitl';
-document.body.appendChild(panel);
+let _panelMounted = false;
+function mountPanel() {
+  if (_panelMounted || !document.body) return;
+  _panelMounted = true;
+  document.body.appendChild(panel);
+}
 
 function dotClass() {
   const s = GHOST.loop.state;
@@ -2403,6 +2430,8 @@ safeBoot(() => {
   startTabHeartbeat();
   claimTabLock();
   GhostBus.init();
+  injectStyles();
+  mountPanel();
   render();
   Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);

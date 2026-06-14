@@ -874,9 +874,11 @@ function detectSignal(fullText) {
   // Unique sigils (highest weight)
   if (tail.includes(SIGIL_HALT))     hScore += 4;
   if (tail.includes(SIGIL_PROCEED))  pScore += 4;
-  // Legacy keywords
-  if (tail.includes(LEGACY_HALT))    hScore += 3;
-  if (tail.includes(LEGACY_PROCEED)) pScore += 3;
+  // Legacy keywords — only fire if sigil NOT already present (prevents substring double-count:
+  // LEGACY_PROCEED='PROCEED' is a substring of '[[GITL::PROCEED]]' which would otherwise
+  // add 3 extra points to pScore when sigil fires, defeating the halt-first invariant)
+  if (!tail.includes(SIGIL_HALT)    && tail.includes(LEGACY_HALT))    hScore += 3;
+  if (!tail.includes(SIGIL_PROCEED) && tail.includes(LEGACY_PROCEED)) pScore += 3;
   // Fuzzy
   if (FUZZY_HALT.some(p => low.includes(p)))    hScore += 2;
   if (FUZZY_PROCEED.some(p => low.includes(p))) pScore += 2;
@@ -1736,7 +1738,13 @@ async function gitlSha256(text) {
     const data = new TextEncoder().encode(text || '');
     const hash = await crypto.subtle.digest('SHA-256', data);
     return [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch { return `fallback-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
+  } catch {
+    // Deterministic fallback: djb2 hash (used when crypto.subtle unavailable)
+    const s = String(text || '');
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h) ^ s.charCodeAt(i);
+    return `djb2-${(h >>> 0).toString(16).padStart(8, '0')}`;
+  }
 }
 
 async function buildCapsuleV2(rawMessages) {
@@ -1810,8 +1818,14 @@ function playBeep() {
 
 /* ═══════════════════════════════════════════════════════════════
    UI — STYLES
+   Deferred: GM_addStyle / appendChild require document.head, which is
+   null at document-start. Called inside safeBoot() once DOM exists.
    ═══════════════════════════════════════════════════════════════ */
-GM_addStyle(`
+let _stylesInjected = false;
+function injectStyles() {
+  if (_stylesInjected) return;
+  _stylesInjected = true;
+  const css = `
 #gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:#111214;border:1px solid #27282e;
   border-radius:12px;padding:10px 12px;font:11.5px 'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;
   color:#c9cad0;box-shadow:0 10px 32px rgba(0,0,0,.65);user-select:none;transition:width .2s}
@@ -1932,14 +1946,35 @@ GM_addStyle(`
 .g-shortcuts{font-size:8.5px;color:#333;text-align:center;margin-top:4px}
 .g-firstrun{padding:6px 8px;background:#1a1b2e;border:1px solid #3730a3;border-radius:6px;font-size:9.5px;color:#a5b4fc;line-height:1.4;margin-bottom:7px;text-align:center}
 #gitl.pos-bb{bottom:0!important;left:0!important;right:0!important;width:100%!important;border-radius:10px 10px 0 0!important;top:auto!important}
-`);
+`;
+  try {
+    GM_addStyle(css);
+  } catch (e) {
+    /* GM_addStyle itself can throw if head is null — inject manually with fallback */
+    try {
+      const style = document.createElement('style');
+      style.textContent = css;
+      (document.head || document.documentElement).appendChild(style);
+    } catch (e2) {
+      console.error('[GITL] style injection failed:', e2);
+    }
+  }
+}
 
 /* ═══════════════════════════════════════════════════════════════
    UI — RENDER + TABS
+   panel element is created at top level (safe — no DOM tree needed),
+   but attached to document.body inside safeBoot() (body may be null
+   at document-start).
    ═══════════════════════════════════════════════════════════════ */
 const panel = document.createElement('div');
 panel.id = 'gitl';
-document.body.appendChild(panel);
+let _panelMounted = false;
+function mountPanel() {
+  if (_panelMounted || !document.body) return;
+  _panelMounted = true;
+  document.body.appendChild(panel);
+}
 
 function dotClass() {
   const s = GHOST.loop.state;
@@ -2368,6 +2403,8 @@ safeBoot(() => {
   startTabHeartbeat();
   claimTabLock();
   GhostBus.init();
+  injectStyles();
+  mountPanel();
   render();
   Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
