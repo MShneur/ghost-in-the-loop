@@ -11,6 +11,51 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## Session: v7.0.0-patch4 — Replit e2e round 3 (2026-06-13)
+
+Replit ran behavioral tests: 2 reported failures. One real improvement, one test artifact.
+
+### Test 1 — Continue button on CSS reveal (REAL improvement made)
+- Replit: MutationObserver watched only `{ childList: true, subtree: true }`. A button revealed via `style.display = 'block'` is an *attribute* mutation — observer was blind to it.
+- Assessment: partly valid. The observer is a fast-path; the loop tick `setInterval` is the primary continue-click driver, and the observer is correctly gated on `state === 'RUNNING'` (we must never click anything when the user hasn't started a loop). But watching attributes is a cheap, legitimate robustness gain — some platforms reveal a pre-rendered Continue button via CSS rather than inserting it.
+- Fix: added `attributes: true` with `attributeFilter: ['style','class','hidden','disabled','aria-hidden']`. Callback still debounced 300ms and still early-exits when not RUNNING, so cost is negligible.
+- Note on Replit's test: it toggled `display` on a button on the generic mock host, where `continueLabels` is empty by design (only ChatGPT has continue labels), and likely without the loop RUNNING. So `clickContinue()` correctly returned false. The observer change makes the mechanism fire; actual click still requires a matching host + RUNNING loop.
+
+### Test 2 — Export on empty page (NOT a bug — correct behavior)
+- Replit: `runExport()` on a page with no assistant messages returns early via `alert('no messages found')`, so no download fires; `waitForEvent('download')` times out.
+- Assessment: this is correct. You cannot export a conversation that has zero messages. The early-return + alert is intended UX.
+- No code change. The test needs real assistant message DOM nodes (see `tests/e2e/behavior.spec.js` which uses the mock page's existing assistant message).
+- **Lesson:** "function returned early and didn't produce output" is only a bug if output was actually expected. An empty conversation has nothing to export. Test fixtures must contain the data the function operates on.
+
+### Tests added
+- `tests/e2e/behavior.spec.js` — continue-click mechanism + export-with-real-messages.
+
+---
+
+
+
+Replit ran the full extended e2e suite: 12/13 passed. Two findings.
+
+### Finding 1 — reported boot crash was STALE CODE (not a real bug)
+- Replit reported `document.body.appendChild(panel)` crashing at **line 1978** at module scope, with no `mountPanel()` present.
+- Verified against live `main` (commit 8569d31): that call is at **line 2003**, inside `mountPanel()`, guarded by `if (_panelMounted || !document.body) return;`, called inside `safeBoot()`.
+- Conclusion: Replit's checkout predated patch2 (commit 92120cb). Their stack trace line numbers (1978→2434→2436) match the pre-patch2 layout.
+- `boot.test.js` static analysis confirms all 9 guards pass on current code.
+- **Lesson:** when an e2e report's line numbers don't match the repo, suspect stale checkout before assuming regression. Always `git fetch` and diff before re-fixing.
+
+### Finding 2 — own-UI selector collision (REAL bug, now fixed)
+- Replit noticed the recovery test had a false-pass: `PLAT.input` fallback selector `textarea:not([disabled])` matched GITL's OWN settings textarea (`#cfg-sites`).
+- Impact: on a page where the AI's real input isn't found, recovery/inject could type into our own panel's settings field instead of the chat.
+- Fix: added `_isOwnUI(el)` helper (`el.closest('#gitl')`). Both `_q()` and `_qAll()` now skip any element inside the GITL panel.
+- Also hardened `mountPanel()` to remove a stray pre-existing `#gitl` (defense-in-depth against harnesses that re-eval the IIFE and bypass the `__GITL_V7__` guard).
+- Tests: 5 new static-analysis tests in `structure.test.js`. Unit suite now 140.
+- **Lesson:** any selector that reads the host page can accidentally match our own injected UI. All DOM queries for page elements must exclude `#gitl` descendants.
+
+### Note on Replit's idempotency observation
+Replit correctly observed their idempotency test passing was partly a counting artifact — re-running the IIFE in their harness creates a second `#gitl` because each eval makes a new `const panel`. In production this can't happen: the `__GITL_V7__` guard (top of IIFE) prevents a second run entirely. Their harness resets `window` between evals, bypassing it. The `mountPanel` hardening above covers the harness case too.
+
+---
+
 ## Session: v7.0.0-patch2 — Boot crash found by Replit Playwright test (2026-06-13)
 
 ### What broke (CRITICAL — script never loaded)

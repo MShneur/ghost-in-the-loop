@@ -395,12 +395,22 @@ function _shadowQS(sel) {
   try { return walk(document, 0); } catch(_) { return null; }
 }
 
+function _isOwnUI(el) {
+  // Never match elements inside GITL's own panel (prevents the input/recovery
+  // selectors from matching our settings textarea — found by Replit e2e)
+  return !!(el && el.closest && el.closest('#gitl'));
+}
+
 function _q(key, sels) {
   const c = _cache.get(key);
-  if (c?.isConnected) return c;
+  if (c?.isConnected && !_isOwnUI(c)) return c;
   _cache.delete(key);
   for (const s of sels || []) {
-    try { const el = document.querySelector(s); if (el) { _cache.set(key, el); return el; } } catch(_){}
+    try {
+      for (const el of document.querySelectorAll(s)) {
+        if (el && !_isOwnUI(el)) { _cache.set(key, el); return el; }
+      }
+    } catch(_){}
   }
   // Shadow DOM fallback (Copilot-style shadow roots) — throttled to once per 5s per key
   const now = Date.now();
@@ -408,7 +418,7 @@ function _q(key, sels) {
     _deepLast.set(key, now);
     for (const s of sels || []) {
       const el = _shadowQS(s);
-      if (el) { _cache.set(key, el); return el; }
+      if (el && !_isOwnUI(el)) { _cache.set(key, el); return el; }
     }
   }
   return null;
@@ -416,9 +426,10 @@ function _q(key, sels) {
 
 function _qAll(sels) {
   // Merge all matching elements, deduplicated (fixes v5 qAll bug)
+  // Excludes GITL's own UI elements.
   const seen = new Set(), results = [];
   for (const s of (Array.isArray(sels) ? sels : [sels])) {
-    try { document.querySelectorAll(s).forEach(el => { if (!seen.has(el)) { seen.add(el); results.push(el); } }); } catch(_){}
+    try { document.querySelectorAll(s).forEach(el => { if (!seen.has(el) && !_isOwnUI(el)) { seen.add(el); results.push(el); } }); } catch(_){}
   }
   return results;
 }
@@ -1972,6 +1983,10 @@ panel.id = 'gitl';
 let _panelMounted = false;
 function mountPanel() {
   if (_panelMounted || !document.body) return;
+  // Defense-in-depth: if a stray #gitl exists (e.g. script eval'd twice in a
+  // test harness that bypasses the __GITL_V7__ guard), remove it first.
+  const existing = document.getElementById('gitl');
+  if (existing && existing !== panel) existing.remove();
   _panelMounted = true;
   document.body.appendChild(panel);
 }
@@ -2394,11 +2409,20 @@ let _mutDebounce;
    BOOT — wrapped in safeBoot to prevent v7.0-alpha loading failures
    ═══════════════════════════════════════════════════════════════ */
 safeBoot(() => {
+  // Observer watches childList (new nodes) AND a narrow set of attributes
+  // (style/class/hidden), so a Continue button revealed via CSS — not just
+  // one freshly inserted — also triggers the auto-click fast-path.
+  // Loop tick (setInterval) remains the primary driver; this is a fast-path.
   new MutationObserver(() => {
     if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
     clearTimeout(_mutDebounce);
     _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
-  }).observe(document.body, { childList: true, subtree: true });
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class', 'hidden', 'disabled', 'aria-hidden']
+  });
 
   startTabHeartbeat();
   claimTabLock();

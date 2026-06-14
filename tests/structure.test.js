@@ -108,3 +108,33 @@ describe('Core invariants', () => {
     expect(dangerPattern.test(src)).toBe(false);
   });
 });
+
+describe('Own-UI exclusion (Replit e2e finding)', () => {
+  const fs2 = require('fs');
+  const path2 = require('path');
+  const code = fs2.readFileSync(path2.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
+
+  test('_isOwnUI helper exists', () => {
+    expect(code).toContain('function _isOwnUI');
+  });
+
+  test('_isOwnUI checks #gitl ancestor', () => {
+    const fn = code.match(/function _isOwnUI[\s\S]*?\n}/)?.[0] || '';
+    expect(fn).toContain("closest('#gitl')");
+  });
+
+  test('_q excludes own UI elements', () => {
+    const fn = code.match(/function _q\(key, sels\)[\s\S]*?\n}/)?.[0] || '';
+    expect(fn).toContain('_isOwnUI');
+  });
+
+  test('_qAll excludes own UI elements', () => {
+    const fn = code.match(/function _qAll\(sels\)[\s\S]*?\n}/)?.[0] || '';
+    expect(fn).toContain('_isOwnUI');
+  });
+
+  test('mountPanel removes stray existing #gitl', () => {
+    const fn = code.match(/function mountPanel\(\)[\s\S]*?\n}/)?.[0] || '';
+    expect(fn).toContain("getElementById('gitl')");
+  });
+});

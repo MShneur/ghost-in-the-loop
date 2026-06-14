@@ -1,5 +1,29 @@
 # Changelog
 
+## [7.0.0-patch4] — Observer attribute watching (2026-06-13)
+
+From Replit e2e round 3.
+
+### Improvement
+- **MutationObserver now watches attributes** (`style`, `class`, `hidden`, `disabled`, `aria-hidden`) in addition to childList/subtree. A "Continue generating" button revealed via CSS (rather than freshly inserted into the DOM) now triggers the auto-click fast-path. Still debounced 300ms and gated on `state === 'RUNNING'`.
+
+### Not bugs (documented in DEVLOG)
+- Export returning early on a page with zero messages is correct behavior, not a defect. An empty conversation has nothing to export.
+
+### Tests
+- `tests/e2e/behavior.spec.js` added.
+
+## [7.0.0-patch3] — Own-UI selector exclusion (2026-06-13)
+
+From Replit e2e round 2.
+
+### Bug fix
+- **Selector collision with own UI:** the input/recovery selectors (e.g. `textarea:not([disabled])`) could match GITL's own settings textarea (`#cfg-sites`). Added `_isOwnUI(el)` helper; `_q()` and `_qAll()` now skip any element inside `#gitl`. Hardened `mountPanel()` to remove a stray pre-existing `#gitl`.
+- Tests: 5 static-analysis tests in `structure.test.js`. Unit suite now 140.
+
+### Not a regression (documented in DEVLOG)
+- Replit's reported boot crash at "line 1978" was a stale checkout predating patch2. Live `main` has the panel mount inside `mountPanel()` within `safeBoot()`, fully guarded.
+
 ## [7.0.0-patch2] — Boot Crash Fix (2026-06-13)
 
 Found by a Replit headful Playwright test injecting at `document-start` — the timing our unit tests couldn't simulate.
