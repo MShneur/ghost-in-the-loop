@@ -1,2 +1,5 @@
 node_modules/
 coverage/
+test-results/
+e2e-results.json
+playwright-report/

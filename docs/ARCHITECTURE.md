@@ -136,23 +136,42 @@ The GM shim maps `GM_getValue`/`GM_setValue` to `browser.storage.local` via an a
 
 ---
 
-## Test Harness
+## Test Harness — Two Tiers
 
-Tests run in Node.js + jsdom. The userscript is an IIFE — tests can't access its locals directly.
+### Tier 1: Unit tests (jest + jsdom) — `tests/*.test.js`
 
-**Setup approach:** `tests/setup.js` injects an export hook string into the instrumented source just before the closing `})()`. The hook uses `eval(name)` inside the closure to read locals and writes them to a `__GITL_TEST_SINK__` object passed in from the VM context.
+The userscript is an IIFE — tests can't access its locals directly.
+`tests/setup.js` injects an export hook string into the instrumented source just before the closing `})()`. The hook uses `eval(name)` inside the closure to read locals and writes them to a `__GITL_TEST_SINK__` object passed in from the VM context.
 
-**What's testable:**
-- All pure-logic functions (signal engine, Timeline, tab lock, capsule, health scoring)
-- Structural/static analysis (module presence, invariants)
+**Run:** `npm test` (135 tests)
 
-**What's NOT testable in CI:**
-- Actual DOM injection on real AI sites
-- Send button click behavior
-- Network interception against real SSE streams
-- Tab lock across real browser tabs
+**Covers:**
+- Pure-logic functions (signal engine, Timeline, tab lock, capsule, health scoring)
+- Structural/static analysis (module presence, invariants, no-top-level-DOM)
 
-For DOM-level changes, test manually on at least ChatGPT and Claude before pushing.
+**Cannot catch:** boot-order bugs — jsdom always has `document.body`, so `document-start` timing crashes are invisible here.
+
+### Tier 2: E2E boot-timing (Playwright + chromium) — `tests/e2e/*.spec.js`
+
+Injects the userscript via `addInitScript` (runs at `document-start`, before HTML parse) against `tests/e2e/mock-chat.html`. This is the ONLY tier that catches the class of bug where top-level DOM mutation crashes because `head`/`body` are null.
+
+**Run:** `npm run test:e2e` (requires `npx playwright install chromium`)
+
+**Covers:**
+- Script survives `document-start` injection without throwing
+- Panel mounts to DOM after boot
+- Styles inject without null-head crash
+- Boot writes a timeline event (proves script reached end of `safeBoot`)
+- DOM read of assistant message
+
+**Why this tier exists:** the v7.0.0-patch2 boot crash (see DEVLOG) shipped because unit tests can't simulate injection timing. Any future boot-order regression is now caught here.
+
+**Naming convention:** unit tests = `.test.js` (jest), e2e tests = `.spec.js` (Playwright). They never collide — jest's `testMatch` is scoped to `.test.js` only.
+
+### Still NOT covered by either tier
+- Real AI site DOM (selectors drift per deployment) — test manually on ChatGPT + Claude before shipping adapter changes
+- Real SSE network interception
+- Tab lock across genuinely separate browser tabs (e2e uses one context)
 
 ---
 

@@ -10,10 +10,12 @@ Found by a Replit headful Playwright test injecting at `document-start` — the 
 - **Lesson:** `safeBoot()` only protects code inside its callback. Zero DOM mutation allowed at top level.
 
 ### Tests added
-- `tests/boot.test.js` — 9 static-analysis tests ensuring no unguarded top-level DOM mutation. Total suite now 135 tests.
+- `tests/boot.test.js` — 9 static-analysis tests ensuring no unguarded top-level DOM mutation. Unit suite now 135 tests.
+- `tests/e2e/boot.spec.js` — 6 Playwright tests injecting at real `document-start` timing against `tests/e2e/mock-chat.html`. This is the tier that actually reproduces the crash.
+- CI now runs two jobs: `unit` (jest) and `e2e` (Playwright + chromium).
 
-### Known gap
-- Unit tests run in jsdom where `document.body` already exists — they cannot catch `document-start` boot-order bugs. A Playwright browser-timing test tier is needed (see DEVLOG).
+### Known gap (now closed)
+- Unit tests run in jsdom where `document.body` already exists — they cannot catch `document-start` boot-order bugs. The Playwright e2e tier closes this gap.
 
 ## [7.0.0-patch1] — CI Bug Fixes (2026-06-13, same day as v7.0.0)
 
