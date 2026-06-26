@@ -2645,6 +2645,11 @@ function injectStyles() {
 #gitl.pos-dock.collapsed .g-qstat{display:none}
 .g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:#888;line-height:1.2;word-break:break-all}
 #gitl.pos-dock.collapsed .g-dock-stat,#gitl.pos-dock-left.collapsed .g-dock-stat{display:block}
+.g-dk-drift{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px}
+.g-dk-edit{width:34px;height:18px;background:#0c0d10;border:1px solid #2e2f35;border-radius:3px;color:#c9cad0;font-size:9px;text-align:center;font-family:inherit;padding:0}
+.g-dk-edit:focus{border-color:#4338ca;outline:none}
+.g-dk-rst{background:#18191c;border:1px solid #2e2f35;color:#888;font-size:10px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1}
+.g-dk-rst:hover{background:#27282e;color:#fff}
 /* Gold left-dock: mirror geometry to the left edge + gold accents. Our own
    element in the top stacking context — never injected into the host's menu. */
 #gitl.pos-dock-left{left:0;right:auto;border-radius:0 10px 10px 0;border-left:none;border-right:1px solid #5a4a1e}
@@ -3139,13 +3144,13 @@ function render() {
   const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
   const qCls  = L.state==='RUNNING'?'pause':L.state==='LIMIT'?'play limit':'play';
-  // Compact dock status: step/round + drift guard remaining
+  // Compact dock status: step/round + drift guard remaining (editable)
   const dockStat = (()=>{
     if (L.state==='IDLE'||L.state==='COMPLETE') return '';
     const p = L.lastProgress;
     const line1 = p ? `${p.step}/${p.total}` : (L.round ? `R${L.round}` : '');
     const left = L.driftEnabled ? Math.max(0, L.maxRounds - L.round) : null;
-    const line2 = left !== null ? `${left}▾` : '';
+    const line2 = left !== null ? `<span class="g-dk-drift" title="Drift guard: ${left} left of ${L.maxRounds}. Tap number to edit, ↻ to reset.">${left}<input type="number" class="g-dk-edit" id="g-dk-max" value="${L.maxRounds}" min="1" max="999"><button class="g-dk-rst" id="g-dk-reset">↻</button></span>` : '';
     return [line1,line2].filter(Boolean).join('<br>');
   })();
   panel.innerHTML = `
@@ -3236,6 +3241,9 @@ function bindEvents() {
   $('#g-drift-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.loop.driftEnabled=this.classList.contains('on'); _save('driftEnabled',GHOST.loop.driftEnabled); render(); });
   $('#g-drift-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v); render();} });
   $('#g-drift-max')?.addEventListener('click', e => e.stopPropagation());
+  $('#g-dk-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v); render();} });
+  $('#g-dk-max')?.addEventListener('click', e => e.stopPropagation());
+  $('#g-dk-reset')?.addEventListener('click', e => { e.stopPropagation(); GHOST.loop.round=0; GHOST.loop.detail='↻ Drift guard reset'; render(); });
   $('#g-cnt-reset')?.addEventListener('click', () => {
     GHOST.loop.round = 0;
     Timeline.record('drift_guard_reset', { cap: GHOST.loop.maxRounds });
