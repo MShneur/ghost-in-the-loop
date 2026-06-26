@@ -541,9 +541,21 @@ const PERSONA_LIBRARY = {
 const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
 
 function resolvePersonaInject() {
-  const sel = GHOST.persona.selected;
-  if (sel === 'roundtable' && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
-  return allPersonas()[sel]?.inject || '';
+  let sel = GHOST.persona.selected;
+  if (typeof sel === 'string') sel = [sel];
+  if (!Array.isArray(sel)) sel = ['none'];
+  const active = sel.filter(s => s && s !== 'none');
+  if (!active.length) return '';
+  // Special: live Perplexity round table is a protocol, not composable
+  if (active.includes('roundtable') && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
+  // Single persona — classic behavior
+  if (active.length === 1) return allPersonas()[active[0]]?.inject || '';
+  // Committee: concatenate perspectives with framing
+  const personas = active.map(s => allPersonas()[s]).filter(Boolean);
+  if (!personas.length) return '';
+  const names = personas.map(p => p.label).join(', ');
+  const injects = personas.map(p => `• ${p.label}: ${p.inject}`).join('\n');
+  return `You are operating as a committee of ${active.length} expert perspectives: ${names}.\nFor each task or decision point, give each perspective's independent assessment, then synthesize a stronger consensus with disagreements preserved.\n\nThe perspectives:\n${injects}`;
 }
 
 const WORKFLOW_LIBRARY = {
@@ -718,7 +730,13 @@ const GHOST = {
     pauseBetween: GM_getValue('wfPause',false),
     active: false
   },
-  persona: { selected: GM_getValue('persona','none') },
+  persona: {
+    selected: (()=>{ const raw=GM_getValue('persona','none'); try { const p=JSON.parse(raw); return Array.isArray(p)?p:[raw]; } catch(_){ return [typeof raw==='string'?raw:'none']; } })(),
+    committee: GM_getValue('personaCommittee',false),
+    perTask: GM_getValue('personaPerTask',false),
+    finalReview: GM_getValue('personaFinalReview',false),
+    _reviewDone: false
+  },
   roadmap: {
     steps: JSON.parse(GM_getValue('rmSteps','[]')),
     index: GM_getValue('rmIndex',0),
@@ -735,6 +753,7 @@ const GHOST = {
     needsPayload: true,
     isSending: false,
     timer: null,
+    driftEnabled: GM_getValue('driftEnabled',true),
     lastActivity: Date.now(),
     staleTicks: 0,
     lastSignal: 'none',
@@ -774,6 +793,9 @@ const GHOST = {
     wsNewWorkflow: false,
     qDraft: (()=>{ try { const a = JSON.parse(GM_getValue('qDraft','[""]')); return Array.isArray(a)&&a.length?a:['']; } catch(_){ return ['']; } })(),
     expAdv: GM_getValue('expAdv',false),
+    skinTheme: GM_getValue('skinTheme','classic'),
+    accentHue: parseInt(GM_getValue('accentHue','193'),10),
+    runAdv: false,
     showDiag: false,
     showSites: false,
     firstRun: GM_getValue('firstRun',true)
@@ -1260,7 +1282,8 @@ function parseRoadmap(fullText) {
 function sendRoadmapStep() {
   const R = GHOST.roadmap, i = R.index, n = R.steps.length;
   GHOST.loop.detail = `🗺 Step ${i+1}/${n}`;
-  engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.`, false)
+  const personaClause = GHOST.persona.perTask && resolvePersonaInject() ? `\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : '';
+  engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.${personaClause}`, false)
     .then(ok => { if (ok) { R.index = i + 1; _save('rmIndex', R.index); render(); } });
 }
 
@@ -1506,7 +1529,8 @@ function engineTick() {
   // Round limit — soft checkpoint, not a hard stop. The cap exists to
   // catch runaway loops, so we PAUSE and ASK rather than strand the user
   // mid-task (e.g. a chat that legitimately runs to 24 with cap=20).
-  if (L.round >= L.maxRounds) { engineLimit(); return; }
+  // Skipped entirely if drift guard is toggled off.
+  if (GHOST.loop.driftEnabled && L.round >= L.maxRounds) { engineLimit(); return; }
 
   // Still generating
   if (Adapter.isGenerating()) { L.lastActivity = Date.now(); return; }
@@ -1544,7 +1568,23 @@ function engineTick() {
       GHOST.workflow.active = false;
       GHOST.workflow.stageIndex = 0; _save('wfStage', 0);
     }
-    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) { engineHalt('✅ Roadmap complete'); resetRoadmap(); return; }
+    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) {
+      // Final committee review on roadmap completion
+      if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+        GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
+        const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
+        engineSend(`[Ghost — Final Committee Review]\nAll work is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
+        render(); return;
+      }
+      engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
+    }
+    // Final committee review on task completion
+    if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+      GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
+      const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
+      engineSend(`[Ghost — Final Committee Review]\nThe task is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
+      render(); return;
+    }
     engineHalt('✅ Task complete');
     return;
   }
@@ -1562,7 +1602,7 @@ function engineTick() {
       if (!R.synthSent) { sendRoadmapSynthesis(); return; }
       engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
     }
-    engineSend('Continue', false);
+    engineSend(GHOST.persona.perTask && resolvePersonaInject() ? `Continue.\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : 'Continue', false);
     return;
   }
 
@@ -1701,6 +1741,7 @@ function primaryAction() {
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendRetries = 0;
+  GHOST.persona._reviewDone = false;
   clearInterval(L.timer); L.timer = null;
   resetRoadmap();
   render();
@@ -2149,7 +2190,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','posture','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','accentHue','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -2221,7 +2262,7 @@ function exportRescue() {
     `platform: ${PLAT.label}`,
     `exported: ${new Date().toISOString()}`,
     `mode: ${GHOST.loop.payloadMode}`,
-    `persona: ${(PERSONA_LIBRARY[GHOST.persona.selected]||PERSONA_LIBRARY.none).label}`,
+    `persona: ${(GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None'}`,
     `workflow: ${wf} (stage ${W.stageIndex})`,
     `rounds: ${GHOST.loop.round}`,
     `last_signal: ${GHOST.loop.lastSignal}`,
@@ -2323,7 +2364,7 @@ async function runExport() {
   const ts = new Date().toLocaleString();
   let content, mime;
   if (GHOST.export.format === 'json') {
-    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (allPersonas()[GHOST.persona.selected]||PERSONA_LIBRARY.none).label, messages: msgs }, null, 2);
+    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None', messages: msgs }, null, 2);
     mime = 'application/json';
   } else {
     const lines = [`# Ghost Export — ${proj}`, `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`, '', '---', ''];
@@ -2491,6 +2532,10 @@ function injectStyles() {
 .g-btn{flex:1;padding:7px 0;border:1px solid #27282e;border-radius:7px;background:#18191c;color:#999;font-size:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
 .g-btn:hover{background:#222329}
 .g-btn.go{background:#052e1c;border-color:#064e3b;color:#34d399}.g-btn.go:hover{background:#064e3b}
+.g-btn.rg{background:#1a1a2e;border-color:#312e81;color:#a5b4fc}.g-btn.rg:hover{background:#312e81}
+.g-dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.g-plink{color:#818cf8;text-decoration:none;font-size:9px;margin-left:4px}.g-plink:hover{text-decoration:underline}
+.g-cust-badge{font-size:8px;color:#f59e0b;font-weight:400}
 .g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:#f87171}.g-btn.st:hover{background:#7f1d1d}
 .g-prog{margin:2px 0 6px}
 .g-trk{height:5px;background:#1c1d22;border-radius:2px;overflow:hidden}
@@ -2509,6 +2554,10 @@ function injectStyles() {
 .g-safety.warn{border-color:#5a4420;background:#1f1808}
 .g-safety.warn .g-safety-num b,.g-safety.warn .g-safety-lbl{color:#fcd34d}
 .g-safety.warn .g-safety-fill{background:#f59e0b}
+.g-safety.off{opacity:.5;border-color:#1c1d22}
+.g-safety.off .g-safety-lbl{color:#555}
+.g-safety-edit{width:42px;background:#0c0d10;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;text-align:center;font-family:inherit;padding:2px 3px;margin-left:4px}
+.g-safety-edit:focus{border-color:#4338ca;outline:none}
 .g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid #1c1d22;margin-top:2px}
 .g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#666;margin-bottom:5px}
 .g-row label{color:#555}
@@ -2717,30 +2766,22 @@ function statLabel() {
 function renderRunTab() {
   const L = GHOST.loop, p = L.lastProgress, pct = p ? Math.round((p.step/p.total)*100) : 0;
   const pm = L.payloadMode;
+  const runAdv = GHOST.ui.runAdv || false;
   const peekOpen = panel.querySelector('.g-peek')?.classList.contains('open');
   const firstRun = GHOST.ui.firstRun;
+  const idle = L.state==='IDLE'||L.state==='COMPLETE';
+  const activeP = (GHOST.persona.selected||[]).filter(s=>s&&s!=='none');
+  const pLabel = activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'';
   return `
-    ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your big task in the chat box<br>2. Press ▶ — Ghost wraps it in the loop protocol<br>3. Walk away. Ghost auto-continues, stops on [[GITL::HALT]]<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
-    <div class="g-modes">
-      <button class="g-md${pm==='loop'?' act':''}" data-m="loop">${PAYLOADS.loop.label}</button>
-      <button class="g-md${pm==='think'?' act':''}" data-m="think">${PAYLOADS.think.label}</button>
-      <button class="g-md${pm==='roadmap'?' act':''}" data-m="roadmap">${PAYLOADS.roadmap.label}</button>
-    </div>
+    ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
+    <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
     <div class="g-hint">${PAYLOADS[pm].hint}</div>
-    <div class="g-posture-wrap">
-      <div class="g-posture-lbl">Thinking posture <button class="g-posture-q" id="g-posture-help" title="What do these mean?">?</button></div>
-      <div class="g-postures">
-        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
-        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
-        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
-      </div>
-      <div class="g-posture-hint">${_esc((POSTURES[L.posture]||POSTURES.standard).desc)}</div>
-    </div>
-    ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run can't wander off-task unattended. What next?</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground" title="Re-anchor the AI to the task it started on, then continue">⊕ Reground</button><button class="g-btn st" id="g-limit-wait" title="Pause and wait for your instructions">✋ Stop &amp; wait</button></div></div>` : ''}
+    ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
+    ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='LIMIT'?`Continue ${L.limitStep} more`:'Start / Resume (Alt+P)'}">▶</button>
-      <button class="g-btn" id="g-pause" title="Pause (Alt+P)">⏸</button>
-      <button class="g-btn st" id="g-stop" title="Stop & Reset (Alt+S)">■</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-reground" title="Re-anchor AI to original task — use when you see drift">⊕</button>
     </div>
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
@@ -2751,21 +2792,37 @@ function renderRunTab() {
       ${(L.state==='RUNNING'||L.state==='PAUSED'||L.state==='LIMIT') ? (()=>{
         const left = Math.max(0, L.maxRounds - L.round);
         const lowpct = L.maxRounds ? (left / L.maxRounds) * 100 : 100;
-        const warn = left <= 5;
-        return `<div class="g-safety${warn?' warn':''}" title="Safety check: Ghost pauses after ${L.maxRounds} auto-continues so it can't drift or invent steps unattended. Not your task length — just a drift guard.">
+        const warn = L.driftEnabled && left <= 5;
+        const off = !L.driftEnabled;
+        return `<div class="g-safety${warn?' warn':''}${off?' off':''}" title="${off?'Drift guard OFF — loop runs without a cap.':'Drift guard: auto-pauses after this many continues.'}">
           <div class="g-safety-row">
+            <div class="g-tog${L.driftEnabled?' on':''}" id="g-drift-tog"></div>
             <span class="g-safety-lbl">drift guard</span>
-            <span class="g-safety-num"><b>${left}</b> left of ${L.maxRounds}</span>
-            <button class="g-safety-rst" id="g-cnt-reset" title="Reset this counter back to ${L.maxRounds} (does not touch your chat or the page)">↻</button>
+            <span class="g-safety-num">${off?'OFF':'<b>'+left+'</b> left'}</span>
+            <input type="number" class="g-safety-edit" id="g-drift-max" value="${L.maxRounds}" min="1" max="999">
+            <button class="g-safety-rst" id="g-cnt-reset">↻</button>
           </div>
-          <div class="g-safety-trk"><div class="g-safety-fill" style="width:${lowpct}%"></div></div>
+          ${!off?`<div class="g-safety-trk"><div class="g-safety-fill" style="width:${lowpct}%"></div></div>`:''}
         </div>`;
       })() : ''}
     </div>
     <div class="g-stat" style="color:${statColor()}">${statLabel()}</div>
     ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
+    <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
+    ${runAdv ? `
+    <div class="g-posture-wrap">
+      <div class="g-posture-lbl">Thinking posture <button class="g-posture-q" id="g-posture-help">?</button></div>
+      <div class="g-postures">
+        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
+        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
+        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
+      </div>
+      <div class="g-posture-hint">${_esc((POSTURES[L.posture]||POSTURES.standard).desc)}</div>
+    </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
+    <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
+    ` : ''}
     <div class="g-shortcuts">v${VER} · Alt+P toggle · Alt+S stop</div>`;
 }
 
@@ -2805,6 +2862,7 @@ function renderFlowTab() {
         ${GHOST.workflow.pauseBetween ? '<br><br>⏸ <b>Pause between is ON</b> — Ghost stops after each stage so you can review or switch models, then press ▶ to continue.' : ''}
       </div>
       <button class="g-btn go g-wf-start${running?' g-dim':''}" id="wf-start"${running?' disabled':''}>▶ Start workflow</button>
+      ${running||GHOST.workflow.active ? `<div class="g-btns" style="margin-top:4px"><button class="g-btn" id="wf-do-pause" title="Pause workflow">⏸</button><button class="g-btn st" id="wf-do-stop" title="Stop & reset workflow">✕ End</button></div>` : ''}
       <div class="g-row" style="margin-top:8px"><label>Pause between stages</label><div class="g-tog${GHOST.workflow.pauseBetween?' on':''}" id="wf-pause"></div></div>
       <div class="g-wf-progress">Stage <b>${wf.stages.length?(GHOST.workflow.stageIndex+1):'—'}</b> of ${wf.stages.length} ${GHOST.workflow.active?'· running':''}</div>
       <div class="g-div"></div>${stages}
@@ -2823,10 +2881,11 @@ const HELP_SECTIONS = {
     <b>The 30-second version:</b><br>1. Type your task in the chat box<br>2. Press the big ▶<br>3. Walk away ☕<br><br>
     <b>How does it know when to stop?</b><br>Ghost teaches the AI two signals: <code>[[GITL::PROCEED]]</code> = "more to do", <code>[[GITL::HALT]]</code> = "finished". Ghost reads them and acts.` },
   run: { label: 'Run', html: `
-    <b>The Run tab</b> is the classic loop.<br><br>
-    <b>Three modes:</b><br>· <b>Loop</b> — AI works in batches, Ghost continues each one<br>· <b>Think First</b> — AI plans before working, then batches<br>· <b>Roadmap</b> — AI researches, writes its own plan, Ghost runs every step (see Auto)<br><br>
-    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⏹ stop &amp; reset<br><br>
-    <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard (default 20 auto-continues) catching a long run — <i>not</i> an error. It's a grounding pause so an unattended run can't wander off-task. Three choices:<br>· <b>▶ Continue</b> — run 20 more (asks again each 20)<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on, then continue<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>Raise the default in Setup → Max rounds, or tap ↻ on the drift-guard bar to reset the count anytime.` },
+    <b>The Run tab</b> is command center.<br><br>
+    <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
+    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⊕ reground (re-anchor AI to the original task if you see drift). Full stop is in Advanced ▾.<br><br>
+    <b>Personas line:</b> shows your active persona or committee. Tap "edit" to jump to the Personas tab.<br><br>
+    <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard catching a long run. It's a grounding pause so an unattended run cannot wander off-task. Three choices:<br>· <b>▶ Continue</b> — run more<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>You can edit the cap inline, toggle the guard off, or tap ↻ to reset.` },
   auto: { label: 'Auto', html: `
     <b>The Auto tab</b> = fire &amp; forget.<br><br>
     <b>Roadmap</b> (AI plans): pick Roadmap on Run, press ▶. The AI studies your task, writes a numbered plan, and Ghost executes every step + a final synthesis. Watch steps get ✓ here.<br><br>
@@ -2837,9 +2896,13 @@ const HELP_SECTIONS = {
     <b>To run one:</b><br>1. Pick a workflow from the dropdown<br>2. Type your task in the chat box<br>3. Press <b>▶ Start workflow</b><br>Ghost runs every stage in order, advancing each time the AI HALTs.<br><br>
     <b>INSERT button</b> (the small vertical tab on each stage): drops just that one stage's prompt into the chat box, so you can run a single stage by hand instead of the whole sequence.<br><br>
     <b>Pause between stages:</b> OFF = Ghost runs start-to-finish. ON = Ghost stops after each stage so you can review — or switch the model (that's how <b>Lens Relay</b> works: swap model at each pause, press ▶ to continue).` },
-  roles: { label: 'Roles', html: `
-    <b>The Roles tab</b> injects a persona into your first prompt — Red Team attacks the work, Round Table simulates a committee, and so on.<br><br>
-    <b>On Perplexity</b>, Round Table automatically becomes a REAL round table: it expects you to switch models between turns, and each model must give its own independent assessment, in a code block, naming who goes next.` },
+  roles: { label: 'Personas', html: `
+    <b>The Personas tab</b> shapes how the AI approaches your task.<br><br>
+    <b>Basic:</b> pick a persona from the dropdown — Red Team attacks the work, Researcher digs deep, Devil's Advocate challenges every claim. The persona framing is injected into your first prompt.<br><br>
+    <b>Committee mode</b> (toggle at top): select multiple personas. The AI simulates all perspectives on every response, then synthesizes a consensus with disagreements preserved.<br><br>
+    <b>Per-task toggle:</b> re-inject the committee framing on every step, not just the first.<br>
+    <b>Final review toggle:</b> after all work completes, the committee does one final review pass before halting.<br><br>
+    <b>On Perplexity</b>, Round Table becomes a REAL round table: switch models between turns, each model gives independent assessment naming who goes next.` },
   export: { label: 'Export', html: `
     <b>Three buttons, three jobs:</b><br><br>
     <b>⬇ Export</b> — the full record. The whole conversation as a file (with 💭 thinking logs). For archiving and reading.<br><br>
@@ -2847,7 +2910,7 @@ const HELP_SECTIONS = {
     <b>🛟 Rescue</b> — the chat is full, stuck, or won't respond, so you can't ask it anything. Ghost scrapes the state + last 10 messages verbatim + resumption instructions into a file. Paste into a fresh chat and keep going.<br><br>
     <i>Working chat → Handoff. Dead chat → Rescue. Records → Export.</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br><br>
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — Classic (current), New (Aurora glass), or Custom (upload your own .gitl skin)<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
@@ -2912,24 +2975,51 @@ function renderAutoTab() {
 }
 
 function renderPersonasTab() {
-  const items = Object.entries(allPersonas()).map(([k,v]) =>
-    `<button class="g-persona-btn${GHOST.persona.selected===k?' act':''}" data-p="${_esc(k)}">
-       <span class="plbl">${v.custom?'<span class="g-cust-badge">★</span> ':''}${_esc(v.label)}${v.custom?`<span class="g-del" data-del-p="${_esc(k)}" title="Delete this custom persona">✕</span>`:''}</span>
-       <div class="pdesc">${_esc(v.inject||'No persona framing.')}</div>
-     </button>`
-  ).join('');
+  const sel = GHOST.persona.selected || ['none'];
+  const comm = GHOST.persona.committee;
   const creating = GHOST.ui.wsNewPersona;
-  const form = creating ? `
+  const allP = allPersonas();
+  const activeP = sel.filter(s=>s&&s!=='none');
+
+  // Basic: single persona selector with preview
+  const opts = Object.entries(allP).map(([k,v]) => `<option value="${_esc(k)}"${!comm&&sel.includes(k)&&k!=='none'?' selected':''}>${v.custom?'★ ':''}${_esc(v.label)}</option>`).join('');
+  const curKey = !comm && activeP.length===1 ? activeP[0] : null;
+  const curP = curKey ? allP[curKey] : null;
+
+  // Committee: multi-select rows
+  const committeeRows = comm ? activeP.map((k,i) => {
+    const p = allP[k];
+    const rowOpts = Object.entries(allP).filter(([id])=>id!=='none').map(([id,v]) => `<option value="${_esc(id)}"${id===k?' selected':''}>${v.custom?'★ ':''}${_esc(v.label)}</option>`).join('');
+    return `<div class="g-qrow"><select class="g-qin g-cm-sel" data-ci="${i}" style="flex:1">${rowOpts}</select><button class="g-qdel g-cm-del" data-ci="${i}">✕</button></div><div class="g-hint" style="margin-top:-2px;margin-bottom:5px;font-size:8.5px">${p?_esc(p.inject.slice(0,80))+(p.inject.length>80?'…':''):'Unknown persona'}</div>`;
+  }).join('') : '';
+
+  return `
+    <div class="g-row"><label>Committee</label><div class="g-tog${comm?' on':''}" id="p-comm-tog" title="Toggle committee mode — select multiple personas"></div></div>
+    ${!comm ? `
+      <div class="g-row"><label>Persona</label><select id="p-single" style="width:130px"><option value="none"${activeP.length===0?' selected':''}>None</option>${opts}</select></div>
+      ${curP ? `<div class="g-hint" style="line-height:1.6"><b>${_esc(curP.label)}</b>${curP.custom?' <span class="g-cust-badge">★ custom</span>':''}<br>${_esc(curP.inject.slice(0,200))}${curP.inject.length>200?'…':''}</div>` : '<div class="g-hint">No persona active — the AI uses its default behavior.</div>'}
+      <button class="g-exp-btn" id="p-run" style="margin-top:4px">▶ Run with${curP?' '+_esc(curP.label):' persona'}</button>
+    ` : `
+      <div style="font-size:9px;color:#777;font-weight:700;margin:4px 0">COMMITTEE MEMBERS (${activeP.length})</div>
+      ${committeeRows}
+      <button class="g-btn-sm" id="p-cm-add" style="width:100%;margin-top:4px">＋ Add member</button>
+      <div class="g-div"></div>
+      <div class="g-row"><label>Per-task</label><div class="g-tog${GHOST.persona.perTask?' on':''}" id="p-pertask" title="Apply committee perspective to every step, not just the first"></div></div>
+      <div class="g-row"><label>Final review</label><div class="g-tog${GHOST.persona.finalReview?' on':''}" id="p-review" title="Committee conducts a final review after all work is complete"></div></div>
+      <div class="g-hint">Per-task = each step runs with the committee framing. Final review = after the last step, the committee reviews and synthesizes.</div>
+      <button class="g-exp-btn" id="p-run" style="margin-top:4px">▶ Run with committee (${activeP.length})</button>
+    `}
+    <div class="g-div"></div>
+    ${creating ? `
     <div class="g-ws-form">
       <input class="g-ws-in" id="ws-p-label" placeholder="Persona name (e.g. Legal Reviewer)" maxlength="40">
       <textarea class="g-ws-ta" id="ws-p-inject" placeholder="Persona framing — 'Adopt the persona of…'" rows="3" maxlength="4000"></textarea>
       <div class="g-ws-form-btns"><button class="g-btn-sm" id="ws-p-save">✓ Save persona</button><button class="g-btn-sm" id="ws-p-cancel" style="background:#18191c">Cancel</button></div>
-    </div>` : `<button class="g-exp-btn" id="ws-p-new" style="margin-top:5px">＋ Create custom persona</button>`;
-  return items + form + `
+    </div>` : `<button class="g-exp-btn" id="ws-p-new" style="margin-top:2px">＋ Create custom persona</button>`}
     <div class="g-ws-bar">
-      <button class="g-ws-btn" id="ws-import" title="Import a .gitl.json pack of personas & workflows">⬆ Import</button>
-      <button class="g-ws-btn" id="ws-export" title="Export your custom personas & workflows to a shareable file">⬇ Export</button>
-      <button class="g-ws-btn" id="ws-submit" title="Share your pack with the community">🌐 Share</button>
+      <button class="g-ws-btn" id="ws-import">⬆ Import</button>
+      <button class="g-ws-btn" id="ws-export">⬇ Export</button>
+      <button class="g-ws-btn" id="ws-submit">🌐 Share</button>
     </div>`;
 }
 
@@ -2970,6 +3060,9 @@ function renderSettingsTab() {
       ).join('')}</div>
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
+    <div class="g-div"></div>
+    <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px"><option value="classic"${GHOST.ui.skinTheme==='classic'?' selected':''}>Classic</option><option value="new"${GHOST.ui.skinTheme==='new'?' selected':''}>New</option><option value="custom"${GHOST.ui.skinTheme==='custom'?' selected':''}>Custom</option></select></div>
+    <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" min="0" max="360" value="${GHOST.ui.accentHue}" style="width:80px;accent-color:hsl(${GHOST.ui.accentHue} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${GHOST.ui.accentHue} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
@@ -3061,7 +3154,7 @@ function render() {
         <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Standard continue loop">Run</button>
         <button class="g-tab${tab==='auto'?' act':''}" data-t="auto" title="Roadmap autopilot & prompt queue">Auto</button>
         <button class="g-tab${tab==='flow'?' act':''}" data-t="flow" title="Multi-stage workflows">Flow</button>
-        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas">Roles</button>
+        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas & committee">Personas</button>
         <button class="g-tab${tab==='export'?' act':''}" data-t="export" title="Export & handoff">Export</button>
         <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">Setup</button>
       </div>
@@ -3101,11 +3194,18 @@ function bindEvents() {
   $$('.g-tab').forEach(b => b.addEventListener('click', () => { GHOST.ui.tab=b.dataset.t; render(); }));
   $('#g-tabhelp')?.addEventListener('click', function(){ GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = this.dataset.h; GHOST.ui.tab = 'info'; render(); });
 
-  // Run tab
+  // Run tab — strategy dropdown
   $$('.g-md').forEach(b => b.addEventListener('click', () => {
     if (GHOST.loop.state==='RUNNING') return;
     GHOST.loop.payloadMode=b.dataset.m; GHOST.loop.needsPayload=true; _save('payloadMode',GHOST.loop.payloadMode); render();
   }));
+  $('#g-strategy')?.addEventListener('change', e => {
+    if (GHOST.loop.state==='RUNNING') return;
+    GHOST.loop.payloadMode=e.target.value; GHOST.loop.needsPayload=true; _save('payloadMode',GHOST.loop.payloadMode); render();
+  });
+  $('#run-adv')?.addEventListener('click', () => { GHOST.ui.runAdv=!GHOST.ui.runAdv; render(); });
+  $('#g-goto-personas')?.addEventListener('click', e => { e.preventDefault(); GHOST.ui.tab='personas'; render(); });
+  $('#g-reground')?.addEventListener('click', () => { if (GHOST.loop.state==='RUNNING'||GHOST.loop.state==='PAUSED') regroundLoop(); });
   $$('.g-pst').forEach(b => b.addEventListener('click', () => {
     if (GHOST.loop.state==='RUNNING') return;
     GHOST.loop.posture=b.dataset.pst; _save('posture',GHOST.loop.posture); render();
@@ -3115,6 +3215,9 @@ function bindEvents() {
   $('#g-limit-go')?.addEventListener('click', extendLimit);
   $('#g-limit-reground')?.addEventListener('click', regroundLoop);
   $('#g-limit-wait')?.addEventListener('click', () => enginePause('✋ Stopped at drift checkpoint — ▶ to resume'));
+  $('#g-drift-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.loop.driftEnabled=this.classList.contains('on'); _save('driftEnabled',GHOST.loop.driftEnabled); render(); });
+  $('#g-drift-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v); render();} });
+  $('#g-drift-max')?.addEventListener('click', e => e.stopPropagation());
   $('#g-cnt-reset')?.addEventListener('click', () => {
     GHOST.loop.round = 0;
     Timeline.record('drift_guard_reset', { cap: GHOST.loop.maxRounds });
@@ -3139,6 +3242,8 @@ function bindEvents() {
   $('#wf-pause')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.workflow.pauseBetween=this.classList.contains('on'); _save('wfPause',GHOST.workflow.pauseBetween); render(); });
   $('#wf-reset')?.addEventListener('click', () => { GHOST.workflow.stageIndex=0; GHOST.workflow.active=GHOST.workflow.selected!=='none'; _save('wfStage',0); render(); });
   $('#wf-start')?.addEventListener('click', startWorkflow);
+  $('#wf-do-pause')?.addEventListener('click', () => { if(GHOST.loop.state==='RUNNING') pauseLoop(); });
+  $('#wf-do-stop')?.addEventListener('click', () => { GHOST.workflow.active=false; GHOST.workflow.stageIndex=0; _save('wfStage',0); stopLoop(); });
   $$('.g-wf-ins').forEach(b => b.addEventListener('click', () => {
     const wf = allWorkflows()[GHOST.workflow.selected] || WORKFLOW_LIBRARY.none;
     const stage = wf.stages[+b.dataset.ins];
@@ -3166,18 +3271,28 @@ function bindEvents() {
   });
 
   // Personas tab
-  $$('.g-persona-btn').forEach(b => b.addEventListener('click', (e) => {
-    if (e.target.closest('[data-del-p]')) return; // delete handled separately
-    GHOST.persona.selected=b.dataset.p; _save('persona',GHOST.persona.selected); render();
+  const _saveSel = () => _save('persona', JSON.stringify(GHOST.persona.selected));
+  $('#p-comm-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.committee=this.classList.contains('on'); _save('personaCommittee',GHOST.persona.committee); if(GHOST.persona.committee&&GHOST.persona.selected.filter(s=>s&&s!=='none').length<2){ GHOST.persona.selected=GHOST.persona.selected.filter(s=>s&&s!=='none'); if(!GHOST.persona.selected.length) GHOST.persona.selected=['researcher','redteam']; _saveSel(); } render(); });
+  $('#p-single')?.addEventListener('change', e => { GHOST.persona.selected=[e.target.value]; _saveSel(); render(); });
+  $('#p-run')?.addEventListener('click', () => { GHOST.ui.tab='run'; startLoop(); });
+  $('#p-pertask')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.perTask=this.classList.contains('on'); _save('personaPerTask',GHOST.persona.perTask); });
+  $('#p-review')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.finalReview=this.classList.contains('on'); _save('personaFinalReview',GHOST.persona.finalReview); });
+  // Committee multi-select rows
+  $$('.g-cm-sel').forEach(sel => sel.addEventListener('change', e => {
+    const i=+sel.dataset.ci; const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    if(i<active.length) active[i]=e.target.value;
+    GHOST.persona.selected=active.length?active:['none']; _saveSel(); render();
   }));
-  $$('[data-del-p]').forEach(x => x.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const id = x.dataset.delP;
-    if (x.dataset.confirm === '1') {
-      if (GHOST.persona.selected === id) { GHOST.persona.selected = 'none'; _save('persona','none'); }
-      Workshop.removePersona(id); render();
-    } else { x.dataset.confirm = '1'; x.textContent = '✓?'; x.title = 'Tap again to confirm delete'; }
+  $$('.g-cm-del').forEach(b => b.addEventListener('click', () => {
+    const i=+b.dataset.ci; const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    active.splice(i,1); GHOST.persona.selected=active.length?active:['none']; _saveSel(); render();
   }));
+  $('#p-cm-add')?.addEventListener('click', () => {
+    const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    const all=Object.keys(allPersonas()).filter(k=>k!=='none'&&!active.includes(k));
+    if(all.length) active.push(all[0]); GHOST.persona.selected=active; _saveSel(); render();
+  });
+  // Workshop: create/import/export (same as before, updated for array)
   $('#ws-p-new')?.addEventListener('click', () => { GHOST.ui.wsNewPersona = true; render(); });
   $('#ws-p-cancel')?.addEventListener('click', () => { GHOST.ui.wsNewPersona = false; render(); });
   $('#ws-p-save')?.addEventListener('click', () => {
@@ -3185,7 +3300,9 @@ function bindEvents() {
     const inject = ($('#ws-p-inject')?.value || '').trim();
     if (!label || !inject) { GHOST.loop.detail = '⚠ Name and framing are both required'; render(); return; }
     const id = Workshop.addPersona(label, inject);
-    GHOST.ui.wsNewPersona = false; GHOST.persona.selected = id; _save('persona', id);
+    GHOST.ui.wsNewPersona = false;
+    if(GHOST.persona.committee){ GHOST.persona.selected.push(id); } else { GHOST.persona.selected=[id]; }
+    _saveSel();
     GHOST.loop.detail = `✓ Created persona "${label}"`; render();
   });
   $('#ws-import')?.addEventListener('click', workshopImport);
@@ -3250,6 +3367,8 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#cfg-skin')?.addEventListener('change', e => { GHOST.ui.skinTheme=e.target.value; _save('skinTheme',GHOST.ui.skinTheme); render(); });
+  $('#cfg-hue')?.addEventListener('input', e => { GHOST.ui.accentHue=parseInt(e.target.value,10); _save('accentHue',GHOST.ui.accentHue); render(); });
   $('#g-redetect')?.addEventListener('click', function(){
     this.classList.add('spin');
     const ok = reDetect();
