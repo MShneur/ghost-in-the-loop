@@ -2633,20 +2633,28 @@ function injectStyles() {
 .gv-cancel{padding:4px 14px;border:1px solid #3a2a2a;border-radius:6px;background:#1c1416;color:#c88;font-size:9px;cursor:pointer;font-family:inherit}
 .gv-cancel:hover{background:#241719}
 #gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
-#gitl.pos-dock.collapsed{width:32px!important;min-width:0}
+#gitl.pos-dock.collapsed{width:44px!important;min-width:0}
 #gitl.pos-dock.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
 #gitl.pos-dock.collapsed .g-hdr > span:last-child{flex-direction:column}
 #gitl.pos-dock.collapsed .g-plat{display:none}
+#gitl.pos-dock.collapsed .g-minbtn:not(#g-col){display:none}
+#gitl.pos-dock.collapsed #g-col{font-size:14px;padding:4px 8px}
 #gitl.pos-dock.collapsed .g-logo{writing-mode:vertical-rl;font-size:11px}
-#gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px}
+#gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px;gap:6px}
+#gitl.pos-dock.collapsed .g-qbtn{width:36px;height:36px;font-size:16px;border-radius:8px}
 #gitl.pos-dock.collapsed .g-qstat{display:none}
+.g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:#888;line-height:1.2;word-break:break-all}
+#gitl.pos-dock.collapsed .g-dock-stat,#gitl.pos-dock-left.collapsed .g-dock-stat{display:block}
 /* Gold left-dock: mirror geometry to the left edge + gold accents. Our own
    element in the top stacking context — never injected into the host's menu. */
 #gitl.pos-dock-left{left:0;right:auto;border-radius:0 10px 10px 0;border-left:none;border-right:1px solid #5a4a1e}
 #gitl.pos-dock-left.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
+#gitl.pos-dock-left.collapsed .g-minbtn:not(#g-col){display:none}
+#gitl.pos-dock-left.collapsed #g-col{font-size:14px;padding:4px 8px}
 #gitl.pos-dock-left{border-color:#5a4a1e;box-shadow:0 10px 32px rgba(120,90,10,.28)}
 #gitl.pos-dock-left .g-logo{color:#e8c66a}
 #gitl.pos-dock-left.collapsed .g-logo{writing-mode:vertical-rl;font-size:13px;color:#f0cd6e;letter-spacing:1px}
+#gitl.pos-dock-left.collapsed .g-qbtn{width:36px;height:36px;font-size:16px;border-radius:8px}
 #gitl.pos-dock-left .g-dot{box-shadow:0 0 6px rgba(232,198,106,.6)}
 .g-pos-gold{color:#e8c66a!important}
 .g-pos-gold.act{background:#2a2410!important;border-color:#5a4a1e!important}
@@ -3131,6 +3139,15 @@ function render() {
   const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
   const qCls  = L.state==='RUNNING'?'pause':L.state==='LIMIT'?'play limit':'play';
+  // Compact dock status: step/round + drift guard remaining
+  const dockStat = (()=>{
+    if (L.state==='IDLE'||L.state==='COMPLETE') return '';
+    const p = L.lastProgress;
+    const line1 = p ? `${p.step}/${p.total}` : (L.round ? `R${L.round}` : '');
+    const left = L.driftEnabled ? Math.max(0, L.maxRounds - L.round) : null;
+    const line2 = left !== null ? `${left}▾` : '';
+    return [line1,line2].filter(Boolean).join('<br>');
+  })();
   panel.innerHTML = `
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '👻 Ghost'}<span class="g-dot ${dotClass()}"></span></span>
@@ -3144,6 +3161,7 @@ function render() {
     <div class="g-coll-row">
       <button class="g-qbtn ${qCls}" id="g-quick">${qIcon}</button>
       <span class="g-qstat" style="color:${qc}">${ql}</span>
+      ${dockStat?`<span class="g-dock-stat">${dockStat}</span>`:''}
     </div>
     <div class="g-body">
       <div class="g-proj">
