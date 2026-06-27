@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0
+// @version      8.0.0.5
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -51,7 +51,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0';
+const VER = '8.0.0.d5';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -332,10 +332,10 @@ const PROFILES = {
   grok: {
     host: /grok\.com/,
     label: 'Grok',
-    input: ['textarea[placeholder*="Ask"]','textarea','div[contenteditable="true"]'],
-    send: ['button[aria-label="Send"]','button[type="submit"]'],
-    stop: ['button[aria-label="Stop"]'],
-    assistant: ['div[class*="message"][class*="bot"]','div[data-role="assistant"]'],
+    input: ['textarea[aria-label="Ask Grok anything"]','textarea[placeholder*="Grok"]','textarea[placeholder*="Ask"]','textarea[data-testid="grok-compose-input"]','div[contenteditable="true"][data-lexical-editor="true"]','div[contenteditable="true"]','textarea'],
+    send: ['button[aria-label="Submit"]','button[aria-label="Send message"]','button[aria-label*="Send"]','button[data-testid="send-button"]','button[data-testid*="submit"]','button[type="submit"]','button.send-button'],
+    stop: ['button[aria-label="Stop"]','button[aria-label*="stop"]'],
+    assistant: ['div[class*="message"][class*="bot"]','div[data-role="assistant"]','div[class*="response"]'],
     continueLabels: [],
     useCE: false, useNS: false
   },
@@ -502,9 +502,14 @@ const Adapter = {
       // FIX: selectAll+insertText preserves ProseMirror state (innerHTML='' destroys it)
       document.execCommand('selectAll', false, null);
       const ok = document.execCommand('insertText', false, text);
-      if (!ok) { el.textContent = text; }
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
+      if (!ok) {
+        // execCommand unavailable — fall back with proper InputEvent
+        el.textContent = text;
+        el.dispatchEvent(new InputEvent('input', { inputType:'insertText', data:text, bubbles:true, cancelable:true, composed:true }));
+      } else {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
       DIAG.sendPath = 'contenteditable';
       return true;
     }
@@ -521,10 +526,11 @@ const Adapter = {
     return true;
   },
   pressEnter(el) {
-    // ProseMirror/Lexical listen for beforeinput with insertParagraph, not raw keydown
-    try { el.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true })); } catch(_){}
+    // Stage A: insertParagraph beforeinput — ProseMirror/Lexical native submit signal
+    try { el.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
+    // Stage B: keyboard Enter with composed:true — crosses Shadow DOM boundaries
     ['keydown','keypress','keyup'].forEach(t => {
-      el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true }));
+      el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
     });
   }
 };
@@ -1359,16 +1365,34 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('Text injection failed — recovery exhausted'); return false;
     }
     await sleep(500);
-    // 5-path send: button → retry → retry → retry → Enter key
-    // Belt-and-suspenders: also fire pressEnter after btn.click because
-    // React/ProseMirror/Lexical may ignore isTrusted:false click events
+    // Three-stage send with verification (from MCP-SuperAssistant research):
+    // Stage 1: button.click() → verify input cleared
+    // Stage 2: Enter key with composed:true (crosses Shadow DOM)
+    // Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
     let sent = false;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
+    for (let attempt = 0; attempt < 3; attempt++) {
       const btn = Adapter.getSendBtn();
-      if (btn && !btn.disabled) { btn.click(); DIAG.sendPath = `btn-${attempt+1}`; sent = true; break; }
-      await sleep(600);
+      if (btn && !btn.disabled) {
+        btn.click(); DIAG.sendPath = `btn-${attempt+1}`;
+        await sleep(400);
+        if (inputIsEmpty()) { sent = true; break; }
+      }
+      await sleep(500);
     }
-    if (!sent || PLAT.useCE) { Adapter.pressEnter(input); DIAG.sendPath = sent ? DIAG.sendPath + '+enter' : 'enter-key'; }
+    if (!sent) {
+      input.focus();
+      ['keydown','keypress','keyup'].forEach(t => {
+        input.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
+      });
+      DIAG.sendPath = (DIAG.sendPath||'none') + '+enter';
+      await sleep(300);
+      if (inputIsEmpty()) sent = true;
+    }
+    if (!sent) {
+      try { input.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
+      DIAG.sendPath = (DIAG.sendPath||'none') + '+paragraph';
+    }
     _onSendOk(text, DIAG.sendPath);
     return true;
   } catch(e) {
