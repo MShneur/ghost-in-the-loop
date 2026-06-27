@@ -1,5 +1,40 @@
 # Changelog
 
+## [8.0.0.5] — DEV BUILD d5
+
+### UX restructure
+- **Strategy dropdown** replaces Loop/Think/Roadmap buttons (Step by step / Plan first / Autopilot)
+- **Basic/advanced split** on Run tab — posture, prompt preview, and End button behind Advanced ▾
+- **Personas tab** (was Roles) — single-select with preview, committee toggle, multi-persona builder, per-task and final-review toggles
+- **Detection status line** — shows platform · strategy · posture · round below status bar
+- **Drift guard** on/off toggle + inline editable counter
+- **Skin selector** + accent hue slider in Setup (plumbing only, no skins yet)
+
+### Committee pipeline (engine)
+- `resolvePersonaInject()` supports array selection + committee framing
+- Per-task injection in engineTick proceed path + roadmap steps
+- Post-halt final review hook — committee reviews before engineHalt
+- Migration shim: persona string→array backward compatible
+
+### SPA reliability
+- `@noframes` prevents double-injection in iframes
+- SPA boot retry: 30s element finder for late-rendering apps
+- Gemini: custom element selectors, scroll guard restricted to infinite-scroller
+- ChatGPT: data-testid fallback selectors
+- Perplexity: [data-testid=composer], role=textbox fallbacks
+
+### Three-stage send failsafe (from MCP-SuperAssistant research)
+- Stage 1: button.click() → verify input cleared
+- Stage 2: Enter key with composed:true (crosses Shadow DOM)
+- Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
+- `composed:true` on all synthetic keyboard + input events
+- Grok: comprehensive selector update
+
+### Collapsed dock redesign
+- Width 32→44px, touch targets 36×36px
+- Drift guard editable in dock strip with ↻ reset
+- Hide 🔄 and ? when collapsed
+
 ## [8.0.0] — DEV BUILD (features complete, UI reskin pending)
 
 > Working build. Not pushed. Items below are locked + unit-tested unless marked ⏳ unfinished.
