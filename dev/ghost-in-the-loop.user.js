@@ -282,17 +282,17 @@ const PROFILES = {
   chatgpt: {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
-    input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','textarea[data-id="root"]','textarea'],
+    input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
     send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[class*="send"]'],
     stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]'],
-    assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]'],
+    assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
     useCE: false, useNS: true
   },
   perplexity: {
     host: /perplexity\.ai/,
     label: 'Perplexity',
-    input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','textarea:not([disabled])'],
+    input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
     stop: ['button[aria-label="Stop"]','[data-testid="stop-button"]'],
     assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
@@ -480,6 +480,10 @@ const Adapter = {
   isGenerating()  { return !!_q('gen', PLAT.stop); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
   getLastText() {
+    // Gemini only: virtual scroll — nudge infinite-scroller to bottom
+    if (PLAT && PLAT.key === 'gemini') {
+      try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
+    }
     const els = _qAll(PLAT.assistant);
     return els.length ? (els[els.length-1].innerText || '').trim() : '';
   },
@@ -517,6 +521,8 @@ const Adapter = {
     return true;
   },
   pressEnter(el) {
+    // ProseMirror/Lexical listen for beforeinput with insertParagraph, not raw keydown
+    try { el.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true })); } catch(_){}
     ['keydown','keypress','keyup'].forEach(t => {
       el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true }));
     });
@@ -1354,13 +1360,15 @@ async function engineSend(text, skipDelay) {
     }
     await sleep(500);
     // 5-path send: button → retry → retry → retry → Enter key
+    // Belt-and-suspenders: also fire pressEnter after btn.click because
+    // React/ProseMirror/Lexical may ignore isTrusted:false click events
     let sent = false;
     for (let attempt = 0; attempt < 4; attempt++) {
       const btn = Adapter.getSendBtn();
       if (btn && !btn.disabled) { btn.click(); DIAG.sendPath = `btn-${attempt+1}`; sent = true; break; }
       await sleep(600);
     }
-    if (!sent) { Adapter.pressEnter(input); DIAG.sendPath = 'enter-key'; }
+    if (!sent || PLAT.useCE) { Adapter.pressEnter(input); DIAG.sendPath = sent ? DIAG.sendPath + '+enter' : 'enter-key'; }
     _onSendOk(text, DIAG.sendPath);
     return true;
   } catch(e) {
@@ -2790,6 +2798,14 @@ function renderRunTab() {
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
     <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
     <div class="g-hint">${PAYLOADS[pm].hint}</div>
+    <div class="g-posture-wrap">
+      <div class="g-posture-lbl">Thinking <button class="g-posture-q" id="g-posture-help">?</button></div>
+      <div class="g-postures">
+        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
+        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
+        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
+      </div>
+    </div>
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-btns">
@@ -2821,18 +2837,10 @@ function renderRunTab() {
       })() : ''}
     </div>
     <div class="g-stat" style="color:${statColor()}">${statLabel()}</div>
+    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
     ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
-    <div class="g-posture-wrap">
-      <div class="g-posture-lbl">Thinking posture <button class="g-posture-q" id="g-posture-help">?</button></div>
-      <div class="g-postures">
-        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
-        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
-        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
-      </div>
-      <div class="g-posture-hint">${_esc((POSTURES[L.posture]||POSTURES.standard).desc)}</div>
-    </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
     <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
