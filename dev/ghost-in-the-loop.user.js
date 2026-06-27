@@ -39,6 +39,7 @@
 // @updateURL    https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
 // @downloadURL  https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
 // @run-at       document-idle
+// @noframes
 // @license      AGPL-3.0
 // ==/UserScript==
 
@@ -301,10 +302,10 @@ const PROFILES = {
   gemini: {
     host: /gemini\.google\.com/,
     label: 'Gemini',
-    input: ['div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[contenteditable="true"]','textarea'],
-    send: ['button[aria-label="Send message"]','button[aria-label*="Send"]','button.send-button'],
-    stop: ['button[aria-label*="Stop"]'],
-    assistant: ['model-response message-content','message-content','div[class*="model-response"]'],
+    input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[contenteditable="true"]','textarea'],
+    send: ['button[aria-label="Send message"]','button[aria-label*="Send"]','button.send-button','button[data-test-id="send-button"]'],
+    stop: ['button[aria-label*="Stop"]','button[aria-label*="stop"]'],
+    assistant: ['model-response message-content','model-response .message-content','model-response','div[class*="model-response"]','message-content'],
     continueLabels: [],
     useCE: true, useNS: false
   },
@@ -3458,6 +3459,27 @@ safeBoot(() => {
   injectStyles();
   mountPanel();
   render();
+
+  // SPA boot retry: ChatGPT/Gemini/Angular apps render chat elements late.
+  // Keep trying to find input+send for 30s after boot (every 2s).
+  // Once found, update status and stop retrying.
+  let _bootRetry = 0;
+  const _bootInterval = setInterval(() => {
+    _bootRetry++;
+    const inp = _q('input', PLAT.input);
+    if (inp) {
+      clearInterval(_bootInterval);
+      GHOST.loop.detail = `✓ Connected to ${PLAT.label}`;
+      render();
+      DIAG.push(`Boot: elements found after ${_bootRetry * 2}s`);
+    } else if (_bootRetry >= 15) {
+      clearInterval(_bootInterval);
+      DIAG.push('Boot: gave up waiting for elements after 30s');
+    } else {
+      // Re-attempt detect during SPA hydration
+      _cache.clear();
+    }
+  }, 2000);
   Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
 });
