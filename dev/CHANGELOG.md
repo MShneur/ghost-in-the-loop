@@ -1,5 +1,45 @@
 # Changelog
 
+## [8.0.0.7] — DEV BUILD d7
+
+### Network channel actually works now (dual-channel generation detection)
+**Bug found by live-repo audit:** `GITL_NET` patched the *sandbox* `window.fetch` — with `@grant GM_*`, Tampermonkey isolates the script, so the page's real requests never crossed the hook and the whole network layer was dead in production (it only ever worked inside the jsdom test harness). Fixed by targeting `unsafeWindow` (new `@grant unsafeWindow`; Firefox MV3 port note: inject in `world:"MAIN"`).
+- **Trusted channel:** known chat endpoints (list refreshed — added Gemini's current `batchexecute` streaming transport) still parse SSE chunks
+- **Heuristic channel (platform-proof):** any same-origin POST stream or `text/event-stream` response pulses a timestamp — content never read or stored; analytics/telemetry URLs excluded. Heuristic pulses only count inside a 2-minute post-send expectation window, so background streams can't fake "generating"
+- **XHR upgraded:** `loadstart`/`progress`/`loadend` pulses (Gemini streams over XHR), plus a WebSocket message pulse (Perplexity socket.io)
+- **Wired into the engine:** `Adapter.isGenerating()` = stop-button OR `GITL_NET.streaming()`; the v7.1 send-confirmation watchdog therefore confirms sends from network traffic even when a redesign removes the stop button. DOM stays authoritative; net is additive (technique studied in LightSession & KeepChatGPT, re-implemented clean-room — both hook page `fetch` in production)
+
+### Heuristic element finders (final fallback tier)
+When every configured selector fails — e.g. Gemini's May-2026 full redesign (pill composer, relocated controls) — GITL now locates the composer and send button by **role and meaning** (Playwright-style): `role=textbox`/contenteditable scoring for input; aria-label/title/testid matched against a 13-language send dictionary, `type=submit`, form kinship, and proximity for the button, with a veto list (voice/mic/attach/search/stop). Engaged only when selector arrays come up empty; DIAG-noted when it fires.
+
+### Send chain — two new buttonless tiers + tier memory
+- Tier 4 verify added to `insertParagraph`; **Tier 5: `form.requestSubmit()`** — native submission that survives any button redesign
+- **ClipboardEvent paste tier** in `injectText` for editors that ignore execCommand and synthetic input (some Lexical builds)
+- **Tier memory:** the winning send path is remembered per host (`sendTier:<host>`); if the button tier failed last time, only 1 button attempt is made before falling through (~1.8 s faster recovery on broken sites)
+
+### Smoother load
+180 ms panel entrance animation replaces the pop-in (animation-only; ends at natural state — zero behavioral surface).
+
+### Skins — 3 trend presets + easier modding (now 9 built-ins)
+- **Liquid** — liquid-glass: translucent rgba surfaces, 16 px blur, icy animated gradient border (Apple iOS-26-lineage trend)
+- **OLED** — dark-first true-black: hairline borders instead of shadows, vivid accent (2026 dark-first/OLED trend)
+- **Paper** — the first light preset, warm paper tones (enabled by tokenizing the remaining `#fff/#666/#444/#333` text literals → `--g-text-hot/-low/-faint/-ghost`)
+- **Easy modding loop:** ⬆ import / ⬇ export now always visible — pick any preset, export, edit the JSON, re-import. Hue slider gains double-click-to-reset + tooltip. New `docs/SKINS.md` authoring guide.
+
+### Tests
+`tests/net-heur.test.js` (streaming semantics, heuristic gating, `_maybeChat` filters, finder scoring/veto/own-UI exclusion); structure-test network invariants updated to the corrected page-world form; suite green.
+
+
+## [8.0.0.6] — DEV BUILD d6
+
+### Skin engine — tokens, not code (Committee-approved architecture)
+Skins are now **data**: a whitelisted set of CSS custom properties (colors, radius, shadow, font, blur, aurora stops) plus two enumerated fx flags (`border: aurora`, `ghost: float`) applied to the panel root. Core owns all structure and behavior — a skin **cannot** add, remove, hide, or restructure controls, and cannot execute anything (no selectors, no `url()`, no CSS text; JSON only). Unknown tokens/fx are silently dropped, so community skins are forward- and backward-compatible across GITL versions.
+- ~160 hardcoded hex literals in core CSS replaced with `var(--g-*)`; Classic defaults equal the previous values, so Classic renders pixel-identical
+- 6 built-in presets: Classic, Aurora (violet glass + animated gradient border, Firefox-safe `background-position` animation), Glass, Metal, Neon, Clay — all expressed in the same token format as user skins (dogfooding)
+- Custom skin import/export as `.gitl.json` (`kind:"skin"`) with ⬆/⬇ buttons in Setup; 8 KB cap, value blacklist (`url(`, braces, `@import`, `javascript:`), name sanitization — mirrors Workshop safety rules
+- Accent hue slider now real: rotates the active skin's four accent tokens (preserving each token's saturation/lightness); untouched slider = skin's native hue. Stored `skinTheme:'new'` migrates to `'aurora'`
+- New GM key `customSkin`; `SKIN.apply()` runs at boot after `mountPanel()`
+- Tests: `tests/skin.test.js` (validator security, forward-compat drops, preset integrity, hue math, apply/clear behavior)
 ## [8.0.0.5] — DEV BUILD d5
 
 ### UX restructure

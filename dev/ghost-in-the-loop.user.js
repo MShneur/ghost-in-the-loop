@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.5
+// @version      8.0.0.7
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -36,6 +36,7 @@
 // @grant        GM_setValue
 // @grant        GM_setClipboard
 // @grant        GM_notification
+// @grant        unsafeWindow
 // @updateURL    https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
 // @downloadURL  https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
 // @run-at       document-idle
@@ -51,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.5';
+const VER = '8.0.0.7';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -174,12 +175,21 @@ if (typeof window !== 'undefined') {
    the DOM. Supplements DOM-based detection — does NOT replace it.
    Sources: Gemini Phase 0, Kimi Deep Dive, DeepSeek cascade
    ═══════════════════════════════════════════════════════════════ */
+/* Page-world handle: with GM grants the script runs sandboxed, so patching
+   the sandbox's window.fetch never sees the site's own requests. unsafeWindow
+   is the page's real window (Firefox MV3 port: inject in world:"MAIN"). */
+const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
+
 const GITL_NET = {
   bus: new EventTarget(),
   lastChunk: '',
   lastComplete: '',
   capturedAt: 0,
-  active: false,
+  active: false,        // interceptor installed (kept for health snapshot compat)
+  lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
+  lastPulseH: 0,        // last traffic on a heuristic same-origin stream
+  _open: 0,             // streams currently open
+  expectUntil: 0,       // set by _onSendOk: window in which heuristic pulses count
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -188,7 +198,8 @@ const GITL_NET = {
     '/api/v1/chat/completions',    // DeepSeek / OpenAI-compat
     '/chat/conversation',          // HuggingChat
     '/api/chat',                   // Generic
-    '/bard',                       // Gemini
+    '/bard',                       // Gemini (legacy)
+    'batchexecute',                // Gemini (current streaming transport)
     '/turn/',                      // Copilot
   ],
 
@@ -198,10 +209,41 @@ const GITL_NET = {
     return this.AI_ENDPOINTS.some(ep => s.includes(ep));
   },
 
+  _pulse(trusted) {
+    const t = Date.now();
+    if (trusted) this.lastPulseT = t; else this.lastPulseH = t;
+  },
+
+  /* Same-origin streams that LOOK like chat traffic even when the endpoint
+     isn't in AI_ENDPOINTS — the platform-proof fallback when sites reshuffle
+     their APIs. Analytics-ish URLs are excluded. */
+  _maybeChat(url, method) {
+    try {
+      const s = typeof url === 'string' ? url : (url && url.url) || String(url || '');
+      if (!s) return false;
+      const sameOrigin = s.startsWith('/') || s.includes(location.hostname);
+      if (!sameOrigin) return false;
+      if (/log|telemetry|beacon|analytics|sentry|metric|track|collect|report/i.test(s)) return false;
+      return String(method || 'GET').toUpperCase() === 'POST';
+    } catch(_) { return false; }
+  },
+
+  /* True while generation traffic is plausibly flowing.
+     Trusted (known-endpoint) pulses always count; heuristic pulses only count
+     inside the post-send expectation window, so a random background stream
+     can't convince the engine that a reply is being written. */
+  streaming() {
+    const now = Date.now();
+    if (now - this.lastPulseT < 1500) return true;
+    if (now < this.expectUntil && (this._open > 0 || now - this.lastPulseH < 1500)) return true;
+    return false;
+  },
+
   _emit(raw, isDone) {
     if (raw === '[DONE]') isDone = true;
     this.lastChunk = raw;
     this.capturedAt = Date.now();
+    this._pulse(true);
     if (isDone) this.lastComplete = raw;
     this.bus.dispatchEvent(new CustomEvent('gitl:net', {
       detail: { raw, isDone, ts: Date.now() }
@@ -212,12 +254,35 @@ const GITL_NET = {
     if (this.active) return;
     this.active = true;
 
-    /* Fetch proxy — captures SSE / JSON streams */
-    const origFetch = window.fetch;
+    /* Fetch proxy on the PAGE window — captures SSE / JSON streams */
     const self = this;
-    window.fetch = async function(...args) {
+    const origFetch = UW.fetch;
+    if (typeof origFetch === 'function') UW.fetch = async function(...args) {
       const response = await origFetch.apply(this, args);
-      if (self._isChat(args[0])) {
+      const listed = self._isChat(args[0]);
+      let heur = false;
+      if (!listed) {
+        try {
+          const ct = response.headers && response.headers.get && (response.headers.get('content-type') || '');
+          heur = ct.includes('event-stream') || self._maybeChat(args[0], args[1] && args[1].method);
+        } catch(_) {}
+      }
+      if (heur) {
+        /* Heuristic path: timestamps only — content is never read or stored. */
+        try {
+          const cloned = response.clone();
+          if (cloned.body) {
+            const reader = cloned.body.getReader();
+            self._open++; self._pulse(false);
+            (async () => {
+              try { while (true) { const { done } = await reader.read(); self._pulse(false); if (done) break; } }
+              catch(_) {}
+              finally { self._open = Math.max(0, self._open - 1); }
+            })();
+          }
+        } catch(_) {}
+      }
+      if (listed) {
         try {
           const cloned = response.clone();
           if (cloned.body) {
@@ -249,23 +314,44 @@ const GITL_NET = {
       return response;
     };
 
-    /* XHR proxy — fallback for platforms not using fetch */
-    const origOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-      this._gitlUrl = url;
-      return origOpen.call(this, method, url, ...rest);
-    };
-    const origSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function(...args) {
-      if (self._isChat(this._gitlUrl)) {
-        this.addEventListener('load', function() {
-          if (this.status >= 200 && this.status < 300 && this.responseText) {
-            self._emit(this.responseText, true);
+    /* XHR proxy on the PAGE window — Gemini streams via batchexecute XHRs */
+    const XP = (UW.XMLHttpRequest && UW.XMLHttpRequest.prototype) || null;
+    if (XP && XP.open && XP.send) {
+      const origOpen = XP.open;
+      XP.open = function(method, url, ...rest) {
+        this._gitlUrl = url; this._gitlMethod = method;
+        return origOpen.call(this, method, url, ...rest);
+      };
+      const origSend = XP.send;
+      XP.send = function(...args) {
+        const listed = self._isChat(this._gitlUrl);
+        const heur = !listed && self._maybeChat(this._gitlUrl, this._gitlMethod);
+        if (listed || heur) {
+          try {
+            this.addEventListener('loadstart', () => { self._open++; self._pulse(listed); });
+            this.addEventListener('progress',  () => self._pulse(listed));
+            this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
+            if (listed) this.addEventListener('load', function() {
+              if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
+            });
+          } catch(_) {}
+        }
+        return origSend.apply(this, args);
+      };
+    }
+
+    /* WebSocket pulse — Perplexity's socket.io traffic (timestamps only) */
+    try {
+      if (typeof UW.WebSocket === 'function') {
+        UW.WebSocket = new Proxy(UW.WebSocket, {
+          construct(T, a) {
+            const ws = new T(...a);
+            try { ws.addEventListener('message', () => self._pulse(self._isChat(a[0]))); } catch(_) {}
+            return ws;
           }
         });
       }
-      return origSend.apply(this, args);
-    };
+    } catch(_) {}
 
     console.log('[GITL] Network interceptor active');
   }
@@ -302,7 +388,7 @@ const PROFILES = {
   gemini: {
     host: /gemini\.google\.com/,
     label: 'Gemini',
-    input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[contenteditable="true"]','textarea'],
+    input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[role="textbox"][contenteditable="true"]','div[contenteditable="true"]','textarea'],
     send: ['button[aria-label="Send message"]','button[aria-label*="Send"]','button.send-button','button[data-test-id="send-button"]'],
     stop: ['button[aria-label*="Stop"]','button[aria-label*="stop"]'],
     assistant: ['model-response message-content','model-response .message-content','model-response','div[class*="model-response"]','message-content'],
@@ -473,11 +559,75 @@ function _qAll(sels) {
   return results;
 }
 
+/* ── Heuristic finders (final fallback tier) ─────────────────────
+   When a site redesign breaks every configured selector, these locate the
+   composer and send button by ROLE and MEANING instead of class names —
+   the Playwright-style aria/text-first strategy. Engaged only when the
+   selector arrays come up empty, so normal operation is unchanged. */
+const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|senden|invia|отправ|إرسال|gönder/i;
+const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close/i;
+
+function _visible(el) {
+  try {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
+  } catch(_) { return false; }
+}
+
+let _heurNoteTs = 0;
+function _heurNote(what) {
+  if (Date.now() - _heurNoteTs < 60000) return;
+  _heurNoteTs = Date.now();
+  DIAG.push('Heuristic ' + what + ' engaged — configured selectors failed');
+}
+
+function _heurInput() {
+  let best = null, bestScore = 3;
+  for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
+    if (!_visible(el)) continue;
+    let s = 0;
+    const r = el.getBoundingClientRect();
+    if (el.getAttribute('role') === 'textbox' || el.getAttribute('aria-label')) s += 3;
+    if (r.top > innerHeight * 0.4) s += 2;
+    s += Math.min(2, (r.width * r.height) / 50000);
+    if (/ProseMirror|ql-editor/.test(String(el.className || ''))) s += 2;
+    if (s > bestScore) { bestScore = s; best = el; }
+  }
+  if (best) _heurNote('input finder');
+  return best;
+}
+
+function _heurSend(anchor) {
+  let best = null, bestScore = 3.5;
+  const ar = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+  const aForm = anchor && anchor.closest ? anchor.closest('form') : null;
+  for (const el of _qAll(['button','[role="button"]'])) {
+    if (!_visible(el) || el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
+    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
+                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    if (SEND_VETO.test(label)) continue; // hard veto — a wrong click (mic, attach) is worse than no click
+    let s = 0;
+    if (SEND_WORDS.test(label)) s += 4;
+    if ((el.getAttribute('type') || '') === 'submit') s += 2;
+    if (el.querySelector && el.querySelector('svg') && (el.textContent || '').trim().length < 2) s += 1;
+    if (aForm && el.closest && el.closest('form') === aForm) s += 3;
+    if (ar) {
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot((r.left + r.width/2) - (ar.left + ar.width/2),
+                           (r.top + r.height/2) - (ar.top + ar.height/2));
+      if (d < 320) s += 3;
+    }
+    if (s > bestScore) { bestScore = s; best = el; }
+  }
+  if (best) _heurNote('send-button finder');
+  return best;
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
-  getInput()      { return _q('in', PLAT.input); },
-  getSendBtn()    { return _q('send', PLAT.send); },
-  isGenerating()  { return !!_q('gen', PLAT.stop); },
+  getInput()      { return _q('in', PLAT.input) || _heurInput(); },
+  getSendBtn()    { const b = _q('send', PLAT.send); return (b && !b.disabled) ? b : (_heurSend(_q('in', PLAT.input) || null) || b); },
+  isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
   getLastText() {
     // Gemini only: virtual scroll — nudge infinite-scroller to bottom
@@ -509,8 +659,19 @@ const Adapter = {
       } else {
         el.dispatchEvent(new Event('input', { bubbles: true }));
       }
+      // Paste tier: some editors (Lexical builds) ignore both paths above.
+      if ((el.textContent || '').indexOf(text.slice(0, 24)) === -1) {
+        try {
+          if (typeof DataTransfer !== 'undefined' && typeof ClipboardEvent !== 'undefined') {
+            const dt = new DataTransfer();
+            dt.setData('text/plain', text);
+            el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true, composed: true }));
+            DIAG.sendPath = 'ce-paste';
+          }
+        } catch(_) {}
+      }
       el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
-      DIAG.sendPath = 'contenteditable';
+      if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = 'contenteditable';
       return true;
     }
     // Path 2: native React setter
@@ -806,8 +967,9 @@ const GHOST = {
     wsNewWorkflow: false,
     qDraft: (()=>{ try { const a = JSON.parse(GM_getValue('qDraft','[""]')); return Array.isArray(a)&&a.length?a:['']; } catch(_){ return ['']; } })(),
     expAdv: GM_getValue('expAdv',false),
-    skinTheme: GM_getValue('skinTheme','classic'),
-    accentHue: parseInt(GM_getValue('accentHue','193'),10),
+    skinTheme: (v => v==='new' ? 'aurora' : v)(GM_getValue('skinTheme','classic')),
+    customSkin: GM_getValue('customSkin',''),
+    accentHue: (v => (v===''||v==null) ? NaN : parseInt(v,10))(GM_getValue('accentHue','')),
     runAdv: false,
     showDiag: false,
     showSites: false,
@@ -870,6 +1032,7 @@ function platformHealth() {
     assistantCount: msgs.length, ready: canInject && canSend,
     badge: score >= 80 ? '🟢' : score >= 40 ? '🟡' : '🔴',
     netActive: GITL_NET.active,
+    netStreaming: GITL_NET.streaming(),
     netAge: GITL_NET.capturedAt ? Date.now() - GITL_NET.capturedAt : -1
   };
 }
@@ -1371,7 +1534,10 @@ async function engineSend(text, skipDelay) {
     // Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
     let sent = false;
     const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
-    for (let attempt = 0; attempt < 3; attempt++) {
+    // Tier memory: if the button tier failed here last time, don't burn 3 tries on it again.
+    const _lastTier = GM_getValue('sendTier:' + location.hostname, '');
+    const _btnTries = (!_lastTier || /btn/.test(_lastTier)) ? 3 : 1;
+    for (let attempt = 0; attempt < _btnTries; attempt++) {
       const btn = Adapter.getSendBtn();
       if (btn && !btn.disabled) {
         btn.click(); DIAG.sendPath = `btn-${attempt+1}`;
@@ -1392,6 +1558,20 @@ async function engineSend(text, skipDelay) {
     if (!sent) {
       try { input.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
       DIAG.sendPath = (DIAG.sendPath||'none') + '+paragraph';
+      await sleep(300);
+      if (inputIsEmpty()) sent = true;
+    }
+    // Tier 5: native form submission — buttonless, survives any button redesign.
+    if (!sent) {
+      try {
+        const f = input.closest && input.closest('form');
+        if (f && f.requestSubmit) {
+          f.requestSubmit();
+          DIAG.sendPath = (DIAG.sendPath||'none') + '+form';
+          await sleep(300);
+          if (inputIsEmpty()) sent = true;
+        }
+      } catch(_){}
     }
     _onSendOk(text, DIAG.sendPath);
     return true;
@@ -1410,6 +1590,8 @@ async function engineSend(text, skipDelay) {
    the confirmation branch in engineTick. */
 function _onSendOk(text, path) {
   const L = GHOST.loop;
+  GITL_NET.expectUntil = Date.now() + 120000; // heuristic net pulses count for 2 min
+  try { GM_setValue('sendTier:' + location.hostname, String(path || '')); } catch(_) {}
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
@@ -2223,7 +2405,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','accentHue','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -2504,6 +2686,190 @@ function playBeep() {
   } catch(_){}
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SKIN — token-based theme engine (d6)
+   Skins are DATA, not code: a whitelist of CSS custom properties
+   (+ enumerated fx flags) applied to the panel root. A skin cannot
+   add, remove, or restructure controls — structure and behavior are
+   owned by core. Unknown tokens from newer/older versions are
+   silently ignored, so community skins stay forward-compatible.
+   ══════════════════════════════════════════════════════════════ */
+const SKIN_TOKENS = {
+  '--g-bg':'#111214','--g-bg-deep':'#0c0d10','--g-surface':'#18191c',
+  '--g-surface-2':'#16171b','--g-surface-3':'#1c1d22','--g-hover':'#222329',
+  '--g-border':'#27282e','--g-border-2':'#2e2f35','--g-text':'#c9cad0',
+  '--g-text-mid':'#888','--g-text-dim':'#555','--g-text-hot':'#fff',
+  '--g-text-low':'#666','--g-text-faint':'#444','--g-text-ghost':'#333','--g-muted':'#6b7280',
+  '--g-accent':'#818cf8','--g-accent-text':'#a5b4fc','--g-accent-deep':'#3730a3',
+  '--g-accent-bg':'#1a1b2e','--g-ok':'#34d399','--g-ok-deep':'#064e3b',
+  '--g-ok-bg':'#052e1c','--g-warn':'#fbbf24','--g-err':'#f87171',
+  '--g-radius':'12px','--g-shadow':'0 10px 32px rgba(0,0,0,.65)',
+  '--g-font':"'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace",
+  '--g-blur':'0px','--g-aur1':'transparent','--g-aur2':'transparent','--g-aur3':'transparent'
+};
+const SKIN_FX = { border:['none','aurora'], ghost:['none','float'] };
+const SKIN_PRESETS = {
+  classic:{ name:'Classic', tokens:{}, fx:{} },
+  aurora:{ name:'Aurora', fx:{ border:'aurora', ghost:'float' }, tokens:{
+    '--g-bg':'#12132b','--g-bg-deep':'#0b0c1f','--g-surface':'#1a1c3a','--g-surface-2':'#16182f',
+    '--g-surface-3':'#1e2040','--g-hover':'#232655','--g-border':'#2b2e5c','--g-border-2':'#3a3d78',
+    '--g-text':'#d6d8f2','--g-muted':'#7d82b8','--g-accent':'#8b9dff','--g-accent-text':'#b9c4ff',
+    '--g-accent-deep':'#4338ca','--g-accent-bg':'#1d1f4a','--g-blur':'8px',
+    '--g-shadow':'0 12px 40px rgba(40,30,120,.55)',
+    '--g-aur1':'#4f7cff','--g-aur2':'#a855f7','--g-aur3':'#ff6ac1' } },
+  glass:{ name:'Glass', fx:{}, tokens:{
+    '--g-bg':'#171a1f','--g-bg-deep':'#101318','--g-surface':'#1d2127','--g-surface-2':'#191c22',
+    '--g-surface-3':'#20242b','--g-hover':'#242932','--g-border':'#2a2f38','--g-border-2':'#343a45',
+    '--g-text':'#d3d7de','--g-accent':'#7dd3fc','--g-accent-text':'#bae6fd','--g-accent-deep':'#0369a1',
+    '--g-accent-bg':'#16222c','--g-blur':'10px','--g-shadow':'0 10px 36px rgba(0,0,0,.5)' } },
+  metal:{ name:'Metal', fx:{}, tokens:{
+    '--g-bg':'#16171a','--g-surface':'#202227','--g-surface-2':'#1b1d21','--g-surface-3':'#24262c',
+    '--g-hover':'#282b32','--g-border':'#33363e','--g-border-2':'#454956','--g-text':'#cfd3da',
+    '--g-accent':'#93a6c4','--g-accent-text':'#c2d0e6','--g-accent-deep':'#3b4d6b',
+    '--g-accent-bg':'#1b2230','--g-shadow':'0 8px 28px rgba(0,0,0,.7)' } },
+  neon:{ name:'Neon', fx:{ ghost:'float' }, tokens:{
+    '--g-bg':'#0a0b0f','--g-bg-deep':'#060709','--g-surface':'#101218','--g-surface-2':'#0d0f14',
+    '--g-surface-3':'#14161d','--g-hover':'#171a26','--g-border':'#1f2230','--g-border-2':'#2b2f45',
+    '--g-text':'#d8dbea','--g-accent':'#22d3ee','--g-accent-text':'#67e8f9','--g-accent-deep':'#0e7490',
+    '--g-accent-bg':'#0b1b22','--g-shadow':'0 0 24px rgba(34,211,238,.25), 0 10px 32px rgba(0,0,0,.7)' } },
+  clay:{ name:'Clay', fx:{}, tokens:{
+    '--g-bg':'#17161a','--g-surface':'#221f26','--g-surface-2':'#1c1a20','--g-surface-3':'#27242c',
+    '--g-hover':'#2a2731','--g-border':'#322e38','--g-border-2':'#423d4a','--g-text':'#d9d4de',
+    '--g-accent':'#f19a7e','--g-accent-text':'#ffc4ae','--g-accent-deep':'#9a4a35',
+    '--g-accent-bg':'#2a1e1e','--g-radius':'16px','--g-shadow':'0 12px 30px rgba(0,0,0,.55)' } },
+  liquid:{ name:'Liquid', fx:{ border:'aurora' }, tokens:{
+    '--g-bg':'rgba(18,22,30,.55)','--g-bg-deep':'rgba(10,13,20,.6)','--g-surface':'rgba(30,36,48,.55)',
+    '--g-surface-2':'rgba(24,29,40,.5)','--g-surface-3':'rgba(36,43,58,.55)','--g-hover':'rgba(52,62,84,.6)',
+    '--g-border':'rgba(140,170,220,.28)','--g-border-2':'rgba(160,190,240,.4)','--g-text':'#e8edf7',
+    '--g-muted':'#93a0bd','--g-accent':'#8fd0ff','--g-accent-text':'#c9e7ff','--g-accent-deep':'#1e6fae',
+    '--g-accent-bg':'rgba(60,110,170,.22)','--g-blur':'16px','--g-shadow':'0 16px 48px rgba(10,20,40,.55)',
+    '--g-aur1':'#9bd8ff','--g-aur2':'#c3b2ff','--g-aur3':'#8fffe0' } },
+  oled:{ name:'OLED', fx:{}, tokens:{
+    '--g-bg':'#000000','--g-bg-deep':'#000000','--g-surface':'#0b0b0e','--g-surface-2':'#08080a',
+    '--g-surface-3':'#101014','--g-hover':'#15151b','--g-border':'#1d1d24','--g-border-2':'#2a2a34',
+    '--g-text':'#e6e6ee','--g-text-mid':'#9a9aa8','--g-muted':'#6a6a78','--g-accent':'#7c8cff',
+    '--g-accent-text':'#aeb8ff','--g-accent-deep':'#2e37b8','--g-accent-bg':'#0e1030',
+    '--g-shadow':'0 0 0 1px #14141a, 0 14px 34px rgba(0,0,0,.9)' } },
+  paper:{ name:'Paper', fx:{}, tokens:{
+    '--g-bg':'#f5f1e8','--g-bg-deep':'#ece7db','--g-surface':'#efe9dc','--g-surface-2':'#f2ede2',
+    '--g-surface-3':'#e9e2d2','--g-hover':'#e3dcc9','--g-border':'#d6cdb8','--g-border-2':'#c4b99f',
+    '--g-text':'#2a261f','--g-text-mid':'#5c564a','--g-text-dim':'#8a8271','--g-text-hot':'#141210',
+    '--g-text-low':'#6e6759','--g-text-faint':'#938b7a','--g-text-ghost':'#a89f8d','--g-muted':'#7a715f',
+    '--g-accent':'#6d4fc4','--g-accent-text':'#4c2f9e','--g-accent-deep':'#6d4fc4','--g-accent-bg':'#e9e1f7',
+    '--g-ok':'#176b41','--g-ok-deep':'#9cc9ae','--g-ok-bg':'#dff0e5','--g-warn':'#946200','--g-err':'#b3442e',
+    '--g-shadow':'0 10px 28px rgba(90,80,60,.35)' } }
+};
+const SKIN = {
+  LIMIT_BYTES: 8*1024,
+  VAL_MAX: 240,
+  _bad: /url\s*\(|expression\s*\(|@import|javascript:|[<>{};]/i,
+  /* Validate untrusted skin input (string or object). Unknown tokens and
+     unknown fx are DROPPED, never fatal — this is the forward-compat rule. */
+  validate(raw) {
+    let o = raw;
+    if (typeof raw === 'string') {
+      if (raw.length > this.LIMIT_BYTES) return { ok:false, error:'file too large' };
+      try { o = JSON.parse(raw); } catch(_) { return { ok:false, error:'not valid JSON' }; }
+    }
+    if (!o || typeof o !== 'object' || Array.isArray(o) || (o.kind && o.kind !== 'skin'))
+      return { ok:false, error:'not a skin file' };
+    const name = String(o.name || 'Custom').replace(/[<>&"'`]/g,'').slice(0,40) || 'Custom';
+    const tokens = {}; let dropped = 0;
+    const tsrc = (o.tokens && typeof o.tokens === 'object') ? o.tokens : {};
+    for (const [k,v] of Object.entries(tsrc)) {
+      if (!(k in SKIN_TOKENS)) { dropped++; continue; }
+      const val = String(v).trim();
+      if (!val || val.length > this.VAL_MAX || this._bad.test(val)) { dropped++; continue; }
+      tokens[k] = val;
+    }
+    const fx = {}; const fsrc = (o.fx && typeof o.fx === 'object') ? o.fx : {};
+    for (const [k,v] of Object.entries(fsrc)) {
+      if (SKIN_FX[k] && SKIN_FX[k].includes(v)) fx[k] = v; else dropped++;
+    }
+    return { ok:true, skin:{ kind:'skin', gitlSkin:1, name, tokens, fx }, dropped };
+  },
+  _hexToHsl(hex) {
+    let h = hex.replace('#',''); if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+    const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+    const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+    if (mx === mn) return [0,0,Math.round(l*100)];
+    const d = mx-mn, s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+    let hu = mx===r ? (g-b)/d + (g<b?6:0) : mx===g ? (b-r)/d + 2 : (r-g)/d + 4;
+    return [Math.round(hu*60), Math.round(s*100), Math.round(l*100)];
+  },
+  /* Rotate a hex color to hue h, preserving its own saturation/lightness.
+     Non-hex values pass through untouched. */
+  hueShift(val, h) {
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(val))) return val;
+    const [,s,l] = this._hexToHsl(val);
+    return `hsl(${((h%360)+360)%360} ${s}% ${l}%)`;
+  },
+  baseHue() {
+    const sk = this.resolve();
+    return this._hexToHsl(sk.tokens['--g-accent'] || SKIN_TOKENS['--g-accent'])[0];
+  },
+  resolve() {
+    const id = GHOST.ui.skinTheme;
+    if (id === 'custom') {
+      const r = this.validate(GHOST.ui.customSkin || '');
+      return r.ok ? r.skin : SKIN_PRESETS.classic;
+    }
+    return SKIN_PRESETS[id] || SKIN_PRESETS.classic;
+  },
+  /* Apply active skin to the panel root. Only sets CSS custom properties
+     and enumerated data-fx-* attributes — never touches structure. */
+  apply() {
+    try {
+      const p = (typeof panel !== 'undefined' && panel) ? panel : document.getElementById('gitl');
+      if (!p) return;
+      const sk = this.resolve();
+      for (const k of Object.keys(SKIN_TOKENS)) {
+        const v = sk.tokens[k];
+        if (v != null) p.style.setProperty(k, v); else p.style.removeProperty(k);
+      }
+      const h = GHOST.ui.accentHue;
+      if (Number.isFinite(h)) {
+        for (const k of ['--g-accent','--g-accent-text','--g-accent-deep','--g-accent-bg'])
+          p.style.setProperty(k, this.hueShift(sk.tokens[k] || SKIN_TOKENS[k], h));
+      }
+      for (const k of Object.keys(SKIN_FX)) {
+        const dk = 'fx' + k[0].toUpperCase() + k.slice(1);
+        const v = sk.fx && sk.fx[k];
+        if (v && v !== 'none') p.dataset[dk] = v; else delete p.dataset[dk];
+      }
+    } catch(e) { DIAG.push('skin apply: ' + e.message); }
+  },
+  importFile() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json,.gitl.json,application/json';
+    inp.addEventListener('change', () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      if (file.size > this.LIMIT_BYTES) { GHOST.loop.detail = `⚠ Skin too large (max ${Math.round(this.LIMIT_BYTES/1024)} KB)`; render(); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = this.validate(String(reader.result || ''));
+        if (!res.ok) { GHOST.loop.detail = `⚠ Skin import failed: ${res.error}`; render(); return; }
+        GHOST.ui.customSkin = JSON.stringify(res.skin); _save('customSkin', GHOST.ui.customSkin);
+        GHOST.ui.skinTheme = 'custom'; _save('skinTheme','custom');
+        this.apply();
+        GHOST.loop.detail = `✓ Skin “${res.skin.name}” applied` + (res.dropped ? ` · ${res.dropped} field(s) ignored` : '');
+        render();
+      };
+      reader.onerror = () => { GHOST.loop.detail = '⚠ Could not read skin file'; render(); };
+      reader.readAsText(file);
+    });
+    inp.click();
+  },
+  exportCurrent() {
+    const sk = this.resolve();
+    const out = { kind:'skin', gitlSkin:1, name:sk.name, tokens:sk.tokens, fx:sk.fx||{} };
+    downloadText(JSON.stringify(out, null, 2),
+      `${String(sk.name||'skin').toLowerCase().replace(/\W+/g,'-')}.gitl.json`, 'application/json');
+  }
+};
+
 /* ═══════════════════════════════════════════════════════════════
    UI — STYLES
    Deferred: GM_addStyle / appendChild require document.head, which is
@@ -2513,126 +2879,128 @@ let _stylesInjected = false;
 function injectStyles() {
   if (_stylesInjected) return;
   _stylesInjected = true;
-  const css = `
-#gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:#111214;border:1px solid #27282e;
-  border-radius:12px;padding:10px 12px;font:11.5px 'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;
-  color:#c9cad0;box-shadow:0 10px 32px rgba(0,0,0,.65);user-select:none;transition:width .2s}
+  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 9s linear infinite;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-ghost="float"] .g-logo{animation:gfloat 3.2s ease-in-out infinite}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+@keyframes gin{from{opacity:0;transform:translateY(5px) scale(.985)}}
+#gitl.g-enter{animation:gin .18s ease-out}
+#gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:var(--g-bg);border:1px solid var(--g-border);
+  border-radius:var(--g-radius);padding:10px 12px;font:11.5px var(--g-font);
+  color:var(--g-text);box-shadow:var(--g-shadow);user-select:none;transition:width .2s}
 #gitl *{box-sizing:border-box}
 #gitl.collapsed .g-body{display:none} #gitl.collapsed{width:auto;min-width:180px}
-.g-body{max-height:min(52vh,380px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#2e2f35 transparent}
-.g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:#2e2f35;border-radius:2px}
-.g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed #27282e;background:transparent;color:#555;font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
-.g-adv:hover{color:#888}
+.g-body{max-height:min(52vh,380px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--g-border-2) transparent}
+.g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:var(--g-border-2);border-radius:2px}
+.g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed var(--g-border);background:transparent;color:var(--g-text-dim);font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
+.g-adv:hover{color:var(--g-text-mid)}
 .g-hdr{display:flex;justify-content:space-between;align-items:center;cursor:grab;padding:2px 0;margin-bottom:6px}
 .g-hdr:active{cursor:grabbing}
-.g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:#555;letter-spacing:.6px;display:flex;align-items:center;gap:5px}
+.g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:var(--g-text-dim);letter-spacing:.6px;display:flex;align-items:center;gap:5px}
 .g-dot{display:inline-block;width:7px;height:7px;border-radius:50%;transition:all .3s}
-.g-dot.run{background:#34d399;box-shadow:0 0 5px #34d399;animation:gpulse 1.4s infinite}
-.g-dot.pause{background:#fbbf24}.g-dot.done{background:#818cf8}.g-dot.err{background:#f87171}.g-dot.idle{background:#555}
+.g-dot.run{background:var(--g-ok);box-shadow:0 0 5px var(--g-ok);animation:gpulse 1.4s infinite}
+.g-dot.pause{background:var(--g-warn)}.g-dot.done{background:var(--g-accent)}.g-dot.err{background:var(--g-err)}.g-dot.idle{background:var(--g-text-dim)}
 @keyframes gpulse{0%,100%{opacity:1}50%{opacity:.4}}
-.g-plat{font-size:9.5px;background:#1c1d22;padding:2px 6px;border-radius:4px;color:#818cf8;font-weight:600;border:1px solid #2a2b33}
-.g-minbtn{background:#18191c;border:1px solid #2e2f35;color:#888;font-size:10px;cursor:pointer;padding:1px 6px;border-radius:4px;font-weight:700;transition:all .15s}
+.g-plat{font-size:9.5px;background:var(--g-surface-3);padding:2px 6px;border-radius:4px;color:var(--g-accent);font-weight:600;border:1px solid #2a2b33}
+.g-minbtn{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:4px;font-weight:700;transition:all .15s}
 .g-minbtn.spin{animation:gvspin .6s linear}
-.g-minbtn:hover{background:#27282e;color:#fff}
+.g-minbtn:hover{background:var(--g-border);color:var(--g-text-hot)}
 .g-coll-row{display:none;align-items:center;gap:6px;margin-top:4px}
 #gitl.collapsed .g-coll-row{display:flex}
-.g-qbtn{width:34px;height:26px;border:1px solid #27282e;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s}
-.g-qbtn.play{background:#052e1c;color:#34d399;border-color:#064e3b}.g-qbtn.pause{background:#2d1900;color:#fbbf24;border-color:#78350f}
+.g-qbtn{width:34px;height:26px;border:1px solid var(--g-border);border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s}
+.g-qbtn.play{background:var(--g-ok-bg);color:var(--g-ok);border-color:var(--g-ok-deep)}.g-qbtn.pause{background:#2d1900;color:var(--g-warn);border-color:#78350f}
 .g-qstat{font-size:10px;font-weight:700}
-.g-proj{display:flex;align-items:center;gap:5px;margin-bottom:7px;padding:5px 7px;background:#16171b;border:1px solid #27282e;border-radius:7px}
-.g-proj-lbl{font-size:9px;color:#444;flex-shrink:0}
-.g-proj-in{flex:1;background:transparent;border:none;color:#a5b4fc;font-size:10px;font-family:inherit;font-weight:600;outline:none;min-width:0}
-.g-proj-in::placeholder{color:#333}
+.g-proj{display:flex;align-items:center;gap:5px;margin-bottom:7px;padding:5px 7px;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:7px}
+.g-proj-lbl{font-size:9px;color:var(--g-text-faint);flex-shrink:0}
+.g-proj-in{flex:1;background:transparent;border:none;color:var(--g-accent-text);font-size:10px;font-family:inherit;font-weight:600;outline:none;min-width:0}
+.g-proj-in::placeholder{color:var(--g-text-ghost)}
 .g-tabs{display:flex;gap:3px;margin-bottom:8px}
-.g-tab{flex:1;padding:4px 0;border:1px solid #27282e;border-radius:5px;background:#18191c;color:#555;font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-tab:hover{background:#222329;color:#888}.g-tab.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-tab{flex:1;padding:4px 0;border:1px solid var(--g-border);border-radius:5px;background:var(--g-surface);color:var(--g-text-dim);font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-tab:hover{background:var(--g-hover);color:var(--g-text-mid)}.g-tab.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 #g-tc{position:relative}
-.g-tabhelp{position:absolute;top:-2px;right:0;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2e2f35;border-radius:50%;background:#16171b;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;z-index:3}
-.g-tabhelp:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-tabhelp{position:absolute;top:-2px;right:0;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;background:var(--g-surface-2);color:var(--g-muted);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;z-index:3}
+.g-tabhelp:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-modes{display:flex;gap:3px;margin-bottom:6px}
-.g-md{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-md:hover{background:#222329}.g-md.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-hint{font-size:9px;color:#484a57;margin-bottom:7px;padding:4px 6px;background:#16171b;border-radius:4px;border-left:2px solid #27282e;line-height:1.4}
+.g-md{flex:1;padding:5px 0;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text-low);font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-md:hover{background:var(--g-hover)}.g-md.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-hint{font-size:9px;color:#484a57;margin-bottom:7px;padding:4px 6px;background:var(--g-surface-2);border-radius:4px;border-left:2px solid var(--g-border);line-height:1.4}
 .g-posture-wrap{margin-bottom:7px}
 .g-posture-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#4a4d57;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:5px}
-.g-posture-q{width:14px;height:14px;line-height:12px;text-align:center;border:1px solid #2e2f35;border-radius:50%;background:#16171b;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;padding:0}
-.g-posture-q:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-posture-q{width:14px;height:14px;line-height:12px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;background:var(--g-surface-2);color:var(--g-muted);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;padding:0}
+.g-posture-q:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-postures{display:flex;gap:3px}
-.g-pst{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-pst:hover{background:#222329}.g-pst.act{background:#1f1a2e;border-color:#6d28d9;color:#c4b5fd}
+.g-pst{flex:1;padding:5px 0;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text-low);font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-pst:hover{background:var(--g-hover)}.g-pst.act{background:#1f1a2e;border-color:#6d28d9;color:#c4b5fd}
 .g-posture-hint{font-size:8.5px;color:#5a5d68;line-height:1.4;margin-top:4px;padding:3px 6px;background:#141519;border-radius:4px;border-left:2px solid #3a2e5a}
 .g-btns{display:flex;gap:3px;margin-bottom:7px}
-.g-btn{flex:1;padding:7px 0;border:1px solid #27282e;border-radius:7px;background:#18191c;color:#999;font-size:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
-.g-btn:hover{background:#222329}
-.g-btn.go{background:#052e1c;border-color:#064e3b;color:#34d399}.g-btn.go:hover{background:#064e3b}
-.g-btn.rg{background:#1a1a2e;border-color:#312e81;color:#a5b4fc}.g-btn.rg:hover{background:#312e81}
+.g-btn{flex:1;padding:7px 0;border:1px solid var(--g-border);border-radius:7px;background:var(--g-surface);color:#999;font-size:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.g-btn:hover{background:var(--g-hover)}
+.g-btn.go{background:var(--g-ok-bg);border-color:var(--g-ok-deep);color:var(--g-ok)}.g-btn.go:hover{background:var(--g-ok-deep)}
+.g-btn.rg{background:#1a1a2e;border-color:#312e81;color:var(--g-accent-text)}.g-btn.rg:hover{background:#312e81}
 .g-dim{opacity:.35;cursor:not-allowed;pointer-events:none}
-.g-plink{color:#818cf8;text-decoration:none;font-size:9px;margin-left:4px}.g-plink:hover{text-decoration:underline}
+.g-plink{color:var(--g-accent);text-decoration:none;font-size:9px;margin-left:4px}.g-plink:hover{text-decoration:underline}
 .g-cust-badge{font-size:8px;color:#f59e0b;font-weight:400}
-.g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:#f87171}.g-btn.st:hover{background:#7f1d1d}
+.g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:var(--g-err)}.g-btn.st:hover{background:#7f1d1d}
 .g-prog{margin:2px 0 6px}
-.g-trk{height:5px;background:#1c1d22;border-radius:2px;overflow:hidden}
-.g-fill{height:100%;background:linear-gradient(90deg,#34d399,#818cf8);border-radius:2px;transition:width .4s}
+.g-trk{height:5px;background:var(--g-surface-3);border-radius:2px;overflow:hidden}
+.g-fill{height:100%;background:linear-gradient(90deg,var(--g-ok),var(--g-accent));border-radius:2px;transition:width .4s}
 .g-plbl{display:flex;justify-content:space-between;align-items:baseline;margin-top:3px}
-.g-step{font-size:11px;color:#c9cad0}.g-step b{font-size:13px;color:#e7e7ea;font-weight:700}
+.g-step{font-size:11px;color:var(--g-text)}.g-step b{font-size:13px;color:#e7e7ea;font-weight:700}
 .g-step-pct{font-size:10px;color:#777}
 .g-safety{margin-top:6px;padding:5px 7px;background:#141519;border:1px solid #20212a;border-radius:6px}
 .g-safety-row{display:flex;align-items:center;gap:6px;font-size:8.5px}
 .g-safety-lbl{color:#4a4d57;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.g-safety-num{margin-left:auto;color:#6b7280}.g-safety-num b{color:#9ca3af}
-.g-safety-rst{flex:0 0 auto;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2a2c35;border-radius:4px;background:#16171b;color:#6b7280;font-size:10px;cursor:pointer;font-family:inherit;padding:0}
-.g-safety-rst:hover{background:#1c1d22;color:#a5b4fc;border-color:#3730a3}
-.g-safety-trk{height:2px;background:#1c1d22;border-radius:1px;overflow:hidden;margin-top:4px}
+.g-safety-num{margin-left:auto;color:var(--g-muted)}.g-safety-num b{color:#9ca3af}
+.g-safety-rst{flex:0 0 auto;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2a2c35;border-radius:4px;background:var(--g-surface-2);color:var(--g-muted);font-size:10px;cursor:pointer;font-family:inherit;padding:0}
+.g-safety-rst:hover{background:var(--g-surface-3);color:var(--g-accent-text);border-color:var(--g-accent-deep)}
+.g-safety-trk{height:2px;background:var(--g-surface-3);border-radius:1px;overflow:hidden;margin-top:4px}
 .g-safety-fill{height:100%;background:#3a3d47;border-radius:1px;transition:width .4s}
 .g-safety.warn{border-color:#5a4420;background:#1f1808}
 .g-safety.warn .g-safety-num b,.g-safety.warn .g-safety-lbl{color:#fcd34d}
 .g-safety.warn .g-safety-fill{background:#f59e0b}
-.g-safety.off{opacity:.5;border-color:#1c1d22}
-.g-safety.off .g-safety-lbl{color:#555}
-.g-safety-edit{width:42px;background:#0c0d10;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;text-align:center;font-family:inherit;padding:2px 3px;margin-left:4px}
+.g-safety.off{opacity:.5;border-color:var(--g-surface-3)}
+.g-safety.off .g-safety-lbl{color:var(--g-text-dim)}
+.g-safety-edit{width:42px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;text-align:center;font-family:inherit;padding:2px 3px;margin-left:4px}
 .g-safety-edit:focus{border-color:#4338ca;outline:none}
-.g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid #1c1d22;margin-top:2px}
-.g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#666;margin-bottom:5px}
-.g-row label{color:#555}
-.g-row input[type="number"],.g-row input[type="text"]{background:#18191c;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;padding:2px 5px;font-family:inherit}
+.g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid var(--g-surface-3);margin-top:2px}
+.g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--g-text-low);margin-bottom:5px}
+.g-row label{color:var(--g-text-dim)}
+.g-row input[type="number"],.g-row input[type="text"]{background:var(--g-surface);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;padding:2px 5px;font-family:inherit}
 .g-row input[type="number"]{width:52px;text-align:center}.g-row input[type="text"]{width:110px}
 .g-row input:focus{outline:none;border-color:#4338ca}
-.g-row select{background:#18191c;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;padding:2px 4px;font-family:inherit}
-.g-tog{width:28px;height:14px;background:#2e2f35;border-radius:7px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
-.g-tog.on{background:#064e3b}
-.g-tog::after{content:'';width:10px;height:10px;background:#666;border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s,background .2s}
-.g-tog.on::after{left:16px;background:#34d399}
+.g-row select{background:var(--g-surface);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;padding:2px 4px;font-family:inherit}
+.g-tog{width:28px;height:14px;background:var(--g-border-2);border-radius:7px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.g-tog.on{background:var(--g-ok-deep)}
+.g-tog::after{content:'';width:10px;height:10px;background:var(--g-text-low);border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s,background .2s}
+.g-tog.on::after{left:16px;background:var(--g-ok)}
 .g-pos-row{display:flex;gap:3px}
-.g-pos{background:#18191c;border:1px solid #2e2f35;color:#777;font-size:11px;width:22px;height:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.g-pos:hover{background:#27282e;color:#fff}.g-pos.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-exp-btn{width:100%;padding:8px;background:#052e1c;border:1px solid #064e3b;border-radius:7px;color:#34d399;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px;text-align:center;transition:all .15s}
-.g-exp-btn:hover{background:#064e3b}
-.g-div{height:1px;background:#1c1d22;margin:7px 0}
-.g-diag{font-size:9px;color:#444;line-height:1.6;padding:5px 6px;background:#0c0d10;border:1px solid #27282e;border-radius:5px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
-.g-sites{width:100%;box-sizing:border-box;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
-.g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid #3730a3;border-radius:5px;background:#1a1b2e;color:#a5b4fc;font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-pos{background:var(--g-surface);border:1px solid var(--g-border-2);color:#777;font-size:11px;width:22px;height:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.g-pos:hover{background:var(--g-border);color:var(--g-text-hot)}.g-pos.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-exp-btn{width:100%;padding:8px;background:var(--g-ok-bg);border:1px solid var(--g-ok-deep);border-radius:7px;color:var(--g-ok);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px;text-align:center;transition:all .15s}
+.g-exp-btn:hover{background:var(--g-ok-deep)}
+.g-div{height:1px;background:var(--g-surface-3);margin:7px 0}
+.g-diag{font-size:9px;color:var(--g-text-faint);line-height:1.6;padding:5px 6px;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.g-sites{width:100%;box-sizing:border-box;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
+.g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid var(--g-accent-deep);border-radius:5px;background:var(--g-accent-bg);color:var(--g-accent-text);font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
 .g-btn-sm:hover{background:#222345}
 .g-qrow{display:flex;align-items:center;gap:5px;margin-bottom:4px}
-.g-qin{flex:1;min-width:0;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#aab;font-size:9.5px;padding:4px 6px;font-family:inherit}
-.g-qin:focus{border-color:#3730a3;outline:none}
-.g-qdel{border:none;background:transparent;color:#444;cursor:pointer;font-size:10px;padding:2px}
+.g-qin{flex:1;min-width:0;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;color:#aab;font-size:9.5px;padding:4px 6px;font-family:inherit}
+.g-qin:focus{border-color:var(--g-accent-deep);outline:none}
+.g-qdel{border:none;background:transparent;color:var(--g-text-faint);cursor:pointer;font-size:10px;padding:2px}
 .g-qdel:hover{color:#e66}
 .g-qtext{flex:1;font-size:9.5px;color:#999;line-height:1.4;word-break:break-word}
 .g-qtext.done{color:#4a5;text-decoration:line-through;text-decoration-color:#2a3}
 .g-hpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
-.g-hpill{padding:3px 7px;border:1px solid #27282e;border-radius:10px;background:#18191c;color:#666;font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
-.g-hpill.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-support{text-align:center;font-size:8px;color:#3a3b40;margin-top:8px;padding-top:6px;border-top:1px solid #1c1d22}
+.g-hpill{padding:3px 7px;border:1px solid var(--g-border);border-radius:10px;background:var(--g-surface);color:var(--g-text-low);font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-hpill.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-support{text-align:center;font-size:8px;color:#3a3b40;margin-top:8px;padding-top:6px;border-top:1px solid var(--g-surface-3)}
 .g-support a{color:#4a4b55;text-decoration:none}
-.g-support a:hover{color:#a5b4fc}
+.g-support a:hover{color:var(--g-accent-text)}
 #gitl-veil{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;background:rgba(8,9,12,.62);backdrop-filter:blur(2px);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;border:none;padding:0;margin:0;width:100vw;height:100vh;max-width:none;max-height:none;overflow:hidden}
 /* Popover top-layer mode: renders above ALL host stacking contexts */
 #gitl-veil:popover-open{display:flex}
 #gitl-veil::backdrop{background:rgba(8,9,12,.62);backdrop-filter:blur(2px)}
-.gv-card{position:relative;background:#111214;border:1px solid #27282e;border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6);z-index:1}
+.gv-card{position:relative;background:var(--g-bg);border:1px solid var(--g-border);border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6);z-index:1}
 /* ── Ghost field (3D-ish parallax). Compositor-only transforms — no JS loop. */
 .gv-ringwrap{position:relative;width:96px;height:72px;margin:0 auto 12px;perspective:340px;transform-style:preserve-3d}
-.gv-ring{position:absolute;top:4px;left:50%;width:60px;height:60px;margin-left:-30px;border:3px solid #25262c;border-top-color:#a5b4fc;border-radius:50%;animation:gvspin 1s linear infinite;opacity:.9}
+.gv-ring{position:absolute;top:4px;left:50%;width:60px;height:60px;margin-left:-30px;border:3px solid #25262c;border-top-color:var(--g-accent-text);border-radius:50%;animation:gvspin 1s linear infinite;opacity:.9}
 .gv-ghost{position:absolute;top:50%;left:50%;font-size:30px;line-height:1;transform:translate(-50%,-50%);animation:gvbob 2s ease-in-out infinite;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5));z-index:2}
 /* extra ghosts only appear in full-motion mode */
 .gv-ghost-x{position:absolute;top:50%;left:50%;font-size:18px;line-height:1;opacity:0;pointer-events:none;will-change:transform,opacity}
@@ -2655,14 +3023,14 @@ function injectStyles() {
   .gv-ring{animation:gvspin 1.4s linear infinite} }
 .gv-title{color:#e7e7ea;font-size:12px;font-weight:700;margin-bottom:8px}
 .gv-steps{text-align:left;margin:0 auto 10px;display:inline-block}
-.gv-step{font-size:9.5px;color:#555;line-height:1.8}
-.gv-step.act{color:#a5b4fc}.gv-step.done{color:#4a5}
-.gv-barwrap{height:5px;background:#1c1d22;border-radius:3px;overflow:hidden;margin-bottom:5px}
-.gv-bar{height:100%;background:linear-gradient(90deg,#6366f1,#a5b4fc);border-radius:3px;width:0;transition:width .25s}
+.gv-step{font-size:9.5px;color:var(--g-text-dim);line-height:1.8}
+.gv-step.act{color:var(--g-accent-text)}.gv-step.done{color:#4a5}
+.gv-barwrap{height:5px;background:var(--g-surface-3);border-radius:3px;overflow:hidden;margin-bottom:5px}
+.gv-bar{height:100%;background:linear-gradient(90deg,#6366f1,var(--g-accent-text));border-radius:3px;width:0;transition:width .25s}
 .gv-bar.indet{animation:gvslide 1.2s ease-in-out infinite}
 @keyframes gvslide{0%{margin-left:-40%}100%{margin-left:100%}}
 .gv-pct{font-size:9px;color:#777;height:12px;margin-bottom:6px}
-.gv-note{font-size:8.5px;color:#666;margin-bottom:10px}
+.gv-note{font-size:8.5px;color:var(--g-text-low);margin-bottom:10px}
 .gv-cancel{padding:4px 14px;border:1px solid #3a2a2a;border-radius:6px;background:#1c1416;color:#c88;font-size:9px;cursor:pointer;font-family:inherit}
 .gv-cancel:hover{background:#241719}
 #gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
@@ -2676,13 +3044,13 @@ function injectStyles() {
 #gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px;gap:6px}
 #gitl.pos-dock.collapsed .g-qbtn{width:36px;height:36px;font-size:16px;border-radius:8px}
 #gitl.pos-dock.collapsed .g-qstat{display:none}
-.g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:#888;line-height:1.2;word-break:break-all}
+.g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:var(--g-text-mid);line-height:1.2;word-break:break-all}
 #gitl.pos-dock.collapsed .g-dock-stat,#gitl.pos-dock-left.collapsed .g-dock-stat{display:block}
 .g-dk-drift{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px}
-.g-dk-edit{width:34px;height:18px;background:#0c0d10;border:1px solid #2e2f35;border-radius:3px;color:#c9cad0;font-size:9px;text-align:center;font-family:inherit;padding:0}
+.g-dk-edit{width:34px;height:18px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:3px;color:var(--g-text);font-size:9px;text-align:center;font-family:inherit;padding:0}
 .g-dk-edit:focus{border-color:#4338ca;outline:none}
-.g-dk-rst{background:#18191c;border:1px solid #2e2f35;color:#888;font-size:10px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1}
-.g-dk-rst:hover{background:#27282e;color:#fff}
+.g-dk-rst{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1}
+.g-dk-rst:hover{background:var(--g-border);color:var(--g-text-hot)}
 /* Gold left-dock: mirror geometry to the left edge + gold accents. Our own
    element in the top stacking context — never injected into the host's menu. */
 #gitl.pos-dock-left{left:0;right:auto;border-radius:0 10px 10px 0;border-left:none;border-right:1px solid #5a4a1e}
@@ -2696,39 +3064,39 @@ function injectStyles() {
 #gitl.pos-dock-left .g-dot{box-shadow:0 0 6px rgba(232,198,106,.6)}
 .g-pos-gold{color:#e8c66a!important}
 .g-pos-gold.act{background:#2a2410!important;border-color:#5a4a1e!important}
-.g-diag .ok{color:#34d399}.g-diag .warn{color:#f87171}
-.g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#c9cad0;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
-.g-persona-btn.act{background:#1a1b2e;border-color:#3730a3;color:#c7d2fe}
-.g-persona-btn .plbl{font-weight:700;color:#9ca3af}.g-persona-btn.act .plbl{color:#a5b4fc}
-.g-persona-btn .pdesc{font-size:9px;color:#6b7280;line-height:1.4;margin-top:1px}
+.g-diag .ok{color:var(--g-ok)}.g-diag .warn{color:var(--g-err)}
+.g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text);font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
+.g-persona-btn.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:#c7d2fe}
+.g-persona-btn .plbl{font-weight:700;color:#9ca3af}.g-persona-btn.act .plbl{color:var(--g-accent-text)}
+.g-persona-btn .pdesc{font-size:9px;color:var(--g-muted);line-height:1.4;margin-top:1px}
 .g-cust-badge{color:#e8c66a;font-size:9px}
 .g-del{float:right;color:#7a5050;font-size:10px;padding:0 3px;border-radius:3px;cursor:pointer}
 .g-del:hover{background:#3a1f1f;color:#e0a0a0}
-.g-ws-bar{display:flex;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid #1c1d22}
-.g-ws-btn{flex:1;padding:5px 0;border:1px solid #2a2c35;border-radius:5px;background:#16171b;color:#8b8ea3;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit}
-.g-ws-btn:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-ws-bar{display:flex;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid var(--g-surface-3)}
+.g-ws-btn{flex:1;padding:5px 0;border:1px solid #2a2c35;border-radius:5px;background:var(--g-surface-2);color:#8b8ea3;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit}
+.g-ws-btn:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-ws-form{margin-top:6px;padding:7px;background:#141519;border:1px solid #2a2c35;border-radius:6px}
-.g-ws-in,.g-ws-ta{width:100%;margin-bottom:5px;padding:5px 6px;background:#0e0f12;border:1px solid #2a2c35;border-radius:4px;color:#c9cad0;font-family:inherit;font-size:9.5px;box-sizing:border-box}
+.g-ws-in,.g-ws-ta{width:100%;margin-bottom:5px;padding:5px 6px;background:#0e0f12;border:1px solid #2a2c35;border-radius:4px;color:var(--g-text);font-family:inherit;font-size:9.5px;box-sizing:border-box}
 .g-ws-ta{resize:vertical;line-height:1.4}
 .g-ws-form-btns{display:flex;gap:5px}.g-ws-form-btns .g-btn-sm{flex:1;margin-top:0}
-.g-wf-desc{font-size:9px;color:#7a7d88;line-height:1.45;background:#16171b;border:1px solid #27282e;border-radius:5px;padding:6px;margin-bottom:7px}
+.g-wf-desc{font-size:9px;color:#7a7d88;line-height:1.45;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:5px;padding:6px;margin-bottom:7px}
 .g-wf-how{font-size:9px;color:#9ca3af;line-height:1.5;background:#16171f;border:1px solid #2a2c3a;border-radius:6px;padding:7px 8px;margin-bottom:8px}
 .g-wf-how b{color:#c7d2fe}
 .g-wf-start{width:100%;font-size:12px;padding:8px 0;margin-bottom:2px}
 .g-wf-start.g-dim{opacity:.4;cursor:default}
-.g-wf-progress{font-size:9px;color:#7a7d88;text-align:center;margin:6px 0 2px}.g-wf-progress b{color:#a5b4fc}
-.g-wf-stage{display:flex;align-items:stretch;gap:6px;padding:5px 6px;margin-bottom:3px;background:#16171b;border:1px solid #27282e;border-radius:5px}
+.g-wf-progress{font-size:9px;color:#7a7d88;text-align:center;margin:6px 0 2px}.g-wf-progress b{color:var(--g-accent-text)}
+.g-wf-stage{display:flex;align-items:stretch;gap:6px;padding:5px 6px;margin-bottom:3px;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:5px}
 .g-wf-stage-txt{flex:1;font-size:9px;line-height:1.45;color:#7a7d88}
-.g-wf-stage b{color:#8b8ea3}.g-wf-stage.act{background:#1a1b2e;border-color:#3730a3}.g-wf-stage.act .g-wf-stage-txt,.g-wf-stage.act b{color:#c7d2fe}
-.g-wf-ins{flex:0 0 auto;width:20px;border:1px solid #3730a3;border-radius:4px;background:#1a1b2e;color:#a5b4fc;font-size:8px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit;writing-mode:vertical-rl;text-orientation:mixed;padding:4px 0;transition:all .15s}
+.g-wf-stage b{color:#8b8ea3}.g-wf-stage.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep)}.g-wf-stage.act .g-wf-stage-txt,.g-wf-stage.act b{color:#c7d2fe}
+.g-wf-ins{flex:0 0 auto;width:20px;border:1px solid var(--g-accent-deep);border-radius:4px;background:var(--g-accent-bg);color:var(--g-accent-text);font-size:8px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit;writing-mode:vertical-rl;text-orientation:mixed;padding:4px 0;transition:all .15s}
 .g-wf-ins:hover{background:#26284a}
 .g-wf-ins.ins-ok{background:#14532d;border-color:#16a34a;color:#86efac}
-.g-peek-btn{font-size:9px;color:#3a3b44;cursor:pointer;text-align:center;margin-top:5px;padding-top:4px;border-top:1px solid #1c1d22}
+.g-peek-btn{font-size:9px;color:#3a3b44;cursor:pointer;text-align:center;margin-top:5px;padding-top:4px;border-top:1px solid var(--g-surface-3)}
 .g-peek-btn:hover{color:#777}
-.g-peek{display:none;margin-top:4px;padding:5px;background:#0c0d10;border:1px solid #27282e;border-radius:5px;font-size:9px;line-height:1.5;color:#48505e;white-space:pre-wrap;max-height:140px;overflow-y:auto}
+.g-peek{display:none;margin-top:4px;padding:5px;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;font-size:9px;line-height:1.5;color:#48505e;white-space:pre-wrap;max-height:140px;overflow-y:auto}
 .g-peek.open{display:block}
-.g-shortcuts{font-size:8.5px;color:#333;text-align:center;margin-top:4px}
-.g-firstrun{padding:6px 8px;background:#1a1b2e;border:1px solid #3730a3;border-radius:6px;font-size:9.5px;color:#a5b4fc;line-height:1.4;margin-bottom:7px;text-align:center}
+.g-shortcuts{font-size:8.5px;color:var(--g-text-ghost);text-align:center;margin-top:4px}
+.g-firstrun{padding:6px 8px;background:var(--g-accent-bg);border:1px solid var(--g-accent-deep);border-radius:6px;font-size:9.5px;color:var(--g-accent-text);line-height:1.4;margin-bottom:7px;text-align:center}
 .g-report{margin-top:6px;padding:7px 9px;background:#241719;border:1px solid #5a2e2e;border-radius:7px}
 .g-report-h{font-size:10px;font-weight:700;color:#f1b4b4;display:flex;align-items:center;gap:6px}
 .g-report-k{font-size:8px;font-weight:600;color:#c88;background:#1c1416;border:1px solid #3a2a2a;border-radius:4px;padding:1px 5px}
@@ -2780,6 +3148,9 @@ function mountPanel() {
   if (existing && existing !== panel) existing.remove();
   _panelMounted = true;
   document.body.appendChild(panel);
+  // Smoother load: 180ms entrance instead of pop-in. Animation-only — ends at
+  // the natural resting state, so nothing downstream can depend on it.
+  try { panel.classList.add('g-enter'); setTimeout(() => panel.classList.remove('g-enter'), 400); } catch(_) {}
 }
 
 /* Escape untrusted text before interpolating into innerHTML templates.
@@ -2956,7 +3327,7 @@ const HELP_SECTIONS = {
     <b>🛟 Rescue</b> — the chat is full, stuck, or won't respond, so you can't ask it anything. Ghost scrapes the state + last 10 messages verbatim + resumption instructions into a file. Paste into a fresh chat and keep going.<br><br>
     <i>Working chat → Handoff. Dead chat → Rescue. Records → Export.</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — Classic (current), New (Aurora glass), or Custom (upload your own .gitl skin)<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — 9 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper) or Custom (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
@@ -3107,8 +3478,8 @@ function renderSettingsTab() {
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
     <div class="g-div"></div>
-    <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px"><option value="classic"${GHOST.ui.skinTheme==='classic'?' selected':''}>Classic</option><option value="new"${GHOST.ui.skinTheme==='new'?' selected':''}>New</option><option value="custom"${GHOST.ui.skinTheme==='custom'?' selected':''}>Custom</option></select></div>
-    <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" min="0" max="360" value="${GHOST.ui.accentHue}" style="width:80px;accent-color:hsl(${GHOST.ui.accentHue} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${GHOST.ui.accentHue} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
+    <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
+    <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" title="Tint accent · double-click resets to the skin&#39;s own hue" min="0" max="360" value="${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()}" style="width:80px;accent-color:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
@@ -3426,8 +3797,15 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
-  $('#cfg-skin')?.addEventListener('change', e => { GHOST.ui.skinTheme=e.target.value; _save('skinTheme',GHOST.ui.skinTheme); render(); });
-  $('#cfg-hue')?.addEventListener('input', e => { GHOST.ui.accentHue=parseInt(e.target.value,10); _save('accentHue',GHOST.ui.accentHue); render(); });
+  $('#cfg-skin')?.addEventListener('change', e => {
+    const v = e.target.value;
+    if (v === 'custom' && !GHOST.ui.customSkin) { SKIN.importFile(); render(); return; }
+    GHOST.ui.skinTheme = v; _save('skinTheme', v); SKIN.apply(); render();
+  });
+  $('#cfg-skin-imp')?.addEventListener('click', () => SKIN.importFile());
+  $('#cfg-skin-exp')?.addEventListener('click', () => SKIN.exportCurrent());
+  $('#cfg-hue')?.addEventListener('dblclick', () => { GHOST.ui.accentHue = NaN; _save('accentHue',''); SKIN.apply(); render(); });
+  $('#cfg-hue')?.addEventListener('input', e => { GHOST.ui.accentHue=parseInt(e.target.value,10); _save('accentHue',GHOST.ui.accentHue); SKIN.apply(); render(); });
   $('#g-redetect')?.addEventListener('click', function(){
     this.classList.add('spin');
     const ok = reDetect();
@@ -3490,6 +3868,7 @@ safeBoot(() => {
   Workshop.load();
   injectStyles();
   mountPanel();
+  SKIN.apply();
   render();
 
   // SPA boot retry: ChatGPT/Gemini/Angular apps render chat elements late.

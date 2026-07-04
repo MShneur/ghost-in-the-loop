@@ -74,6 +74,8 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'gitlSha256','buildCapsuleV2','buildFilename','PROFILES',
     'FUZZY_PROCEED','FUZZY_HALT','WORKFLOW_LIBRARY','PERSONA_LIBRARY',
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
+    'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
+    'Adapter','_heurSend','_heurInput','SEND_WORDS','UW',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause'
   ].forEach(name => {
@@ -93,6 +95,8 @@ const ctx = vm.createContext({
   document:  global.document,
   location:  { href: 'https://chatgpt.com/c/test', hostname: 'chatgpt.com', pathname: '/c/test' },
   navigator: { userAgent: 'Mozilla/5.0 test' },
+  innerHeight: 800,
+  innerWidth: 1200,
   console,
   setTimeout:           global.setTimeout,
   clearTimeout:         global.clearTimeout,
