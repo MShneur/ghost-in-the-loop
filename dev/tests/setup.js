@@ -76,6 +76,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
     'Adapter','_heurSend','_heurInput','SEND_WORDS','UW',
+    'EXPLAIN','_explainLookup',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause'
   ].forEach(name => {

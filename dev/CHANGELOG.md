@@ -1,5 +1,26 @@
 # Changelog
 
+## [8.0.0.9] — DEV BUILD d9
+
+### Run tab: basic vs Advanced (user feedback)
+The Thinking-posture picker moved under **Advanced ▾** — the default Run view is now just Strategy → transport (▶ ⏸ ⊕) → progress. Advanced holds: posture, injected-prompt preview, End & reset. The footer status line still shows the active posture at all times.
+
+### Posture terminology (user feedback: "Extended sounds like less")
+Labels renamed so each says what it does — no false strength ladder. Storage keys and model-facing clauses unchanged (old saves keep working):
+- **Standard → Locked** — exact declared plan, no additions
+- **Evolving → Adaptive** — the plan may GROW mid-run when a justified blocker/gap forces it
+- **Extended → Audit** — locked plan, then ONE end-of-run gap review that closes only material holes
+
+### 🔎 Explain mode (tap-anything FAQ)
+New ⓘ button beside the tab ?. Tap ⓘ, then tap ANY control — a one-breath description appears and the click is swallowed (nothing activates). Registry-driven (`EXPLAIN`), 23 entries covering transport, drift guard, strategy, postures (dynamic from `POSTURES`), skins, hue, exports, tabs; graceful fallback pointing to the tab ? guide. Capture-phase intercept on the panel root; survives re-renders.
+
+### Export clarity (user question: rescue vs full export)
+Button microcopy now self-distinguishes: **⬇ full export** = the complete archival transcript · **🤝 Handoff — AI briefs the next chat (chat alive)** · **🛟 Rescue — resume a DEAD chat elsewhere** (state snapshot + roadmap position + last 10 verbatim messages + resume instructions). Explain mode carries the long-form answers.
+
+### Tests
+`tests/explain.test.js` (registry integrity, live-panel lookup, dynamic posture resolution, null fallback); posture label assertions updated.
+
+
 ## [8.0.0.8] — DEV BUILD d8
 
 ### Field-report fixes (first live d7 telemetry, ChatGPT mobile / Firefox Android)

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.8
+// @version      8.0.0.9
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.8';
+const VER = '8.0.0.9';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -966,6 +966,7 @@ const GHOST = {
     soundOn: GM_getValue('soundOn',true),
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
+    explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     helpSec: 'start',
     prevTab: null,
     wsNewPersona: false,
@@ -1413,21 +1414,21 @@ const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ██
    clauses differ ONLY in how/when expansion is permitted. */
 const POSTURES = {
   standard: {
-    label: 'Standard',
-    short: 'Locked plan',
+    label: 'Locked',
+    short: 'Exact plan',
     desc: 'Locked to the plan it declares. No added steps. Most predictable.',
     clause: `\n\n[Posture: STANDARD — locked plan]\nComplete exactly the steps you declared. Do not add, remove, merge, or reorder steps. If you discover the plan is wrong, finish what you can and report it at the end rather than expanding. Keep your declared Y fixed for the whole run.`
   },
   evolving: {
-    label: 'Evolving',
-    short: 'Adaptive mid-run',
-    desc: 'May add steps DURING the run — but only when a real blocker or gap forces it. (Field term: "adaptive".)',
+    label: 'Adaptive',
+    short: 'Grows mid-run',
+    desc: 'The plan may GROW while working — the AI adds steps when a real blocker or gap forces it, justifying each one. (Formerly "Evolving".)',
     clause: `\n\n[Posture: EVOLVING — adaptive mid-run replanning]\nExecute your declared steps one at a time. You MAY add a step during the run ONLY IF a concrete blocker, a missing prerequisite, or a material gap is visible from the work already done and continuing without it would likely fail the original goal.\nBefore adding a step, print on their own lines:\n  Why needed: <one sentence>\n  Why existing steps are insufficient: <one sentence>\nIf that justification is weak, do NOT add the step. Prefer tightening or replacing a future step over adding to the total. Any added step must stay strictly within the ORIGINAL goal — do not expand scope into adjacent topics. Update Y when you legitimately add a step, and keep printing ████░░░░ [Step X of Y].`
   },
   extended: {
-    label: 'Extended',
-    short: 'End-of-run gap check',
-    desc: 'Runs the plan locked, THEN does one gap-check at the end and fills only genuinely valuable holes. (Field term: "review".)',
+    label: 'Audit',
+    short: 'Plan + final gap check',
+    desc: 'Runs the plan locked, THEN performs one end-of-run audit and fills only material gaps. (Formerly "Extended".)',
     clause: `\n\n[Posture: EXTENDED — bounded end-of-run review]\nExecute your declared steps exactly, with no mid-run additions. AFTER the last declared step, perform ONE coverage check against the original goal, its constraints, and the promised deliverable. List only material gaps, errors, or unanswered sub-questions — for each: the gap, why it matters, and the smallest step that closes it. Then complete only those high-value follow-ups. If no material gaps remain, print "No material gaps found" and HALT. Do not invent "nice to have" extras.`
   }
 };
@@ -2900,7 +2901,7 @@ let _stylesInjected = false;
 function injectStyles() {
   if (_stylesInjected) return;
   _stylesInjected = true;
-  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n#gitl[data-explain="1"] #g-explain-tog{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}\n#gitl[data-explain="1"] .g-body{cursor:help}\n.g-xtip{position:absolute;left:8px;right:8px;top:54px;z-index:9;background:var(--g-surface-3);border:1px solid var(--g-accent-deep);border-radius:7px;padding:6px 22px 7px 8px;font-size:9.5px;line-height:1.45;color:var(--g-text);box-shadow:var(--g-shadow)}\n.g-xtip b{color:var(--g-accent-text)}\n.g-xtip .x{position:absolute;top:4px;right:7px;cursor:pointer;color:var(--g-muted);font-size:10px}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
 @keyframes gin{from{opacity:0;transform:translateY(5px) scale(.985)}}
 #gitl.g-enter{animation:gin .18s ease-out}
 #gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:var(--g-bg);border:1px solid var(--g-border);
@@ -3161,6 +3162,65 @@ function injectStyles() {
 const panel = document.createElement('div');
 panel.id = 'gitl';
 let _panelMounted = false;
+/* ── EXPLAIN MODE (d9) — tap ⓘ, then tap any control for a one-breath answer.
+   Registry-driven; capture-phase intercept swallows the click so nothing fires. */
+const EXPLAIN = [
+  { sel:'#g-play',        name:'▶ Start / Resume',  desc:'Begins (or resumes) the auto-continue loop using the current Strategy and Thinking posture.' },
+  { sel:'#g-pause',       name:'⏸ Pause',           desc:'Stops auto-continuing. The chat is untouched — press ▶ to pick up where you left off.' },
+  { sel:'#g-reground',    name:'⊕ Reground',        desc:'Re-anchors the AI to the ORIGINAL task. Use it the moment answers drift off-topic.' },
+  { sel:'#g-stop',        name:'✕ End & reset',     desc:'Ends the run and resets rounds, roadmap position and workflow stage.' },
+  { sel:'#g-strategy',    name:'Strategy',          desc:'Step by step = one nudge per reply. Plan first = the AI batches a plan, then executes. Autopilot = the AI writes a roadmap and Ghost runs every step.' },
+  { sel:'#g-drift-tog',   name:'Drift guard',       desc:'Auto-pauses after N continues so an unattended run can\u2019t wander. The checkpoint asks: continue, reground, or stop.' },
+  { sel:'#g-drift-max',   name:'Drift limit',       desc:'The N — how many auto-continues before the drift checkpoint fires.' },
+  { sel:'#g-cnt-reset',   name:'↻ Reset counter',   desc:'Resets the used-continues count without ending the run.' },
+  { sel:'#run-adv',       name:'Advanced',          desc:'Power tools: Thinking posture (Locked / Adaptive / Audit), the injected-prompt preview, End & reset, and diagnostics.' },
+  { sel:'#g-posture-help',name:'Thinking posture',  desc:'Controls whether the AI\u2019s plan may grow: Locked = exact plan \u00b7 Adaptive = may add justified steps mid-run \u00b7 Audit = locked plan + one final gap-review.' },
+  { sel:'.g-pst',         name: el => 'Posture: ' + ((POSTURES[el.dataset.pst]||{}).label||''), desc: el => (POSTURES[el.dataset.pst]||{}).desc || '' },
+  { sel:'#g-peek-btn',    name:'What gets injected',desc:'Shows the exact instruction block Ghost appends to your prompt for the current Strategy.' },
+  { sel:'#g-handoff',     name:'🤝 Handoff',        desc:'The AI writes its own briefing for a fresh chat. Best choice while the current chat STILL RESPONDS.' },
+  { sel:'#g-rescue',      name:'🛟 Rescue file',    desc:'For a DEAD, stuck, or full chat: a state snapshot — mission, roadmap position, settings, and the last 10 messages verbatim — with resume instructions. Paste it into a NEW chat to continue the work.' },
+  { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
+  { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
+  { sel:'#cfg-skin',      name:'🎨 Skin',           desc:'Visual theme. Skins are pure style tokens — they can never add, remove, or change features.' },
+  { sel:'#cfg-skin-imp',  name:'⬆ Import skin',     desc:'Load a .gitl.json skin file. Anything a skin isn\u2019t allowed to do is silently dropped.' },
+  { sel:'#cfg-skin-exp',  name:'⬇ Export skin',     desc:'Save the active skin as .gitl.json — edit it in any text editor and re-import. That\u2019s the whole modding loop.' },
+  { sel:'#cfg-hue',       name:'Accent hue',        desc:'Tints the active skin\u2019s accent family. Double-click resets to the skin\u2019s own hue.' },
+  { sel:'.g-tab',         name: el => 'Tab: ' + (el.textContent||'').trim(), desc: () => 'Switches the panel section. The ? button gives the full guide for whichever tab is open.' },
+  { sel:'#g-tabhelp',     name:'? Tab guide',       desc:'Opens the full walkthrough for the current tab.' }
+];
+function _explainLookup(target) {
+  if (!target || !target.closest) return null;
+  for (const e of EXPLAIN) {
+    const hit = target.closest(e.sel);
+    if (hit) return {
+      name: typeof e.name === 'function' ? e.name(hit) : e.name,
+      desc: typeof e.desc === 'function' ? e.desc(hit) : e.desc
+    };
+  }
+  return null;
+}
+function _explainShow(info) {
+  let tip = panel.querySelector('.g-xtip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'g-xtip'; panel.appendChild(tip); }
+  tip.innerHTML = `<span class="x" id="g-xtip-x">✕</span><b>${info.name}</b><br>${info.desc}`;
+}
+function _explainIntercept(e) {
+  const t = e.target;
+  if (t && t.closest && t.closest('#g-explain-tog')) {
+    e.preventDefault(); e.stopPropagation();
+    GHOST.ui.explain = !GHOST.ui.explain;
+    panel.dataset.explain = GHOST.ui.explain ? '1' : '0';
+    const tip = panel.querySelector('.g-xtip');
+    if (!GHOST.ui.explain) { if (tip) tip.remove(); }
+    else _explainShow({ name:'🔎 Explain mode', desc:'Tap any button or control to see what it does — nothing will activate. Tap ⓘ again to exit.' });
+    return;
+  }
+  if (!GHOST.ui.explain) return;
+  if (t && t.closest && t.closest('#g-xtip-x')) { e.preventDefault(); e.stopPropagation(); const tip = panel.querySelector('.g-xtip'); if (tip) tip.remove(); return; }
+  e.preventDefault(); e.stopPropagation();
+  _explainShow(_explainLookup(t) || { name:'—', desc:'No note for this one yet — the ? button has the full tab guide.' });
+}
+
 function mountPanel() {
   if (_panelMounted || !document.body) return;
   // Defense-in-depth: if a stray #gitl exists (e.g. script eval'd twice in a
@@ -3172,6 +3232,7 @@ function mountPanel() {
   // Smoother load: 180ms entrance instead of pop-in. Animation-only — ends at
   // the natural resting state, so nothing downstream can depend on it.
   try { panel.classList.add('g-enter'); setTimeout(() => panel.classList.remove('g-enter'), 400); } catch(_) {}
+  panel.addEventListener('click', _explainIntercept, true); // capture: explain mode swallows clicks before handlers
 }
 
 /* Escape untrusted text before interpolating into innerHTML templates.
@@ -3214,14 +3275,6 @@ function renderRunTab() {
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
     <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
     <div class="g-hint">${PAYLOADS[pm].hint}</div>
-    <div class="g-posture-wrap">
-      <div class="g-posture-lbl">Thinking <button class="g-posture-q" id="g-posture-help">?</button></div>
-      <div class="g-postures">
-        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
-        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
-        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
-      </div>
-    </div>
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-btns">
@@ -3257,6 +3310,14 @@ function renderRunTab() {
     ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
+    <div class="g-posture-wrap">
+      <div class="g-posture-lbl">Thinking <button class="g-posture-q" id="g-posture-help">?</button></div>
+      <div class="g-postures">
+        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
+        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
+        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
+      </div>
+    </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
     <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
@@ -3353,9 +3414,9 @@ const HELP_SECTIONS = {
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
     <b>Thinking posture = how much room the AI has to grow its own plan.</b> You pick it up front, like a reasoning dial — Ghost never guesses. It works with any mode (Loop / Think / Roadmap).<br><br>
-    <b>Standard</b> — locked. The AI does exactly the steps it declared, nothing more. Most predictable; best when you know the scope.<br><br>
-    <b>Evolving</b> (a.k.a. <i>adaptive</i>) — the AI may add steps <i>while working</i>, but only when it hits a real blocker or a gap that would otherwise make it fail the goal — and it must justify each addition in one line. It can't wander into unrelated topics, and it stays under the drift-guard ceiling.<br><br>
-    <b>Extended</b> (a.k.a. <i>review</i>) — the AI runs the plan locked, then does <i>one</i> gap-check at the end: what's missing or unanswered against the original goal. It fills only genuinely valuable holes, then stops. If nothing's missing, it says so and halts.<br><br>
+    <b>Locked</b> (formerly Standard) — The AI does exactly the steps it declared, nothing more. Most predictable; best when you know the scope.<br><br>
+    <b>Adaptive</b> (formerly Evolving) — the plan can <i>grow</i>: the AI may add steps <i>while working</i>, but only when it hits a real blocker or a gap that would otherwise make it fail the goal — and it must justify each addition in one line. It can't wander into unrelated topics, and it stays under the drift-guard ceiling.<br><br>
+    <b>Audit</b> (formerly Extended) (a.k.a. <i>review</i>) — the AI runs the plan locked, then does <i>one</i> gap-check at the end: what's missing or unanswered against the original goal. It fills only genuinely valuable holes, then stops. If nothing's missing, it says so and halts.<br><br>
     All three keep the drift guard as the hard ceiling — if the AI hits it, it stops and reports the biggest unresolved gap instead of padding. <span style="color:#5a5d68">(Wording based on current best-practice research: OpenAI/Anthropic planning guidance, ReAct/Reflexion, Self-Refine, and agent guardrail patterns.)</span>` },
   workshop: { label: 'Workshop', html: `
     <b>Make Ghost yours — and share it.</b><br><br>
@@ -3469,8 +3530,8 @@ function renderExportTab() {
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
     <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">💊 Capsule v2 — resumable JSON</button>
-    <button class="g-exp-btn" id="g-handoff" style="margin-top:5px">🤝 Handoff — AI writes the baton</button>
-    <button class="g-exp-btn" id="g-rescue" style="margin-top:5px;background:#18191c;border-color:#2e2f35;color:#ccc">🛟 Rescue file (chat stuck/full)</button>
+    <button class="g-exp-btn" id="g-handoff" style="margin-top:5px">🤝 Handoff — AI briefs the next chat (chat alive)</button>
+    <button class="g-exp-btn" id="g-rescue" style="margin-top:5px;background:#18191c;border-color:#2e2f35;color:#ccc">🛟 Rescue — resume a DEAD chat elsewhere</button>
     <div class="g-hint" style="margin-top:4px"><b>Export</b> = full record. <b>Handoff</b> = the AI writes a briefing in-chat for the next model. <b>Rescue</b> = chat won't respond anymore — scrape the tail + instructions into a file for a fresh chat.</div>
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
@@ -3562,7 +3623,7 @@ function renderReportBadge() {
 }
 
 function render() {
-  try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; } catch(_) {}
+  try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; panel.dataset.explain = GHOST.ui.explain ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
   panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':''].filter(Boolean).join(' ');
@@ -3608,6 +3669,7 @@ function render() {
         <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">Setup</button>
       </div>
       <div id="g-tc">
+        <button class="g-tabhelp" id="g-explain-tog" title="Explain mode — tap ⓘ, then tap any control to learn what it does" style="right:20px">ⓘ</button>
         ${TAB_HELP[tab] && tab!=='info' ? `<button class="g-tabhelp" id="g-tabhelp" data-h="${TAB_HELP[tab]}" title="Help for this tab">?</button>` : ''}
         ${tab==='run'?renderRunTab():''}${tab==='auto'?renderAutoTab():''}${tab==='info'?renderInfoTab():''}${tab==='flow'?renderFlowTab():''}
         ${tab==='personas'?renderPersonasTab():''}${tab==='export'?renderExportTab():''}

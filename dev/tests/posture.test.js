@@ -18,9 +18,9 @@ describe('Postures — structure', () => {
   });
 
   test('labels match the product naming', () => {
-    expect(POSTURES.standard.label).toBe('Standard');
-    expect(POSTURES.evolving.label).toBe('Evolving');
-    expect(POSTURES.extended.label).toBe('Extended');
+    expect(POSTURES.standard.label).toBe('Locked');
+    expect(POSTURES.evolving.label).toBe('Adaptive');
+    expect(POSTURES.extended.label).toBe('Audit');
   });
 });
 
