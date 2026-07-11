@@ -136,8 +136,10 @@ describe('SKIN — apply/resolve behavior', () => {
     SKIN.apply();
     const p = panelEl();
     expect(p.style.getPropertyValue('--g-accent')).toBe('#22d3ee');
-    expect(p.dataset.fxGhost).toBe('float');
-    expect(p.dataset.fxBorder).toBeUndefined();
+    expect(p.dataset.fxGhost).toBe('flicker');
+    expect(p.dataset.fxBorder).toBe('glow');
+    expect(p.dataset.fxTabs).toBe('pill');
+    expect(p.dataset.fxProgress).toBe('ekg');
   });
 
   test('switching back to classic clears overrides and fx', () => {

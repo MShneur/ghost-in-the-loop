@@ -1,5 +1,24 @@
 # Changelog
 
+## [8.0.0.8] — DEV BUILD d8
+
+### Field-report fixes (first live d7 telemetry, ChatGPT mobile / Firefox Android)
+- **Roadmap auto-recovery:** when Autopilot gets a PROCEED but no `[[GITL::ROADMAP]]` block (Scholar GPT self-tracked "[Step 1 of 7]" instead), GITL now sends ONE automatic format re-request — "output only the roadmap block, don't redo the research" — before pausing. Timeline event `roadmap_reask` logged.
+- **Tier-memory bug:** the stored send path `btn-3+enter+paragraph+form` contains "btn" even when the button tier *failed*, so the 1-attempt fast path never engaged. Now only a pure `btn-N` path (button actually worked) keeps 3 attempts.
+- **Heuristic finder caching:** results memoized 4 s (element-liveness checked) — the report showed full DOM re-scans on every health tick while paused.
+- **ChatGPT selectors widened:** `data-testid*="send"/"submit"/"stop"` + `aria-label*="Stop"` contains-fallbacks appended (probe showed all exact selectors missing; note: on mobile the send button legitimately doesn't exist while the composer is empty — the voice button occupies that slot).
+
+### Skins get their effects back (state-aware, per recovered design sessions)
+Restored the effect vocabulary from the approved design language — **effects are data-driven but core-implemented**: five enumerated fx axes a skin selects from, all Firefox-safe (`transform`/`opacity`/`background-position` only, no `@property`), all honoring `prefers-reduced-motion`, and all **state-aware**: lively while RUNNING, slow subtle ambient while idle (the approved Floating-Glass behavior — `render()` now sets `data-run` on the panel).
+- `border`: `aurora` (drifting 3-stop gradient ring) · `glow` (breathing accent inlay idle → tracing light when running)
+- `ghost` (the 👻 glyph, now its own `.g-ghost` span — real emoji, never redrawn): `float` · `flicker` (neon) · `halo` (pulsing accent drop-shadow) · `glow`
+- `tabs` (paint-only restyle of the same buttons): `underline` (glow strip under active) · `pill`
+- `progress`: `shimmer` (flowing accent fill) · `ekg` (heartbeat sweep across the track)
+- `surface`: `sheen` (slow specular band)
+
+Every preset now has a distinct vocabulary, not just a palette: Aurora (aurora border + float + underline + shimmer + sheen), Neon (tracing glow border + flicker ghost + pill tabs + EKG), Liquid (aurora + sheen + halo + shimmer), OLED (glow border + glowing ghost + EKG), Glass (halo + sheen + underline), Metal (sheen + pill), Clay (float + pill), Paper (underline), Classic (clean baseline). Community skins pick any combination via `fx` — still zero structural power, still forward-compatible.
+
+
 ## [8.0.0.7] — DEV BUILD d7
 
 ### Network channel actually works now (dual-channel generation detection)

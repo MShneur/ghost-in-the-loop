@@ -38,7 +38,8 @@ Set only the tokens you want to change — everything else inherits Classic.
 | `--g-radius`, `--g-shadow`, `--g-font`, `--g-blur` | shape, elevation, type, backdrop blur |
 | `--g-aur1..3` | gradient stops for the aurora border fx |
 
-`fx`: `border: "none" | "aurora"` · `ghost: "none" | "float"`
+`fx` — enumerated, core-implemented, state-aware (lively while running, subtle when idle), all `prefers-reduced-motion`-safe:
+`border: none|aurora|glow` · `ghost: none|float|flicker|halo|glow` · `tabs: none|underline|pill` · `progress: none|shimmer|ekg` · `surface: none|sheen`
 
 ## Rules the validator enforces
 - ≤ 8 KB file, values ≤ 240 chars

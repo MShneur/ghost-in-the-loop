@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.7
+// @version      8.0.0.8
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.7';
+const VER = '8.0.0.8';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -369,8 +369,8 @@ const PROFILES = {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
-    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[class*="send"]'],
-    stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]'],
+    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
+    stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
     useCE: false, useNS: true
@@ -574,6 +574,7 @@ function _visible(el) {
   } catch(_) { return false; }
 }
 
+const _heurCache = { input:{el:null,ts:0}, send:{el:null,ts:0} };
 let _heurNoteTs = 0;
 function _heurNote(what) {
   if (Date.now() - _heurNoteTs < 60000) return;
@@ -582,6 +583,8 @@ function _heurNote(what) {
 }
 
 function _heurInput() {
+  const c = _heurCache.input;
+  if (c.el && c.el.isConnected && Date.now() - c.ts < 4000) return c.el;
   let best = null, bestScore = 3;
   for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
     if (!_visible(el)) continue;
@@ -593,11 +596,13 @@ function _heurInput() {
     if (/ProseMirror|ql-editor/.test(String(el.className || ''))) s += 2;
     if (s > bestScore) { bestScore = s; best = el; }
   }
-  if (best) _heurNote('input finder');
+  if (best) { _heurNote('input finder'); _heurCache.input.el = best; _heurCache.input.ts = Date.now(); }
   return best;
 }
 
 function _heurSend(anchor) {
+  const c = _heurCache.send;
+  if (c.el && c.el.isConnected && !c.el.disabled && Date.now() - c.ts < 4000) return c.el;
   let best = null, bestScore = 3.5;
   const ar = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
   const aForm = anchor && anchor.closest ? anchor.closest('form') : null;
@@ -619,7 +624,7 @@ function _heurSend(anchor) {
     }
     if (s > bestScore) { bestScore = s; best = el; }
   }
-  if (best) _heurNote('send-button finder');
+  if (best) { _heurNote('send-button finder'); _heurCache.send.el = best; _heurCache.send.ts = Date.now(); }
   return best;
 }
 
@@ -1536,7 +1541,8 @@ async function engineSend(text, skipDelay) {
     const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
     // Tier memory: if the button tier failed here last time, don't burn 3 tries on it again.
     const _lastTier = GM_getValue('sendTier:' + location.hostname, '');
-    const _btnTries = (!_lastTier || /btn/.test(_lastTier)) ? 3 : 1;
+    const _btnWorked = /^btn-\d+$/.test(_lastTier); // pure button path = the button actually worked last time
+    const _btnTries = (!_lastTier || _btnWorked) ? 3 : 1;
     for (let attempt = 0; attempt < _btnTries; attempt++) {
       const btn = Adapter.getSendBtn();
       if (btn && !btn.disabled) {
@@ -1810,7 +1816,16 @@ function engineTick() {
       const R = GHOST.roadmap;
       if (!R.captured) {
         if (parseRoadmap(text)) { L.detail = `🗺 Roadmap captured: ${R.steps.length} steps`; render(); sendRoadmapStep(); }
-        else { enginePause('Roadmap mode: no [[GITL::ROADMAP]] list found — review output, then ▶ to retry'); }
+        else if (!R._reask) {
+          // Model planned (it signaled PROCEED) but skipped the machine-readable block —
+          // common with custom GPTs that self-track "[Step X of Y]". Ask once for just the block.
+          R._reask = true;
+          L.detail = '🗺 No roadmap block — re-requesting format (1 auto-retry)…';
+          Timeline.add('roadmap_reask', { round: L.round });
+          engineSend('No [[GITL::ROADMAP]] block was detected in your last response. Do NOT redo the research or execute anything. Output ONLY the roadmap now, in exactly this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each self-contained) End with [[GITL::PROCEED]]', false);
+          render();
+        }
+        else { enginePause('Roadmap mode: no [[GITL::ROADMAP]] list found after auto-retry — review output, then ▶ to retry'); }
         return;
       }
       if (R.index < R.steps.length) { sendRoadmapStep(); return; }
@@ -2707,50 +2722,56 @@ const SKIN_TOKENS = {
   '--g-font':"'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace",
   '--g-blur':'0px','--g-aur1':'transparent','--g-aur2':'transparent','--g-aur3':'transparent'
 };
-const SKIN_FX = { border:['none','aurora'], ghost:['none','float'] };
+const SKIN_FX = {
+  border:  ['none','aurora','glow'],
+  ghost:   ['none','float','flicker','halo','glow'],
+  tabs:    ['none','underline','pill'],
+  progress:['none','shimmer','ekg'],
+  surface: ['none','sheen']
+};
 const SKIN_PRESETS = {
   classic:{ name:'Classic', tokens:{}, fx:{} },
-  aurora:{ name:'Aurora', fx:{ border:'aurora', ghost:'float' }, tokens:{
+  aurora:{ name:'Aurora', fx:{ border:'aurora', ghost:'float', tabs:'underline', progress:'shimmer', surface:'sheen' }, tokens:{
     '--g-bg':'#12132b','--g-bg-deep':'#0b0c1f','--g-surface':'#1a1c3a','--g-surface-2':'#16182f',
     '--g-surface-3':'#1e2040','--g-hover':'#232655','--g-border':'#2b2e5c','--g-border-2':'#3a3d78',
     '--g-text':'#d6d8f2','--g-muted':'#7d82b8','--g-accent':'#8b9dff','--g-accent-text':'#b9c4ff',
     '--g-accent-deep':'#4338ca','--g-accent-bg':'#1d1f4a','--g-blur':'8px',
     '--g-shadow':'0 12px 40px rgba(40,30,120,.55)',
     '--g-aur1':'#4f7cff','--g-aur2':'#a855f7','--g-aur3':'#ff6ac1' } },
-  glass:{ name:'Glass', fx:{}, tokens:{
+  glass:{ name:'Glass', fx:{ ghost:'halo', tabs:'underline', surface:'sheen' }, tokens:{
     '--g-bg':'#171a1f','--g-bg-deep':'#101318','--g-surface':'#1d2127','--g-surface-2':'#191c22',
     '--g-surface-3':'#20242b','--g-hover':'#242932','--g-border':'#2a2f38','--g-border-2':'#343a45',
     '--g-text':'#d3d7de','--g-accent':'#7dd3fc','--g-accent-text':'#bae6fd','--g-accent-deep':'#0369a1',
     '--g-accent-bg':'#16222c','--g-blur':'10px','--g-shadow':'0 10px 36px rgba(0,0,0,.5)' } },
-  metal:{ name:'Metal', fx:{}, tokens:{
+  metal:{ name:'Metal', fx:{ surface:'sheen', tabs:'pill' }, tokens:{
     '--g-bg':'#16171a','--g-surface':'#202227','--g-surface-2':'#1b1d21','--g-surface-3':'#24262c',
     '--g-hover':'#282b32','--g-border':'#33363e','--g-border-2':'#454956','--g-text':'#cfd3da',
     '--g-accent':'#93a6c4','--g-accent-text':'#c2d0e6','--g-accent-deep':'#3b4d6b',
     '--g-accent-bg':'#1b2230','--g-shadow':'0 8px 28px rgba(0,0,0,.7)' } },
-  neon:{ name:'Neon', fx:{ ghost:'float' }, tokens:{
+  neon:{ name:'Neon', fx:{ border:'glow', ghost:'flicker', tabs:'pill', progress:'ekg' }, tokens:{
     '--g-bg':'#0a0b0f','--g-bg-deep':'#060709','--g-surface':'#101218','--g-surface-2':'#0d0f14',
     '--g-surface-3':'#14161d','--g-hover':'#171a26','--g-border':'#1f2230','--g-border-2':'#2b2f45',
     '--g-text':'#d8dbea','--g-accent':'#22d3ee','--g-accent-text':'#67e8f9','--g-accent-deep':'#0e7490',
     '--g-accent-bg':'#0b1b22','--g-shadow':'0 0 24px rgba(34,211,238,.25), 0 10px 32px rgba(0,0,0,.7)' } },
-  clay:{ name:'Clay', fx:{}, tokens:{
+  clay:{ name:'Clay', fx:{ ghost:'float', tabs:'pill' }, tokens:{
     '--g-bg':'#17161a','--g-surface':'#221f26','--g-surface-2':'#1c1a20','--g-surface-3':'#27242c',
     '--g-hover':'#2a2731','--g-border':'#322e38','--g-border-2':'#423d4a','--g-text':'#d9d4de',
     '--g-accent':'#f19a7e','--g-accent-text':'#ffc4ae','--g-accent-deep':'#9a4a35',
     '--g-accent-bg':'#2a1e1e','--g-radius':'16px','--g-shadow':'0 12px 30px rgba(0,0,0,.55)' } },
-  liquid:{ name:'Liquid', fx:{ border:'aurora' }, tokens:{
+  liquid:{ name:'Liquid', fx:{ border:'aurora', surface:'sheen', ghost:'halo', tabs:'underline', progress:'shimmer' }, tokens:{
     '--g-bg':'rgba(18,22,30,.55)','--g-bg-deep':'rgba(10,13,20,.6)','--g-surface':'rgba(30,36,48,.55)',
     '--g-surface-2':'rgba(24,29,40,.5)','--g-surface-3':'rgba(36,43,58,.55)','--g-hover':'rgba(52,62,84,.6)',
     '--g-border':'rgba(140,170,220,.28)','--g-border-2':'rgba(160,190,240,.4)','--g-text':'#e8edf7',
     '--g-muted':'#93a0bd','--g-accent':'#8fd0ff','--g-accent-text':'#c9e7ff','--g-accent-deep':'#1e6fae',
     '--g-accent-bg':'rgba(60,110,170,.22)','--g-blur':'16px','--g-shadow':'0 16px 48px rgba(10,20,40,.55)',
     '--g-aur1':'#9bd8ff','--g-aur2':'#c3b2ff','--g-aur3':'#8fffe0' } },
-  oled:{ name:'OLED', fx:{}, tokens:{
+  oled:{ name:'OLED', fx:{ border:'glow', ghost:'glow', progress:'ekg' }, tokens:{
     '--g-bg':'#000000','--g-bg-deep':'#000000','--g-surface':'#0b0b0e','--g-surface-2':'#08080a',
     '--g-surface-3':'#101014','--g-hover':'#15151b','--g-border':'#1d1d24','--g-border-2':'#2a2a34',
     '--g-text':'#e6e6ee','--g-text-mid':'#9a9aa8','--g-muted':'#6a6a78','--g-accent':'#7c8cff',
     '--g-accent-text':'#aeb8ff','--g-accent-deep':'#2e37b8','--g-accent-bg':'#0e1030',
     '--g-shadow':'0 0 0 1px #14141a, 0 14px 34px rgba(0,0,0,.9)' } },
-  paper:{ name:'Paper', fx:{}, tokens:{
+  paper:{ name:'Paper', fx:{ tabs:'underline' }, tokens:{
     '--g-bg':'#f5f1e8','--g-bg-deep':'#ece7db','--g-surface':'#efe9dc','--g-surface-2':'#f2ede2',
     '--g-surface-3':'#e9e2d2','--g-hover':'#e3dcc9','--g-border':'#d6cdb8','--g-border-2':'#c4b99f',
     '--g-text':'#2a261f','--g-text-mid':'#5c564a','--g-text-dim':'#8a8271','--g-text-hot':'#141210',
@@ -2879,7 +2900,7 @@ let _stylesInjected = false;
 function injectStyles() {
   if (_stylesInjected) return;
   _stylesInjected = true;
-  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 9s linear infinite;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-ghost="float"] .g-logo{animation:gfloat 3.2s ease-in-out infinite}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
 @keyframes gin{from{opacity:0;transform:translateY(5px) scale(.985)}}
 #gitl.g-enter{animation:gin .18s ease-out}
 #gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:var(--g-bg);border:1px solid var(--g-border);
@@ -3541,6 +3562,7 @@ function renderReportBadge() {
 }
 
 function render() {
+  try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
   panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':''].filter(Boolean).join(' ');
@@ -3559,7 +3581,7 @@ function render() {
   })();
   panel.innerHTML = `
     <div class="g-hdr" id="g-drag">
-      <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '👻 Ghost'}<span class="g-dot ${dotClass()}"></span></span>
+      <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
         <button class="g-minbtn" id="g-redetect" title="Re-detect the chat box — fixes 'can't find input' after switching browser/app or tabs (no page reload)">🔄</button>
