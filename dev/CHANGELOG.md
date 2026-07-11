@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0.10] — DEV BUILD d10
+
+### Renamed "Rescue" → "Emergency Handoff" (user feedback: it sounded bigger than Export, not smaller)
+It's the lightweight sibling of Handoff, not a rival to Export. New three-way framing, consistent everywhere (button, explain-mode entry, tab guide, export-tab hint, filename slug, generated file header/footer):
+- **Export** — the full record. Biggest of the three; for keeping, not resuming.
+- **Handoff** — the AI writes its own briefing, chat still alive. Fullest way to resume.
+- **Emergency Handoff** *(was Rescue)* — Ghost writes a lighter briefing when the chat is DEAD and can't write its own: state snapshot + last 10 messages verbatim. Deliberately smaller than Export — use only when Handoff isn't possible.
+
+No functional change — `exportRescue()` renamed to `exportEmergencyHandoff()`, output filename slug `rescue` → `emergency-handoff`, button id (`#g-rescue`) and all wiring left untouched.
+
+
 ## [8.0.0.9] — DEV BUILD d9
 
 ### Run tab: basic vs Advanced (user feedback)
