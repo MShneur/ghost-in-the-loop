@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.10
+// @version      8.0.0.11
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.10';
+const VER = '8.0.0.11';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -719,6 +719,24 @@ const PERSONA_LIBRARY = {
 // Perplexity (and any model-switcher) variant — a REAL round table across models, not a simulated one.
 const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
 
+/* The full context block for a run: who the model is (persona/committee),
+   how it should think (posture), and how it should work (strategy).
+   `includeStrategy` is false on roadmap resumes — re-sending the roadmap
+   payload mid-run would ask for a brand-new roadmap. */
+function runDirectives(includeStrategy = true) {
+  const L = GHOST.loop;
+  const persona = resolvePersonaInject();
+  const posture = POSTURES[L.posture] || POSTURES.standard;
+  let out = '';
+  if (persona) out += `\n\n[Active persona]\n${persona}`;
+  if (includeStrategy && PAYLOADS[L.payloadMode]) out += PAYLOADS[L.payloadMode].inject;
+  out += posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
+  return out;
+}
+function hasPendingDirectives() {
+  return !GHOST.persona._delivered && !!resolvePersonaInject();
+}
+
 function resolvePersonaInject() {
   let sel = GHOST.persona.selected;
   if (typeof sel === 'string') sel = [sel];
@@ -912,6 +930,7 @@ const GHOST = {
   persona: {
     selected: (()=>{ const raw=GM_getValue('persona','none'); try { const p=JSON.parse(raw); return Array.isArray(p)?p:[raw]; } catch(_){ return [typeof raw==='string'?raw:'none']; } })(),
     committee: GM_getValue('personaCommittee',false),
+    _delivered: false,  // runtime: have this run's directives reached the model yet?
     perTask: GM_getValue('personaPerTask',false),
     finalReview: GM_getValue('personaFinalReview',false),
     _reviewDone: false
@@ -1833,7 +1852,16 @@ function engineTick() {
       if (!R.synthSent) { sendRoadmapSynthesis(); return; }
       engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
     }
-    engineSend(GHOST.persona.perTask && resolvePersonaInject() ? `Continue.\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : 'Continue', false);
+    if (GHOST.persona.perTask && resolvePersonaInject()) {
+      engineSend(`Continue.\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}`, false);
+    } else if (hasPendingDirectives()) {
+      // Personas were selected mid-run (or the run began from a paused state) —
+      // deliver the context block once instead of a bare "Continue".
+      GHOST.persona._delivered = true;
+      engineSend('Continue.' + runDirectives(false), false);
+    } else {
+      engineSend('Continue', false);
+    }
     return;
   }
 
@@ -1915,10 +1943,8 @@ function startLoop() {
     L.state = 'RUNNING'; L.lastActivity = Date.now();
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
     if (L.payloadMode === 'roadmap') { resetRoadmap(); GHOST.workflow.active = false; }
-    const personaInject = resolvePersonaInject();
-    const posture = POSTURES[L.posture] || POSTURES.standard;
-    const postureClause = posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
-    const full = typed + (personaInject ? `\n\n[Active persona]\n${personaInject}` : '') + PAYLOADS[L.payloadMode].inject + postureClause;
+    const full = typed + runDirectives(true);
+    GHOST.persona._delivered = true;
     engineSend(full, true);
     L.timer = setInterval(engineTick, 2500);
     render();
@@ -1930,7 +1956,9 @@ function startLoop() {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = 'Resuming…';
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    engineSend(RESUME_TEXT, true);
+    // Resume carries persona + posture (+ strategy, unless roadmap owns its own flow).
+    GHOST.persona._delivered = true;
+    engineSend(RESUME_TEXT + runDirectives(L.payloadMode !== 'roadmap'), true);
     L.timer = setInterval(engineTick, 2500);
     render();
     return;
@@ -1973,6 +2001,7 @@ function primaryAction() {
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendRetries = 0;
   GHOST.persona._reviewDone = false;
+  GHOST.persona._delivered = false;
   clearInterval(L.timer); L.timer = null;
   resetRoadmap();
   render();
@@ -2476,7 +2505,7 @@ function workshopImport() {
   inp.click();
 }
 
-function exportEmergencyHandoff() {
+function exportBackupHandoff() {
   const all = extractMessages();
   const mission = (all.find(m => m.role === 'user')?.text || '').slice(0, 600);
   const msgs = all.slice(-10); // verbatim tail, both roles — the part a stuck chat can't summarize for you
@@ -2485,7 +2514,7 @@ function exportEmergencyHandoff() {
   const steps = R.steps.length ? R.steps.map((s,i) =>
     `${i < R.index ? '✓' : i === R.index ? '▶' : '·'} ${i+1}. ${s}`).join('\n') : '(none)';
   const md = [
-    '# 🆘 GITL Emergency Handoff',
+    '# 🧷 GITL Backup Handoff',
     '*Use this when a chat is stuck, full, or dead and cannot be prompted anymore. Paste it into a NEW chat to continue the work. (If the chat still responds, the 🤝 Handoff button produces a better briefing — the AI writes it itself.)*',
     '',
     '```yaml',
@@ -2515,9 +2544,9 @@ function exportEmergencyHandoff() {
     '## Last 10 messages — verbatim (most recent last)',
     ...msgs.map((m) => `### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}\n${m.text}\n`),
     '---',
-    `*Emergency Handoff — generated by Ghost in the Loop v${VER}. Smaller than a full export: state + last 10 messages only, enough to resume elsewhere.*`
+    `*Backup Handoff — generated by Ghost in the Loop v${VER}. The lightweight sibling of Handoff: state + last 10 messages only, enough to resume elsewhere.*`
   ].join('\n');
-  downloadText(md, buildFilename('emergency-handoff').replace(/\.\w+$/,'') + '.md', 'text/markdown');
+  downloadText(md, buildFilename('backup-handoff').replace(/\.\w+$/,'') + '.md', 'text/markdown');
 }
 
 const HANDOFF_IN_CHAT = `Stop all other work. Produce a COMPLETE HANDOFF REPORT for this entire conversation, in ONE markdown code block, structured exactly as:
@@ -2779,7 +2808,31 @@ const SKIN_PRESETS = {
     '--g-text-low':'#6e6759','--g-text-faint':'#938b7a','--g-text-ghost':'#a89f8d','--g-muted':'#7a715f',
     '--g-accent':'#6d4fc4','--g-accent-text':'#4c2f9e','--g-accent-deep':'#6d4fc4','--g-accent-bg':'#e9e1f7',
     '--g-ok':'#176b41','--g-ok-deep':'#9cc9ae','--g-ok-bg':'#dff0e5','--g-warn':'#946200','--g-err':'#b3442e',
-    '--g-shadow':'0 10px 28px rgba(90,80,60,.35)' } }
+    '--g-shadow':'0 10px 28px rgba(90,80,60,.35)' } },
+  hud:{ name:'HUD', fx:{ border:'glow', ghost:'flicker', tabs:'underline', progress:'ekg' }, tokens:{
+    '--g-bg':'#050708','--g-bg-deep':'#000000','--g-surface':'#0a0f10','--g-surface-2':'#080c0d',
+    '--g-surface-3':'#0d1415','--g-hover':'#101a1c','--g-border':'#123033','--g-border-2':'#1a464b',
+    '--g-text':'#bdf5f7','--g-text-mid':'#5f9498','--g-muted':'#3f6367','--g-accent':'#22e0e6',
+    '--g-accent-text':'#8ff2f5','--g-accent-deep':'#0e6a6f','--g-accent-bg':'#04191b',
+    '--g-shadow':'0 0 0 1px #123033, 0 10px 30px rgba(0,0,0,.8)' } },
+  nova:{ name:'Nova', fx:{ border:'aurora', ghost:'halo', tabs:'pill', progress:'shimmer', surface:'sheen' }, tokens:{
+    '--g-bg':'#14101f','--g-bg-deep':'#0c0a17','--g-surface':'#1d1830','--g-surface-2':'#181428',
+    '--g-surface-3':'#241d3a','--g-hover':'#2b2245','--g-border':'#2f2650','--g-border-2':'#3d3268',
+    '--g-text':'#e9def0','--g-muted':'#9080ad','--g-accent':'#ec4fa0','--g-accent-text':'#ff9fd0',
+    '--g-accent-deep':'#7a2160','--g-accent-bg':'#2a1330','--g-shadow':'0 14px 42px rgba(70,30,90,.5)',
+    '--g-aur1':'#ec4fa0','--g-aur2':'#8b5cf6','--g-aur3':'#38bdf8' } },
+  ion:{ name:'Ion', fx:{ surface:'sheen', ghost:'halo', tabs:'pill' }, tokens:{
+    '--g-bg':'#18191a','--g-bg-deep':'#101112','--g-surface':'#212324','--g-surface-2':'#1c1e1f',
+    '--g-surface-3':'#26282a','--g-hover':'#2b2e30','--g-border':'#323536','--g-border-2':'#454849',
+    '--g-text':'#d6dadb','--g-muted':'#7a8082','--g-accent':'#2dd4dc','--g-accent-text':'#8fe9ed',
+    '--g-accent-deep':'#116d72','--g-accent-bg':'#132325','--g-radius':'10px',
+    '--g-shadow':'0 8px 26px rgba(0,0,0,.75)' } },
+  flow:{ name:'Flow', fx:{ tabs:'pill' }, tokens:{
+    '--g-bg':'#131722','--g-bg-deep':'#0d1019','--g-surface':'#1a2030','--g-surface-2':'#161b28',
+    '--g-surface-3':'#1e2536','--g-hover':'#232b3f','--g-border':'#28324a','--g-border-2':'#334060',
+    '--g-text':'#d8dfef','--g-muted':'#6d7896','--g-accent':'#38bdf8','--g-accent-text':'#93d9fb',
+    '--g-accent-deep':'#0d6ba8','--g-accent-bg':'#0f2740','--g-blur':'0px',
+    '--g-shadow':'0 6px 20px rgba(0,0,0,.4)' } }
 };
 const SKIN = {
   LIMIT_BYTES: 8*1024,
@@ -2913,6 +2966,21 @@ function injectStyles() {
 .g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:var(--g-border-2);border-radius:2px}
 .g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed var(--g-border);background:transparent;color:var(--g-text-dim);font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
 .g-adv:hover{color:var(--g-text-mid)}
+.g-swatches{display:flex;gap:5px;margin:2px 0 6px}
+.g-swatch{width:15px;height:15px;border-radius:50%;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0;flex-shrink:0}
+.g-swatch:hover{transform:scale(1.15)}
+.g-xlist{display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.g-xrow{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;cursor:pointer;background:var(--g-surface-2);box-shadow:inset 0 1px 3px rgba(0,0,0,.45),inset 0 -1px 0 rgba(255,255,255,.02);border-left:3px solid transparent;transition:background .15s}
+.g-xrow:hover{background:var(--g-hover)}
+.g-xrow:active{box-shadow:inset 0 2px 5px rgba(0,0,0,.55)}
+.g-xicon{flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:6px;background:var(--g-surface-3)}
+.g-xtext{display:flex;flex-direction:column;gap:1px;min-width:0}
+.g-xtext b{font-size:10.5px;color:var(--g-text)}
+.g-xtext span{font-size:8.5px;color:var(--g-text-mid);line-height:1.3}
+.g-xrow-accent{border-left-color:var(--g-accent)}.g-xrow-accent .g-xicon{color:var(--g-accent-text)}
+.g-xrow-ok{border-left-color:var(--g-ok)}.g-xrow-ok .g-xicon{color:var(--g-ok)}
+.g-xrow-warn{border-left-color:var(--g-warn)}.g-xrow-warn .g-xicon{color:var(--g-warn)}
+.g-xrow-muted{border-left-color:var(--g-muted)}.g-xrow-muted .g-xicon{color:var(--g-muted)}
 .g-hdr{display:flex;justify-content:space-between;align-items:center;cursor:grab;padding:2px 0;margin-bottom:6px}
 .g-hdr:active{cursor:grabbing}
 .g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:var(--g-text-dim);letter-spacing:.6px;display:flex;align-items:center;gap:5px}
@@ -3178,13 +3246,16 @@ const EXPLAIN = [
   { sel:'.g-pst',         name: el => 'Posture: ' + ((POSTURES[el.dataset.pst]||{}).label||''), desc: el => (POSTURES[el.dataset.pst]||{}).desc || '' },
   { sel:'#g-peek-btn',    name:'What gets injected',desc:'Shows the exact instruction block Ghost appends to your prompt for the current Strategy.' },
   { sel:'#g-handoff',     name:'🤝 Handoff',        desc:'The AI writes its own briefing for a fresh chat. Best choice while the current chat STILL RESPONDS.' },
-  { sel:'#g-rescue',      name:'🆘 Emergency Handoff', desc:'The lightweight sibling of Handoff, for when the chat is DEAD and can\u2019t write its own briefing: a state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
+  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads the full transcript. The complete record of the four export actions — for keeping, not for resuming.' },
+  { sel:'#g-capsule',     name:'💊 Capsule v2',       desc:'A resumable JSON snapshot with dedup + a resume token — built for feeding back into an API or another tool, not for reading.' },
+  { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
   { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
   { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
   { sel:'#cfg-skin',      name:'🎨 Skin',           desc:'Visual theme. Skins are pure style tokens — they can never add, remove, or change features.' },
   { sel:'#cfg-skin-imp',  name:'⬆ Import skin',     desc:'Load a .gitl.json skin file. Anything a skin isn\u2019t allowed to do is silently dropped.' },
   { sel:'#cfg-skin-exp',  name:'⬇ Export skin',     desc:'Save the active skin as .gitl.json — edit it in any text editor and re-import. That\u2019s the whole modding loop.' },
   { sel:'#cfg-hue',       name:'Accent hue',        desc:'Tints the active skin\u2019s accent family. Double-click resets to the skin\u2019s own hue.' },
+  { sel:'.g-swatch',      name:'Color swatch',       desc:'One-tap accent colors — same effect as dragging the hue slider to that spot.' },
   { sel:'.g-tab',         name: el => 'Tab: ' + (el.textContent||'').trim(), desc: () => 'Switches the panel section. The ? button gives the full guide for whichever tab is open.' },
   { sel:'#g-tabhelp',     name:'? Tab guide',       desc:'Opens the full walkthrough for the current tab.' }
 ];
@@ -3406,10 +3477,10 @@ const HELP_SECTIONS = {
     <b>Three buttons, three jobs:</b><br><br>
     <b>⬇ Export</b> — the full record. The whole conversation as a file (with 💭 thinking logs). For archiving and reading.<br><br>
     <b>🤝 Handoff</b> — moving to another model? Ghost asks THIS AI to write a structured briefing in-chat (mission, decisions, failures, next steps). Paste it into the new model. The AI's own summary beats a raw transcript — decisions don't get buried.<br><br>
-    <b>🆘 Emergency Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
-    <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Emergency Handoff (Ghost writes it, lighter). Complete record → Export (fullest of all three, not for resuming — for keeping).</i>` },
+    <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
+    <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Backup Handoff (Ghost writes it, lighter — Handoff's calmer sibling, not a separate emergency). Complete record → Export (fullest of all four, not for resuming — for keeping).</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — 9 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper) or Custom (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
@@ -3528,11 +3599,12 @@ function renderExportTab() {
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
-    <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
-    <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">💊 Capsule v2 — resumable JSON</button>
-    <button class="g-exp-btn" id="g-handoff" style="margin-top:5px">🤝 Handoff — AI briefs the next chat (chat alive)</button>
-    <button class="g-exp-btn" id="g-rescue" style="margin-top:5px;background:#18191c;border-color:#2e2f35;color:#ccc">🆘 Emergency Handoff — light, dead chat only</button>
-    <div class="g-hint" style="margin-top:4px"><b>Export</b> = the full record — biggest of the three. <b>Handoff</b> = the AI writes a briefing in-chat (fullest way to resume). <b>Emergency Handoff</b> = Ghost writes a lighter one when the chat is dead and can't — smaller than Export, use only when Handoff isn't possible.</div>
+    <div class="g-xlist">
+      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Full transcript, markdown or JSON. The complete record — for keeping.</span></div></div>
+      <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Capsule v2</b><span>Resumable JSON with a resume token — for feeding back into an API or tool.</span></div></div>
+      <div class="g-xrow g-xrow-ok" id="g-handoff"><span class="g-xicon">🤝</span><div class="g-xtext"><b>Handoff</b><span>Chat still responds: asks the AI to write its own briefing for the next chat.</span></div></div>
+      <div class="g-xrow g-xrow-warn" id="g-rescue"><span class="g-xicon">🧷</span><div class="g-xtext"><b>Backup Handoff</b><span>Chat is dead: Ghost writes a lighter one itself — state + last 10 messages, enough to resume elsewhere.</span></div></div>
+    </div>
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
@@ -3562,6 +3634,7 @@ function renderSettingsTab() {
     <div class="g-div"></div>
     <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
     <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" title="Tint accent · double-click resets to the skin&#39;s own hue" min="0" max="360" value="${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()}" style="width:80px;accent-color:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
+    <div class="g-swatches">${[350,265,220,185,145,40].map(h=>`<button class="g-swatch" data-hue="${h}" title="Set accent" style="background:hsl(${h} 85% 58%)"></button>`).join('')}</div>
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
@@ -3785,7 +3858,7 @@ function bindEvents() {
   });
 
   // Personas tab
-  const _saveSel = () => _save('persona', JSON.stringify(GHOST.persona.selected));
+  const _saveSel = () => { GHOST.persona._delivered = false; _save('persona', JSON.stringify(GHOST.persona.selected)); };
   $('#p-comm-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.committee=this.classList.contains('on'); _save('personaCommittee',GHOST.persona.committee); if(GHOST.persona.committee&&GHOST.persona.selected.filter(s=>s&&s!=='none').length<2){ GHOST.persona.selected=GHOST.persona.selected.filter(s=>s&&s!=='none'); if(!GHOST.persona.selected.length) GHOST.persona.selected=['researcher','redteam']; _saveSel(); } render(); });
   $('#p-single')?.addEventListener('change', e => { GHOST.persona.selected=[e.target.value]; _saveSel(); render(); });
   $('#p-run')?.addEventListener('click', () => { GHOST.ui.tab='run'; startLoop(); });
@@ -3832,7 +3905,7 @@ function bindEvents() {
   $('#g-capsule')?.addEventListener('click', () => { exportCapsuleV2(); });
   $('#exp-think')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.thinking=this.classList.contains('on'); _save('expThinking',GHOST.export.thinking); });
   $('#g-handoff')?.addEventListener('click', handoffInChat);
-  $('#g-rescue')?.addEventListener('click', exportEmergencyHandoff);
+  $('#g-rescue')?.addEventListener('click', exportBackupHandoff);
   $('#g-backup')?.addEventListener('click', backupConfig);
   $('#g-restore')?.addEventListener('click', () => $('#g-restore-file')?.click());
   $('#g-restore-file')?.addEventListener('change', e => {
@@ -3888,6 +3961,10 @@ function bindEvents() {
   });
   $('#cfg-skin-imp')?.addEventListener('click', () => SKIN.importFile());
   $('#cfg-skin-exp')?.addEventListener('click', () => SKIN.exportCurrent());
+  $$('.g-swatch').forEach(b => b.addEventListener('click', () => {
+    const h = parseInt(b.dataset.hue, 10);
+    GHOST.ui.accentHue = h; _save('accentHue', h); SKIN.apply(); render();
+  }));
   $('#cfg-hue')?.addEventListener('dblclick', () => { GHOST.ui.accentHue = NaN; _save('accentHue',''); SKIN.apply(); render(); });
   $('#cfg-hue')?.addEventListener('input', e => { GHOST.ui.accentHue=parseInt(e.target.value,10); _save('accentHue',GHOST.ui.accentHue); SKIN.apply(); render(); });
   $('#g-redetect')?.addEventListener('click', function(){

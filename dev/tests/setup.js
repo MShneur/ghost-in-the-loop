@@ -77,6 +77,8 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
     'Adapter','_heurSend','_heurInput','SEND_WORDS','UW',
     'EXPLAIN','_explainLookup',
+    'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resolvePersonaInject',
+    'PERSONA_LIBRARY','PAYLOADS','POSTURES',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause'
   ].forEach(name => {

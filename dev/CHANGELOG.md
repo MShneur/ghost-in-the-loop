@@ -1,5 +1,36 @@
 # Changelog
 
+## [8.0.0.11] — DEV BUILD d11
+
+### 🐞 MAJOR BUG FIX — personas, posture and strategy were never reaching the model
+Reported from the field: arm a committee in the Personas tab, hit **▶ Run with committee**, and the model just gets `Continue.` — no personas, no Think First, no posture. Confirmed in code.
+
+**Root cause:** the directive block (persona + strategy payload + posture clause) was assembled on exactly ONE code path — "user typed a fresh prompt into the composer." Every other way to start a run silently dropped it:
+- Run from the Personas tab (composer empty) → fell through to the resume path → bare `RESUME_TEXT`
+- Resume an existing conversation → bare `RESUME_TEXT`
+- Un-pause → the tick loop sent a bare `Continue`
+
+So unless you re-typed your task from scratch every single time, **nothing you configured was ever sent.** The settings applied locally and were rendered in the panel, which is why it looked like they were on.
+
+**Fix:** new `runDirectives()` builder + a once-per-run `persona._delivered` flag, honored by *every* entry path — typed prompt, existing-chat resume, un-pause, and mid-run persona changes. Delivered exactly once per run (not re-sent every turn), re-armed when the run ends or the selection changes. Roadmap resumes omit the strategy payload so a resume can't request a brand-new roadmap mid-run.
+`tests/directives.test.js` locks the contract shut, including a direct replay of the reported 6-persona committee flow.
+
+### Export tab — sunken row list (user request)
+The four export actions are now divided rows in a sunken well: icon button on the left, **bold name** + small description on the right, each row edge-colored by role (Export=accent, Capsule=muted, Handoff=ok-green, Backup Handoff=warn-amber). All four ids and listeners unchanged. Style is token-driven, so every skin restyles it automatically.
+
+### "Emergency Handoff" → "Backup Handoff" (user feedback: "emergency" oversells it)
+Calmer wording, still clearly Handoff's lighter sibling rather than a separate escalation. Renamed everywhere: button, explain-mode entry, tab guide, generated file header/footer, filename slug (`backup-handoff`), and `exportBackupHandoff()`.
+
+### 4 new skins, reverse-engineered from the reference UI kits
+Built purely from the existing token + fx vocabulary — no new engine capability, so they're all expressible as community `.gitl.json` files too:
+- **HUD** — sci-fi cyan wireframe: near-black ground, hairline cyan rules, flickering ghost, EKG progress
+- **Nova** — glossy pink/violet AI-dashboard glass: aurora ring, halo ghost, pill tabs, shimmer fill
+- **Ion** — brushed-metal media-deck: bezeled surfaces, teal LED accent, sheen
+- **Flow** — calm flat navy dashboard: pill tabs, minimal motion
+
+**Accent color picker:** six one-tap color swatches beside the hue slider — pick a color directly instead of hunting for it on the slider. Works on every preset (13 built-ins now) and on custom skins.
+
+
 ## [8.0.0.10] — DEV BUILD d10
 
 ### Renamed "Rescue" → "Emergency Handoff" (user feedback: it sounded bigger than Export, not smaller)

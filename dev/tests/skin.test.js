@@ -30,9 +30,9 @@ describe('SKIN — module shape', () => {
     expect(typeof SKIN.exportCurrent).toBe('function');
   });
 
-  test('ships the nine built-in presets', () => {
+  test('ships the thirteen built-in presets', () => {
     expect(Object.keys(SKIN_PRESETS)).toEqual(
-      ['classic','aurora','glass','metal','neon','clay','liquid','oled','paper']);
+      ['classic','aurora','glass','metal','neon','clay','liquid','oled','paper','hud','nova','ion','flow']);
   });
 });
 
