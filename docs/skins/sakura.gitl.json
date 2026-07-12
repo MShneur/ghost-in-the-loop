@@ -1,0 +1,15 @@
+{
+  "kind": "skin",
+  "gitlSkin": 1,
+  "name": "Sakura",
+  "author": "example — community skin format demo",
+  "tokens": {
+    "--g-bg": "#191218", "--g-bg-deep": "#120c11",
+    "--g-surface": "#231a22", "--g-surface-2": "#1d151c", "--g-surface-3": "#281e27",
+    "--g-hover": "#2f2130", "--g-border": "#372838", "--g-border-2": "#4a3549",
+    "--g-text": "#e3d6de", "--g-accent": "#f472b6", "--g-accent-text": "#f9a8d4",
+    "--g-accent-deep": "#9d2463", "--g-accent-bg": "#2a1a24",
+    "--g-shadow": "0 10px 34px rgba(0,0,0,.6)"
+  },
+  "fx": { "ghost": "float" }
+}

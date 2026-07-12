@@ -22,8 +22,8 @@ describe('S0 — Boot safety', () => {
 describe('S1 — Network interceptor', () => {
   test('GITL_NET object present',           () => expect(has('const GITL_NET')).toBe(true));
   test('AI_ENDPOINTS array present',        () => expect(has('AI_ENDPOINTS')).toBe(true));
-  test('fetch proxy present',               () => expect(has('window.fetch = async function')).toBe(true));
-  test('XHR proxy present',                 () => expect(has('XMLHttpRequest.prototype.open')).toBe(true));
+  test('fetch proxy present',               () => expect(has('UW.fetch = async function')).toBe(true));
+  test('XHR proxy present',                 () => expect(has('XP.open = function')).toBe(true));
   test('ChatGPT endpoint covered',          () => expect(has('/backend-api/conversation')).toBe(true));
   test('Claude endpoint covered',           () => expect(has('/api/organizations')).toBe(true));
   test('gitl:net event emitted',            () => expect(has("'gitl:net'")).toBe(true));

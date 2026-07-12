@@ -1,5 +1,32 @@
 # Changelog
 
+## [8.1.0] — 2026-07-12
+
+First production release since 8.0.0. Promotes dev builds d6–d13. Two of these are correctness fixes for things that were silently broken in 8.0.0.
+
+### Fixed
+- **Personas, thinking posture and strategy never reached the model.** The directive block was assembled on exactly one code path — "user typed a fresh prompt." Starting a run from the Personas tab, resuming an existing chat, or un-pausing all sent a bare `Continue.` So unless you retyped your task every time, nothing you configured was ever transmitted. Now built by `runDirectives()` and delivered once per run on **every** entry path.
+- **Network detection was dead in production.** `GITL_NET` patched the *sandbox* `window.fetch`; under `@grant GM_*` the userscript is isolated, so the page's real requests never crossed the hook (it only ever "worked" in the test harness). Now hooks `unsafeWindow` — the page's real window.
+- **Perplexity paused itself mid-thought.** Deep Research produces no DOM growth and no stop button for minutes, tripping the stale-tick counter. The stale counter is now held while the network channel shows the model is still working. Per-platform stale budgets.
+- **Send failed silently when a site redesigned its buttons.** Added heuristic role/meaning-based element finders, `form.requestSubmit()` and ClipboardEvent paste tiers, and per-host tier memory.
+
+### Added
+- **Skin engine** — skins are *data*, not code: a whitelist of CSS custom properties plus enumerated effect flags. A skin cannot add, remove, or restructure controls, and unknown tokens are dropped, so community skins stay compatible across versions. 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow), import/export as `.gitl.json`, one-tap accent swatches + hue slider. See `docs/SKINS.md`.
+- **🌙 Unattended mode** (opt-in, default off) — keeps a run going in a background tab. Relaxes only the focus guard; the tab lock is never relaxed. Moves the engine loop onto a Web Worker ticker, since browsers throttle hidden-tab timers. The tab must stay open — this is not server-side execution.
+- **🔎 Explain mode** — tap ⓘ, then tap any control for a plain-English description; the click is swallowed so nothing fires.
+- **Modular Run tab** — Transport and Progress are bordered units with icon headers. Strategy and Thinking live under Advanced.
+- Roadmap auto-recovery: one automatic format re-request when the model plans but omits the `[[GITL::ROADMAP]]` block.
+
+### Changed
+- Thinking postures renamed to say what they do: **Locked** (exact plan) · **Adaptive** (plan may grow mid-run) · **Audit** (locked plan + final gap review). Storage keys unchanged.
+- Export actions are now a divided-row list: **Export** (full record) · **Capsule v2** (resumable JSON) · **Handoff** (AI briefs the next chat) · **Backup Handoff** (Ghost writes a lighter one when the chat is dead).
+- Collapsed dock shows a progress bar and step count instead of raw counters.
+- 180 ms panel entrance animation.
+
+### Testing
+468 unit tests passing. Playwright e2e has **not** been run against live sites for this release.
+
+
 ## [8.0.0] — DEV BUILD (features complete, UI reskin pending)
 
 > Working build. Not pushed. Items below are locked + unit-tested unless marked ⏳ unfinished.
