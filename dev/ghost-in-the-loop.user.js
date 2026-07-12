@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.11
+// @version      8.0.0.12
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.11';
+const VER = '8.0.0.12';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -141,18 +141,60 @@ function startTabHeartbeat() {
   }, 5000);
 }
 
+/* ── Ticker (d12) ───────────────────────────────────────────────
+   Hidden tabs throttle setInterval to roughly once a minute, which stalls the
+   engine loop when you walk away. A Web Worker's timer is not throttled the
+   same way, so unattended runs tick from a Worker. Strict page CSP can refuse
+   blob: workers — in that case we transparently fall back to setInterval and
+   report which path is live (visible in Diagnostics). */
+const Ticker = {
+  _worker: null, _iv: null, mode: 'none',
+  start(fn, ms) {
+    this.stop();
+    if (unattendedOn() && typeof Worker !== 'undefined' && typeof Blob !== 'undefined') {
+      try {
+        const code = 'let i=null;onmessage=e=>{if(e.data&&e.data.cmd==="start"){if(i)clearInterval(i);i=setInterval(()=>postMessage("t"),e.data.ms);}else{clearInterval(i);i=null;}};';
+        const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+        this._worker = new Worker(url);
+        URL.revokeObjectURL(url);
+        this._worker.onmessage = () => { try { fn(); } catch(e) { DIAG.push('tick: ' + e.message); } };
+        this._worker.postMessage({ cmd: 'start', ms });
+        this.mode = 'worker';
+        DIAG.push('Unattended: Worker ticker active (background-throttle immune)');
+        return 'worker';
+      } catch (e) {
+        DIAG.push('Worker ticker blocked (page CSP) — using throttled timer: ' + e.message);
+        this._worker = null;
+      }
+    }
+    this._iv = setInterval(fn, ms);
+    this.mode = 'interval';
+    return 'interval';
+  },
+  stop() {
+    if (this._worker) { try { this._worker.postMessage({ cmd: 'stop' }); this._worker.terminate(); } catch(_) {} this._worker = null; }
+    if (this._iv) { clearInterval(this._iv); this._iv = null; }
+    this.mode = 'none';
+  }
+};
+
 /* Focus guard: prevents background tabs from burning tokens
    by auto-sending prompts while user isn't looking. */
+function unattendedOn() {
+  try { return !!(GHOST && GHOST.ui && GHOST.ui.unattended); } catch(_) { return false; }
+}
 function isTabSafeToAct() {
-  if (!document.hasFocus()) return false;
-  if (document.hidden) return false;
-  return claimTabLock();
+  if (!unattendedOn()) {
+    if (!document.hasFocus()) return false;
+    if (document.hidden) return false;
+  }
+  return claimTabLock();   // multi-tab collision guard is NEVER relaxed
 }
 
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
-  if (!document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
+  if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
   if (!claimTabLock()) {
@@ -985,6 +1027,7 @@ const GHOST = {
     soundOn: GM_getValue('soundOn',true),
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
+    unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
     explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     helpSec: 'start',
     prevTab: null,
@@ -1128,6 +1171,7 @@ const Reporter = {
     lines.push(`| Health | ${h.badge || ''} ${h.score ?? '?'}/100 (in:${h.input} send:${h.send} stop:${h.stop} msgs:${h.assistantCount}) |`);
     lines.push(`| Net intercept | ${h.netActive ? 'active' : 'off'} |`);
     lines.push(`| Focus | hasFocus:${typeof document!=='undefined'?document.hasFocus():'?'} hidden:${typeof document!=='undefined'?document.hidden:'?'} |`);
+    lines.push(`| Unattended | ${unattendedOn()?'ON':'off'} · ticker:${Ticker.mode} |`);
     lines.push(`| UA | ${typeof navigator!=='undefined'?navigator.userAgent:'?'} |`);
     lines.push(`| When | ${new Date().toISOString()} |`);
     lines.push(``);
@@ -1670,7 +1714,7 @@ async function _refireSend() {
 function engineHalt(reason) {
   const L = GHOST.loop;
   L.state = 'COMPLETE'; L.detail = reason; L.needsPayload = true;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('halt', { reason, round: L.round });
   render();
   if (GHOST.ui.soundOn) playBeep();
@@ -1680,7 +1724,7 @@ function engineHalt(reason) {
 function enginePause(reason) {
   const L = GHOST.loop;
   L.state = 'PAUSED'; L.detail = reason;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
   render();
   notify('⏸ ' + reason);
@@ -1694,7 +1738,7 @@ function engineLimit() {
   L.state = 'LIMIT';
   L.detail = `Hit ${L.maxRounds} auto-continues — chat's still going. ▶ to run ${L.limitStep} more.`;
   L.sendPending = false;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('limit', { round: L.round, cap: L.maxRounds });
   render();
   if (GHOST.ui.soundOn) playBeep();
@@ -1708,7 +1752,7 @@ function extendLimit() {
   L.maxRounds += (L.limitStep || 20);
   L.state = 'RUNNING'; L.detail = ''; L.lastActivity = Date.now();
   Timeline.record('limit_extended', { newCap: L.maxRounds, round: L.round });
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   render();
   engineTick();
 }
@@ -1729,7 +1773,7 @@ Then continue the task. End with ████ [Step X of Y] and [[GITL::PROCEED]
   L.maxRounds += (L.limitStep || 20);
   L.state = 'RUNNING'; L.detail = '⊕ Regrounding to original task…'; L.lastActivity = Date.now();
   Timeline.record('reground', { round: L.round, hadTask: !!task });
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   render();
   engineSend(cmd, true);
 }
@@ -1748,7 +1792,7 @@ function engineTick() {
       L.lastActivity = Date.now();
       // fall through: if generating, the branch below will hold the loop
     } else if (Date.now() >= L.sendDeadline) {
-      if (L.sendRetries < SEND_MAX_RETRIES && document.hasFocus() && !document.hidden) {
+      if (L.sendRetries < SEND_MAX_RETRIES && (unattendedOn() || (document.hasFocus() && !document.hidden))) {
         _refireSend();           // re-fire; confirm on a later tick
         return;
       }
@@ -1931,7 +1975,7 @@ function startLoop() {
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = '';
     L.sendPending = false;
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    L.timer = setInterval(engineTick, 2500);
+    L.timer = Ticker.start(engineTick, 2500);
     render(); engineTick();
     return;
   }
@@ -1946,7 +1990,7 @@ function startLoop() {
     const full = typed + runDirectives(true);
     GHOST.persona._delivered = true;
     engineSend(full, true);
-    L.timer = setInterval(engineTick, 2500);
+    L.timer = Ticker.start(engineTick, 2500);
     render();
     return;
   }
@@ -1959,7 +2003,7 @@ function startLoop() {
     // Resume carries persona + posture (+ strategy, unless roadmap owns its own flow).
     GHOST.persona._delivered = true;
     engineSend(RESUME_TEXT + runDirectives(L.payloadMode !== 'roadmap'), true);
-    L.timer = setInterval(engineTick, 2500);
+    L.timer = Ticker.start(engineTick, 2500);
     render();
     return;
   }
@@ -1980,7 +2024,7 @@ function startQueue(rawLines) {
   L.state = 'RUNNING'; L.lastActivity = Date.now();
   GHOST.workflow.active = false;
   if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   sendRoadmapStep();
   render();
 }
@@ -2002,7 +2046,7 @@ function primaryAction() {
   L.sendPending = false; L.sendRetries = 0;
   GHOST.persona._reviewDone = false;
   GHOST.persona._delivered = false;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   resetRoadmap();
   render();
 }
@@ -2450,7 +2494,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -3251,6 +3295,7 @@ const EXPLAIN = [
   { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
   { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
   { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
+  { sel:'#cfg-unattended',name:'🌙 Unattended',      desc:'Normally Ghost pauses when you switch tabs, so it can\u2019t burn tokens unwatched. Turn this on to keep running in a background tab \u2014 it also switches to a Worker-based timer that browsers don\u2019t throttle. The tab must stay OPEN; this does not run on a server.' },
   { sel:'#cfg-skin',      name:'🎨 Skin',           desc:'Visual theme. Skins are pure style tokens — they can never add, remove, or change features.' },
   { sel:'#cfg-skin-imp',  name:'⬆ Import skin',     desc:'Load a .gitl.json skin file. Anything a skin isn\u2019t allowed to do is silently dropped.' },
   { sel:'#cfg-skin-exp',  name:'⬇ Export skin',     desc:'Save the active skin as .gitl.json — edit it in any text editor and re-import. That\u2019s the whole modding loop.' },
@@ -3480,7 +3525,8 @@ const HELP_SECTIONS = {
     <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
     <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Backup Handoff (Ghost writes it, lighter — Handoff's calmer sibling, not a separate emergency). Complete record → Export (fullest of all four, not for resuming — for keeping).</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
+· <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
@@ -3632,6 +3678,8 @@ function renderSettingsTab() {
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
     <div class="g-div"></div>
+    <div class="g-row"><label>🌙 Unattended</label><div class="g-tog${GHOST.ui.unattended?' on':''}" id="cfg-unattended"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Keeps running when the tab is in the background. The tab must stay <b>open</b> — this does not move the run to a server. Off by default: it sends prompts while you're not looking.</div>
     <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
     <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" title="Tint accent · double-click resets to the skin&#39;s own hue" min="0" max="360" value="${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()}" style="width:80px;accent-color:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
     <div class="g-swatches">${[350,265,220,185,145,40].map(h=>`<button class="g-swatch" data-hue="${h}" title="Set accent" style="background:hsl(${h} 85% 58%)"></button>`).join('')}</div>
@@ -3954,6 +4002,17 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#cfg-unattended')?.addEventListener('click', function(){
+    this.classList.toggle('on');
+    GHOST.ui.unattended = this.classList.contains('on');
+    _save('unattended', GHOST.ui.unattended);
+    // Re-arm the ticker on the new mode if a run is live.
+    if (GHOST.loop.state === 'RUNNING') GHOST.loop.timer = Ticker.start(engineTick, 2500);
+    GHOST.loop.detail = GHOST.ui.unattended
+      ? '🌙 Unattended ON — keeps running in a background tab'
+      : 'Unattended OFF — pauses when you switch away';
+    render();
+  });
   $('#cfg-skin')?.addEventListener('change', e => {
     const v = e.target.value;
     if (v === 'custom' && !GHOST.ui.customSkin) { SKIN.importFile(); render(); return; }

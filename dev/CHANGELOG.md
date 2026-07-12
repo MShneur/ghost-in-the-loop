@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.0.0.12] — DEV BUILD d12
+
+### 🌙 Unattended mode — background runs actually work now
+Reported: "I press start, leave the tab, come back and nothing happened." Correct — and it was **two** separate blockers, one of them deliberate:
+
+1. **GITL's own focus guard.** `assertInteractionSafe()` runs before every `engineSend` and returns `tab-not-focused` the instant `document.hasFocus()` goes false. Comment in the source: *"prevents background tabs from burning tokens by auto-sending prompts while user isn't looking."* Working as designed — just not what you wanted.
+2. **Browser timer throttling.** Hidden tabs throttle `setInterval` to roughly once a minute, so even without the guard the 2.5 s engine loop would crawl.
+
+**Fix — new opt-in `🌙 Unattended` toggle in Setup (default OFF):**
+- Relaxes the *focus* half of the guard only. The **tab lock is never relaxed** — two tabs still can't drive the same conversation. Drift guard and round limits still apply as runaway backstops.
+- Swaps the engine loop onto a **Web Worker ticker**, which browsers don't throttle the way they throttle hidden-tab `setInterval`. Strict page CSP (ChatGPT's, notably) can refuse `blob:` workers — so it falls back to `setInterval` automatically and reports which path is live in Diagnostics (`| Unattended | ON · ticker:worker |`) rather than failing silently.
+- Honest scope, stated in the UI and help: **the tab must stay open.** This keeps a background tab running; it does not move the run to a server. Closing the browser still ends the run.
+
+`tests/unattended.test.js` covers guard-on/guard-off semantics, the tab-lock still firing under unattended, and the CSP fallback path.
+
+
 ## [8.0.0.11] — DEV BUILD d11
 
 ### 🐞 MAJOR BUG FIX — personas, posture and strategy were never reaching the model

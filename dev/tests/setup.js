@@ -79,6 +79,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'EXPLAIN','_explainLookup',
     'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resolvePersonaInject',
     'PERSONA_LIBRARY','PAYLOADS','POSTURES',
+    'Ticker','unattendedOn','isTabSafeToAct','assertInteractionSafe',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause'
   ].forEach(name => {
