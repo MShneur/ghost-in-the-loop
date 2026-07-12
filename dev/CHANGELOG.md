@@ -1,6 +1,6 @@
 # Changelog
 
-## [8.1.0] — SELF-HEALING BASE
+## [8.1.1] — SELF-HEALING BASE
 
 ### 🐞 FIX — DeepSeek clicked "Copy" instead of Send (field report)
 The heuristic send-finder scored ANY icon button near the composer (svg icon +1,

@@ -11,7 +11,7 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
-## v8.1.0 — Self-healing base (send safety, sigil-free loops, selector memory)
+## v8.1.1 — Self-healing base (send safety, sigil-free loops, selector memory)
 
 ### The DeepSeek "Copy" incident — why the send heuristic was structurally unsafe
 - **Tried (v7→8.0):** score-based send finder: send-word +4, submit +2, svg-icon +1, same-form +3, proximity<320px +3, threshold 3.5, veto list of ~10 words.
