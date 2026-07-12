@@ -75,7 +75,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'FUZZY_PROCEED','FUZZY_HALT','WORKFLOW_LIBRARY','PERSONA_LIBRARY',
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
-    'Adapter','_heurSend','_heurInput','SEND_WORDS','UW',
+    'Adapter','_heurSend','_heurInput','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW',
     'EXPLAIN','_explainLookup',
     'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resolvePersonaInject',
     'PERSONA_LIBRARY','PAYLOADS','POSTURES',

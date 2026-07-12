@@ -30,7 +30,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0';
+const VER = '8.1.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -119,18 +119,60 @@ function startTabHeartbeat() {
   }, 5000);
 }
 
+/* ── Ticker (d12) ───────────────────────────────────────────────
+   Hidden tabs throttle setInterval to roughly once a minute, which stalls the
+   engine loop when you walk away. A Web Worker's timer is not throttled the
+   same way, so unattended runs tick from a Worker. Strict page CSP can refuse
+   blob: workers — in that case we transparently fall back to setInterval and
+   report which path is live (visible in Diagnostics). */
+const Ticker = {
+  _worker: null, _iv: null, mode: 'none',
+  start(fn, ms) {
+    this.stop();
+    if (unattendedOn() && typeof Worker !== 'undefined' && typeof Blob !== 'undefined') {
+      try {
+        const code = 'let i=null;onmessage=e=>{if(e.data&&e.data.cmd==="start"){if(i)clearInterval(i);i=setInterval(()=>postMessage("t"),e.data.ms);}else{clearInterval(i);i=null;}};';
+        const url = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+        this._worker = new Worker(url);
+        URL.revokeObjectURL(url);
+        this._worker.onmessage = () => { try { fn(); } catch(e) { DIAG.push('tick: ' + e.message); } };
+        this._worker.postMessage({ cmd: 'start', ms });
+        this.mode = 'worker';
+        DIAG.push('Unattended: Worker ticker active (background-throttle immune)');
+        return 'worker';
+      } catch (e) {
+        DIAG.push('Worker ticker blocked (page CSP) — using throttled timer: ' + e.message);
+        this._worker = null;
+      }
+    }
+    this._iv = setInterval(fn, ms);
+    this.mode = 'interval';
+    return 'interval';
+  },
+  stop() {
+    if (this._worker) { try { this._worker.postMessage({ cmd: 'stop' }); this._worker.terminate(); } catch(_) {} this._worker = null; }
+    if (this._iv) { clearInterval(this._iv); this._iv = null; }
+    this.mode = 'none';
+  }
+};
+
 /* Focus guard: prevents background tabs from burning tokens
    by auto-sending prompts while user isn't looking. */
+function unattendedOn() {
+  try { return !!(GHOST && GHOST.ui && GHOST.ui.unattended); } catch(_) { return false; }
+}
 function isTabSafeToAct() {
-  if (!document.hasFocus()) return false;
-  if (document.hidden) return false;
-  return claimTabLock();
+  if (!unattendedOn()) {
+    if (!document.hasFocus()) return false;
+    if (document.hidden) return false;
+  }
+  return claimTabLock();   // multi-tab collision guard is NEVER relaxed
 }
 
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
-  if (!document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
+  if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
   if (!claimTabLock()) {
@@ -153,12 +195,21 @@ if (typeof window !== 'undefined') {
    the DOM. Supplements DOM-based detection — does NOT replace it.
    Sources: Gemini Phase 0, Kimi Deep Dive, DeepSeek cascade
    ═══════════════════════════════════════════════════════════════ */
+/* Page-world handle: with GM grants the script runs sandboxed, so patching
+   the sandbox's window.fetch never sees the site's own requests. unsafeWindow
+   is the page's real window (Firefox MV3 port: inject in world:"MAIN"). */
+const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
+
 const GITL_NET = {
   bus: new EventTarget(),
   lastChunk: '',
   lastComplete: '',
   capturedAt: 0,
-  active: false,
+  active: false,        // interceptor installed (kept for health snapshot compat)
+  lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
+  lastPulseH: 0,        // last traffic on a heuristic same-origin stream
+  _open: 0,             // streams currently open
+  expectUntil: 0,       // set by _onSendOk: window in which heuristic pulses count
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -167,7 +218,8 @@ const GITL_NET = {
     '/api/v1/chat/completions',    // DeepSeek / OpenAI-compat
     '/chat/conversation',          // HuggingChat
     '/api/chat',                   // Generic
-    '/bard',                       // Gemini
+    '/bard',                       // Gemini (legacy)
+    'batchexecute',                // Gemini (current streaming transport)
     '/turn/',                      // Copilot
   ],
 
@@ -177,10 +229,41 @@ const GITL_NET = {
     return this.AI_ENDPOINTS.some(ep => s.includes(ep));
   },
 
+  _pulse(trusted) {
+    const t = Date.now();
+    if (trusted) this.lastPulseT = t; else this.lastPulseH = t;
+  },
+
+  /* Same-origin streams that LOOK like chat traffic even when the endpoint
+     isn't in AI_ENDPOINTS — the platform-proof fallback when sites reshuffle
+     their APIs. Analytics-ish URLs are excluded. */
+  _maybeChat(url, method) {
+    try {
+      const s = typeof url === 'string' ? url : (url && url.url) || String(url || '');
+      if (!s) return false;
+      const sameOrigin = s.startsWith('/') || s.includes(location.hostname);
+      if (!sameOrigin) return false;
+      if (/log|telemetry|beacon|analytics|sentry|metric|track|collect|report/i.test(s)) return false;
+      return String(method || 'GET').toUpperCase() === 'POST';
+    } catch(_) { return false; }
+  },
+
+  /* True while generation traffic is plausibly flowing.
+     Trusted (known-endpoint) pulses always count; heuristic pulses only count
+     inside the post-send expectation window, so a random background stream
+     can't convince the engine that a reply is being written. */
+  streaming() {
+    const now = Date.now();
+    if (now - this.lastPulseT < 1500) return true;
+    if (now < this.expectUntil && (this._open > 0 || now - this.lastPulseH < 1500)) return true;
+    return false;
+  },
+
   _emit(raw, isDone) {
     if (raw === '[DONE]') isDone = true;
     this.lastChunk = raw;
     this.capturedAt = Date.now();
+    this._pulse(true);
     if (isDone) this.lastComplete = raw;
     this.bus.dispatchEvent(new CustomEvent('gitl:net', {
       detail: { raw, isDone, ts: Date.now() }
@@ -191,12 +274,35 @@ const GITL_NET = {
     if (this.active) return;
     this.active = true;
 
-    /* Fetch proxy — captures SSE / JSON streams */
-    const origFetch = window.fetch;
+    /* Fetch proxy on the PAGE window — captures SSE / JSON streams */
     const self = this;
-    window.fetch = async function(...args) {
+    const origFetch = UW.fetch;
+    if (typeof origFetch === 'function') UW.fetch = async function(...args) {
       const response = await origFetch.apply(this, args);
-      if (self._isChat(args[0])) {
+      const listed = self._isChat(args[0]);
+      let heur = false;
+      if (!listed) {
+        try {
+          const ct = response.headers && response.headers.get && (response.headers.get('content-type') || '');
+          heur = ct.includes('event-stream') || self._maybeChat(args[0], args[1] && args[1].method);
+        } catch(_) {}
+      }
+      if (heur) {
+        /* Heuristic path: timestamps only — content is never read or stored. */
+        try {
+          const cloned = response.clone();
+          if (cloned.body) {
+            const reader = cloned.body.getReader();
+            self._open++; self._pulse(false);
+            (async () => {
+              try { while (true) { const { done } = await reader.read(); self._pulse(false); if (done) break; } }
+              catch(_) {}
+              finally { self._open = Math.max(0, self._open - 1); }
+            })();
+          }
+        } catch(_) {}
+      }
+      if (listed) {
         try {
           const cloned = response.clone();
           if (cloned.body) {
@@ -228,23 +334,44 @@ const GITL_NET = {
       return response;
     };
 
-    /* XHR proxy — fallback for platforms not using fetch */
-    const origOpen = XMLHttpRequest.prototype.open;
-    XMLHttpRequest.prototype.open = function(method, url, ...rest) {
-      this._gitlUrl = url;
-      return origOpen.call(this, method, url, ...rest);
-    };
-    const origSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function(...args) {
-      if (self._isChat(this._gitlUrl)) {
-        this.addEventListener('load', function() {
-          if (this.status >= 200 && this.status < 300 && this.responseText) {
-            self._emit(this.responseText, true);
+    /* XHR proxy on the PAGE window — Gemini streams via batchexecute XHRs */
+    const XP = (UW.XMLHttpRequest && UW.XMLHttpRequest.prototype) || null;
+    if (XP && XP.open && XP.send) {
+      const origOpen = XP.open;
+      XP.open = function(method, url, ...rest) {
+        this._gitlUrl = url; this._gitlMethod = method;
+        return origOpen.call(this, method, url, ...rest);
+      };
+      const origSend = XP.send;
+      XP.send = function(...args) {
+        const listed = self._isChat(this._gitlUrl);
+        const heur = !listed && self._maybeChat(this._gitlUrl, this._gitlMethod);
+        if (listed || heur) {
+          try {
+            this.addEventListener('loadstart', () => { self._open++; self._pulse(listed); });
+            this.addEventListener('progress',  () => self._pulse(listed));
+            this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
+            if (listed) this.addEventListener('load', function() {
+              if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
+            });
+          } catch(_) {}
+        }
+        return origSend.apply(this, args);
+      };
+    }
+
+    /* WebSocket pulse — Perplexity's socket.io traffic (timestamps only) */
+    try {
+      if (typeof UW.WebSocket === 'function') {
+        UW.WebSocket = new Proxy(UW.WebSocket, {
+          construct(T, a) {
+            const ws = new T(...a);
+            try { ws.addEventListener('message', () => self._pulse(self._isChat(a[0]))); } catch(_) {}
+            return ws;
           }
         });
       }
-      return origSend.apply(this, args);
-    };
+    } catch(_) {}
 
     console.log('[GITL] Network interceptor active');
   }
@@ -261,19 +388,20 @@ const PROFILES = {
   chatgpt: {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
-    input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','textarea[data-id="root"]','textarea'],
-    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[class*="send"]'],
-    stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]'],
-    assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]'],
+    input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
+    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
+    stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
+    assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
     useCE: false, useNS: true
   },
   perplexity: {
     host: /perplexity\.ai/,
     label: 'Perplexity',
-    input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','textarea:not([disabled])'],
+    input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
-    stop: ['button[aria-label="Stop"]','[data-testid="stop-button"]'],
+    stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
+    staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
     assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
     continueLabels: [],
     useCE: true, useNS: false
@@ -281,10 +409,10 @@ const PROFILES = {
   gemini: {
     host: /gemini\.google\.com/,
     label: 'Gemini',
-    input: ['div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[contenteditable="true"]','textarea'],
-    send: ['button[aria-label="Send message"]','button[aria-label*="Send"]','button.send-button'],
-    stop: ['button[aria-label*="Stop"]'],
-    assistant: ['model-response message-content','message-content','div[class*="model-response"]'],
+    input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[role="textbox"][contenteditable="true"]','div[contenteditable="true"]','textarea'],
+    send: ['button[aria-label="Send message"]','button[aria-label*="Send"]','button.send-button','button[data-test-id="send-button"]'],
+    stop: ['button[aria-label*="Stop"]','button[aria-label*="stop"]'],
+    assistant: ['model-response message-content','model-response .message-content','model-response','div[class*="model-response"]','message-content'],
     continueLabels: [],
     useCE: true, useNS: false
   },
@@ -311,10 +439,10 @@ const PROFILES = {
   grok: {
     host: /grok\.com/,
     label: 'Grok',
-    input: ['textarea[placeholder*="Ask"]','textarea','div[contenteditable="true"]'],
-    send: ['button[aria-label="Send"]','button[type="submit"]'],
-    stop: ['button[aria-label="Stop"]'],
-    assistant: ['div[class*="message"][class*="bot"]','div[data-role="assistant"]'],
+    input: ['textarea[aria-label="Ask Grok anything"]','textarea[placeholder*="Grok"]','textarea[placeholder*="Ask"]','textarea[data-testid="grok-compose-input"]','div[contenteditable="true"][data-lexical-editor="true"]','div[contenteditable="true"]','textarea'],
+    send: ['button[aria-label="Submit"]','button[aria-label="Send message"]','button[aria-label*="Send"]','button[data-testid="send-button"]','button[data-testid*="submit"]','button[type="submit"]','button.send-button'],
+    stop: ['button[aria-label="Stop"]','button[aria-label*="stop"]'],
+    assistant: ['div[class*="message"][class*="bot"]','div[data-role="assistant"]','div[class*="response"]'],
     continueLabels: [],
     useCE: false, useNS: false
   },
@@ -452,13 +580,209 @@ function _qAll(sels) {
   return results;
 }
 
+/* ── Heuristic finders (final fallback tier) ─────────────────────
+   When a site redesign breaks every configured selector, these locate the
+   composer and send button by ROLE and MEANING instead of class names —
+   the Playwright-style aria/text-first strategy. Engaged only when the
+   selector arrays come up empty, so normal operation is unchanged. */
+const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|senden|invia|отправ|إرسال|gönder/i;
+/* v8.1: veto list expanded after the DeepSeek incident — the heuristic tier
+   clicked the reply's "Copy" button (svg icon + proximity alone scored past
+   the old threshold) and the user's prompt got copied instead of sent.
+   Message-action verbs are now hard-vetoed on EVERY send tier. */
+const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close|copy|download|share|edit|delete|regenerat|retry|rewrite|like|dislike|thumb|feedback|read.?aloud|speaker|volume|translat|pin\b|bookmark|history|sidebar|scroll|expand|collapse|fullscreen|deep.?think|research/i;
+
+/* A candidate send control must clear the veto no matter which tier found
+   it — configured selectors can rot into matching the wrong control after
+   a site redesign (e.g. div[class*="send"] matching a share widget). */
+function _sendLooksSafe(el) {
+  if (!el) return false;
+  try {
+    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
+                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    return !SEND_VETO.test(label);
+  } catch(_) { return true; }
+}
+
+function _visible(el) {
+  try {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
+  } catch(_) { return false; }
+}
+
+const _heurCache = { input:{el:null,ts:0}, send:{el:null,ts:0} };
+let _heurNoteTs = 0;
+function _heurNote(what) {
+  if (Date.now() - _heurNoteTs < 60000) return;
+  _heurNoteTs = Date.now();
+  DIAG.push('Heuristic ' + what + ' engaged — configured selectors failed');
+}
+
+function _heurInput() {
+  const c = _heurCache.input;
+  if (c.el && c.el.isConnected && Date.now() - c.ts < 4000) return c.el;
+  let best = null, bestScore = 3;
+  for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
+    if (!_visible(el)) continue;
+    let s = 0;
+    const r = el.getBoundingClientRect();
+    if (el.getAttribute('role') === 'textbox' || el.getAttribute('aria-label')) s += 3;
+    if (r.top > innerHeight * 0.4) s += 2;
+    s += Math.min(2, (r.width * r.height) / 50000);
+    if (/ProseMirror|ql-editor/.test(String(el.className || ''))) s += 2;
+    if (s > bestScore) { bestScore = s; best = el; }
+  }
+  if (best) { _heurNote('input finder'); _heurCache.input.el = best; _heurCache.input.ts = Date.now(); }
+  return best;
+}
+
+function _heurSend(anchor) {
+  const c = _heurCache.send;
+  if (c.el && c.el.isConnected && !c.el.disabled && Date.now() - c.ts < 4000) return c.el;
+  let best = null, bestScore = 3.5;
+  const ar = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
+  const aForm = anchor && anchor.closest ? anchor.closest('form') : null;
+  for (const el of _qAll(['button','[role="button"]'])) {
+    if (!_visible(el) || el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
+    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
+                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    if (SEND_VETO.test(label)) continue; // hard veto — a wrong click (mic, attach) is worse than no click
+    /* v8.1 semantic gate: proximity + an svg icon must NEVER be enough on
+       their own (that combination is every message-action button on the
+       page). A candidate needs at least one POSITIVE send signal. */
+    const sem = SEND_WORDS.test(label)
+             || (el.getAttribute('type') || '') === 'submit'
+             || (aForm && el.closest && el.closest('form') === aForm);
+    if (!sem) continue;
+    let s = 0;
+    if (SEND_WORDS.test(label)) s += 4;
+    if ((el.getAttribute('type') || '') === 'submit') s += 2;
+    if (el.querySelector && el.querySelector('svg') && (el.textContent || '').trim().length < 2) s += 1;
+    if (aForm && el.closest && el.closest('form') === aForm) s += 3;
+    if (ar) {
+      const r = el.getBoundingClientRect();
+      const d = Math.hypot((r.left + r.width/2) - (ar.left + ar.width/2),
+                           (r.top + r.height/2) - (ar.top + ar.height/2));
+      if (d < 320) s += 3;
+    }
+    if (s > bestScore) { bestScore = s; best = el; }
+  }
+  if (best) { _heurNote('send-button finder'); _heurCache.send.el = best; _heurCache.send.ts = Date.now(); }
+  return best;
+}
+
+/* ── SELECTOR MEMORY (v8.1) — self-healing learned locators ──────
+   Healenium-style: when the configured selectors fail but the heuristic
+   tier finds the element, derive a STABLE selector from the found node
+   (id > data-testid > aria-label > name > placeholder > role) and persist
+   it per-host. Next time — including after a reload — the learned selector
+   is tried right after the configured ones, so a site redesign pays the
+   heuristic cost once and the fix survives sessions. Capped + self-pruning. */
+const SelectorMemory = {
+  key: 'gitlLearnedSelectors',
+  MAX_HOSTS: 12,
+  _data: null,
+
+  _load() {
+    if (this._data) return this._data;
+    try { this._data = JSON.parse(GM_getValue(this.key, '{}')) || {}; } catch(_) { this._data = {}; }
+    return this._data;
+  },
+  _persist() { try { GM_setValue(this.key, JSON.stringify(this._data)); } catch(_){} },
+
+  /* Derive a stable selector that uniquely matches el right now, or null. */
+  derive(el) {
+    if (!el || !el.getAttribute) return null;
+    const esc = (s) => (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : String(s).replace(/([^\w-])/g, '\\$1');
+    const tag = (el.tagName || '').toLowerCase();
+    const cands = [];
+    const id = el.getAttribute('id');
+    if (id) cands.push(`#${esc(id)}`);
+    for (const a of ['data-testid','data-test-id','aria-label','name','placeholder','data-placeholder']) {
+      const v = el.getAttribute(a);
+      if (v && v.length <= 80) cands.push(`${tag}[${a}="${v.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"]`);
+    }
+    const role = el.getAttribute('role');
+    if (role && el.getAttribute('contenteditable') === 'true') cands.push(`${tag}[contenteditable="true"][role="${role}"]`);
+    for (const sel of cands) {
+      try { const m = document.querySelectorAll(sel); if (m.length === 1 && m[0] === el) return sel; } catch(_){}
+    }
+    return null;
+  },
+
+  learn(kind, el) {
+    const sel = this.derive(el);
+    if (!sel) return null;
+    const d = this._load(), h = location.hostname;
+    d[h] = d[h] || {};
+    const prev = d[h][kind];
+    d[h][kind] = { sel, at: Date.now() };
+    // Prune least-recently-touched hosts beyond the cap.
+    const hosts = Object.keys(d);
+    if (hosts.length > this.MAX_HOSTS) {
+      hosts.sort((a, b) =>
+        Math.max(0, ...Object.values(d[a]).map(x => x.at || 0)) -
+        Math.max(0, ...Object.values(d[b]).map(x => x.at || 0)));
+      while (hosts.length > this.MAX_HOSTS) delete d[hosts.shift()];
+    }
+    this._persist();
+    if (!prev || prev.sel !== sel) {
+      try { DIAG.push(`Learned ${kind} selector: ${sel}`); } catch(_){}
+      try { Timeline.record('selector_learned', { kind, sel }); } catch(_){}
+    }
+    return sel;
+  },
+
+  lookup(kind) {
+    const rec = this._load()[location.hostname]?.[kind];
+    if (!rec || !rec.sel) return null;
+    try {
+      for (const el of document.querySelectorAll(rec.sel)) {
+        if (el && !_isOwnUI(el) && _visible(el)) {
+          if (kind === 'send' && !_sendLooksSafe(el)) { this.forget(kind); return null; }
+          return el;
+        }
+      }
+    } catch(_) { this.forget(kind); }
+    return null;
+  },
+
+  forget(kind) {
+    const d = this._load(), h = location.hostname;
+    if (d[h] && d[h][kind]) {
+      delete d[h][kind];
+      if (!Object.keys(d[h]).length) delete d[h];
+      this._persist();
+    }
+  }
+};
+
 // Adapter — all DOM reads/writes
 const Adapter = {
-  getInput()      { return _q('in', PLAT.input); },
-  getSendBtn()    { return _q('send', PLAT.send); },
-  isGenerating()  { return !!_q('gen', PLAT.stop); },
+  getInput() {
+    let el = _q('in', PLAT.input) || SelectorMemory.lookup('input');
+    if (!el) { el = _heurInput(); if (el) SelectorMemory.learn('input', el); }
+    return el;
+  },
+  getSendBtn() {
+    // Every tier passes through the veto — a stale configured selector must
+    // never hand back a Copy/Share/Download control (DeepSeek incident).
+    const b = _q('send', PLAT.send);
+    if (b && !b.disabled && _sendLooksSafe(b)) return b;
+    const learned = SelectorMemory.lookup('send');
+    if (learned && !learned.disabled) return learned;
+    const h = _heurSend(this.getInput() || null);
+    if (h) { SelectorMemory.learn('send', h); return h; }
+    return (b && _sendLooksSafe(b)) ? b : null;
+  },
+  isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
   getLastText() {
+    // Gemini only: virtual scroll — nudge infinite-scroller to bottom
+    if (PLAT && PLAT.key === 'gemini') {
+      try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
+    }
     const els = _qAll(PLAT.assistant);
     return els.length ? (els[els.length-1].innerText || '').trim() : '';
   },
@@ -477,10 +801,26 @@ const Adapter = {
       // FIX: selectAll+insertText preserves ProseMirror state (innerHTML='' destroys it)
       document.execCommand('selectAll', false, null);
       const ok = document.execCommand('insertText', false, text);
-      if (!ok) { el.textContent = text; }
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-      DIAG.sendPath = 'contenteditable';
+      if (!ok) {
+        // execCommand unavailable — fall back with proper InputEvent
+        el.textContent = text;
+        el.dispatchEvent(new InputEvent('input', { inputType:'insertText', data:text, bubbles:true, cancelable:true, composed:true }));
+      } else {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      // Paste tier: some editors (Lexical builds) ignore both paths above.
+      if ((el.textContent || '').indexOf(text.slice(0, 24)) === -1) {
+        try {
+          if (typeof DataTransfer !== 'undefined' && typeof ClipboardEvent !== 'undefined') {
+            const dt = new DataTransfer();
+            dt.setData('text/plain', text);
+            el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true, composed: true }));
+            DIAG.sendPath = 'ce-paste';
+          }
+        } catch(_) {}
+      }
+      el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
+      if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = 'contenteditable';
       return true;
     }
     // Path 2: native React setter
@@ -496,8 +836,11 @@ const Adapter = {
     return true;
   },
   pressEnter(el) {
+    // Stage A: insertParagraph beforeinput — ProseMirror/Lexical native submit signal
+    try { el.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
+    // Stage B: keyboard Enter with composed:true — crosses Shadow DOM boundaries
     ['keydown','keypress','keyup'].forEach(t => {
-      el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true }));
+      el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
     });
   }
 };
@@ -520,10 +863,40 @@ const PERSONA_LIBRARY = {
 // Perplexity (and any model-switcher) variant — a REAL round table across models, not a simulated one.
 const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
 
+/* The full context block for a run: who the model is (persona/committee),
+   how it should think (posture), and how it should work (strategy).
+   `includeStrategy` is false on roadmap resumes — re-sending the roadmap
+   payload mid-run would ask for a brand-new roadmap. */
+function runDirectives(includeStrategy = true) {
+  const L = GHOST.loop;
+  const persona = resolvePersonaInject();
+  const posture = POSTURES[L.posture] || POSTURES.standard;
+  let out = '';
+  if (persona) out += `\n\n[Active persona]\n${persona}`;
+  if (includeStrategy && PAYLOADS[L.payloadMode]) out += PAYLOADS[L.payloadMode].inject;
+  out += posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
+  return out;
+}
+function hasPendingDirectives() {
+  return !GHOST.persona._delivered && !!resolvePersonaInject();
+}
+
 function resolvePersonaInject() {
-  const sel = GHOST.persona.selected;
-  if (sel === 'roundtable' && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
-  return allPersonas()[sel]?.inject || '';
+  let sel = GHOST.persona.selected;
+  if (typeof sel === 'string') sel = [sel];
+  if (!Array.isArray(sel)) sel = ['none'];
+  const active = sel.filter(s => s && s !== 'none');
+  if (!active.length) return '';
+  // Special: live Perplexity round table is a protocol, not composable
+  if (active.includes('roundtable') && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
+  // Single persona — classic behavior
+  if (active.length === 1) return allPersonas()[active[0]]?.inject || '';
+  // Committee: concatenate perspectives with framing
+  const personas = active.map(s => allPersonas()[s]).filter(Boolean);
+  if (!personas.length) return '';
+  const names = personas.map(p => p.label).join(', ');
+  const injects = personas.map(p => `• ${p.label}: ${p.inject}`).join('\n');
+  return `You are operating as a committee of ${active.length} expert perspectives: ${names}.\nFor each task or decision point, give each perspective's independent assessment, then synthesize a stronger consensus with disagreements preserved.\n\nThe perspectives:\n${injects}`;
 }
 
 const WORKFLOW_LIBRARY = {
@@ -635,14 +1008,44 @@ const Workshop = {
 
   // ── Export: combined bundle of custom items only ──
   exportBundle() {
-    return JSON.stringify({
+    const out = {
       schema: WORKSHOP_SCHEMA,
       tool: 'Ghost in the Loop',
       version: VER,
       exported: new Date().toISOString(),
       personas:  Object.entries(this.personas).map(([id,p])  => ({ id, label: p.label, inject: p.inject })),
       workflows: Object.entries(this.workflows).map(([id,w]) => ({ id, label: w.label, desc: w.desc, stages: w.stages }))
-    }, null, 2);
+    };
+    // v8.1: the active custom skin rides along (validated tokens only), so a
+    // single .gitl.json can share a complete look-and-brains pack.
+    try {
+      if (typeof SKIN !== 'undefined' && typeof GHOST !== 'undefined'
+          && GHOST.ui.skinTheme === 'custom' && GHOST.ui.customSkin) {
+        const r = SKIN.validate(GHOST.ui.customSkin);
+        if (r.ok) out.skin = r.skin;
+      }
+    } catch(_) {}
+    return JSON.stringify(out, null, 2);
+  },
+
+  // ── Share (v8.1): paste-ready markdown post for GitHub Discussions ──
+  shareText() {
+    const nP = Object.keys(this.personas).length;
+    const nW = Object.keys(this.workflows).length;
+    const items = [
+      ...Object.values(this.personas).map(p => `- 👤 ${p.label}`),
+      ...Object.values(this.workflows).map(w => `- ⛓ ${w.label} (${(w.stages||[]).length} stages)`)
+    ];
+    let skinLine = '';
+    try {
+      if (typeof GHOST !== 'undefined' && GHOST.ui.skinTheme === 'custom' && GHOST.ui.customSkin) {
+        const nm = JSON.parse(GHOST.ui.customSkin).name || 'custom';
+        items.push(`- 🎨 Skin: ${nm}`);
+        skinLine = ', 1 skin';
+      }
+    } catch(_) {}
+    const title = (typeof GHOST !== 'undefined' && GHOST.project.name) ? GHOST.project.name : 'My GITL pack';
+    return `## Workshop pack: ${title}\n\n**Contains:** ${nP} persona(s), ${nW} workflow(s)${skinLine}\n\n${items.join('\n')}\n\nTo use: save the JSON below as \`pack.gitl.json\`, then **⬆ Import** in Ghost's Workshop.\n\n\`\`\`json\n${this.exportBundle()}\n\`\`\`\n`;
   },
 
   // ── Import: additive, protects built-ins, auto-renames custom clashes ──
@@ -655,7 +1058,8 @@ const Workshop = {
     if (data.schema && !String(data.schema).startsWith('gitl-workshop/')) return { ok:false, error:'Not a Ghost Workshop file' };
     const inP = Array.isArray(data.personas)  ? data.personas  : [];
     const inW = Array.isArray(data.workflows) ? data.workflows : [];
-    if (inP.length + inW.length === 0) return { ok:false, error:'No personas or workflows in file' };
+    const hasSkin = data.skin && typeof data.skin === 'object';
+    if (inP.length + inW.length === 0 && !hasSkin) return { ok:false, error:'No personas, workflows, or skin in file' };
     if (inP.length + inW.length > WORKSHOP_LIMITS.maxItems) return { ok:false, error:`Too many items (max ${WORKSHOP_LIMITS.maxItems})` };
     const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0 };
     const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(this.personas)]);
@@ -679,6 +1083,24 @@ const Workshop = {
         stages: w.stages.map(s => String(s).trim().slice(0,WORKSHOP_LIMITS.stage)).slice(0,WORKSHOP_LIMITS.stages), custom: true };
       res.workflows++;
     }
+    // v8.1: optional bundled skin — validated by the skin whitelist, applied
+    // as the custom skin. Invalid skins are skipped, never fatal.
+    res.skin = 0;
+    if (hasSkin) {
+      try {
+        if (typeof SKIN !== 'undefined') {
+          const r = SKIN.validate(JSON.stringify(data.skin));
+          if (r.ok && typeof GHOST !== 'undefined') {
+            GHOST.ui.customSkin = JSON.stringify(r.skin);
+            GHOST.ui.skinTheme = 'custom';
+            _save('customSkin', GHOST.ui.customSkin);
+            _save('skinTheme', 'custom');
+            SKIN.apply();
+            res.skin = 1;
+          } else { res.skipped++; }
+        }
+      } catch(_) { res.skipped++; }
+    }
     this._persist();
     return res;
   }
@@ -698,7 +1120,14 @@ const GHOST = {
     pauseBetween: GM_getValue('wfPause',false),
     active: false
   },
-  persona: { selected: GM_getValue('persona','none') },
+  persona: {
+    selected: (()=>{ const raw=GM_getValue('persona','none'); try { const p=JSON.parse(raw); return Array.isArray(p)?p:[raw]; } catch(_){ return [typeof raw==='string'?raw:'none']; } })(),
+    committee: GM_getValue('personaCommittee',false),
+    _delivered: false,  // runtime: have this run's directives reached the model yet?
+    perTask: GM_getValue('personaPerTask',false),
+    finalReview: GM_getValue('personaFinalReview',false),
+    _reviewDone: false
+  },
   roadmap: {
     steps: JSON.parse(GM_getValue('rmSteps','[]')),
     index: GM_getValue('rmIndex',0),
@@ -715,6 +1144,7 @@ const GHOST = {
     needsPayload: true,
     isSending: false,
     timer: null,
+    driftEnabled: GM_getValue('driftEnabled',true),
     lastActivity: Date.now(),
     staleTicks: 0,
     lastSignal: 'none',
@@ -748,12 +1178,18 @@ const GHOST = {
     soundOn: GM_getValue('soundOn',true),
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
+    unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
+    explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     helpSec: 'start',
     prevTab: null,
     wsNewPersona: false,
     wsNewWorkflow: false,
     qDraft: (()=>{ try { const a = JSON.parse(GM_getValue('qDraft','[""]')); return Array.isArray(a)&&a.length?a:['']; } catch(_){ return ['']; } })(),
     expAdv: GM_getValue('expAdv',false),
+    skinTheme: (v => v==='new' ? 'aurora' : v)(GM_getValue('skinTheme','classic')),
+    customSkin: GM_getValue('customSkin',''),
+    accentHue: (v => (v===''||v==null) ? NaN : parseInt(v,10))(GM_getValue('accentHue','')),
+    runAdv: false,
     showDiag: false,
     showSites: false,
     firstRun: GM_getValue('firstRun',true)
@@ -790,6 +1226,16 @@ const DIAG = {
       }
       out.push(n ? `✓ ${k}: ${win} (${n})` : `✗ ${k}: NO MATCH`);
     }
+    // Fallback tiers (v8.1): learned per-host selectors, then role/meaning heuristics.
+    try {
+      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
+      out.push(lm ? `✓ learned: ${Object.entries(lm).map(([k,v]) => k + '=' + v.sel).join(' · ')}` : '— learned: none for this host');
+    } catch(_) {}
+    try {
+      const hi = _heurInput(), hs = _heurSend(hi || null);
+      out.push(hi ? `✓ heur input: <${(hi.tagName||'?').toLowerCase()}>` : '✗ heur input: none');
+      out.push(hs ? `✓ heur send: <${(hs.tagName||'?').toLowerCase()}> "${String(hs.getAttribute && (hs.getAttribute('aria-label')||hs.textContent)||'').trim().slice(0,30)}"` : '✗ heur send: none');
+    } catch(_) {}
     this.probe = out.join('\n');
   }
 };
@@ -815,6 +1261,7 @@ function platformHealth() {
     assistantCount: msgs.length, ready: canInject && canSend,
     badge: score >= 80 ? '🟢' : score >= 40 ? '🟡' : '🔴',
     netActive: GITL_NET.active,
+    netStreaming: GITL_NET.streaming(),
     netAge: GITL_NET.capturedAt ? Date.now() - GITL_NET.capturedAt : -1
   };
 }
@@ -859,7 +1306,7 @@ const Timeline = {
    ═══════════════════════════════════════════════════════════════ */
 const Reporter = {
   last: null,         // most recent assembled report {kind, detail, text, at}
-  _seen: new Set(),   // dedupe identical auto-captures within a session
+  _seen: new Map(),   // dedupe: signature -> last capture ts (10-min window)
 
   build(kind, detail) {
     const L = (typeof GHOST !== 'undefined') ? GHOST.loop : {};
@@ -884,7 +1331,12 @@ const Reporter = {
     lines.push(`| Send path | ${DIAG?.sendPath || 'n/a'} |`);
     lines.push(`| Health | ${h.badge || ''} ${h.score ?? '?'}/100 (in:${h.input} send:${h.send} stop:${h.stop} msgs:${h.assistantCount}) |`);
     lines.push(`| Net intercept | ${h.netActive ? 'active' : 'off'} |`);
+    try {
+      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
+      lines.push(`| Learned selectors | ${lm ? Object.entries(lm).map(([k,v]) => k + ': ' + v.sel).join(' · ') : 'none'} |`);
+    } catch(_) {}
     lines.push(`| Focus | hasFocus:${typeof document!=='undefined'?document.hasFocus():'?'} hidden:${typeof document!=='undefined'?document.hidden:'?'} |`);
+    lines.push(`| Unattended | ${unattendedOn()?'ON':'off'} · ticker:${Ticker.mode} |`);
     lines.push(`| UA | ${typeof navigator!=='undefined'?navigator.userAgent:'?'} |`);
     lines.push(`| When | ${new Date().toISOString()} |`);
     lines.push(``);
@@ -897,6 +1349,12 @@ const Reporter = {
 
   // Auto-capture: assemble + store + surface a non-intrusive affordance.
   capture(kind, detail) {
+    // Dedupe: the same failure re-captured within 10 min just refreshes
+    // the timestamp instead of rebuilding + re-sending a duplicate.
+    const sig = kind + '|' + String(detail || '').slice(0, 120);
+    const seenAt = this._seen.get(sig) || 0;
+    this._seen.set(sig, Date.now());
+    if (this.last && Date.now() - seenAt < 600000) return this.last;
     const text = this.build(kind, detail);
     this.last = { kind, detail, text, at: Date.now() };
     if (typeof GHOST !== 'undefined') GHOST.report = this.last;
@@ -1190,21 +1648,21 @@ const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ██
    clauses differ ONLY in how/when expansion is permitted. */
 const POSTURES = {
   standard: {
-    label: 'Standard',
-    short: 'Locked plan',
+    label: 'Locked',
+    short: 'Exact plan',
     desc: 'Locked to the plan it declares. No added steps. Most predictable.',
     clause: `\n\n[Posture: STANDARD — locked plan]\nComplete exactly the steps you declared. Do not add, remove, merge, or reorder steps. If you discover the plan is wrong, finish what you can and report it at the end rather than expanding. Keep your declared Y fixed for the whole run.`
   },
   evolving: {
-    label: 'Evolving',
-    short: 'Adaptive mid-run',
-    desc: 'May add steps DURING the run — but only when a real blocker or gap forces it. (Field term: "adaptive".)',
+    label: 'Adaptive',
+    short: 'Grows mid-run',
+    desc: 'The plan may GROW while working — the AI adds steps when a real blocker or gap forces it, justifying each one. (Formerly "Evolving".)',
     clause: `\n\n[Posture: EVOLVING — adaptive mid-run replanning]\nExecute your declared steps one at a time. You MAY add a step during the run ONLY IF a concrete blocker, a missing prerequisite, or a material gap is visible from the work already done and continuing without it would likely fail the original goal.\nBefore adding a step, print on their own lines:\n  Why needed: <one sentence>\n  Why existing steps are insufficient: <one sentence>\nIf that justification is weak, do NOT add the step. Prefer tightening or replacing a future step over adding to the total. Any added step must stay strictly within the ORIGINAL goal — do not expand scope into adjacent topics. Update Y when you legitimately add a step, and keep printing ████░░░░ [Step X of Y].`
   },
   extended: {
-    label: 'Extended',
-    short: 'End-of-run gap check',
-    desc: 'Runs the plan locked, THEN does one gap-check at the end and fills only genuinely valuable holes. (Field term: "review".)',
+    label: 'Audit',
+    short: 'Plan + final gap check',
+    desc: 'Runs the plan locked, THEN performs one end-of-run audit and fills only material gaps. (Formerly "Extended".)',
     clause: `\n\n[Posture: EXTENDED — bounded end-of-run review]\nExecute your declared steps exactly, with no mid-run additions. AFTER the last declared step, perform ONE coverage check against the original goal, its constraints, and the promised deliverable. List only material gaps, errors, or unanswered sub-questions — for each: the gap, why it matters, and the smallest step that closes it. Then complete only those high-value follow-ups. If no material gaps remain, print "No material gaps found" and HALT. Do not invent "nice to have" extras.`
   }
 };
@@ -1240,7 +1698,8 @@ function parseRoadmap(fullText) {
 function sendRoadmapStep() {
   const R = GHOST.roadmap, i = R.index, n = R.steps.length;
   GHOST.loop.detail = `🗺 Step ${i+1}/${n}`;
-  engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.`, false)
+  const personaClause = GHOST.persona.perTask && resolvePersonaInject() ? `\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : '';
+  engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.${personaClause}`, false)
     .then(ok => { if (ok) { R.index = i + 1; _save('rmIndex', R.index); render(); } });
 }
 
@@ -1309,14 +1768,52 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('Text injection failed — recovery exhausted'); return false;
     }
     await sleep(500);
-    // 5-path send: button → retry → retry → retry → Enter key
+    // Three-stage send with verification (from MCP-SuperAssistant research):
+    // Stage 1: button.click() → verify input cleared
+    // Stage 2: Enter key with composed:true (crosses Shadow DOM)
+    // Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
     let sent = false;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
+    // Tier memory: if the button tier failed here last time, don't burn 3 tries on it again.
+    const _lastTier = GM_getValue('sendTier:' + location.hostname, '');
+    const _btnWorked = /^btn-\d+$/.test(_lastTier); // pure button path = the button actually worked last time
+    const _btnTries = (!_lastTier || _btnWorked) ? 3 : 1;
+    for (let attempt = 0; attempt < _btnTries; attempt++) {
       const btn = Adapter.getSendBtn();
-      if (btn && !btn.disabled) { btn.click(); DIAG.sendPath = `btn-${attempt+1}`; sent = true; break; }
-      await sleep(600);
+      if (btn && !btn.disabled) {
+        btn.click(); DIAG.sendPath = `btn-${attempt+1}`;
+        await sleep(400);
+        if (inputIsEmpty()) { sent = true; break; }
+      }
+      await sleep(500);
     }
-    if (!sent) { Adapter.pressEnter(input); DIAG.sendPath = 'enter-key'; }
+    if (!sent) {
+      input.focus();
+      ['keydown','keypress','keyup'].forEach(t => {
+        input.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
+      });
+      DIAG.sendPath = (DIAG.sendPath||'none') + '+enter';
+      await sleep(300);
+      if (inputIsEmpty()) sent = true;
+    }
+    if (!sent) {
+      try { input.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
+      DIAG.sendPath = (DIAG.sendPath||'none') + '+paragraph';
+      await sleep(300);
+      if (inputIsEmpty()) sent = true;
+    }
+    // Tier 5: native form submission — buttonless, survives any button redesign.
+    if (!sent) {
+      try {
+        const f = input.closest && input.closest('form');
+        if (f && f.requestSubmit) {
+          f.requestSubmit();
+          DIAG.sendPath = (DIAG.sendPath||'none') + '+form';
+          await sleep(300);
+          if (inputIsEmpty()) sent = true;
+        }
+      } catch(_){}
+    }
     _onSendOk(text, DIAG.sendPath);
     return true;
   } catch(e) {
@@ -1334,6 +1831,8 @@ async function engineSend(text, skipDelay) {
    the confirmation branch in engineTick. */
 function _onSendOk(text, path) {
   const L = GHOST.loop;
+  GITL_NET.expectUntil = Date.now() + 120000; // heuristic net pulses count for 2 min
+  try { GM_setValue('sendTier:' + location.hostname, String(path || '')); } catch(_) {}
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
@@ -1386,7 +1885,7 @@ async function _refireSend() {
 function engineHalt(reason) {
   const L = GHOST.loop;
   L.state = 'COMPLETE'; L.detail = reason; L.needsPayload = true;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('halt', { reason, round: L.round });
   render();
   if (GHOST.ui.soundOn) playBeep();
@@ -1396,7 +1895,7 @@ function engineHalt(reason) {
 function enginePause(reason) {
   const L = GHOST.loop;
   L.state = 'PAUSED'; L.detail = reason;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
   render();
   notify('⏸ ' + reason);
@@ -1410,7 +1909,7 @@ function engineLimit() {
   L.state = 'LIMIT';
   L.detail = `Hit ${L.maxRounds} auto-continues — chat's still going. ▶ to run ${L.limitStep} more.`;
   L.sendPending = false;
-  clearInterval(L.timer); L.timer = null;
+  Ticker.stop(); L.timer = null;
   Timeline.record('limit', { round: L.round, cap: L.maxRounds });
   render();
   if (GHOST.ui.soundOn) playBeep();
@@ -1424,7 +1923,7 @@ function extendLimit() {
   L.maxRounds += (L.limitStep || 20);
   L.state = 'RUNNING'; L.detail = ''; L.lastActivity = Date.now();
   Timeline.record('limit_extended', { newCap: L.maxRounds, round: L.round });
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   render();
   engineTick();
 }
@@ -1445,7 +1944,7 @@ Then continue the task. End with ████ [Step X of Y] and [[GITL::PROCEED]
   L.maxRounds += (L.limitStep || 20);
   L.state = 'RUNNING'; L.detail = '⊕ Regrounding to original task…'; L.lastActivity = Date.now();
   Timeline.record('reground', { round: L.round, hadTask: !!task });
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   render();
   engineSend(cmd, true);
 }
@@ -1464,7 +1963,7 @@ function engineTick() {
       L.lastActivity = Date.now();
       // fall through: if generating, the branch below will hold the loop
     } else if (Date.now() >= L.sendDeadline) {
-      if (L.sendRetries < SEND_MAX_RETRIES && document.hasFocus() && !document.hidden) {
+      if (L.sendRetries < SEND_MAX_RETRIES && (unattendedOn() || (document.hasFocus() && !document.hidden))) {
         _refireSend();           // re-fire; confirm on a later tick
         return;
       }
@@ -1486,7 +1985,8 @@ function engineTick() {
   // Round limit — soft checkpoint, not a hard stop. The cap exists to
   // catch runaway loops, so we PAUSE and ASK rather than strand the user
   // mid-task (e.g. a chat that legitimately runs to 24 with cap=20).
-  if (L.round >= L.maxRounds) { engineLimit(); return; }
+  // Skipped entirely if drift guard is toggled off.
+  if (GHOST.loop.driftEnabled && L.round >= L.maxRounds) { engineLimit(); return; }
 
   // Still generating
   if (Adapter.isGenerating()) { L.lastActivity = Date.now(); return; }
@@ -1508,6 +2008,7 @@ function engineTick() {
 
   if (result.signal === 'halt') {
     L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
     // Workflow auto-advance
     if (GHOST.workflow.active && GHOST.workflow.autoAdvance) {
       const wf = allWorkflows()[GHOST.workflow.selected] || WORKFLOW_LIBRARY.none;
@@ -1524,31 +2025,100 @@ function engineTick() {
       GHOST.workflow.active = false;
       GHOST.workflow.stageIndex = 0; _save('wfStage', 0);
     }
-    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) { engineHalt('✅ Roadmap complete'); resetRoadmap(); return; }
+    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) {
+      // Final committee review on roadmap completion
+      if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+        GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
+        const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
+        engineSend(`[Ghost — Final Committee Review]\nAll work is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
+        render(); return;
+      }
+      engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
+    }
+    // Final committee review on task completion
+    if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+      GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
+      const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
+      engineSend(`[Ghost — Final Committee Review]\nThe task is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
+      render(); return;
+    }
     engineHalt('✅ Task complete');
     return;
   }
 
   if (result.signal === 'proceed') {
     L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
     if (L.payloadMode === 'roadmap') {
       const R = GHOST.roadmap;
       if (!R.captured) {
         if (parseRoadmap(text)) { L.detail = `🗺 Roadmap captured: ${R.steps.length} steps`; render(); sendRoadmapStep(); }
-        else { enginePause('Roadmap mode: no [[GITL::ROADMAP]] list found — review output, then ▶ to retry'); }
+        else if (!R._reask) {
+          // Model planned (it signaled PROCEED) but skipped the machine-readable block —
+          // common with custom GPTs that self-track "[Step X of Y]". Ask once for just the block.
+          R._reask = true;
+          L.detail = '🗺 No roadmap block — re-requesting format (1 auto-retry)…';
+          Timeline.record('roadmap_reask', { round: L.round });
+          engineSend('No [[GITL::ROADMAP]] block was detected in your last response. Do NOT redo the research or execute anything. Output ONLY the roadmap now, in exactly this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each self-contained) End with [[GITL::PROCEED]]', false);
+          render();
+        }
+        else { enginePause('Roadmap mode: no [[GITL::ROADMAP]] list found after auto-retry — review output, then ▶ to retry'); }
         return;
       }
       if (R.index < R.steps.length) { sendRoadmapStep(); return; }
       if (!R.synthSent) { sendRoadmapSynthesis(); return; }
       engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
     }
-    engineSend('Continue', false);
+    if (GHOST.persona.perTask && resolvePersonaInject()) {
+      engineSend(`Continue.\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}`, false);
+    } else if (hasPendingDirectives()) {
+      // Personas were selected mid-run (or the run began from a paused state) —
+      // deliver the context block once instead of a bare "Continue".
+      GHOST.persona._delivered = true;
+      engineSend('Continue.' + runDirectives(false), false);
+    } else {
+      engineSend('Continue', false);
+    }
     return;
   }
 
-  // No signal
+  // No signal — but only count it as stale if the model is genuinely idle.
+  // Long "Thinking" phases (Perplexity Deep Research, o-series reasoning) produce
+  // no DOM growth and no stop button for minutes at a time; the network channel
+  // is the only honest witness that work is still happening.
+  if (Adapter.isGenerating()) {
+    L.staleTicks = 0;
+    if (!L._thinkNoted) { L._thinkNoted = true; DIAG.push('Still generating (net/stop) — stale counter held'); }
+    L.detail = '🧠 Model is still working…';
+    render();
+    return;
+  }
+  L._thinkNoted = false;
   L.staleTicks++;
-  if (L.staleTicks >= 5) enginePause('No signal detected — review output');
+  const staleLimit = (PLAT && PLAT.staleTicks) || 5;
+  if (L.staleTicks >= staleLimit) {
+    /* v8.1 sigil-free completion fallback: some models (DeepSeek especially)
+       answer fully but never echo the [[GITL::…]] protocol markers. The reply
+       IS complete — generation ended and the text went quiet — so instead of
+       stranding the run, auto-continue once with a protocol reminder. Only
+       after two consecutive sigil-free replies do we pause for review. Every
+       nudge still consumes a round, so drift guard / round limit keep their
+       grip on runaway loops. */
+    const tail = text.slice(-200);
+    if (tail === L._nudgedTail && (L.isSending || L.sendPending)) return; // nudge already in flight
+    if (!L.isSending && !L.sendPending && text.length > 20 && (L.noSigilStreak || 0) < 2 && tail !== L._nudgedTail) {
+      L.noSigilStreak = (L.noSigilStreak || 0) + 1;
+      L._nudgedTail = tail;
+      L.staleTicks = 0;
+      L.detail = `🕯 Reply had no sigil — auto-continuing (${L.noSigilStreak}/2) + re-stating protocol`;
+      DIAG.push(`Sigil missing — soft proceed (${L.noSigilStreak}/2)`);
+      Timeline.record('soft_proceed', { streak: L.noSigilStreak, round: L.round });
+      engineSend('Continue.\n\n[Ghost protocol reminder — your last reply was missing the control marker. From now on END EVERY reply with exactly one of:\n[[GITL::PROCEED]] — more work remains\n[[GITL::HALT]] — the whole task is fully complete\nAlso include "[Step X of Y]" on its own line so progress can be tracked.]', false);
+      render();
+      return;
+    }
+    enginePause('No sigil after 2 auto-continues — review output (the model may be ignoring the protocol)');
+  }
 }
 
 // Watchdog heartbeat (supplements tick)
@@ -1612,7 +2182,7 @@ function startLoop() {
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = '';
     L.sendPending = false;
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    L.timer = setInterval(engineTick, 2500);
+    L.timer = Ticker.start(engineTick, 2500);
     render(); engineTick();
     return;
   }
@@ -1624,12 +2194,10 @@ function startLoop() {
     L.state = 'RUNNING'; L.lastActivity = Date.now();
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
     if (L.payloadMode === 'roadmap') { resetRoadmap(); GHOST.workflow.active = false; }
-    const personaInject = resolvePersonaInject();
-    const posture = POSTURES[L.posture] || POSTURES.standard;
-    const postureClause = posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
-    const full = typed + (personaInject ? `\n\n[Active persona]\n${personaInject}` : '') + PAYLOADS[L.payloadMode].inject + postureClause;
+    const full = typed + runDirectives(true);
+    GHOST.persona._delivered = true;
     engineSend(full, true);
-    L.timer = setInterval(engineTick, 2500);
+    L.timer = Ticker.start(engineTick, 2500);
     render();
     return;
   }
@@ -1639,8 +2207,10 @@ function startLoop() {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = 'Resuming…';
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    engineSend(RESUME_TEXT, true);
-    L.timer = setInterval(engineTick, 2500);
+    // Resume carries persona + posture (+ strategy, unless roadmap owns its own flow).
+    GHOST.persona._delivered = true;
+    engineSend(RESUME_TEXT + runDirectives(L.payloadMode !== 'roadmap'), true);
+    L.timer = Ticker.start(engineTick, 2500);
     render();
     return;
   }
@@ -1661,7 +2231,7 @@ function startQueue(rawLines) {
   L.state = 'RUNNING'; L.lastActivity = Date.now();
   GHOST.workflow.active = false;
   if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
-  L.timer = setInterval(engineTick, 2500);
+  L.timer = Ticker.start(engineTick, 2500);
   sendRoadmapStep();
   render();
 }
@@ -1681,7 +2251,9 @@ function primaryAction() {
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendRetries = 0;
-  clearInterval(L.timer); L.timer = null;
+  GHOST.persona._reviewDone = false;
+  GHOST.persona._delivered = false;
+  Ticker.stop(); L.timer = null;
   resetRoadmap();
   render();
 }
@@ -1699,21 +2271,87 @@ window.addEventListener('popstate', () => window.dispatchEvent(new Event('gitl:r
 window.addEventListener('gitl:route', () => {
   if (location.href !== _lastHref) {
     _lastHref = location.href;
-    _cache.clear();
+    _clearElementCaches();
     if (GHOST.loop.state === 'RUNNING') enginePause('Route changed — paused');
   }
 });
 
-/* Manual re-detect (v7.1): force a clean re-resolution of the page's
-   chat input / send button. Fixes the case where you move browser → app →
-   back into the same chat: the URL is unchanged so the route-watcher never
-   fired, but the SPA rebuilt the DOM and Ghost is holding stale/detached
-   element references (or the shadow-walk throttle is blocking a re-scan).
-   This clears every cache, re-resolves the platform, and re-probes —
-   no page reload, no hopping between chats. */
-function reDetect() {
+/* One place that forgets every cached element reference — the route watcher,
+   reDetect, and the visibility healer all funnel through here so no cache
+   (selector, shadow-walk throttle, heuristic) can be missed again. */
+function _clearElementCaches() {
   _cache.clear();
   _deepLast.clear();
+  _heurCache.input = { el: null, ts: 0 };
+  _heurCache.send  = { el: null, ts: 0 };
+}
+
+/* Silent self-heal (v8.1): coming back from another app/tab is exactly when
+   the SPA has rebuilt its DOM underneath us. If our cached composer is now a
+   detached node, drop the caches so the next lookup re-resolves — no UI
+   noise, no user action needed. This removes most manual 🔄 presses. */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const c = _cache.get('in');
+  if (c && !c.isConnected) _clearElementCaches();
+});
+
+/* Manual re-detect (v7.1, hardened v8.1): force a clean re-resolution of the
+   page's chat input / send button. Fixes the case where you move browser →
+   app → back into the same chat: the URL is unchanged so the route-watcher
+   never fired, but the SPA rebuilt the DOM and Ghost is holding stale nodes.
+   v8.1: no longer one-shot. If the first pass misses (SPA mid-remount — the
+   exact moment users press 🔄), a MutationObserver + interval keeps watching
+   for up to 12s and reports success the moment the composer appears. */
+const _redetectWatch = { obs: null, timer: null, deadline: 0, nudged: false };
+
+function _redetectStop() {
+  try { _redetectWatch.obs?.disconnect(); } catch(_){}
+  if (_redetectWatch.timer) clearInterval(_redetectWatch.timer);
+  _redetectWatch.obs = null; _redetectWatch.timer = null; _redetectWatch.deadline = 0;
+  try { document.querySelector('#g-redetect')?.classList.remove('spin'); } catch(_){}
+}
+
+function _redetectCheck() {
+  const input = Adapter.getInput();
+  if (input) {
+    _redetectStop();
+    try { DIAG.runProbe(); } catch(_){}
+    Timeline.record('redetect_late', { platform: PLAT?.label });
+    GHOST.loop.detail = `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`;
+    render();
+    return true;
+  }
+  if (Date.now() > _redetectWatch.deadline) {
+    _redetectStop();
+    Timeline.record('redetect_timeout', { platform: PLAT?.label });
+    GHOST.loop.detail = '🔄 Still no chat input after 12s. Tap inside the chat box once, then 🔄 again.';
+    render();
+    return false;
+  }
+  // Focus nudge (once): some editors only mount their real composer on focus.
+  // Never steal focus from the user — only when nothing meaningful is focused.
+  if (!_redetectWatch.nudged && Date.now() > _redetectWatch.deadline - 9000) {
+    _redetectWatch.nudged = true;
+    try {
+      const ae = document.activeElement;
+      if (!ae || ae === document.body) {
+        for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
+          if (_visible(el)) { el.focus(); break; }
+        }
+      }
+    } catch(_){}
+  }
+  return false;
+}
+
+function reDetect() {
+  _redetectStop();
+  _clearElementCaches();
+  // Abandoned streams from a background hop can leave stale counters that
+  // fake "still generating" — zero the network expectation state too.
+  GITL_NET._open = 0;
+  GITL_NET.expectUntil = 0;
   // Re-resolve platform in case the host changed (e.g. app vs web shell).
   let matched = null;
   for (const [, p] of Object.entries(PROFILES)) { if (p.host.test(location.hostname)) { matched = p; break; } }
@@ -1723,12 +2361,27 @@ function reDetect() {
   const send  = Adapter.getSendBtn();
   try { DIAG.runProbe(); } catch(_){}
   Timeline.record('redetect', { found_input: !!input, found_send: !!send, platform: PLAT?.label });
-  const ok = !!input;
-  GHOST.loop.detail = ok
-    ? `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`
-    : '🔄 Re-detected — still no chat input. Try clicking inside the chat box once, then re-detect.';
+  if (input) {
+    GHOST.loop.detail = `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`;
+    render();
+    return true;
+  }
+  // Not found yet — keep watching. SPAs often remount the composer a beat
+  // after the user notices it's "gone" and presses 🔄.
+  GHOST.loop.detail = '🔄 Searching for the chat box…';
   render();
-  return ok;
+  try { document.querySelector('#g-redetect')?.classList.add('spin'); } catch(_){}
+  _redetectWatch.deadline = Date.now() + 12000;
+  _redetectWatch.nudged = false;
+  try {
+    _redetectWatch.obs = new MutationObserver(() => {
+      if (_redetectWatch._raf) return; // throttle bursts to one check per frame-ish
+      _redetectWatch._raf = setTimeout(() => { _redetectWatch._raf = null; _redetectCheck(); }, 250);
+    });
+    _redetectWatch.obs.observe(document.body, { childList: true, subtree: true });
+  } catch(_){}
+  _redetectWatch.timer = setInterval(_redetectCheck, 800);
+  return false;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2129,7 +2782,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','payloadMode','posture','maxRounds','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -2184,7 +2837,7 @@ function workshopImport() {
   inp.click();
 }
 
-function exportRescue() {
+function exportBackupHandoff() {
   const all = extractMessages();
   const mission = (all.find(m => m.role === 'user')?.text || '').slice(0, 600);
   const msgs = all.slice(-10); // verbatim tail, both roles — the part a stuck chat can't summarize for you
@@ -2193,7 +2846,7 @@ function exportRescue() {
   const steps = R.steps.length ? R.steps.map((s,i) =>
     `${i < R.index ? '✓' : i === R.index ? '▶' : '·'} ${i+1}. ${s}`).join('\n') : '(none)';
   const md = [
-    '# 🛟 GITL Rescue File',
+    '# 🧷 GITL Backup Handoff',
     '*Use this when a chat is stuck, full, or dead and cannot be prompted anymore. Paste it into a NEW chat to continue the work. (If the chat still responds, the 🤝 Handoff button produces a better briefing — the AI writes it itself.)*',
     '',
     '```yaml',
@@ -2201,7 +2854,7 @@ function exportRescue() {
     `platform: ${PLAT.label}`,
     `exported: ${new Date().toISOString()}`,
     `mode: ${GHOST.loop.payloadMode}`,
-    `persona: ${(PERSONA_LIBRARY[GHOST.persona.selected]||PERSONA_LIBRARY.none).label}`,
+    `persona: ${(GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None'}`,
     `workflow: ${wf} (stage ${W.stageIndex})`,
     `rounds: ${GHOST.loop.round}`,
     `last_signal: ${GHOST.loop.lastSignal}`,
@@ -2223,9 +2876,9 @@ function exportRescue() {
     '## Last 10 messages — verbatim (most recent last)',
     ...msgs.map((m) => `### ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}\n${m.text}\n`),
     '---',
-    `*Rescue file generated by Ghost in the Loop v${VER}*`
+    `*Backup Handoff — generated by Ghost in the Loop v${VER}. The lightweight sibling of Handoff: state + last 10 messages only, enough to resume elsewhere.*`
   ].join('\n');
-  downloadText(md, buildFilename('rescue').replace(/\.\w+$/,'') + '.md', 'text/markdown');
+  downloadText(md, buildFilename('backup-handoff').replace(/\.\w+$/,'') + '.md', 'text/markdown');
 }
 
 const HANDOFF_IN_CHAT = `Stop all other work. Produce a COMPLETE HANDOFF REPORT for this entire conversation, in ONE markdown code block, structured exactly as:
@@ -2303,7 +2956,7 @@ async function runExport() {
   const ts = new Date().toLocaleString();
   let content, mime;
   if (GHOST.export.format === 'json') {
-    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (allPersonas()[GHOST.persona.selected]||PERSONA_LIBRARY.none).label, messages: msgs }, null, 2);
+    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None', messages: msgs }, null, 2);
     mime = 'application/json';
   } else {
     const lines = [`# Ghost Export — ${proj}`, `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`, '', '---', ''];
@@ -2410,6 +3063,220 @@ function playBeep() {
   } catch(_){}
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SKIN — token-based theme engine (d6)
+   Skins are DATA, not code: a whitelist of CSS custom properties
+   (+ enumerated fx flags) applied to the panel root. A skin cannot
+   add, remove, or restructure controls — structure and behavior are
+   owned by core. Unknown tokens from newer/older versions are
+   silently ignored, so community skins stay forward-compatible.
+   ══════════════════════════════════════════════════════════════ */
+const SKIN_TOKENS = {
+  '--g-bg':'#111214','--g-bg-deep':'#0c0d10','--g-surface':'#18191c',
+  '--g-surface-2':'#16171b','--g-surface-3':'#1c1d22','--g-hover':'#222329',
+  '--g-border':'#27282e','--g-border-2':'#2e2f35','--g-text':'#c9cad0',
+  '--g-text-mid':'#888','--g-text-dim':'#555','--g-text-hot':'#fff',
+  '--g-text-low':'#666','--g-text-faint':'#444','--g-text-ghost':'#333','--g-muted':'#6b7280',
+  '--g-accent':'#818cf8','--g-accent-text':'#a5b4fc','--g-accent-deep':'#3730a3',
+  '--g-accent-bg':'#1a1b2e','--g-ok':'#34d399','--g-ok-deep':'#064e3b',
+  '--g-ok-bg':'#052e1c','--g-warn':'#fbbf24','--g-err':'#f87171',
+  '--g-radius':'12px','--g-shadow':'0 10px 32px rgba(0,0,0,.65)',
+  '--g-font':"'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace",
+  '--g-blur':'0px','--g-aur1':'transparent','--g-aur2':'transparent','--g-aur3':'transparent'
+};
+const SKIN_FX = {
+  border:  ['none','aurora','glow'],
+  ghost:   ['none','float','flicker','halo','glow'],
+  tabs:    ['none','underline','pill'],
+  progress:['none','shimmer','ekg'],
+  surface: ['none','sheen']
+};
+const SKIN_PRESETS = {
+  classic:{ name:'Classic', tokens:{}, fx:{} },
+  aurora:{ name:'Aurora', fx:{ border:'aurora', ghost:'float', tabs:'underline', progress:'shimmer', surface:'sheen' }, tokens:{
+    '--g-bg':'#12132b','--g-bg-deep':'#0b0c1f','--g-surface':'#1a1c3a','--g-surface-2':'#16182f',
+    '--g-surface-3':'#1e2040','--g-hover':'#232655','--g-border':'#2b2e5c','--g-border-2':'#3a3d78',
+    '--g-text':'#d6d8f2','--g-muted':'#7d82b8','--g-accent':'#8b9dff','--g-accent-text':'#b9c4ff',
+    '--g-accent-deep':'#4338ca','--g-accent-bg':'#1d1f4a','--g-blur':'8px',
+    '--g-shadow':'0 12px 40px rgba(40,30,120,.55)',
+    '--g-aur1':'#4f7cff','--g-aur2':'#a855f7','--g-aur3':'#ff6ac1' } },
+  glass:{ name:'Glass', fx:{ ghost:'halo', tabs:'underline', surface:'sheen' }, tokens:{
+    '--g-bg':'#171a1f','--g-bg-deep':'#101318','--g-surface':'#1d2127','--g-surface-2':'#191c22',
+    '--g-surface-3':'#20242b','--g-hover':'#242932','--g-border':'#2a2f38','--g-border-2':'#343a45',
+    '--g-text':'#d3d7de','--g-accent':'#7dd3fc','--g-accent-text':'#bae6fd','--g-accent-deep':'#0369a1',
+    '--g-accent-bg':'#16222c','--g-blur':'10px','--g-shadow':'0 10px 36px rgba(0,0,0,.5)' } },
+  metal:{ name:'Metal', fx:{ surface:'sheen', tabs:'pill' }, tokens:{
+    '--g-bg':'#16171a','--g-surface':'#202227','--g-surface-2':'#1b1d21','--g-surface-3':'#24262c',
+    '--g-hover':'#282b32','--g-border':'#33363e','--g-border-2':'#454956','--g-text':'#cfd3da',
+    '--g-accent':'#93a6c4','--g-accent-text':'#c2d0e6','--g-accent-deep':'#3b4d6b',
+    '--g-accent-bg':'#1b2230','--g-shadow':'0 8px 28px rgba(0,0,0,.7)' } },
+  neon:{ name:'Neon', fx:{ border:'glow', ghost:'flicker', tabs:'pill', progress:'ekg' }, tokens:{
+    '--g-bg':'#0a0b0f','--g-bg-deep':'#060709','--g-surface':'#101218','--g-surface-2':'#0d0f14',
+    '--g-surface-3':'#14161d','--g-hover':'#171a26','--g-border':'#1f2230','--g-border-2':'#2b2f45',
+    '--g-text':'#d8dbea','--g-accent':'#22d3ee','--g-accent-text':'#67e8f9','--g-accent-deep':'#0e7490',
+    '--g-accent-bg':'#0b1b22','--g-shadow':'0 0 24px rgba(34,211,238,.25), 0 10px 32px rgba(0,0,0,.7)' } },
+  clay:{ name:'Clay', fx:{ ghost:'float', tabs:'pill' }, tokens:{
+    '--g-bg':'#17161a','--g-surface':'#221f26','--g-surface-2':'#1c1a20','--g-surface-3':'#27242c',
+    '--g-hover':'#2a2731','--g-border':'#322e38','--g-border-2':'#423d4a','--g-text':'#d9d4de',
+    '--g-accent':'#f19a7e','--g-accent-text':'#ffc4ae','--g-accent-deep':'#9a4a35',
+    '--g-accent-bg':'#2a1e1e','--g-radius':'16px','--g-shadow':'0 12px 30px rgba(0,0,0,.55)' } },
+  liquid:{ name:'Liquid', fx:{ border:'aurora', surface:'sheen', ghost:'halo', tabs:'underline', progress:'shimmer' }, tokens:{
+    '--g-bg':'rgba(18,22,30,.55)','--g-bg-deep':'rgba(10,13,20,.6)','--g-surface':'rgba(30,36,48,.55)',
+    '--g-surface-2':'rgba(24,29,40,.5)','--g-surface-3':'rgba(36,43,58,.55)','--g-hover':'rgba(52,62,84,.6)',
+    '--g-border':'rgba(140,170,220,.28)','--g-border-2':'rgba(160,190,240,.4)','--g-text':'#e8edf7',
+    '--g-muted':'#93a0bd','--g-accent':'#8fd0ff','--g-accent-text':'#c9e7ff','--g-accent-deep':'#1e6fae',
+    '--g-accent-bg':'rgba(60,110,170,.22)','--g-blur':'16px','--g-shadow':'0 16px 48px rgba(10,20,40,.55)',
+    '--g-aur1':'#9bd8ff','--g-aur2':'#c3b2ff','--g-aur3':'#8fffe0' } },
+  oled:{ name:'OLED', fx:{ border:'glow', ghost:'glow', progress:'ekg' }, tokens:{
+    '--g-bg':'#000000','--g-bg-deep':'#000000','--g-surface':'#0b0b0e','--g-surface-2':'#08080a',
+    '--g-surface-3':'#101014','--g-hover':'#15151b','--g-border':'#1d1d24','--g-border-2':'#2a2a34',
+    '--g-text':'#e6e6ee','--g-text-mid':'#9a9aa8','--g-muted':'#6a6a78','--g-accent':'#7c8cff',
+    '--g-accent-text':'#aeb8ff','--g-accent-deep':'#2e37b8','--g-accent-bg':'#0e1030',
+    '--g-shadow':'0 0 0 1px #14141a, 0 14px 34px rgba(0,0,0,.9)' } },
+  paper:{ name:'Paper', fx:{ tabs:'underline' }, tokens:{
+    '--g-bg':'#f5f1e8','--g-bg-deep':'#ece7db','--g-surface':'#efe9dc','--g-surface-2':'#f2ede2',
+    '--g-surface-3':'#e9e2d2','--g-hover':'#e3dcc9','--g-border':'#d6cdb8','--g-border-2':'#c4b99f',
+    '--g-text':'#2a261f','--g-text-mid':'#5c564a','--g-text-dim':'#8a8271','--g-text-hot':'#141210',
+    '--g-text-low':'#6e6759','--g-text-faint':'#938b7a','--g-text-ghost':'#a89f8d','--g-muted':'#7a715f',
+    '--g-accent':'#6d4fc4','--g-accent-text':'#4c2f9e','--g-accent-deep':'#6d4fc4','--g-accent-bg':'#e9e1f7',
+    '--g-ok':'#176b41','--g-ok-deep':'#9cc9ae','--g-ok-bg':'#dff0e5','--g-warn':'#946200','--g-err':'#b3442e',
+    '--g-shadow':'0 10px 28px rgba(90,80,60,.35)' } },
+  hud:{ name:'HUD', fx:{ border:'glow', ghost:'flicker', tabs:'underline', progress:'ekg' }, tokens:{
+    '--g-bg':'#050708','--g-bg-deep':'#000000','--g-surface':'#0a0f10','--g-surface-2':'#080c0d',
+    '--g-surface-3':'#0d1415','--g-hover':'#101a1c','--g-border':'#123033','--g-border-2':'#1a464b',
+    '--g-text':'#bdf5f7','--g-text-mid':'#5f9498','--g-muted':'#3f6367','--g-accent':'#22e0e6',
+    '--g-accent-text':'#8ff2f5','--g-accent-deep':'#0e6a6f','--g-accent-bg':'#04191b',
+    '--g-shadow':'0 0 0 1px #123033, 0 10px 30px rgba(0,0,0,.8)' } },
+  nova:{ name:'Nova', fx:{ border:'aurora', ghost:'halo', tabs:'pill', progress:'shimmer', surface:'sheen' }, tokens:{
+    '--g-bg':'#14101f','--g-bg-deep':'#0c0a17','--g-surface':'#1d1830','--g-surface-2':'#181428',
+    '--g-surface-3':'#241d3a','--g-hover':'#2b2245','--g-border':'#2f2650','--g-border-2':'#3d3268',
+    '--g-text':'#e9def0','--g-muted':'#9080ad','--g-accent':'#ec4fa0','--g-accent-text':'#ff9fd0',
+    '--g-accent-deep':'#7a2160','--g-accent-bg':'#2a1330','--g-shadow':'0 14px 42px rgba(70,30,90,.5)',
+    '--g-aur1':'#ec4fa0','--g-aur2':'#8b5cf6','--g-aur3':'#38bdf8' } },
+  ion:{ name:'Ion', fx:{ surface:'sheen', ghost:'halo', tabs:'pill' }, tokens:{
+    '--g-bg':'#18191a','--g-bg-deep':'#101112','--g-surface':'#212324','--g-surface-2':'#1c1e1f',
+    '--g-surface-3':'#26282a','--g-hover':'#2b2e30','--g-border':'#323536','--g-border-2':'#454849',
+    '--g-text':'#d6dadb','--g-muted':'#7a8082','--g-accent':'#2dd4dc','--g-accent-text':'#8fe9ed',
+    '--g-accent-deep':'#116d72','--g-accent-bg':'#132325','--g-radius':'10px',
+    '--g-shadow':'0 8px 26px rgba(0,0,0,.75)' } },
+  flow:{ name:'Flow', fx:{ tabs:'pill' }, tokens:{
+    '--g-bg':'#131722','--g-bg-deep':'#0d1019','--g-surface':'#1a2030','--g-surface-2':'#161b28',
+    '--g-surface-3':'#1e2536','--g-hover':'#232b3f','--g-border':'#28324a','--g-border-2':'#334060',
+    '--g-text':'#d8dfef','--g-muted':'#6d7896','--g-accent':'#38bdf8','--g-accent-text':'#93d9fb',
+    '--g-accent-deep':'#0d6ba8','--g-accent-bg':'#0f2740','--g-blur':'0px',
+    '--g-shadow':'0 6px 20px rgba(0,0,0,.4)' } }
+};
+const SKIN = {
+  LIMIT_BYTES: 8*1024,
+  VAL_MAX: 240,
+  _bad: /url\s*\(|expression\s*\(|@import|javascript:|[<>{};]/i,
+  /* Validate untrusted skin input (string or object). Unknown tokens and
+     unknown fx are DROPPED, never fatal — this is the forward-compat rule. */
+  validate(raw) {
+    let o = raw;
+    if (typeof raw === 'string') {
+      if (raw.length > this.LIMIT_BYTES) return { ok:false, error:'file too large' };
+      try { o = JSON.parse(raw); } catch(_) { return { ok:false, error:'not valid JSON' }; }
+    }
+    if (!o || typeof o !== 'object' || Array.isArray(o) || (o.kind && o.kind !== 'skin'))
+      return { ok:false, error:'not a skin file' };
+    const name = String(o.name || 'Custom').replace(/[<>&"'`]/g,'').slice(0,40) || 'Custom';
+    const tokens = {}; let dropped = 0;
+    const tsrc = (o.tokens && typeof o.tokens === 'object') ? o.tokens : {};
+    for (const [k,v] of Object.entries(tsrc)) {
+      if (!(k in SKIN_TOKENS)) { dropped++; continue; }
+      const val = String(v).trim();
+      if (!val || val.length > this.VAL_MAX || this._bad.test(val)) { dropped++; continue; }
+      tokens[k] = val;
+    }
+    const fx = {}; const fsrc = (o.fx && typeof o.fx === 'object') ? o.fx : {};
+    for (const [k,v] of Object.entries(fsrc)) {
+      if (SKIN_FX[k] && SKIN_FX[k].includes(v)) fx[k] = v; else dropped++;
+    }
+    return { ok:true, skin:{ kind:'skin', gitlSkin:1, name, tokens, fx }, dropped };
+  },
+  _hexToHsl(hex) {
+    let h = hex.replace('#',''); if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+    const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+    const mx = Math.max(r,g,b), mn = Math.min(r,g,b), l = (mx+mn)/2;
+    if (mx === mn) return [0,0,Math.round(l*100)];
+    const d = mx-mn, s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+    let hu = mx===r ? (g-b)/d + (g<b?6:0) : mx===g ? (b-r)/d + 2 : (r-g)/d + 4;
+    return [Math.round(hu*60), Math.round(s*100), Math.round(l*100)];
+  },
+  /* Rotate a hex color to hue h, preserving its own saturation/lightness.
+     Non-hex values pass through untouched. */
+  hueShift(val, h) {
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(val))) return val;
+    const [,s,l] = this._hexToHsl(val);
+    return `hsl(${((h%360)+360)%360} ${s}% ${l}%)`;
+  },
+  baseHue() {
+    const sk = this.resolve();
+    return this._hexToHsl(sk.tokens['--g-accent'] || SKIN_TOKENS['--g-accent'])[0];
+  },
+  resolve() {
+    const id = GHOST.ui.skinTheme;
+    if (id === 'custom') {
+      const r = this.validate(GHOST.ui.customSkin || '');
+      return r.ok ? r.skin : SKIN_PRESETS.classic;
+    }
+    return SKIN_PRESETS[id] || SKIN_PRESETS.classic;
+  },
+  /* Apply active skin to the panel root. Only sets CSS custom properties
+     and enumerated data-fx-* attributes — never touches structure. */
+  apply() {
+    try {
+      const p = (typeof panel !== 'undefined' && panel) ? panel : document.getElementById('gitl');
+      if (!p) return;
+      const sk = this.resolve();
+      for (const k of Object.keys(SKIN_TOKENS)) {
+        const v = sk.tokens[k];
+        if (v != null) p.style.setProperty(k, v); else p.style.removeProperty(k);
+      }
+      const h = GHOST.ui.accentHue;
+      if (Number.isFinite(h)) {
+        for (const k of ['--g-accent','--g-accent-text','--g-accent-deep','--g-accent-bg'])
+          p.style.setProperty(k, this.hueShift(sk.tokens[k] || SKIN_TOKENS[k], h));
+      }
+      for (const k of Object.keys(SKIN_FX)) {
+        const dk = 'fx' + k[0].toUpperCase() + k.slice(1);
+        const v = sk.fx && sk.fx[k];
+        if (v && v !== 'none') p.dataset[dk] = v; else delete p.dataset[dk];
+      }
+    } catch(e) { DIAG.push('skin apply: ' + e.message); }
+  },
+  importFile() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.json,.gitl.json,application/json';
+    inp.addEventListener('change', () => {
+      const file = inp.files && inp.files[0];
+      if (!file) return;
+      if (file.size > this.LIMIT_BYTES) { GHOST.loop.detail = `⚠ Skin too large (max ${Math.round(this.LIMIT_BYTES/1024)} KB)`; render(); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = this.validate(String(reader.result || ''));
+        if (!res.ok) { GHOST.loop.detail = `⚠ Skin import failed: ${res.error}`; render(); return; }
+        GHOST.ui.customSkin = JSON.stringify(res.skin); _save('customSkin', GHOST.ui.customSkin);
+        GHOST.ui.skinTheme = 'custom'; _save('skinTheme','custom');
+        this.apply();
+        GHOST.loop.detail = `✓ Skin “${res.skin.name}” applied` + (res.dropped ? ` · ${res.dropped} field(s) ignored` : '');
+        render();
+      };
+      reader.onerror = () => { GHOST.loop.detail = '⚠ Could not read skin file'; render(); };
+      reader.readAsText(file);
+    });
+    inp.click();
+  },
+  exportCurrent() {
+    const sk = this.resolve();
+    const out = { kind:'skin', gitlSkin:1, name:sk.name, tokens:sk.tokens, fx:sk.fx||{} };
+    downloadText(JSON.stringify(out, null, 2),
+      `${String(sk.name||'skin').toLowerCase().replace(/\W+/g,'-')}.gitl.json`, 'application/json');
+  }
+};
+
 /* ═══════════════════════════════════════════════════════════════
    UI — STYLES
    Deferred: GM_addStyle / appendChild require document.head, which is
@@ -2419,118 +3286,150 @@ let _stylesInjected = false;
 function injectStyles() {
   if (_stylesInjected) return;
   _stylesInjected = true;
-  const css = `
-#gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:#111214;border:1px solid #27282e;
-  border-radius:12px;padding:10px 12px;font:11.5px 'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;
-  color:#c9cad0;box-shadow:0 10px 32px rgba(0,0,0,.65);user-select:none;transition:width .2s}
+  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n#gitl[data-explain="1"] #g-explain-tog{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}\n#gitl[data-explain="1"] .g-body{cursor:help}\n.g-xtip{position:absolute;left:8px;right:8px;top:54px;z-index:9;background:var(--g-surface-3);border:1px solid var(--g-accent-deep);border-radius:7px;padding:6px 22px 7px 8px;font-size:9.5px;line-height:1.45;color:var(--g-text);box-shadow:var(--g-shadow)}\n.g-xtip b{color:var(--g-accent-text)}\n.g-xtip .x{position:absolute;top:4px;right:7px;cursor:pointer;color:var(--g-muted);font-size:10px}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+@keyframes gin{from{opacity:0;transform:translateY(5px) scale(.985)}}
+#gitl.g-enter{animation:gin .18s ease-out}
+#gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:var(--g-bg);border:1px solid var(--g-border);
+  border-radius:var(--g-radius);padding:10px 12px;font:11.5px var(--g-font);
+  color:var(--g-text);box-shadow:var(--g-shadow);user-select:none;transition:width .2s}
 #gitl *{box-sizing:border-box}
 #gitl.collapsed .g-body{display:none} #gitl.collapsed{width:auto;min-width:180px}
-.g-body{max-height:min(52vh,380px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#2e2f35 transparent}
-.g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:#2e2f35;border-radius:2px}
-.g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed #27282e;background:transparent;color:#555;font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
-.g-adv:hover{color:#888}
+.g-body{max-height:min(52vh,380px);overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--g-border-2) transparent}
+.g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:var(--g-border-2);border-radius:2px}
+.g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed var(--g-border);background:transparent;color:var(--g-text-dim);font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
+.g-adv:hover{color:var(--g-text-mid)}
+.g-mod{border:1px solid var(--g-border);border-radius:8px;background:var(--g-surface-2);margin:5px 0;overflow:hidden}
+.g-mod-h{display:flex;align-items:center;gap:5px;padding:3px 7px;background:var(--g-surface-3);border-bottom:1px solid var(--g-border);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g-text-mid)}
+.g-mod-i{font-size:10px;filter:grayscale(.25)}
+.g-mod-x{margin-left:auto;font-weight:600;letter-spacing:0;text-transform:none;color:var(--g-text-low);font-size:8.5px;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-mod .g-btns,.g-mod .g-prog,.g-mod .g-row,.g-mod .g-hint,.g-mod .g-posture-wrap{margin:0;padding:5px 7px}
+.g-mod .g-hint{padding-top:0}
+.g-mod-transport .g-btns{gap:5px}
+.g-swatches{display:flex;gap:5px;margin:2px 0 6px}
+.g-swatch{width:15px;height:15px;border-radius:50%;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0;flex-shrink:0}
+.g-swatch:hover{transform:scale(1.15)}
+.g-xlist{display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.g-xrow{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;cursor:pointer;background:var(--g-surface-2);box-shadow:inset 0 1px 3px rgba(0,0,0,.45),inset 0 -1px 0 rgba(255,255,255,.02);border-left:3px solid transparent;transition:background .15s}
+.g-xrow:hover{background:var(--g-hover)}
+.g-xrow:active{box-shadow:inset 0 2px 5px rgba(0,0,0,.55)}
+.g-xicon{flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;border-radius:6px;background:var(--g-surface-3)}
+.g-xtext{display:flex;flex-direction:column;gap:1px;min-width:0}
+.g-xtext b{font-size:10.5px;color:var(--g-text)}
+.g-xtext span{font-size:8.5px;color:var(--g-text-mid);line-height:1.3}
+.g-xrow-accent{border-left-color:var(--g-accent)}.g-xrow-accent .g-xicon{color:var(--g-accent-text)}
+.g-xrow-ok{border-left-color:var(--g-ok)}.g-xrow-ok .g-xicon{color:var(--g-ok)}
+.g-xrow-warn{border-left-color:var(--g-warn)}.g-xrow-warn .g-xicon{color:var(--g-warn)}
+.g-xrow-muted{border-left-color:var(--g-muted)}.g-xrow-muted .g-xicon{color:var(--g-muted)}
 .g-hdr{display:flex;justify-content:space-between;align-items:center;cursor:grab;padding:2px 0;margin-bottom:6px}
 .g-hdr:active{cursor:grabbing}
-.g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:#555;letter-spacing:.6px;display:flex;align-items:center;gap:5px}
+.g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:var(--g-text-dim);letter-spacing:.6px;display:flex;align-items:center;gap:5px}
 .g-dot{display:inline-block;width:7px;height:7px;border-radius:50%;transition:all .3s}
-.g-dot.run{background:#34d399;box-shadow:0 0 5px #34d399;animation:gpulse 1.4s infinite}
-.g-dot.pause{background:#fbbf24}.g-dot.done{background:#818cf8}.g-dot.err{background:#f87171}.g-dot.idle{background:#555}
+.g-dot.run{background:var(--g-ok);box-shadow:0 0 5px var(--g-ok);animation:gpulse 1.4s infinite}
+.g-dot.pause{background:var(--g-warn)}.g-dot.done{background:var(--g-accent)}.g-dot.err{background:var(--g-err)}.g-dot.idle{background:var(--g-text-dim)}
 @keyframes gpulse{0%,100%{opacity:1}50%{opacity:.4}}
-.g-plat{font-size:9.5px;background:#1c1d22;padding:2px 6px;border-radius:4px;color:#818cf8;font-weight:600;border:1px solid #2a2b33}
-.g-minbtn{background:#18191c;border:1px solid #2e2f35;color:#888;font-size:10px;cursor:pointer;padding:1px 6px;border-radius:4px;font-weight:700;transition:all .15s}
+.g-plat{font-size:9.5px;background:var(--g-surface-3);padding:2px 6px;border-radius:4px;color:var(--g-accent);font-weight:600;border:1px solid #2a2b33}
+.g-minbtn{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:4px;font-weight:700;transition:all .15s}
 .g-minbtn.spin{animation:gvspin .6s linear}
-.g-minbtn:hover{background:#27282e;color:#fff}
+.g-minbtn:hover{background:var(--g-border);color:var(--g-text-hot)}
 .g-coll-row{display:none;align-items:center;gap:6px;margin-top:4px}
 #gitl.collapsed .g-coll-row{display:flex}
-.g-qbtn{width:34px;height:26px;border:1px solid #27282e;border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s}
-.g-qbtn.play{background:#052e1c;color:#34d399;border-color:#064e3b}.g-qbtn.pause{background:#2d1900;color:#fbbf24;border-color:#78350f}
+.g-qbtn{width:34px;height:26px;border:1px solid var(--g-border);border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s}
+.g-qbtn.play{background:var(--g-ok-bg);color:var(--g-ok);border-color:var(--g-ok-deep)}.g-qbtn.pause{background:#2d1900;color:var(--g-warn);border-color:#78350f}
 .g-qstat{font-size:10px;font-weight:700}
-.g-proj{display:flex;align-items:center;gap:5px;margin-bottom:7px;padding:5px 7px;background:#16171b;border:1px solid #27282e;border-radius:7px}
-.g-proj-lbl{font-size:9px;color:#444;flex-shrink:0}
-.g-proj-in{flex:1;background:transparent;border:none;color:#a5b4fc;font-size:10px;font-family:inherit;font-weight:600;outline:none;min-width:0}
-.g-proj-in::placeholder{color:#333}
+.g-proj{display:flex;align-items:center;gap:5px;margin-bottom:7px;padding:5px 7px;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:7px}
+.g-proj-lbl{font-size:9px;color:var(--g-text-faint);flex-shrink:0}
+.g-proj-in{flex:1;background:transparent;border:none;color:var(--g-accent-text);font-size:10px;font-family:inherit;font-weight:600;outline:none;min-width:0}
+.g-proj-in::placeholder{color:var(--g-text-ghost)}
 .g-tabs{display:flex;gap:3px;margin-bottom:8px}
-.g-tab{flex:1;padding:4px 0;border:1px solid #27282e;border-radius:5px;background:#18191c;color:#555;font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-tab:hover{background:#222329;color:#888}.g-tab.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-tab{flex:1;padding:4px 0;border:1px solid var(--g-border);border-radius:5px;background:var(--g-surface);color:var(--g-text-dim);font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-tab:hover{background:var(--g-hover);color:var(--g-text-mid)}.g-tab.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 #g-tc{position:relative}
-.g-tabhelp{position:absolute;top:-2px;right:0;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2e2f35;border-radius:50%;background:#16171b;color:#6b7280;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;z-index:3}
-.g-tabhelp:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-tabhelp{position:absolute;top:-2px;right:0;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;background:var(--g-surface-2);color:var(--g-muted);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;z-index:3}
+.g-tabhelp:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-modes{display:flex;gap:3px;margin-bottom:6px}
-.g-md{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-md:hover{background:#222329}.g-md.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-hint{font-size:9px;color:#484a57;margin-bottom:7px;padding:4px 6px;background:#16171b;border-radius:4px;border-left:2px solid #27282e;line-height:1.4}
+.g-md{flex:1;padding:5px 0;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text-low);font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-md:hover{background:var(--g-hover)}.g-md.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-hint{font-size:9px;color:#484a57;margin-bottom:7px;padding:4px 6px;background:var(--g-surface-2);border-radius:4px;border-left:2px solid var(--g-border);line-height:1.4}
 .g-posture-wrap{margin-bottom:7px}
 .g-posture-lbl{font-size:8.5px;text-transform:uppercase;letter-spacing:.5px;color:#4a4d57;font-weight:600;margin-bottom:3px;display:flex;align-items:center;gap:5px}
-.g-posture-q{width:14px;height:14px;line-height:12px;text-align:center;border:1px solid #2e2f35;border-radius:50%;background:#16171b;color:#6b7280;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;padding:0}
-.g-posture-q:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-posture-q{width:14px;height:14px;line-height:12px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;background:var(--g-surface-2);color:var(--g-muted);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;padding:0}
+.g-posture-q:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-postures{display:flex;gap:3px}
-.g-pst{flex:1;padding:5px 0;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#666;font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
-.g-pst:hover{background:#222329}.g-pst.act{background:#1f1a2e;border-color:#6d28d9;color:#c4b5fd}
+.g-pst{flex:1;padding:5px 0;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text-low);font-size:9px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
+.g-pst:hover{background:var(--g-hover)}.g-pst.act{background:#1f1a2e;border-color:#6d28d9;color:#c4b5fd}
 .g-posture-hint{font-size:8.5px;color:#5a5d68;line-height:1.4;margin-top:4px;padding:3px 6px;background:#141519;border-radius:4px;border-left:2px solid #3a2e5a}
 .g-btns{display:flex;gap:3px;margin-bottom:7px}
-.g-btn{flex:1;padding:7px 0;border:1px solid #27282e;border-radius:7px;background:#18191c;color:#999;font-size:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
-.g-btn:hover{background:#222329}
-.g-btn.go{background:#052e1c;border-color:#064e3b;color:#34d399}.g-btn.go:hover{background:#064e3b}
-.g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:#f87171}.g-btn.st:hover{background:#7f1d1d}
+.g-btn{flex:1;padding:7px 0;border:1px solid var(--g-border);border-radius:7px;background:var(--g-surface);color:#999;font-size:14px;cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.g-btn:hover{background:var(--g-hover)}
+.g-btn.go{background:var(--g-ok-bg);border-color:var(--g-ok-deep);color:var(--g-ok)}.g-btn.go:hover{background:var(--g-ok-deep)}
+.g-btn.rg{background:#1a1a2e;border-color:#312e81;color:var(--g-accent-text)}.g-btn.rg:hover{background:#312e81}
+.g-dim{opacity:.35;cursor:not-allowed;pointer-events:none}
+.g-plink{color:var(--g-accent);text-decoration:none;font-size:9px;margin-left:4px}.g-plink:hover{text-decoration:underline}
+.g-cust-badge{font-size:8px;color:#f59e0b;font-weight:400}
+.g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:var(--g-err)}.g-btn.st:hover{background:#7f1d1d}
 .g-prog{margin:2px 0 6px}
-.g-trk{height:5px;background:#1c1d22;border-radius:2px;overflow:hidden}
-.g-fill{height:100%;background:linear-gradient(90deg,#34d399,#818cf8);border-radius:2px;transition:width .4s}
+.g-trk{height:5px;background:var(--g-surface-3);border-radius:2px;overflow:hidden}
+.g-fill{height:100%;background:linear-gradient(90deg,var(--g-ok),var(--g-accent));border-radius:2px;transition:width .4s}
 .g-plbl{display:flex;justify-content:space-between;align-items:baseline;margin-top:3px}
-.g-step{font-size:11px;color:#c9cad0}.g-step b{font-size:13px;color:#e7e7ea;font-weight:700}
+.g-step{font-size:11px;color:var(--g-text)}.g-step b{font-size:13px;color:#e7e7ea;font-weight:700}
 .g-step-pct{font-size:10px;color:#777}
 .g-safety{margin-top:6px;padding:5px 7px;background:#141519;border:1px solid #20212a;border-radius:6px}
 .g-safety-row{display:flex;align-items:center;gap:6px;font-size:8.5px}
 .g-safety-lbl{color:#4a4d57;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
-.g-safety-num{margin-left:auto;color:#6b7280}.g-safety-num b{color:#9ca3af}
-.g-safety-rst{flex:0 0 auto;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2a2c35;border-radius:4px;background:#16171b;color:#6b7280;font-size:10px;cursor:pointer;font-family:inherit;padding:0}
-.g-safety-rst:hover{background:#1c1d22;color:#a5b4fc;border-color:#3730a3}
-.g-safety-trk{height:2px;background:#1c1d22;border-radius:1px;overflow:hidden;margin-top:4px}
+.g-safety-num{margin-left:auto;color:var(--g-muted)}.g-safety-num b{color:#9ca3af}
+.g-safety-rst{flex:0 0 auto;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid #2a2c35;border-radius:4px;background:var(--g-surface-2);color:var(--g-muted);font-size:10px;cursor:pointer;font-family:inherit;padding:0}
+.g-safety-rst:hover{background:var(--g-surface-3);color:var(--g-accent-text);border-color:var(--g-accent-deep)}
+.g-safety-trk{height:2px;background:var(--g-surface-3);border-radius:1px;overflow:hidden;margin-top:4px}
 .g-safety-fill{height:100%;background:#3a3d47;border-radius:1px;transition:width .4s}
 .g-safety.warn{border-color:#5a4420;background:#1f1808}
 .g-safety.warn .g-safety-num b,.g-safety.warn .g-safety-lbl{color:#fcd34d}
 .g-safety.warn .g-safety-fill{background:#f59e0b}
-.g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid #1c1d22;margin-top:2px}
-.g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:#666;margin-bottom:5px}
-.g-row label{color:#555}
-.g-row input[type="number"],.g-row input[type="text"]{background:#18191c;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;padding:2px 5px;font-family:inherit}
+.g-safety.off{opacity:.5;border-color:var(--g-surface-3)}
+.g-safety.off .g-safety-lbl{color:var(--g-text-dim)}
+.g-safety-edit{width:42px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;text-align:center;font-family:inherit;padding:2px 3px;margin-left:4px}
+.g-safety-edit:focus{border-color:#4338ca;outline:none}
+.g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid var(--g-surface-3);margin-top:2px}
+.g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--g-text-low);margin-bottom:5px}
+.g-row label{color:var(--g-text-dim)}
+.g-row input[type="number"],.g-row input[type="text"]{background:var(--g-surface);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;padding:2px 5px;font-family:inherit}
 .g-row input[type="number"]{width:52px;text-align:center}.g-row input[type="text"]{width:110px}
 .g-row input:focus{outline:none;border-color:#4338ca}
-.g-row select{background:#18191c;border:1px solid #2e2f35;border-radius:4px;color:#c9cad0;font-size:10px;padding:2px 4px;font-family:inherit}
-.g-tog{width:28px;height:14px;background:#2e2f35;border-radius:7px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
-.g-tog.on{background:#064e3b}
-.g-tog::after{content:'';width:10px;height:10px;background:#666;border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s,background .2s}
-.g-tog.on::after{left:16px;background:#34d399}
+.g-row select{background:var(--g-surface);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;padding:2px 4px;font-family:inherit}
+.g-tog{width:28px;height:14px;background:var(--g-border-2);border-radius:7px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.g-tog.on{background:var(--g-ok-deep)}
+.g-tog::after{content:'';width:10px;height:10px;background:var(--g-text-low);border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s,background .2s}
+.g-tog.on::after{left:16px;background:var(--g-ok)}
 .g-pos-row{display:flex;gap:3px}
-.g-pos{background:#18191c;border:1px solid #2e2f35;color:#777;font-size:11px;width:22px;height:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
-.g-pos:hover{background:#27282e;color:#fff}.g-pos.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-exp-btn{width:100%;padding:8px;background:#052e1c;border:1px solid #064e3b;border-radius:7px;color:#34d399;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px;text-align:center;transition:all .15s}
-.g-exp-btn:hover{background:#064e3b}
-.g-div{height:1px;background:#1c1d22;margin:7px 0}
-.g-diag{font-size:9px;color:#444;line-height:1.6;padding:5px 6px;background:#0c0d10;border:1px solid #27282e;border-radius:5px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
-.g-sites{width:100%;box-sizing:border-box;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
-.g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid #3730a3;border-radius:5px;background:#1a1b2e;color:#a5b4fc;font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-pos{background:var(--g-surface);border:1px solid var(--g-border-2);color:#777;font-size:11px;width:22px;height:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.g-pos:hover{background:var(--g-border);color:var(--g-text-hot)}.g-pos.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-exp-btn{width:100%;padding:8px;background:var(--g-ok-bg);border:1px solid var(--g-ok-deep);border-radius:7px;color:var(--g-ok);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px;text-align:center;transition:all .15s}
+.g-exp-btn:hover{background:var(--g-ok-deep)}
+.g-div{height:1px;background:var(--g-surface-3);margin:7px 0}
+.g-diag{font-size:9px;color:var(--g-text-faint);line-height:1.6;padding:5px 6px;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+.g-sites{width:100%;box-sizing:border-box;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;color:#9aa;font-size:9px;font-family:monospace;padding:5px 6px;margin-bottom:4px;resize:vertical}
+.g-btn-sm{padding:3px 8px;margin-top:5px;border:1px solid var(--g-accent-deep);border-radius:5px;background:var(--g-accent-bg);color:var(--g-accent-text);font-size:9px;cursor:pointer;font-family:inherit;font-weight:600}
 .g-btn-sm:hover{background:#222345}
 .g-qrow{display:flex;align-items:center;gap:5px;margin-bottom:4px}
-.g-qin{flex:1;min-width:0;background:#0c0d10;border:1px solid #27282e;border-radius:5px;color:#aab;font-size:9.5px;padding:4px 6px;font-family:inherit}
-.g-qin:focus{border-color:#3730a3;outline:none}
-.g-qdel{border:none;background:transparent;color:#444;cursor:pointer;font-size:10px;padding:2px}
+.g-qin{flex:1;min-width:0;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;color:#aab;font-size:9.5px;padding:4px 6px;font-family:inherit}
+.g-qin:focus{border-color:var(--g-accent-deep);outline:none}
+.g-qdel{border:none;background:transparent;color:var(--g-text-faint);cursor:pointer;font-size:10px;padding:2px}
 .g-qdel:hover{color:#e66}
 .g-qtext{flex:1;font-size:9.5px;color:#999;line-height:1.4;word-break:break-word}
 .g-qtext.done{color:#4a5;text-decoration:line-through;text-decoration-color:#2a3}
 .g-hpills{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
-.g-hpill{padding:3px 7px;border:1px solid #27282e;border-radius:10px;background:#18191c;color:#666;font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
-.g-hpill.act{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
-.g-support{text-align:center;font-size:8px;color:#3a3b40;margin-top:8px;padding-top:6px;border-top:1px solid #1c1d22}
+.g-hpill{padding:3px 7px;border:1px solid var(--g-border);border-radius:10px;background:var(--g-surface);color:var(--g-text-low);font-size:8.5px;cursor:pointer;font-family:inherit;font-weight:600}
+.g-hpill.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
+.g-support{text-align:center;font-size:8px;color:#3a3b40;margin-top:8px;padding-top:6px;border-top:1px solid var(--g-surface-3)}
 .g-support a{color:#4a4b55;text-decoration:none}
-.g-support a:hover{color:#a5b4fc}
+.g-support a:hover{color:var(--g-accent-text)}
 #gitl-veil{position:fixed;inset:0;z-index:2147483646;display:none;align-items:center;justify-content:center;background:rgba(8,9,12,.62);backdrop-filter:blur(2px);font-family:-apple-system,'Segoe UI',Roboto,sans-serif;border:none;padding:0;margin:0;width:100vw;height:100vh;max-width:none;max-height:none;overflow:hidden}
 /* Popover top-layer mode: renders above ALL host stacking contexts */
 #gitl-veil:popover-open{display:flex}
 #gitl-veil::backdrop{background:rgba(8,9,12,.62);backdrop-filter:blur(2px)}
-.gv-card{position:relative;background:#111214;border:1px solid #27282e;border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6);z-index:1}
+.gv-card{position:relative;background:var(--g-bg);border:1px solid var(--g-border);border-radius:14px;padding:22px 26px;width:240px;text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.6);z-index:1}
 /* ── Ghost field (3D-ish parallax). Compositor-only transforms — no JS loop. */
 .gv-ringwrap{position:relative;width:96px;height:72px;margin:0 auto 12px;perspective:340px;transform-style:preserve-3d}
-.gv-ring{position:absolute;top:4px;left:50%;width:60px;height:60px;margin-left:-30px;border:3px solid #25262c;border-top-color:#a5b4fc;border-radius:50%;animation:gvspin 1s linear infinite;opacity:.9}
+.gv-ring{position:absolute;top:4px;left:50%;width:60px;height:60px;margin-left:-30px;border:3px solid #25262c;border-top-color:var(--g-accent-text);border-radius:50%;animation:gvspin 1s linear infinite;opacity:.9}
 .gv-ghost{position:absolute;top:50%;left:50%;font-size:30px;line-height:1;transform:translate(-50%,-50%);animation:gvbob 2s ease-in-out infinite;filter:drop-shadow(0 4px 6px rgba(0,0,0,.5));z-index:2}
 /* extra ghosts only appear in full-motion mode */
 .gv-ghost-x{position:absolute;top:50%;left:50%;font-size:18px;line-height:1;opacity:0;pointer-events:none;will-change:transform,opacity}
@@ -2553,67 +3452,83 @@ function injectStyles() {
   .gv-ring{animation:gvspin 1.4s linear infinite} }
 .gv-title{color:#e7e7ea;font-size:12px;font-weight:700;margin-bottom:8px}
 .gv-steps{text-align:left;margin:0 auto 10px;display:inline-block}
-.gv-step{font-size:9.5px;color:#555;line-height:1.8}
-.gv-step.act{color:#a5b4fc}.gv-step.done{color:#4a5}
-.gv-barwrap{height:5px;background:#1c1d22;border-radius:3px;overflow:hidden;margin-bottom:5px}
-.gv-bar{height:100%;background:linear-gradient(90deg,#6366f1,#a5b4fc);border-radius:3px;width:0;transition:width .25s}
+.gv-step{font-size:9.5px;color:var(--g-text-dim);line-height:1.8}
+.gv-step.act{color:var(--g-accent-text)}.gv-step.done{color:#4a5}
+.gv-barwrap{height:5px;background:var(--g-surface-3);border-radius:3px;overflow:hidden;margin-bottom:5px}
+.gv-bar{height:100%;background:linear-gradient(90deg,#6366f1,var(--g-accent-text));border-radius:3px;width:0;transition:width .25s}
 .gv-bar.indet{animation:gvslide 1.2s ease-in-out infinite}
 @keyframes gvslide{0%{margin-left:-40%}100%{margin-left:100%}}
 .gv-pct{font-size:9px;color:#777;height:12px;margin-bottom:6px}
-.gv-note{font-size:8.5px;color:#666;margin-bottom:10px}
+.gv-note{font-size:8.5px;color:var(--g-text-low);margin-bottom:10px}
 .gv-cancel{padding:4px 14px;border:1px solid #3a2a2a;border-radius:6px;background:#1c1416;color:#c88;font-size:9px;cursor:pointer;font-family:inherit}
 .gv-cancel:hover{background:#241719}
 #gitl.pos-dock{border-radius:10px 0 0 10px;border-right:none;width:268px}
-#gitl.pos-dock.collapsed{width:32px!important;min-width:0}
+#gitl.pos-dock.collapsed{width:44px!important;min-width:0}
 #gitl.pos-dock.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
 #gitl.pos-dock.collapsed .g-hdr > span:last-child{flex-direction:column}
 #gitl.pos-dock.collapsed .g-plat{display:none}
+#gitl.pos-dock.collapsed .g-minbtn:not(#g-col){display:none}
+#gitl.pos-dock.collapsed #g-col{font-size:14px;padding:4px 8px}
 #gitl.pos-dock.collapsed .g-logo{writing-mode:vertical-rl;font-size:11px}
-#gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px}
+#gitl.pos-dock.collapsed .g-coll-row{flex-direction:column;padding:4px 2px;gap:6px}
+#gitl.pos-dock.collapsed .g-qbtn{width:36px;height:36px;font-size:16px;border-radius:8px}
 #gitl.pos-dock.collapsed .g-qstat{display:none}
+.g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:var(--g-text-mid);line-height:1.2;word-break:break-all}
+#gitl.pos-dock.collapsed .g-dock-stat,#gitl.pos-dock-left.collapsed .g-dock-stat{display:block}
+.g-dk-drift{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:3px}
+.g-dk-cap{font-size:7.5px;color:var(--g-text-low);letter-spacing:.02em}
+.g-dk-bar{display:block;width:32px;height:4px;margin:0 auto 3px;background:var(--g-surface-3);border-radius:2px;overflow:hidden}
+.g-dk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--g-ok),var(--g-accent));border-radius:2px;transition:width .4s}
+.g-dk-edit{width:34px;height:18px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:3px;color:var(--g-text);font-size:9px;text-align:center;font-family:inherit;padding:0}
+.g-dk-edit:focus{border-color:#4338ca;outline:none}
+.g-dk-rst{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1}
+.g-dk-rst:hover{background:var(--g-border);color:var(--g-text-hot)}
 /* Gold left-dock: mirror geometry to the left edge + gold accents. Our own
    element in the top stacking context — never injected into the host's menu. */
 #gitl.pos-dock-left{left:0;right:auto;border-radius:0 10px 10px 0;border-left:none;border-right:1px solid #5a4a1e}
 #gitl.pos-dock-left.collapsed .g-hdr{flex-direction:column;padding:10px 4px;gap:6px}
+#gitl.pos-dock-left.collapsed .g-minbtn:not(#g-col){display:none}
+#gitl.pos-dock-left.collapsed #g-col{font-size:14px;padding:4px 8px}
 #gitl.pos-dock-left{border-color:#5a4a1e;box-shadow:0 10px 32px rgba(120,90,10,.28)}
 #gitl.pos-dock-left .g-logo{color:#e8c66a}
 #gitl.pos-dock-left.collapsed .g-logo{writing-mode:vertical-rl;font-size:13px;color:#f0cd6e;letter-spacing:1px}
+#gitl.pos-dock-left.collapsed .g-qbtn{width:36px;height:36px;font-size:16px;border-radius:8px}
 #gitl.pos-dock-left .g-dot{box-shadow:0 0 6px rgba(232,198,106,.6)}
 .g-pos-gold{color:#e8c66a!important}
 .g-pos-gold.act{background:#2a2410!important;border-color:#5a4a1e!important}
-.g-diag .ok{color:#34d399}.g-diag .warn{color:#f87171}
-.g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid #27282e;border-radius:6px;background:#18191c;color:#c9cad0;font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
-.g-persona-btn.act{background:#1a1b2e;border-color:#3730a3;color:#c7d2fe}
-.g-persona-btn .plbl{font-weight:700;color:#9ca3af}.g-persona-btn.act .plbl{color:#a5b4fc}
-.g-persona-btn .pdesc{font-size:9px;color:#6b7280;line-height:1.4;margin-top:1px}
+.g-diag .ok{color:var(--g-ok)}.g-diag .warn{color:var(--g-err)}
+.g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text);font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
+.g-persona-btn.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:#c7d2fe}
+.g-persona-btn .plbl{font-weight:700;color:#9ca3af}.g-persona-btn.act .plbl{color:var(--g-accent-text)}
+.g-persona-btn .pdesc{font-size:9px;color:var(--g-muted);line-height:1.4;margin-top:1px}
 .g-cust-badge{color:#e8c66a;font-size:9px}
 .g-del{float:right;color:#7a5050;font-size:10px;padding:0 3px;border-radius:3px;cursor:pointer}
 .g-del:hover{background:#3a1f1f;color:#e0a0a0}
-.g-ws-bar{display:flex;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid #1c1d22}
-.g-ws-btn{flex:1;padding:5px 0;border:1px solid #2a2c35;border-radius:5px;background:#16171b;color:#8b8ea3;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit}
-.g-ws-btn:hover{background:#1a1b2e;border-color:#3730a3;color:#a5b4fc}
+.g-ws-bar{display:flex;gap:5px;margin-top:8px;padding-top:7px;border-top:1px solid var(--g-surface-3)}
+.g-ws-btn{flex:1;padding:5px 0;border:1px solid #2a2c35;border-radius:5px;background:var(--g-surface-2);color:#8b8ea3;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit}
+.g-ws-btn:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-ws-form{margin-top:6px;padding:7px;background:#141519;border:1px solid #2a2c35;border-radius:6px}
-.g-ws-in,.g-ws-ta{width:100%;margin-bottom:5px;padding:5px 6px;background:#0e0f12;border:1px solid #2a2c35;border-radius:4px;color:#c9cad0;font-family:inherit;font-size:9.5px;box-sizing:border-box}
+.g-ws-in,.g-ws-ta{width:100%;margin-bottom:5px;padding:5px 6px;background:#0e0f12;border:1px solid #2a2c35;border-radius:4px;color:var(--g-text);font-family:inherit;font-size:9.5px;box-sizing:border-box}
 .g-ws-ta{resize:vertical;line-height:1.4}
 .g-ws-form-btns{display:flex;gap:5px}.g-ws-form-btns .g-btn-sm{flex:1;margin-top:0}
-.g-wf-desc{font-size:9px;color:#7a7d88;line-height:1.45;background:#16171b;border:1px solid #27282e;border-radius:5px;padding:6px;margin-bottom:7px}
+.g-wf-desc{font-size:9px;color:#7a7d88;line-height:1.45;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:5px;padding:6px;margin-bottom:7px}
 .g-wf-how{font-size:9px;color:#9ca3af;line-height:1.5;background:#16171f;border:1px solid #2a2c3a;border-radius:6px;padding:7px 8px;margin-bottom:8px}
 .g-wf-how b{color:#c7d2fe}
 .g-wf-start{width:100%;font-size:12px;padding:8px 0;margin-bottom:2px}
 .g-wf-start.g-dim{opacity:.4;cursor:default}
-.g-wf-progress{font-size:9px;color:#7a7d88;text-align:center;margin:6px 0 2px}.g-wf-progress b{color:#a5b4fc}
-.g-wf-stage{display:flex;align-items:stretch;gap:6px;padding:5px 6px;margin-bottom:3px;background:#16171b;border:1px solid #27282e;border-radius:5px}
+.g-wf-progress{font-size:9px;color:#7a7d88;text-align:center;margin:6px 0 2px}.g-wf-progress b{color:var(--g-accent-text)}
+.g-wf-stage{display:flex;align-items:stretch;gap:6px;padding:5px 6px;margin-bottom:3px;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:5px}
 .g-wf-stage-txt{flex:1;font-size:9px;line-height:1.45;color:#7a7d88}
-.g-wf-stage b{color:#8b8ea3}.g-wf-stage.act{background:#1a1b2e;border-color:#3730a3}.g-wf-stage.act .g-wf-stage-txt,.g-wf-stage.act b{color:#c7d2fe}
-.g-wf-ins{flex:0 0 auto;width:20px;border:1px solid #3730a3;border-radius:4px;background:#1a1b2e;color:#a5b4fc;font-size:8px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit;writing-mode:vertical-rl;text-orientation:mixed;padding:4px 0;transition:all .15s}
+.g-wf-stage b{color:#8b8ea3}.g-wf-stage.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep)}.g-wf-stage.act .g-wf-stage-txt,.g-wf-stage.act b{color:#c7d2fe}
+.g-wf-ins{flex:0 0 auto;width:20px;border:1px solid var(--g-accent-deep);border-radius:4px;background:var(--g-accent-bg);color:var(--g-accent-text);font-size:8px;font-weight:700;letter-spacing:.5px;cursor:pointer;font-family:inherit;writing-mode:vertical-rl;text-orientation:mixed;padding:4px 0;transition:all .15s}
 .g-wf-ins:hover{background:#26284a}
 .g-wf-ins.ins-ok{background:#14532d;border-color:#16a34a;color:#86efac}
-.g-peek-btn{font-size:9px;color:#3a3b44;cursor:pointer;text-align:center;margin-top:5px;padding-top:4px;border-top:1px solid #1c1d22}
+.g-peek-btn{font-size:9px;color:#3a3b44;cursor:pointer;text-align:center;margin-top:5px;padding-top:4px;border-top:1px solid var(--g-surface-3)}
 .g-peek-btn:hover{color:#777}
-.g-peek{display:none;margin-top:4px;padding:5px;background:#0c0d10;border:1px solid #27282e;border-radius:5px;font-size:9px;line-height:1.5;color:#48505e;white-space:pre-wrap;max-height:140px;overflow-y:auto}
+.g-peek{display:none;margin-top:4px;padding:5px;background:var(--g-bg-deep);border:1px solid var(--g-border);border-radius:5px;font-size:9px;line-height:1.5;color:#48505e;white-space:pre-wrap;max-height:140px;overflow-y:auto}
 .g-peek.open{display:block}
-.g-shortcuts{font-size:8.5px;color:#333;text-align:center;margin-top:4px}
-.g-firstrun{padding:6px 8px;background:#1a1b2e;border:1px solid #3730a3;border-radius:6px;font-size:9.5px;color:#a5b4fc;line-height:1.4;margin-bottom:7px;text-align:center}
+.g-shortcuts{font-size:8.5px;color:var(--g-text-ghost);text-align:center;margin-top:4px}
+.g-firstrun{padding:6px 8px;background:var(--g-accent-bg);border:1px solid var(--g-accent-deep);border-radius:6px;font-size:9.5px;color:var(--g-accent-text);line-height:1.4;margin-bottom:7px;text-align:center}
 .g-report{margin-top:6px;padding:7px 9px;background:#241719;border:1px solid #5a2e2e;border-radius:7px}
 .g-report-h{font-size:10px;font-weight:700;color:#f1b4b4;display:flex;align-items:center;gap:6px}
 .g-report-k{font-size:8px;font-weight:600;color:#c88;background:#1c1416;border:1px solid #3a2a2a;border-radius:4px;padding:1px 5px}
@@ -2657,6 +3572,69 @@ function injectStyles() {
 const panel = document.createElement('div');
 panel.id = 'gitl';
 let _panelMounted = false;
+/* ── EXPLAIN MODE (d9) — tap ⓘ, then tap any control for a one-breath answer.
+   Registry-driven; capture-phase intercept swallows the click so nothing fires. */
+const EXPLAIN = [
+  { sel:'#g-play',        name:'▶ Start / Resume',  desc:'Begins (or resumes) the auto-continue loop using the current Strategy and Thinking posture.' },
+  { sel:'#g-pause',       name:'⏸ Pause',           desc:'Stops auto-continuing. The chat is untouched — press ▶ to pick up where you left off.' },
+  { sel:'#g-reground',    name:'⊕ Reground',        desc:'Re-anchors the AI to the ORIGINAL task. Use it the moment answers drift off-topic.' },
+  { sel:'#g-stop',        name:'✕ End & reset',     desc:'Ends the run and resets rounds, roadmap position and workflow stage.' },
+  { sel:'#g-strategy',    name:'Strategy',          desc:'Step by step = one nudge per reply. Plan first = the AI batches a plan, then executes. Autopilot = the AI writes a roadmap and Ghost runs every step.' },
+  { sel:'#g-drift-tog',   name:'Drift guard',       desc:'Auto-pauses after N continues so an unattended run can\u2019t wander. The checkpoint asks: continue, reground, or stop.' },
+  { sel:'#g-drift-max',   name:'Drift limit',       desc:'The N — how many auto-continues before the drift checkpoint fires.' },
+  { sel:'#g-cnt-reset',   name:'↻ Reset counter',   desc:'Resets the used-continues count without ending the run.' },
+  { sel:'#run-adv',       name:'Advanced',          desc:'Power tools: Thinking posture (Locked / Adaptive / Audit), the injected-prompt preview, End & reset, and diagnostics.' },
+  { sel:'#g-posture-help',name:'Thinking posture',  desc:'Controls whether the AI\u2019s plan may grow: Locked = exact plan \u00b7 Adaptive = may add justified steps mid-run \u00b7 Audit = locked plan + one final gap-review.' },
+  { sel:'.g-pst',         name: el => 'Posture: ' + ((POSTURES[el.dataset.pst]||{}).label||''), desc: el => (POSTURES[el.dataset.pst]||{}).desc || '' },
+  { sel:'#g-peek-btn',    name:'What gets injected',desc:'Shows the exact instruction block Ghost appends to your prompt for the current Strategy.' },
+  { sel:'#g-handoff',     name:'🤝 Handoff',        desc:'The AI writes its own briefing for a fresh chat. Best choice while the current chat STILL RESPONDS.' },
+  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads the full transcript. The complete record of the four export actions — for keeping, not for resuming.' },
+  { sel:'#g-capsule',     name:'💊 Capsule v2',       desc:'A resumable JSON snapshot with dedup + a resume token — built for feeding back into an API or another tool, not for reading.' },
+  { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
+  { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
+  { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
+  { sel:'#cfg-unattended',name:'🌙 Unattended',      desc:'Normally Ghost pauses when you switch tabs, so it can\u2019t burn tokens unwatched. Turn this on to keep running in a background tab \u2014 it also switches to a Worker-based timer that browsers don\u2019t throttle. The tab must stay OPEN; this does not run on a server.' },
+  { sel:'#cfg-skin',      name:'🎨 Skin',           desc:'Visual theme. Skins are pure style tokens — they can never add, remove, or change features.' },
+  { sel:'#cfg-skin-imp',  name:'⬆ Import skin',     desc:'Load a .gitl.json skin file. Anything a skin isn\u2019t allowed to do is silently dropped.' },
+  { sel:'#cfg-skin-exp',  name:'⬇ Export skin',     desc:'Save the active skin as .gitl.json — edit it in any text editor and re-import. That\u2019s the whole modding loop.' },
+  { sel:'#cfg-hue',       name:'Accent hue',        desc:'Tints the active skin\u2019s accent family. Double-click resets to the skin\u2019s own hue.' },
+  { sel:'.g-swatch',      name:'Color swatch',       desc:'One-tap accent colors — same effect as dragging the hue slider to that spot.' },
+  { sel:'.g-tab',         name: el => 'Tab: ' + (el.textContent||'').trim(), desc: () => 'Switches the panel section. The ? button gives the full guide for whichever tab is open.' },
+  { sel:'#g-tabhelp',     name:'? Tab guide',       desc:'Opens the full walkthrough for the current tab.' }
+];
+function _explainLookup(target) {
+  if (!target || !target.closest) return null;
+  for (const e of EXPLAIN) {
+    const hit = target.closest(e.sel);
+    if (hit) return {
+      name: typeof e.name === 'function' ? e.name(hit) : e.name,
+      desc: typeof e.desc === 'function' ? e.desc(hit) : e.desc
+    };
+  }
+  return null;
+}
+function _explainShow(info) {
+  let tip = panel.querySelector('.g-xtip');
+  if (!tip) { tip = document.createElement('div'); tip.className = 'g-xtip'; panel.appendChild(tip); }
+  tip.innerHTML = `<span class="x" id="g-xtip-x">✕</span><b>${info.name}</b><br>${info.desc}`;
+}
+function _explainIntercept(e) {
+  const t = e.target;
+  if (t && t.closest && t.closest('#g-explain-tog')) {
+    e.preventDefault(); e.stopPropagation();
+    GHOST.ui.explain = !GHOST.ui.explain;
+    panel.dataset.explain = GHOST.ui.explain ? '1' : '0';
+    const tip = panel.querySelector('.g-xtip');
+    if (!GHOST.ui.explain) { if (tip) tip.remove(); }
+    else _explainShow({ name:'🔎 Explain mode', desc:'Tap any button or control to see what it does — nothing will activate. Tap ⓘ again to exit.' });
+    return;
+  }
+  if (!GHOST.ui.explain) return;
+  if (t && t.closest && t.closest('#g-xtip-x')) { e.preventDefault(); e.stopPropagation(); const tip = panel.querySelector('.g-xtip'); if (tip) tip.remove(); return; }
+  e.preventDefault(); e.stopPropagation();
+  _explainShow(_explainLookup(t) || { name:'—', desc:'No note for this one yet — the ? button has the full tab guide.' });
+}
+
 function mountPanel() {
   if (_panelMounted || !document.body) return;
   // Defense-in-depth: if a stray #gitl exists (e.g. script eval'd twice in a
@@ -2665,6 +3643,10 @@ function mountPanel() {
   if (existing && existing !== panel) existing.remove();
   _panelMounted = true;
   document.body.appendChild(panel);
+  // Smoother load: 180ms entrance instead of pop-in. Animation-only — ends at
+  // the natural resting state, so nothing downstream can depend on it.
+  try { panel.classList.add('g-enter'); setTimeout(() => panel.classList.remove('g-enter'), 400); } catch(_) {}
+  panel.addEventListener('click', _explainIntercept, true); // capture: explain mode swallows clicks before handlers
 }
 
 /* Escape untrusted text before interpolating into innerHTML templates.
@@ -2697,31 +3679,26 @@ function statLabel() {
 function renderRunTab() {
   const L = GHOST.loop, p = L.lastProgress, pct = p ? Math.round((p.step/p.total)*100) : 0;
   const pm = L.payloadMode;
+  const runAdv = GHOST.ui.runAdv || false;
   const peekOpen = panel.querySelector('.g-peek')?.classList.contains('open');
   const firstRun = GHOST.ui.firstRun;
+  const idle = L.state==='IDLE'||L.state==='COMPLETE';
+  const activeP = (GHOST.persona.selected||[]).filter(s=>s&&s!=='none');
+  const pLabel = activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'';
   return `
-    ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your big task in the chat box<br>2. Press ▶ — Ghost wraps it in the loop protocol<br>3. Walk away. Ghost auto-continues, stops on [[GITL::HALT]]<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
-    <div class="g-modes">
-      <button class="g-md${pm==='loop'?' act':''}" data-m="loop">${PAYLOADS.loop.label}</button>
-      <button class="g-md${pm==='think'?' act':''}" data-m="think">${PAYLOADS.think.label}</button>
-      <button class="g-md${pm==='roadmap'?' act':''}" data-m="roadmap">${PAYLOADS.roadmap.label}</button>
-    </div>
-    <div class="g-hint">${PAYLOADS[pm].hint}</div>
-    <div class="g-posture-wrap">
-      <div class="g-posture-lbl">Thinking posture <button class="g-posture-q" id="g-posture-help" title="What do these mean?">?</button></div>
-      <div class="g-postures">
-        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
-        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
-        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
-      </div>
-      <div class="g-posture-hint">${_esc((POSTURES[L.posture]||POSTURES.standard).desc)}</div>
-    </div>
-    ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run can't wander off-task unattended. What next?</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground" title="Re-anchor the AI to the task it started on, then continue">⊕ Reground</button><button class="g-btn st" id="g-limit-wait" title="Pause and wait for your instructions">✋ Stop &amp; wait</button></div></div>` : ''}
+    ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
+    ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
+    ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
+    <div class="g-mod g-mod-transport">
+      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${statLabel()}</span></div>
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='LIMIT'?`Continue ${L.limitStep} more`:'Start / Resume (Alt+P)'}">▶</button>
-      <button class="g-btn" id="g-pause" title="Pause (Alt+P)">⏸</button>
-      <button class="g-btn st" id="g-stop" title="Stop & Reset (Alt+S)">■</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-reground" title="Re-anchor AI to original task — use when you see drift">⊕</button>
     </div>
+    </div>
+    <div class="g-mod g-mod-prog">
+      <div class="g-mod-h"><span class="g-mod-i">📊</span>Progress<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
       <div class="g-plbl">
@@ -2731,21 +3708,45 @@ function renderRunTab() {
       ${(L.state==='RUNNING'||L.state==='PAUSED'||L.state==='LIMIT') ? (()=>{
         const left = Math.max(0, L.maxRounds - L.round);
         const lowpct = L.maxRounds ? (left / L.maxRounds) * 100 : 100;
-        const warn = left <= 5;
-        return `<div class="g-safety${warn?' warn':''}" title="Safety check: Ghost pauses after ${L.maxRounds} auto-continues so it can't drift or invent steps unattended. Not your task length — just a drift guard.">
+        const warn = L.driftEnabled && left <= 5;
+        const off = !L.driftEnabled;
+        return `<div class="g-safety${warn?' warn':''}${off?' off':''}" title="${off?'Drift guard OFF — loop runs without a cap.':'Drift guard: auto-pauses after this many continues.'}">
           <div class="g-safety-row">
+            <div class="g-tog${L.driftEnabled?' on':''}" id="g-drift-tog"></div>
             <span class="g-safety-lbl">drift guard</span>
-            <span class="g-safety-num"><b>${left}</b> left of ${L.maxRounds}</span>
-            <button class="g-safety-rst" id="g-cnt-reset" title="Reset this counter back to ${L.maxRounds} (does not touch your chat or the page)">↻</button>
+            <span class="g-safety-num">${off?'OFF':'<b>'+left+'</b> left'}</span>
+            <input type="number" class="g-safety-edit" id="g-drift-max" value="${L.maxRounds}" min="1" max="999">
+            <button class="g-safety-rst" id="g-cnt-reset">↻</button>
           </div>
-          <div class="g-safety-trk"><div class="g-safety-fill" style="width:${lowpct}%"></div></div>
+          ${!off?`<div class="g-safety-trk"><div class="g-safety-fill" style="width:${lowpct}%"></div></div>`:''}
         </div>`;
       })() : ''}
     </div>
-    <div class="g-stat" style="color:${statColor()}">${statLabel()}</div>
+    </div>
+    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
     ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
+    <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
+    ${runAdv ? `
+    <div class="g-mod g-mod-adv">
+      <div class="g-mod-h"><span class="g-mod-i">🧭</span>Strategy<span class="g-mod-x">${PAYLOADS[pm].label}</span></div>
+    <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
+    <div class="g-hint">${PAYLOADS[pm].hint}</div>
+    </div>
+    <div class="g-mod g-mod-adv">
+      <div class="g-mod-h"><span class="g-mod-i">🧠</span>Thinking<span class="g-mod-x">${(POSTURES[L.posture]||POSTURES.standard).label}</span></div>
+    <div class="g-posture-wrap">
+      <div class="g-posture-lbl">Thinking <button class="g-posture-q" id="g-posture-help">?</button></div>
+      <div class="g-postures">
+        <button class="g-pst${L.posture==='standard'?' act':''}" data-pst="standard">${POSTURES.standard.label}</button>
+        <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
+        <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
+      </div>
+    </div>
+    </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
+    <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
+    ` : ''}
     <div class="g-shortcuts">v${VER} · Alt+P toggle · Alt+S stop</div>`;
 }
 
@@ -2785,6 +3786,7 @@ function renderFlowTab() {
         ${GHOST.workflow.pauseBetween ? '<br><br>⏸ <b>Pause between is ON</b> — Ghost stops after each stage so you can review or switch models, then press ▶ to continue.' : ''}
       </div>
       <button class="g-btn go g-wf-start${running?' g-dim':''}" id="wf-start"${running?' disabled':''}>▶ Start workflow</button>
+      ${running||GHOST.workflow.active ? `<div class="g-btns" style="margin-top:4px"><button class="g-btn" id="wf-do-pause" title="Pause workflow">⏸</button><button class="g-btn st" id="wf-do-stop" title="Stop & reset workflow">✕ End</button></div>` : ''}
       <div class="g-row" style="margin-top:8px"><label>Pause between stages</label><div class="g-tog${GHOST.workflow.pauseBetween?' on':''}" id="wf-pause"></div></div>
       <div class="g-wf-progress">Stage <b>${wf.stages.length?(GHOST.workflow.stageIndex+1):'—'}</b> of ${wf.stages.length} ${GHOST.workflow.active?'· running':''}</div>
       <div class="g-div"></div>${stages}
@@ -2803,10 +3805,11 @@ const HELP_SECTIONS = {
     <b>The 30-second version:</b><br>1. Type your task in the chat box<br>2. Press the big ▶<br>3. Walk away ☕<br><br>
     <b>How does it know when to stop?</b><br>Ghost teaches the AI two signals: <code>[[GITL::PROCEED]]</code> = "more to do", <code>[[GITL::HALT]]</code> = "finished". Ghost reads them and acts.` },
   run: { label: 'Run', html: `
-    <b>The Run tab</b> is the classic loop.<br><br>
-    <b>Three modes:</b><br>· <b>Loop</b> — AI works in batches, Ghost continues each one<br>· <b>Think First</b> — AI plans before working, then batches<br>· <b>Roadmap</b> — AI researches, writes its own plan, Ghost runs every step (see Auto)<br><br>
-    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⏹ stop &amp; reset<br><br>
-    <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard (default 20 auto-continues) catching a long run — <i>not</i> an error. It's a grounding pause so an unattended run can't wander off-task. Three choices:<br>· <b>▶ Continue</b> — run 20 more (asks again each 20)<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on, then continue<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>Raise the default in Setup → Max rounds, or tap ↻ on the drift-guard bar to reset the count anytime.` },
+    <b>The Run tab</b> is command center.<br><br>
+    <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
+    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⊕ reground (re-anchor AI to the original task if you see drift). Full stop is in Advanced ▾.<br><br>
+    <b>Personas line:</b> shows your active persona or committee. Tap "edit" to jump to the Personas tab.<br><br>
+    <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard catching a long run. It's a grounding pause so an unattended run cannot wander off-task. Three choices:<br>· <b>▶ Continue</b> — run more<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>You can edit the cap inline, toggle the guard off, or tap ↻ to reset.` },
   auto: { label: 'Auto', html: `
     <b>The Auto tab</b> = fire &amp; forget.<br><br>
     <b>Roadmap</b> (AI plans): pick Roadmap on Run, press ▶. The AI studies your task, writes a numbered plan, and Ghost executes every step + a final synthesis. Watch steps get ✓ here.<br><br>
@@ -2817,24 +3820,29 @@ const HELP_SECTIONS = {
     <b>To run one:</b><br>1. Pick a workflow from the dropdown<br>2. Type your task in the chat box<br>3. Press <b>▶ Start workflow</b><br>Ghost runs every stage in order, advancing each time the AI HALTs.<br><br>
     <b>INSERT button</b> (the small vertical tab on each stage): drops just that one stage's prompt into the chat box, so you can run a single stage by hand instead of the whole sequence.<br><br>
     <b>Pause between stages:</b> OFF = Ghost runs start-to-finish. ON = Ghost stops after each stage so you can review — or switch the model (that's how <b>Lens Relay</b> works: swap model at each pause, press ▶ to continue).` },
-  roles: { label: 'Roles', html: `
-    <b>The Roles tab</b> injects a persona into your first prompt — Red Team attacks the work, Round Table simulates a committee, and so on.<br><br>
-    <b>On Perplexity</b>, Round Table automatically becomes a REAL round table: it expects you to switch models between turns, and each model must give its own independent assessment, in a code block, naming who goes next.` },
+  roles: { label: 'Personas', html: `
+    <b>The Personas tab</b> shapes how the AI approaches your task.<br><br>
+    <b>Basic:</b> pick a persona from the dropdown — Red Team attacks the work, Researcher digs deep, Devil's Advocate challenges every claim. The persona framing is injected into your first prompt.<br><br>
+    <b>Committee mode</b> (toggle at top): select multiple personas. The AI simulates all perspectives on every response, then synthesizes a consensus with disagreements preserved.<br><br>
+    <b>Per-task toggle:</b> re-inject the committee framing on every step, not just the first.<br>
+    <b>Final review toggle:</b> after all work completes, the committee does one final review pass before halting.<br><br>
+    <b>On Perplexity</b>, Round Table becomes a REAL round table: switch models between turns, each model gives independent assessment naming who goes next.` },
   export: { label: 'Export', html: `
     <b>Three buttons, three jobs:</b><br><br>
     <b>⬇ Export</b> — the full record. The whole conversation as a file (with 💭 thinking logs). For archiving and reading.<br><br>
     <b>🤝 Handoff</b> — moving to another model? Ghost asks THIS AI to write a structured briefing in-chat (mission, decisions, failures, next steps). Paste it into the new model. The AI's own summary beats a raw transcript — decisions don't get buried.<br><br>
-    <b>🛟 Rescue</b> — the chat is full, stuck, or won't respond, so you can't ask it anything. Ghost scrapes the state + last 10 messages verbatim + resumption instructions into a file. Paste into a fresh chat and keep going.<br><br>
-    <i>Working chat → Handoff. Dead chat → Rescue. Records → Export.</i>` },
+    <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
+    <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Backup Handoff (Ghost writes it, lighter — Handoff's calmer sibling, not a separate emergency). Complete record → Export (fullest of all four, not for resuming — for keeping).</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br><br>
+    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
+· <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
   posture: { label: 'Posture', html: `
     <b>Thinking posture = how much room the AI has to grow its own plan.</b> You pick it up front, like a reasoning dial — Ghost never guesses. It works with any mode (Loop / Think / Roadmap).<br><br>
-    <b>Standard</b> — locked. The AI does exactly the steps it declared, nothing more. Most predictable; best when you know the scope.<br><br>
-    <b>Evolving</b> (a.k.a. <i>adaptive</i>) — the AI may add steps <i>while working</i>, but only when it hits a real blocker or a gap that would otherwise make it fail the goal — and it must justify each addition in one line. It can't wander into unrelated topics, and it stays under the drift-guard ceiling.<br><br>
-    <b>Extended</b> (a.k.a. <i>review</i>) — the AI runs the plan locked, then does <i>one</i> gap-check at the end: what's missing or unanswered against the original goal. It fills only genuinely valuable holes, then stops. If nothing's missing, it says so and halts.<br><br>
+    <b>Locked</b> (formerly Standard) — The AI does exactly the steps it declared, nothing more. Most predictable; best when you know the scope.<br><br>
+    <b>Adaptive</b> (formerly Evolving) — the plan can <i>grow</i>: the AI may add steps <i>while working</i>, but only when it hits a real blocker or a gap that would otherwise make it fail the goal — and it must justify each addition in one line. It can't wander into unrelated topics, and it stays under the drift-guard ceiling.<br><br>
+    <b>Audit</b> (formerly Extended) (a.k.a. <i>review</i>) — the AI runs the plan locked, then does <i>one</i> gap-check at the end: what's missing or unanswered against the original goal. It fills only genuinely valuable holes, then stops. If nothing's missing, it says so and halts.<br><br>
     All three keep the drift guard as the hard ceiling — if the AI hits it, it stops and reports the biggest unresolved gap instead of padding. <span style="color:#5a5d68">(Wording based on current best-practice research: OpenAI/Anthropic planning guidance, ReAct/Reflexion, Self-Refine, and agent guardrail patterns.)</span>` },
   workshop: { label: 'Workshop', html: `
     <b>Make Ghost yours — and share it.</b><br><br>
@@ -2892,24 +3900,51 @@ function renderAutoTab() {
 }
 
 function renderPersonasTab() {
-  const items = Object.entries(allPersonas()).map(([k,v]) =>
-    `<button class="g-persona-btn${GHOST.persona.selected===k?' act':''}" data-p="${_esc(k)}">
-       <span class="plbl">${v.custom?'<span class="g-cust-badge">★</span> ':''}${_esc(v.label)}${v.custom?`<span class="g-del" data-del-p="${_esc(k)}" title="Delete this custom persona">✕</span>`:''}</span>
-       <div class="pdesc">${_esc(v.inject||'No persona framing.')}</div>
-     </button>`
-  ).join('');
+  const sel = GHOST.persona.selected || ['none'];
+  const comm = GHOST.persona.committee;
   const creating = GHOST.ui.wsNewPersona;
-  const form = creating ? `
+  const allP = allPersonas();
+  const activeP = sel.filter(s=>s&&s!=='none');
+
+  // Basic: single persona selector with preview
+  const opts = Object.entries(allP).map(([k,v]) => `<option value="${_esc(k)}"${!comm&&sel.includes(k)&&k!=='none'?' selected':''}>${v.custom?'★ ':''}${_esc(v.label)}</option>`).join('');
+  const curKey = !comm && activeP.length===1 ? activeP[0] : null;
+  const curP = curKey ? allP[curKey] : null;
+
+  // Committee: multi-select rows
+  const committeeRows = comm ? activeP.map((k,i) => {
+    const p = allP[k];
+    const rowOpts = Object.entries(allP).filter(([id])=>id!=='none').map(([id,v]) => `<option value="${_esc(id)}"${id===k?' selected':''}>${v.custom?'★ ':''}${_esc(v.label)}</option>`).join('');
+    return `<div class="g-qrow"><select class="g-qin g-cm-sel" data-ci="${i}" style="flex:1">${rowOpts}</select><button class="g-qdel g-cm-del" data-ci="${i}">✕</button></div><div class="g-hint" style="margin-top:-2px;margin-bottom:5px;font-size:8.5px">${p?_esc(p.inject.slice(0,80))+(p.inject.length>80?'…':''):'Unknown persona'}</div>`;
+  }).join('') : '';
+
+  return `
+    <div class="g-row"><label>Committee</label><div class="g-tog${comm?' on':''}" id="p-comm-tog" title="Toggle committee mode — select multiple personas"></div></div>
+    ${!comm ? `
+      <div class="g-row"><label>Persona</label><select id="p-single" style="width:130px"><option value="none"${activeP.length===0?' selected':''}>None</option>${opts}</select></div>
+      ${curP ? `<div class="g-hint" style="line-height:1.6"><b>${_esc(curP.label)}</b>${curP.custom?' <span class="g-cust-badge">★ custom</span>':''}<br>${_esc(curP.inject.slice(0,200))}${curP.inject.length>200?'…':''}</div>` : '<div class="g-hint">No persona active — the AI uses its default behavior.</div>'}
+      <button class="g-exp-btn" id="p-run" style="margin-top:4px">▶ Run with${curP?' '+_esc(curP.label):' persona'}</button>
+    ` : `
+      <div style="font-size:9px;color:#777;font-weight:700;margin:4px 0">COMMITTEE MEMBERS (${activeP.length})</div>
+      ${committeeRows}
+      <button class="g-btn-sm" id="p-cm-add" style="width:100%;margin-top:4px">＋ Add member</button>
+      <div class="g-div"></div>
+      <div class="g-row"><label>Per-task</label><div class="g-tog${GHOST.persona.perTask?' on':''}" id="p-pertask" title="Apply committee perspective to every step, not just the first"></div></div>
+      <div class="g-row"><label>Final review</label><div class="g-tog${GHOST.persona.finalReview?' on':''}" id="p-review" title="Committee conducts a final review after all work is complete"></div></div>
+      <div class="g-hint">Per-task = each step runs with the committee framing. Final review = after the last step, the committee reviews and synthesizes.</div>
+      <button class="g-exp-btn" id="p-run" style="margin-top:4px">▶ Run with committee (${activeP.length})</button>
+    `}
+    <div class="g-div"></div>
+    ${creating ? `
     <div class="g-ws-form">
       <input class="g-ws-in" id="ws-p-label" placeholder="Persona name (e.g. Legal Reviewer)" maxlength="40">
       <textarea class="g-ws-ta" id="ws-p-inject" placeholder="Persona framing — 'Adopt the persona of…'" rows="3" maxlength="4000"></textarea>
       <div class="g-ws-form-btns"><button class="g-btn-sm" id="ws-p-save">✓ Save persona</button><button class="g-btn-sm" id="ws-p-cancel" style="background:#18191c">Cancel</button></div>
-    </div>` : `<button class="g-exp-btn" id="ws-p-new" style="margin-top:5px">＋ Create custom persona</button>`;
-  return items + form + `
+    </div>` : `<button class="g-exp-btn" id="ws-p-new" style="margin-top:2px">＋ Create custom persona</button>`}
     <div class="g-ws-bar">
-      <button class="g-ws-btn" id="ws-import" title="Import a .gitl.json pack of personas & workflows">⬆ Import</button>
-      <button class="g-ws-btn" id="ws-export" title="Export your custom personas & workflows to a shareable file">⬇ Export</button>
-      <button class="g-ws-btn" id="ws-submit" title="Share your pack with the community">🌐 Share</button>
+      <button class="g-ws-btn" id="ws-import">⬆ Import</button>
+      <button class="g-ws-btn" id="ws-export">⬇ Export</button>
+      <button class="g-ws-btn" id="ws-submit">🌐 Share</button>
     </div>`;
 }
 
@@ -2919,11 +3954,12 @@ function renderExportTab() {
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
-    <button class="g-exp-btn" id="g-export">⬇ Export conversation</button>
-    <button class="g-exp-btn" id="g-capsule" style="margin-top:5px">💊 Capsule v2 — resumable JSON</button>
-    <button class="g-exp-btn" id="g-handoff" style="margin-top:5px">🤝 Handoff — AI writes the baton</button>
-    <button class="g-exp-btn" id="g-rescue" style="margin-top:5px;background:#18191c;border-color:#2e2f35;color:#ccc">🛟 Rescue file (chat stuck/full)</button>
-    <div class="g-hint" style="margin-top:4px"><b>Export</b> = full record. <b>Handoff</b> = the AI writes a briefing in-chat for the next model. <b>Rescue</b> = chat won't respond anymore — scrape the tail + instructions into a file for a fresh chat.</div>
+    <div class="g-xlist">
+      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Full transcript, markdown or JSON. The complete record — for keeping.</span></div></div>
+      <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Capsule v2</b><span>Resumable JSON with a resume token — for feeding back into an API or tool.</span></div></div>
+      <div class="g-xrow g-xrow-ok" id="g-handoff"><span class="g-xicon">🤝</span><div class="g-xtext"><b>Handoff</b><span>Chat still responds: asks the AI to write its own briefing for the next chat.</span></div></div>
+      <div class="g-xrow g-xrow-warn" id="g-rescue"><span class="g-xicon">🧷</span><div class="g-xtext"><b>Backup Handoff</b><span>Chat is dead: Ghost writes a lighter one itself — state + last 10 messages, enough to resume elsewhere.</span></div></div>
+    </div>
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
@@ -2950,6 +3986,12 @@ function renderSettingsTab() {
       ).join('')}</div>
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
+    <div class="g-div"></div>
+    <div class="g-row"><label>🌙 Unattended</label><div class="g-tog${GHOST.ui.unattended?' on':''}" id="cfg-unattended"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Keeps running when the tab is in the background. The tab must stay <b>open</b> — this does not move the run to a server. Off by default: it sends prompts while you're not looking.</div>
+    <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
+    <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" title="Tint accent · double-click resets to the skin&#39;s own hue" min="0" max="360" value="${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()}" style="width:80px;accent-color:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
+    <div class="g-swatches">${[350,265,220,185,145,40].map(h=>`<button class="g-swatch" data-hue="${h}" title="Set accent" style="background:hsl(${h} 85% 58%)"></button>`).join('')}</div>
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
@@ -3011,6 +4053,7 @@ function renderReportBadge() {
 }
 
 function render() {
+  try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; panel.dataset.explain = GHOST.ui.explain ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
   panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':''].filter(Boolean).join(' ');
@@ -3018,9 +4061,24 @@ function render() {
   const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
   const qCls  = L.state==='RUNNING'?'pause':L.state==='LIMIT'?'play limit':'play';
+  // Compact dock status: step/round + drift guard remaining (editable)
+  const dockStat = (()=>{
+    if (L.state==='IDLE'||L.state==='COMPLETE') return '';
+    const p = L.lastProgress;
+    const pctv = (p && p.total) ? Math.round((p.step / p.total) * 100) : null;
+    const bar = pctv !== null
+      ? `<span class="g-dk-bar" title="Step ${p.step} of ${p.total}"><i style="width:${pctv}%"></i></span>`
+      : '';
+    const line1 = p ? `${p.step}/${p.total}` : (L.round ? `round ${L.round}` : '');
+    const left = L.driftEnabled ? Math.max(0, L.maxRounds - L.round) : null;
+    const line2 = left !== null
+      ? `<span class="g-dk-drift" title="Drift guard: ${left} of ${L.maxRounds} continues left before Ghost pauses to check in. Tap the number to change the limit, ↻ resets the counter."><span class="g-dk-cap">${left} left</span><input type="number" class="g-dk-edit" id="g-dk-max" value="${L.maxRounds}" min="1" max="999"><button class="g-dk-rst" id="g-dk-reset">↻</button></span>`
+      : '';
+    return [bar, line1, line2].filter(Boolean).join('');
+  })();
   panel.innerHTML = `
     <div class="g-hdr" id="g-drag">
-      <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '👻 Ghost'}<span class="g-dot ${dotClass()}"></span></span>
+      <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
         <button class="g-minbtn" id="g-redetect" title="Re-detect the chat box — fixes 'can't find input' after switching browser/app or tabs (no page reload)">🔄</button>
@@ -3031,6 +4089,7 @@ function render() {
     <div class="g-coll-row">
       <button class="g-qbtn ${qCls}" id="g-quick">${qIcon}</button>
       <span class="g-qstat" style="color:${qc}">${ql}</span>
+      ${dockStat?`<span class="g-dock-stat">${dockStat}</span>`:''}
     </div>
     <div class="g-body">
       <div class="g-proj">
@@ -3041,11 +4100,12 @@ function render() {
         <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Standard continue loop">Run</button>
         <button class="g-tab${tab==='auto'?' act':''}" data-t="auto" title="Roadmap autopilot & prompt queue">Auto</button>
         <button class="g-tab${tab==='flow'?' act':''}" data-t="flow" title="Multi-stage workflows">Flow</button>
-        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas">Roles</button>
+        <button class="g-tab${tab==='personas'?' act':''}" data-t="personas" title="Personas & committee">Personas</button>
         <button class="g-tab${tab==='export'?' act':''}" data-t="export" title="Export & handoff">Export</button>
         <button class="g-tab${tab==='settings'?' act':''}" data-t="settings" title="Settings">Setup</button>
       </div>
       <div id="g-tc">
+        <button class="g-tabhelp" id="g-explain-tog" title="Explain mode — tap ⓘ, then tap any control to learn what it does" style="right:20px">ⓘ</button>
         ${TAB_HELP[tab] && tab!=='info' ? `<button class="g-tabhelp" id="g-tabhelp" data-h="${TAB_HELP[tab]}" title="Help for this tab">?</button>` : ''}
         ${tab==='run'?renderRunTab():''}${tab==='auto'?renderAutoTab():''}${tab==='info'?renderInfoTab():''}${tab==='flow'?renderFlowTab():''}
         ${tab==='personas'?renderPersonasTab():''}${tab==='export'?renderExportTab():''}
@@ -3081,11 +4141,18 @@ function bindEvents() {
   $$('.g-tab').forEach(b => b.addEventListener('click', () => { GHOST.ui.tab=b.dataset.t; render(); }));
   $('#g-tabhelp')?.addEventListener('click', function(){ GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = this.dataset.h; GHOST.ui.tab = 'info'; render(); });
 
-  // Run tab
+  // Run tab — strategy dropdown
   $$('.g-md').forEach(b => b.addEventListener('click', () => {
     if (GHOST.loop.state==='RUNNING') return;
     GHOST.loop.payloadMode=b.dataset.m; GHOST.loop.needsPayload=true; _save('payloadMode',GHOST.loop.payloadMode); render();
   }));
+  $('#g-strategy')?.addEventListener('change', e => {
+    if (GHOST.loop.state==='RUNNING') return;
+    GHOST.loop.payloadMode=e.target.value; GHOST.loop.needsPayload=true; _save('payloadMode',GHOST.loop.payloadMode); render();
+  });
+  $('#run-adv')?.addEventListener('click', () => { GHOST.ui.runAdv=!GHOST.ui.runAdv; render(); });
+  $('#g-goto-personas')?.addEventListener('click', e => { e.preventDefault(); GHOST.ui.tab='personas'; render(); });
+  $('#g-reground')?.addEventListener('click', () => { if (GHOST.loop.state==='RUNNING'||GHOST.loop.state==='PAUSED') regroundLoop(); });
   $$('.g-pst').forEach(b => b.addEventListener('click', () => {
     if (GHOST.loop.state==='RUNNING') return;
     GHOST.loop.posture=b.dataset.pst; _save('posture',GHOST.loop.posture); render();
@@ -3095,6 +4162,12 @@ function bindEvents() {
   $('#g-limit-go')?.addEventListener('click', extendLimit);
   $('#g-limit-reground')?.addEventListener('click', regroundLoop);
   $('#g-limit-wait')?.addEventListener('click', () => enginePause('✋ Stopped at drift checkpoint — ▶ to resume'));
+  $('#g-drift-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.loop.driftEnabled=this.classList.contains('on'); _save('driftEnabled',GHOST.loop.driftEnabled); render(); });
+  $('#g-drift-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v); render();} });
+  $('#g-drift-max')?.addEventListener('click', e => e.stopPropagation());
+  $('#g-dk-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v); render();} });
+  $('#g-dk-max')?.addEventListener('click', e => e.stopPropagation());
+  $('#g-dk-reset')?.addEventListener('click', e => { e.stopPropagation(); GHOST.loop.round=0; GHOST.loop.detail='↻ Drift guard reset'; render(); });
   $('#g-cnt-reset')?.addEventListener('click', () => {
     GHOST.loop.round = 0;
     Timeline.record('drift_guard_reset', { cap: GHOST.loop.maxRounds });
@@ -3119,6 +4192,8 @@ function bindEvents() {
   $('#wf-pause')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.workflow.pauseBetween=this.classList.contains('on'); _save('wfPause',GHOST.workflow.pauseBetween); render(); });
   $('#wf-reset')?.addEventListener('click', () => { GHOST.workflow.stageIndex=0; GHOST.workflow.active=GHOST.workflow.selected!=='none'; _save('wfStage',0); render(); });
   $('#wf-start')?.addEventListener('click', startWorkflow);
+  $('#wf-do-pause')?.addEventListener('click', () => { if(GHOST.loop.state==='RUNNING') pauseLoop(); });
+  $('#wf-do-stop')?.addEventListener('click', () => { GHOST.workflow.active=false; GHOST.workflow.stageIndex=0; _save('wfStage',0); stopLoop(); });
   $$('.g-wf-ins').forEach(b => b.addEventListener('click', () => {
     const wf = allWorkflows()[GHOST.workflow.selected] || WORKFLOW_LIBRARY.none;
     const stage = wf.stages[+b.dataset.ins];
@@ -3146,18 +4221,28 @@ function bindEvents() {
   });
 
   // Personas tab
-  $$('.g-persona-btn').forEach(b => b.addEventListener('click', (e) => {
-    if (e.target.closest('[data-del-p]')) return; // delete handled separately
-    GHOST.persona.selected=b.dataset.p; _save('persona',GHOST.persona.selected); render();
+  const _saveSel = () => { GHOST.persona._delivered = false; _save('persona', JSON.stringify(GHOST.persona.selected)); };
+  $('#p-comm-tog')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.committee=this.classList.contains('on'); _save('personaCommittee',GHOST.persona.committee); if(GHOST.persona.committee&&GHOST.persona.selected.filter(s=>s&&s!=='none').length<2){ GHOST.persona.selected=GHOST.persona.selected.filter(s=>s&&s!=='none'); if(!GHOST.persona.selected.length) GHOST.persona.selected=['researcher','redteam']; _saveSel(); } render(); });
+  $('#p-single')?.addEventListener('change', e => { GHOST.persona.selected=[e.target.value]; _saveSel(); render(); });
+  $('#p-run')?.addEventListener('click', () => { GHOST.ui.tab='run'; startLoop(); });
+  $('#p-pertask')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.perTask=this.classList.contains('on'); _save('personaPerTask',GHOST.persona.perTask); });
+  $('#p-review')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.persona.finalReview=this.classList.contains('on'); _save('personaFinalReview',GHOST.persona.finalReview); });
+  // Committee multi-select rows
+  $$('.g-cm-sel').forEach(sel => sel.addEventListener('change', e => {
+    const i=+sel.dataset.ci; const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    if(i<active.length) active[i]=e.target.value;
+    GHOST.persona.selected=active.length?active:['none']; _saveSel(); render();
   }));
-  $$('[data-del-p]').forEach(x => x.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const id = x.dataset.delP;
-    if (x.dataset.confirm === '1') {
-      if (GHOST.persona.selected === id) { GHOST.persona.selected = 'none'; _save('persona','none'); }
-      Workshop.removePersona(id); render();
-    } else { x.dataset.confirm = '1'; x.textContent = '✓?'; x.title = 'Tap again to confirm delete'; }
+  $$('.g-cm-del').forEach(b => b.addEventListener('click', () => {
+    const i=+b.dataset.ci; const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    active.splice(i,1); GHOST.persona.selected=active.length?active:['none']; _saveSel(); render();
   }));
+  $('#p-cm-add')?.addEventListener('click', () => {
+    const active=GHOST.persona.selected.filter(s=>s&&s!=='none');
+    const all=Object.keys(allPersonas()).filter(k=>k!=='none'&&!active.includes(k));
+    if(all.length) active.push(all[0]); GHOST.persona.selected=active; _saveSel(); render();
+  });
+  // Workshop: create/import/export (same as before, updated for array)
   $('#ws-p-new')?.addEventListener('click', () => { GHOST.ui.wsNewPersona = true; render(); });
   $('#ws-p-cancel')?.addEventListener('click', () => { GHOST.ui.wsNewPersona = false; render(); });
   $('#ws-p-save')?.addEventListener('click', () => {
@@ -3165,12 +4250,24 @@ function bindEvents() {
     const inject = ($('#ws-p-inject')?.value || '').trim();
     if (!label || !inject) { GHOST.loop.detail = '⚠ Name and framing are both required'; render(); return; }
     const id = Workshop.addPersona(label, inject);
-    GHOST.ui.wsNewPersona = false; GHOST.persona.selected = id; _save('persona', id);
+    GHOST.ui.wsNewPersona = false;
+    if(GHOST.persona.committee){ GHOST.persona.selected.push(id); } else { GHOST.persona.selected=[id]; }
+    _saveSel();
     GHOST.loop.detail = `✓ Created persona "${label}"`; render();
   });
   $('#ws-import')?.addEventListener('click', workshopImport);
   $('#ws-export')?.addEventListener('click', workshopExport);
-  $('#ws-submit')?.addEventListener('click', () => { GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = 'workshop'; GHOST.ui.tab = 'info'; render(); });
+  $('#ws-submit')?.addEventListener('click', () => {
+    // v8.1: Share now does the work — a paste-ready Discussions post (item
+    // list + JSON bundle) lands on the clipboard, then the how-to opens.
+    try {
+      const t = Workshop.shareText();
+      if (typeof GM_setClipboard === 'function') GM_setClipboard(t, { type:'text', mimetype:'text/plain' });
+      else navigator.clipboard?.writeText(t);
+      GHOST.loop.detail = '🌐 Share post copied — paste it into GitHub Discussions';
+    } catch(_) {}
+    GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = 'workshop'; GHOST.ui.tab = 'info'; render();
+  });
 
   // Export tab
   $('#exp-fmt')?.addEventListener('change', e => { GHOST.export.format=e.target.value; _save('expFormat',e.target.value); render(); });
@@ -3181,7 +4278,7 @@ function bindEvents() {
   $('#g-capsule')?.addEventListener('click', () => { exportCapsuleV2(); });
   $('#exp-think')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.export.thinking=this.classList.contains('on'); _save('expThinking',GHOST.export.thinking); });
   $('#g-handoff')?.addEventListener('click', handoffInChat);
-  $('#g-rescue')?.addEventListener('click', exportRescue);
+  $('#g-rescue')?.addEventListener('click', exportBackupHandoff);
   $('#g-backup')?.addEventListener('click', backupConfig);
   $('#g-restore')?.addEventListener('click', () => $('#g-restore-file')?.click());
   $('#g-restore-file')?.addEventListener('change', e => {
@@ -3230,10 +4327,36 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#cfg-unattended')?.addEventListener('click', function(){
+    this.classList.toggle('on');
+    GHOST.ui.unattended = this.classList.contains('on');
+    _save('unattended', GHOST.ui.unattended);
+    // Re-arm the ticker on the new mode if a run is live.
+    if (GHOST.loop.state === 'RUNNING') GHOST.loop.timer = Ticker.start(engineTick, 2500);
+    GHOST.loop.detail = GHOST.ui.unattended
+      ? '🌙 Unattended ON — keeps running in a background tab'
+      : 'Unattended OFF — pauses when you switch away';
+    render();
+  });
+  $('#cfg-skin')?.addEventListener('change', e => {
+    const v = e.target.value;
+    if (v === 'custom' && !GHOST.ui.customSkin) { SKIN.importFile(); render(); return; }
+    GHOST.ui.skinTheme = v; _save('skinTheme', v); SKIN.apply(); render();
+  });
+  $('#cfg-skin-imp')?.addEventListener('click', () => SKIN.importFile());
+  $('#cfg-skin-exp')?.addEventListener('click', () => SKIN.exportCurrent());
+  $$('.g-swatch').forEach(b => b.addEventListener('click', () => {
+    const h = parseInt(b.dataset.hue, 10);
+    GHOST.ui.accentHue = h; _save('accentHue', h); SKIN.apply(); render();
+  }));
+  $('#cfg-hue')?.addEventListener('dblclick', () => { GHOST.ui.accentHue = NaN; _save('accentHue',''); SKIN.apply(); render(); });
+  $('#cfg-hue')?.addEventListener('input', e => { GHOST.ui.accentHue=parseInt(e.target.value,10); _save('accentHue',GHOST.ui.accentHue); SKIN.apply(); render(); });
   $('#g-redetect')?.addEventListener('click', function(){
     this.classList.add('spin');
     const ok = reDetect();
-    setTimeout(() => this.classList.remove('spin'), 600);
+    // Found immediately → brief spin. Otherwise the async watcher keeps the
+    // spin going and clears it itself on success or 12s timeout.
+    if (ok) setTimeout(() => this.classList.remove('spin'), 600);
   });
   $('#g-info')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.tab==='info' ? 'run' : 'info'; render(); });
   $('#g-info-back')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.prevTab || 'run'; GHOST.ui.prevTab = null; render(); });
@@ -3292,7 +4415,29 @@ safeBoot(() => {
   Workshop.load();
   injectStyles();
   mountPanel();
+  SKIN.apply();
   render();
+
+  // SPA boot retry: ChatGPT/Gemini/Angular apps render chat elements late.
+  // Keep trying to find input+send for 30s after boot (every 2s).
+  // Once found, update status and stop retrying.
+  let _bootRetry = 0;
+  const _bootInterval = setInterval(() => {
+    _bootRetry++;
+    const inp = _q('input', PLAT.input);
+    if (inp) {
+      clearInterval(_bootInterval);
+      GHOST.loop.detail = `✓ Connected to ${PLAT.label}`;
+      render();
+      DIAG.push(`Boot: elements found after ${_bootRetry * 2}s`);
+    } else if (_bootRetry >= 15) {
+      clearInterval(_bootInterval);
+      DIAG.push('Boot: gave up waiting for elements after 30s');
+    } else {
+      // Re-attempt detect during SPA hydration
+      _cache.clear();
+    }
+  }, 2000);
   Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
 });

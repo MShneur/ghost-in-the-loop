@@ -1,5 +1,67 @@
 # Changelog
 
+## [8.1.0] — SELF-HEALING BASE
+
+### 🐞 FIX — DeepSeek clicked "Copy" instead of Send (field report)
+The heuristic send-finder scored ANY icon button near the composer (svg icon +1,
+proximity +3 = past the 3.5 threshold), so DeepSeek's message "Copy" button won
+and the prompt got copied instead of sent.
+- **Semantic gate:** a candidate now needs a POSITIVE send signal (send word in
+  its label, `type=submit`, or same `<form>` as the composer). Icon + proximity
+  alone can never win again.
+- **Veto list expanded** to every message-action verb: copy, download, share,
+  edit, delete, regenerate, retry, like/dislike, read-aloud, translate, DeepThink…
+- **The veto now guards EVERY tier** — configured selectors and learned selectors
+  pass through `_sendLooksSafe()` too, so a rotted `div[class*="send"]` match
+  can't hand back a share widget.
+
+### 🐞 FIX — Models that don't echo the sigil stranded the loop ("No signal detected")
+DeepSeek (and some custom GPTs) answer fully but never print `[[GITL::PROCEED]]`.
+The run used to hard-pause after ~12 s of quiet.
+- **Sigil-free completion fallback:** when a reply finishes (generation ended,
+  text stable) with no sigil, Ghost now auto-continues ONCE with a protocol
+  reminder, and only pauses after **2 consecutive** sigil-free replies.
+  Every nudge still consumes a round, so drift guard / round limit keep their grip.
+- Streak resets the moment a real PROCEED/HALT arrives.
+- Fixed a latent crash: `Timeline.add()` (no such method) in the roadmap re-ask path.
+
+### 🔄 Re-detect actually finds the box now (field report: "refresh sometimes fails")
+Re-detect was one-shot — pressed at the exact moment an SPA is mid-remount, it
+missed and told you to try again.
+- **Keeps watching for 12 s** after a miss (MutationObserver + interval); reports
+  success the moment the composer appears, with a spinning 🔄 the whole time.
+- Clears **all** element caches now (the heuristic tier's 4 s cache was missed before).
+- Resets stale network stream counters (aborted background XHRs could fake
+  "still generating" after an app-switch).
+- One-time gentle focus nudge for editors that only mount their composer on focus
+  (never steals focus if you're typing somewhere).
+- **Silent self-heal:** returning to the tab with a detached cached composer now
+  drops caches automatically — most manual 🔄 presses just disappear.
+
+### 🧠 NEW — Selector Memory (self-healing locators)
+The industry-standard tier GITL was missing (Healenium-style): when configured
+selectors fail but the role/meaning heuristic finds the element, Ghost derives a
+STABLE selector from it (id > data-testid > aria-label > name > placeholder) —
+verified unique — and remembers it per-host. Next session tries the learned
+selector right after the configured ones, so a site redesign pays the heuristic
+cost once and the fix survives reloads. Capped at 12 hosts, self-pruning,
+learned send-selectors are veto-checked.
+
+### ⚠ Reporter — deduped + deeper
+- Identical auto-captures within 10 min no longer rebuild/re-send duplicates
+  (the `_seen` dedupe was declared in v7.1 but never wired).
+- Reports now include learned-selector state for the host.
+- 🔍 Probe selectors now shows all three tiers: configured / learned / heuristic.
+
+### 🌐 Workshop — share does the work now
+- **Share button** copies a paste-ready GitHub Discussions post: item list +
+  the full `.gitl.json` bundle in a code block. Then opens the how-to.
+- **Skins ride in the bundle:** exporting includes your active custom skin
+  (validated tokens only); importing a bundle with a skin applies it. A single
+  file now shares a complete look-and-brains pack. Skin-only bundles are valid.
+- Import stays additive-only: built-ins immutable, clashes auto-rename,
+  invalid skins skipped, never fatal.
+
 ## [8.0.0.13] — DEV BUILD d13
 
 ### 🐞 FIX — Perplexity paused itself mid-thought ("No signal detected")
