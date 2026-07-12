@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.0.0.12
+// @version      8.0.0.13
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.0.0.12';
+const VER = '8.0.0.13';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -422,7 +422,8 @@ const PROFILES = {
     label: 'Perplexity',
     input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
-    stop: ['button[aria-label="Stop"]','[data-testid="stop-button"]'],
+    stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
+    staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
     assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
     continueLabels: [],
     useCE: true, useNS: false
@@ -1909,9 +1910,21 @@ function engineTick() {
     return;
   }
 
-  // No signal
+  // No signal — but only count it as stale if the model is genuinely idle.
+  // Long "Thinking" phases (Perplexity Deep Research, o-series reasoning) produce
+  // no DOM growth and no stop button for minutes at a time; the network channel
+  // is the only honest witness that work is still happening.
+  if (Adapter.isGenerating()) {
+    L.staleTicks = 0;
+    if (!L._thinkNoted) { L._thinkNoted = true; DIAG.push('Still generating (net/stop) — stale counter held'); }
+    L.detail = '🧠 Model is still working…';
+    render();
+    return;
+  }
+  L._thinkNoted = false;
   L.staleTicks++;
-  if (L.staleTicks >= 5) enginePause('No signal detected — review output');
+  const staleLimit = (PLAT && PLAT.staleTicks) || 5;
+  if (L.staleTicks >= staleLimit) enginePause('No signal detected — review output');
 }
 
 // Watchdog heartbeat (supplements tick)
@@ -3010,6 +3023,13 @@ function injectStyles() {
 .g-body::-webkit-scrollbar{width:4px}.g-body::-webkit-scrollbar-thumb{background:var(--g-border-2);border-radius:2px}
 .g-adv{width:100%;padding:4px 0;margin:4px 0;border:none;border-top:1px dashed var(--g-border);background:transparent;color:var(--g-text-dim);font-size:9px;cursor:pointer;text-align:center;font-family:inherit;font-weight:600}
 .g-adv:hover{color:var(--g-text-mid)}
+.g-mod{border:1px solid var(--g-border);border-radius:8px;background:var(--g-surface-2);margin:5px 0;overflow:hidden}
+.g-mod-h{display:flex;align-items:center;gap:5px;padding:3px 7px;background:var(--g-surface-3);border-bottom:1px solid var(--g-border);font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--g-text-mid)}
+.g-mod-i{font-size:10px;filter:grayscale(.25)}
+.g-mod-x{margin-left:auto;font-weight:600;letter-spacing:0;text-transform:none;color:var(--g-text-low);font-size:8.5px;max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-mod .g-btns,.g-mod .g-prog,.g-mod .g-row,.g-mod .g-hint,.g-mod .g-posture-wrap{margin:0;padding:5px 7px}
+.g-mod .g-hint{padding-top:0}
+.g-mod-transport .g-btns{gap:5px}
 .g-swatches{display:flex;gap:5px;margin:2px 0 6px}
 .g-swatch{width:15px;height:15px;border-radius:50%;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0;flex-shrink:0}
 .g-swatch:hover{transform:scale(1.15)}
@@ -3180,7 +3200,10 @@ function injectStyles() {
 #gitl.pos-dock.collapsed .g-qstat{display:none}
 .g-dock-stat{display:none;font-size:9px;font-weight:700;text-align:center;color:var(--g-text-mid);line-height:1.2;word-break:break-all}
 #gitl.pos-dock.collapsed .g-dock-stat,#gitl.pos-dock-left.collapsed .g-dock-stat{display:block}
-.g-dk-drift{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px}
+.g-dk-drift{display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:3px}
+.g-dk-cap{font-size:7.5px;color:var(--g-text-low);letter-spacing:.02em}
+.g-dk-bar{display:block;width:32px;height:4px;margin:0 auto 3px;background:var(--g-surface-3);border-radius:2px;overflow:hidden}
+.g-dk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--g-ok),var(--g-accent));border-radius:2px;transition:width .4s}
 .g-dk-edit{width:34px;height:18px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:3px;color:var(--g-text);font-size:9px;text-align:center;font-family:inherit;padding:0}
 .g-dk-edit:focus{border-color:#4338ca;outline:none}
 .g-dk-rst{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:3px;line-height:1}
@@ -3389,15 +3412,18 @@ function renderRunTab() {
   const pLabel = activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'';
   return `
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
-    <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
-    <div class="g-hint">${PAYLOADS[pm].hint}</div>
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
+    <div class="g-mod g-mod-transport">
+      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${statLabel()}</span></div>
     <div class="g-btns">
       <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶</button>
       <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸</button>
       <button class="g-btn${idle?' g-dim':''}" id="g-reground" title="Re-anchor AI to original task — use when you see drift">⊕</button>
     </div>
+    </div>
+    <div class="g-mod g-mod-prog">
+      <div class="g-mod-h"><span class="g-mod-i">📊</span>Progress<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
       <div class="g-plbl">
@@ -3421,11 +3447,18 @@ function renderRunTab() {
         </div>`;
       })() : ''}
     </div>
-    <div class="g-stat" style="color:${statColor()}">${statLabel()}</div>
+    </div>
     <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
     ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
+    <div class="g-mod g-mod-adv">
+      <div class="g-mod-h"><span class="g-mod-i">🧭</span>Strategy<span class="g-mod-x">${PAYLOADS[pm].label}</span></div>
+    <div class="g-row"><label>Strategy</label><select id="g-strategy" style="width:120px"><option value="loop"${pm==='loop'?' selected':''}>Step by step</option><option value="think"${pm==='think'?' selected':''}>Plan first</option><option value="roadmap"${pm==='roadmap'?' selected':''}>Autopilot</option></select></div>
+    <div class="g-hint">${PAYLOADS[pm].hint}</div>
+    </div>
+    <div class="g-mod g-mod-adv">
+      <div class="g-mod-h"><span class="g-mod-i">🧠</span>Thinking<span class="g-mod-x">${(POSTURES[L.posture]||POSTURES.standard).label}</span></div>
     <div class="g-posture-wrap">
       <div class="g-posture-lbl">Thinking <button class="g-posture-q" id="g-posture-help">?</button></div>
       <div class="g-postures">
@@ -3433,6 +3466,7 @@ function renderRunTab() {
         <button class="g-pst${L.posture==='evolving'?' act':''}" data-pst="evolving">${POSTURES.evolving.label}</button>
         <button class="g-pst${L.posture==='extended'?' act':''}" data-pst="extended">${POSTURES.extended.label}</button>
       </div>
+    </div>
     </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
@@ -3756,10 +3790,16 @@ function render() {
   const dockStat = (()=>{
     if (L.state==='IDLE'||L.state==='COMPLETE') return '';
     const p = L.lastProgress;
-    const line1 = p ? `${p.step}/${p.total}` : (L.round ? `R${L.round}` : '');
+    const pctv = (p && p.total) ? Math.round((p.step / p.total) * 100) : null;
+    const bar = pctv !== null
+      ? `<span class="g-dk-bar" title="Step ${p.step} of ${p.total}"><i style="width:${pctv}%"></i></span>`
+      : '';
+    const line1 = p ? `${p.step}/${p.total}` : (L.round ? `round ${L.round}` : '');
     const left = L.driftEnabled ? Math.max(0, L.maxRounds - L.round) : null;
-    const line2 = left !== null ? `<span class="g-dk-drift" title="Drift guard: ${left} left of ${L.maxRounds}. Tap number to edit, ↻ to reset.">${left}<input type="number" class="g-dk-edit" id="g-dk-max" value="${L.maxRounds}" min="1" max="999"><button class="g-dk-rst" id="g-dk-reset">↻</button></span>` : '';
-    return [line1,line2].filter(Boolean).join('<br>');
+    const line2 = left !== null
+      ? `<span class="g-dk-drift" title="Drift guard: ${left} of ${L.maxRounds} continues left before Ghost pauses to check in. Tap the number to change the limit, ↻ resets the counter."><span class="g-dk-cap">${left} left</span><input type="number" class="g-dk-edit" id="g-dk-max" value="${L.maxRounds}" min="1" max="999"><button class="g-dk-rst" id="g-dk-reset">↻</button></span>`
+      : '';
+    return [bar, line1, line2].filter(Boolean).join('');
   })();
   panel.innerHTML = `
     <div class="g-hdr" id="g-drag">

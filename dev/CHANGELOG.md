@@ -1,5 +1,25 @@
 # Changelog
 
+## [8.0.0.13] — DEV BUILD d13
+
+### 🐞 FIX — Perplexity paused itself mid-thought ("No signal detected")
+Field report: Perplexity Deep Research, round 1, `stop: NO MATCH`, watchdog 45 s stale, run paused. Root cause: Perplexity's long "Thinking" phase produces **no DOM growth and no stop button** for minutes, so the 5-stale-tick counter tripped and paused a run that was working perfectly.
+- The stale counter is now **held while `Adapter.isGenerating()` is true** — the d7 network channel is the only honest witness during a silent think phase (no text yet, no stop button, but bytes are flowing). Status shows `🧠 Model is still working…`
+- Per-platform `staleTicks` budget; Perplexity gets **24** (was a flat 5)
+- Perplexity `stop` selectors widened with `aria-label*` / `data-testid*` contains-fallbacks
+
+### Collapsed dock readout was unreadable ("R1 / 24 / 25 / ↻")
+Now a real **mini progress bar** + `3/7` step count, with the drift budget as a labelled `24 left` chip (tap the number to change the limit, ↻ to reset) instead of bare digits.
+
+### Run tab is an interface again, not a sheet of text
+Restructured into **modules** — each function is its own bordered unit with an icon header strip and a live value on the right, rather than undifferentiated stacked rows:
+- 🎛 **Transport** — ▶ ⏸ ⊕, with run state in the header
+- 📊 **Progress** — bar, step count, drift guard; % in the header
+- Advanced ▾ → 🧭 **Strategy** · 🧠 **Thinking**
+
+**Strategy moved into Advanced** as requested: the basic Run view is now exactly transport + progress + drift. Everything else is one tap away. Module chrome is token-driven, so all 13 skins restyle it automatically; header strips are 8.5 px and 3 px tall, so the density gate holds.
+
+
 ## [8.0.0.12] — DEV BUILD d12
 
 ### 🌙 Unattended mode — background runs actually work now
