@@ -174,3 +174,49 @@ describe('Workshop — export round-trip', () => {
     expect(parsed.schema).toBe('gitl-workshop/1');
   });
 });
+
+describe('Workshop — v8.1 skin-in-bundle + share', () => {
+  const VALID_SKIN = { kind:'skin', gitlSkin:1, name:'Test Glow',
+    tokens:{ '--g-accent':'#4ade80' }, fx:{ ghost:'float' } };
+
+  test('skin-only bundle imports (no personas/workflows required)', () => {
+    const W = freshWorkshop();
+    const res = W.importBundle(JSON.stringify({ schema:'gitl-workshop/1', skin: VALID_SKIN }));
+    expect(res.ok).toBe(true);
+    expect(res.skin).toBe(1);
+    expect(GHOST.ui.skinTheme).toBe('custom');
+    expect(JSON.parse(GHOST.ui.customSkin).name).toBe('Test Glow');
+  });
+
+  test('invalid bundled skin is skipped, never fatal', () => {
+    const W = freshWorkshop();
+    W.addPersona('P', 'inject');
+    const bad = { schema:'gitl-workshop/1',
+      personas:[{ id:'q', label:'Q', inject:'z' }],
+      skin:{ kind:'skin', gitlSkin:1, name:'Evil', tokens:{ '--g-bg':'url(http://x)' } } };
+    const res = W.importBundle(JSON.stringify(bad));
+    expect(res.ok).toBe(true);
+    expect(res.personas).toBe(1);
+    // url( is stripped by the validator → skin has no valid tokens but is
+    // still a structurally valid (empty) skin OR is skipped — either way
+    // the import itself must succeed.
+  });
+
+  test('empty bundle without skin still errors', () => {
+    const W = freshWorkshop();
+    const res = W.importBundle(JSON.stringify({ schema:'gitl-workshop/1' }));
+    expect(res.ok).toBe(false);
+  });
+
+  test('shareText produces a paste-ready post with the JSON bundle', () => {
+    const W = freshWorkshop();
+    W.addPersona('Threat Modeler', 'think like an attacker');
+    W.addWorkflow('Deep Research', 'd', ['a', 'b', 'c']);
+    const t = W.shareText();
+    expect(t).toContain('Workshop pack:');
+    expect(t).toContain('👤 Threat Modeler');
+    expect(t).toContain('⛓ Deep Research (3 stages)');
+    expect(t).toContain('```json');
+    expect(t).toContain('"schema": "gitl-workshop/1"');
+  });
+});

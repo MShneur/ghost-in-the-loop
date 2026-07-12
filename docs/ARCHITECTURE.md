@@ -31,7 +31,7 @@ DEVLOG.md                    What was tried, what failed, why — read before re
 | **0.3** | 46–165 | Constants: VER, sigils, FUZZY lists |
 | **0.5** | 166–245 | Boot safety: `safeBoot()`, `claimTabLock()`, `releaseTabLock()`, `assertInteractionSafe()`, `GhostBus` init |
 | **0.7** | 246–330 | Network interceptor: `GITL_NET`, fetch/XHR proxy, `AI_ENDPOINTS` |
-| **1** | 331–460 | Platform profiles `PROFILES{}`, `_q()`, `_qAll()`, `Adapter{}` |
+| **1** | 331–460 | Platform profiles `PROFILES{}`, `_q()`, `_qAll()`, `SelectorMemory{}` (v8.1 learned locators), `Adapter{}` |
 | **2** | 461–570 | Libraries: `PERSONA_LIBRARY`, `WORKFLOW_LIBRARY` |
 | **3** | 571–700 | State: `GHOST{}`, `DIAG{}`, `platformHealth()`, `Timeline{}` |
 | **4** | 701–870 | Recovery engine: `RecoveryEngine{}` |
@@ -45,6 +45,24 @@ DEVLOG.md                    What was tried, what failed, why — read before re
 | **12** | 2300–2403 | Boot: `safeBoot(() => { ... })`, final IIFE close |
 
 ---
+
+## Element Lookup Tiers (v8.1)
+
+Every `Adapter.getInput()` / `getSendBtn()` resolves through four tiers, in order:
+
+1. **Configured** — `PLAT.input` / `PLAT.send` selector arrays (per-platform).
+2. **Learned** — `SelectorMemory` per-host selectors, derived (id > data-testid >
+   aria-label > name > placeholder, verified unique) after a heuristic rescue.
+   Persisted in `gitlLearnedSelectors`, 12-host LRU.
+3. **Heuristic** — role/meaning scoring. Send candidates REQUIRE a positive
+   semantic signal (send word / type=submit / same-form); svg + proximity alone
+   can never win (DeepSeek Copy incident, v8.1).
+4. **Veto (cross-cutting)** — `_sendLooksSafe()` rejects message-action verbs
+   (copy/download/share/edit/…) on EVERY tier's result.
+
+`reDetect()` is retrying (12 s MutationObserver + interval) and clears all
+caches including the heuristic tier's; a `visibilitychange` handler silently
+drops caches when the cached composer is found detached.
 
 ## Signal Engine Contract
 

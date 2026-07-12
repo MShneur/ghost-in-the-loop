@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.1.0
+// @version      8.1.1
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.0';
+const VER = '8.1.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -608,7 +608,23 @@ function _qAll(sels) {
    the Playwright-style aria/text-first strategy. Engaged only when the
    selector arrays come up empty, so normal operation is unchanged. */
 const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|senden|invia|отправ|إرسال|gönder/i;
-const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close/i;
+/* v8.1: veto list expanded after the DeepSeek incident — the heuristic tier
+   clicked the reply's "Copy" button (svg icon + proximity alone scored past
+   the old threshold) and the user's prompt got copied instead of sent.
+   Message-action verbs are now hard-vetoed on EVERY send tier. */
+const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close|copy|download|share|edit|delete|regenerat|retry|rewrite|like|dislike|thumb|feedback|read.?aloud|speaker|volume|translat|pin\b|bookmark|history|sidebar|scroll|expand|collapse|fullscreen|deep.?think|research/i;
+
+/* A candidate send control must clear the veto no matter which tier found
+   it — configured selectors can rot into matching the wrong control after
+   a site redesign (e.g. div[class*="send"] matching a share widget). */
+function _sendLooksSafe(el) {
+  if (!el) return false;
+  try {
+    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
+                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    return !SEND_VETO.test(label);
+  } catch(_) { return true; }
+}
 
 function _visible(el) {
   try {
@@ -654,6 +670,13 @@ function _heurSend(anchor) {
     const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
                    el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
     if (SEND_VETO.test(label)) continue; // hard veto — a wrong click (mic, attach) is worse than no click
+    /* v8.1 semantic gate: proximity + an svg icon must NEVER be enough on
+       their own (that combination is every message-action button on the
+       page). A candidate needs at least one POSITIVE send signal. */
+    const sem = SEND_WORDS.test(label)
+             || (el.getAttribute('type') || '') === 'submit'
+             || (aForm && el.closest && el.closest('form') === aForm);
+    if (!sem) continue;
     let s = 0;
     if (SEND_WORDS.test(label)) s += 4;
     if ((el.getAttribute('type') || '') === 'submit') s += 2;
@@ -671,10 +694,110 @@ function _heurSend(anchor) {
   return best;
 }
 
+/* ── SELECTOR MEMORY (v8.1) — self-healing learned locators ──────
+   Healenium-style: when the configured selectors fail but the heuristic
+   tier finds the element, derive a STABLE selector from the found node
+   (id > data-testid > aria-label > name > placeholder > role) and persist
+   it per-host. Next time — including after a reload — the learned selector
+   is tried right after the configured ones, so a site redesign pays the
+   heuristic cost once and the fix survives sessions. Capped + self-pruning. */
+const SelectorMemory = {
+  key: 'gitlLearnedSelectors',
+  MAX_HOSTS: 12,
+  _data: null,
+
+  _load() {
+    if (this._data) return this._data;
+    try { this._data = JSON.parse(GM_getValue(this.key, '{}')) || {}; } catch(_) { this._data = {}; }
+    return this._data;
+  },
+  _persist() { try { GM_setValue(this.key, JSON.stringify(this._data)); } catch(_){} },
+
+  /* Derive a stable selector that uniquely matches el right now, or null. */
+  derive(el) {
+    if (!el || !el.getAttribute) return null;
+    const esc = (s) => (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(s) : String(s).replace(/([^\w-])/g, '\\$1');
+    const tag = (el.tagName || '').toLowerCase();
+    const cands = [];
+    const id = el.getAttribute('id');
+    if (id) cands.push(`#${esc(id)}`);
+    for (const a of ['data-testid','data-test-id','aria-label','name','placeholder','data-placeholder']) {
+      const v = el.getAttribute(a);
+      if (v && v.length <= 80) cands.push(`${tag}[${a}="${v.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}"]`);
+    }
+    const role = el.getAttribute('role');
+    if (role && el.getAttribute('contenteditable') === 'true') cands.push(`${tag}[contenteditable="true"][role="${role}"]`);
+    for (const sel of cands) {
+      try { const m = document.querySelectorAll(sel); if (m.length === 1 && m[0] === el) return sel; } catch(_){}
+    }
+    return null;
+  },
+
+  learn(kind, el) {
+    const sel = this.derive(el);
+    if (!sel) return null;
+    const d = this._load(), h = location.hostname;
+    d[h] = d[h] || {};
+    const prev = d[h][kind];
+    d[h][kind] = { sel, at: Date.now() };
+    // Prune least-recently-touched hosts beyond the cap.
+    const hosts = Object.keys(d);
+    if (hosts.length > this.MAX_HOSTS) {
+      hosts.sort((a, b) =>
+        Math.max(0, ...Object.values(d[a]).map(x => x.at || 0)) -
+        Math.max(0, ...Object.values(d[b]).map(x => x.at || 0)));
+      while (hosts.length > this.MAX_HOSTS) delete d[hosts.shift()];
+    }
+    this._persist();
+    if (!prev || prev.sel !== sel) {
+      try { DIAG.push(`Learned ${kind} selector: ${sel}`); } catch(_){}
+      try { Timeline.record('selector_learned', { kind, sel }); } catch(_){}
+    }
+    return sel;
+  },
+
+  lookup(kind) {
+    const rec = this._load()[location.hostname]?.[kind];
+    if (!rec || !rec.sel) return null;
+    try {
+      for (const el of document.querySelectorAll(rec.sel)) {
+        if (el && !_isOwnUI(el) && _visible(el)) {
+          if (kind === 'send' && !_sendLooksSafe(el)) { this.forget(kind); return null; }
+          return el;
+        }
+      }
+    } catch(_) { this.forget(kind); }
+    return null;
+  },
+
+  forget(kind) {
+    const d = this._load(), h = location.hostname;
+    if (d[h] && d[h][kind]) {
+      delete d[h][kind];
+      if (!Object.keys(d[h]).length) delete d[h];
+      this._persist();
+    }
+  }
+};
+
 // Adapter — all DOM reads/writes
 const Adapter = {
-  getInput()      { return _q('in', PLAT.input) || _heurInput(); },
-  getSendBtn()    { const b = _q('send', PLAT.send); return (b && !b.disabled) ? b : (_heurSend(_q('in', PLAT.input) || null) || b); },
+  getInput() {
+    let el = _q('in', PLAT.input) || SelectorMemory.lookup('input');
+    if (!el) { el = _heurInput(); if (el) SelectorMemory.learn('input', el); }
+    return el;
+  },
+  getSendBtn() {
+    // Every tier passes through the veto — a stale configured selector must
+    // never hand back a Copy/Share/Download control (DeepSeek incident).
+    const b = _q('send', PLAT.send);
+    if (b && !b.disabled && _sendLooksSafe(b)) return b;
+    const learned = SelectorMemory.lookup('send');
+    if (learned && !learned.disabled) return learned;
+    const h = _heurSend(this.getInput() || null);
+    if (h) { SelectorMemory.learn('send', h); return h; }
+    return (b && _sendLooksSafe(b)) ? b : null;
+  },
   isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
   getLastText() {
@@ -907,14 +1030,44 @@ const Workshop = {
 
   // ── Export: combined bundle of custom items only ──
   exportBundle() {
-    return JSON.stringify({
+    const out = {
       schema: WORKSHOP_SCHEMA,
       tool: 'Ghost in the Loop',
       version: VER,
       exported: new Date().toISOString(),
       personas:  Object.entries(this.personas).map(([id,p])  => ({ id, label: p.label, inject: p.inject })),
       workflows: Object.entries(this.workflows).map(([id,w]) => ({ id, label: w.label, desc: w.desc, stages: w.stages }))
-    }, null, 2);
+    };
+    // v8.1: the active custom skin rides along (validated tokens only), so a
+    // single .gitl.json can share a complete look-and-brains pack.
+    try {
+      if (typeof SKIN !== 'undefined' && typeof GHOST !== 'undefined'
+          && GHOST.ui.skinTheme === 'custom' && GHOST.ui.customSkin) {
+        const r = SKIN.validate(GHOST.ui.customSkin);
+        if (r.ok) out.skin = r.skin;
+      }
+    } catch(_) {}
+    return JSON.stringify(out, null, 2);
+  },
+
+  // ── Share (v8.1): paste-ready markdown post for GitHub Discussions ──
+  shareText() {
+    const nP = Object.keys(this.personas).length;
+    const nW = Object.keys(this.workflows).length;
+    const items = [
+      ...Object.values(this.personas).map(p => `- 👤 ${p.label}`),
+      ...Object.values(this.workflows).map(w => `- ⛓ ${w.label} (${(w.stages||[]).length} stages)`)
+    ];
+    let skinLine = '';
+    try {
+      if (typeof GHOST !== 'undefined' && GHOST.ui.skinTheme === 'custom' && GHOST.ui.customSkin) {
+        const nm = JSON.parse(GHOST.ui.customSkin).name || 'custom';
+        items.push(`- 🎨 Skin: ${nm}`);
+        skinLine = ', 1 skin';
+      }
+    } catch(_) {}
+    const title = (typeof GHOST !== 'undefined' && GHOST.project.name) ? GHOST.project.name : 'My GITL pack';
+    return `## Workshop pack: ${title}\n\n**Contains:** ${nP} persona(s), ${nW} workflow(s)${skinLine}\n\n${items.join('\n')}\n\nTo use: save the JSON below as \`pack.gitl.json\`, then **⬆ Import** in Ghost's Workshop.\n\n\`\`\`json\n${this.exportBundle()}\n\`\`\`\n`;
   },
 
   // ── Import: additive, protects built-ins, auto-renames custom clashes ──
@@ -927,7 +1080,8 @@ const Workshop = {
     if (data.schema && !String(data.schema).startsWith('gitl-workshop/')) return { ok:false, error:'Not a Ghost Workshop file' };
     const inP = Array.isArray(data.personas)  ? data.personas  : [];
     const inW = Array.isArray(data.workflows) ? data.workflows : [];
-    if (inP.length + inW.length === 0) return { ok:false, error:'No personas or workflows in file' };
+    const hasSkin = data.skin && typeof data.skin === 'object';
+    if (inP.length + inW.length === 0 && !hasSkin) return { ok:false, error:'No personas, workflows, or skin in file' };
     if (inP.length + inW.length > WORKSHOP_LIMITS.maxItems) return { ok:false, error:`Too many items (max ${WORKSHOP_LIMITS.maxItems})` };
     const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0 };
     const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(this.personas)]);
@@ -950,6 +1104,24 @@ const Workshop = {
       this.workflows[id] = { label: w.label.trim().slice(0,WORKSHOP_LIMITS.label), desc: String(w.desc||'').trim().slice(0,WORKSHOP_LIMITS.desc),
         stages: w.stages.map(s => String(s).trim().slice(0,WORKSHOP_LIMITS.stage)).slice(0,WORKSHOP_LIMITS.stages), custom: true };
       res.workflows++;
+    }
+    // v8.1: optional bundled skin — validated by the skin whitelist, applied
+    // as the custom skin. Invalid skins are skipped, never fatal.
+    res.skin = 0;
+    if (hasSkin) {
+      try {
+        if (typeof SKIN !== 'undefined') {
+          const r = SKIN.validate(JSON.stringify(data.skin));
+          if (r.ok && typeof GHOST !== 'undefined') {
+            GHOST.ui.customSkin = JSON.stringify(r.skin);
+            GHOST.ui.skinTheme = 'custom';
+            _save('customSkin', GHOST.ui.customSkin);
+            _save('skinTheme', 'custom');
+            SKIN.apply();
+            res.skin = 1;
+          } else { res.skipped++; }
+        }
+      } catch(_) { res.skipped++; }
     }
     this._persist();
     return res;
@@ -1076,6 +1248,16 @@ const DIAG = {
       }
       out.push(n ? `✓ ${k}: ${win} (${n})` : `✗ ${k}: NO MATCH`);
     }
+    // Fallback tiers (v8.1): learned per-host selectors, then role/meaning heuristics.
+    try {
+      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
+      out.push(lm ? `✓ learned: ${Object.entries(lm).map(([k,v]) => k + '=' + v.sel).join(' · ')}` : '— learned: none for this host');
+    } catch(_) {}
+    try {
+      const hi = _heurInput(), hs = _heurSend(hi || null);
+      out.push(hi ? `✓ heur input: <${(hi.tagName||'?').toLowerCase()}>` : '✗ heur input: none');
+      out.push(hs ? `✓ heur send: <${(hs.tagName||'?').toLowerCase()}> "${String(hs.getAttribute && (hs.getAttribute('aria-label')||hs.textContent)||'').trim().slice(0,30)}"` : '✗ heur send: none');
+    } catch(_) {}
     this.probe = out.join('\n');
   }
 };
@@ -1146,7 +1328,7 @@ const Timeline = {
    ═══════════════════════════════════════════════════════════════ */
 const Reporter = {
   last: null,         // most recent assembled report {kind, detail, text, at}
-  _seen: new Set(),   // dedupe identical auto-captures within a session
+  _seen: new Map(),   // dedupe: signature -> last capture ts (10-min window)
 
   build(kind, detail) {
     const L = (typeof GHOST !== 'undefined') ? GHOST.loop : {};
@@ -1171,6 +1353,10 @@ const Reporter = {
     lines.push(`| Send path | ${DIAG?.sendPath || 'n/a'} |`);
     lines.push(`| Health | ${h.badge || ''} ${h.score ?? '?'}/100 (in:${h.input} send:${h.send} stop:${h.stop} msgs:${h.assistantCount}) |`);
     lines.push(`| Net intercept | ${h.netActive ? 'active' : 'off'} |`);
+    try {
+      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
+      lines.push(`| Learned selectors | ${lm ? Object.entries(lm).map(([k,v]) => k + ': ' + v.sel).join(' · ') : 'none'} |`);
+    } catch(_) {}
     lines.push(`| Focus | hasFocus:${typeof document!=='undefined'?document.hasFocus():'?'} hidden:${typeof document!=='undefined'?document.hidden:'?'} |`);
     lines.push(`| Unattended | ${unattendedOn()?'ON':'off'} · ticker:${Ticker.mode} |`);
     lines.push(`| UA | ${typeof navigator!=='undefined'?navigator.userAgent:'?'} |`);
@@ -1185,6 +1371,12 @@ const Reporter = {
 
   // Auto-capture: assemble + store + surface a non-intrusive affordance.
   capture(kind, detail) {
+    // Dedupe: the same failure re-captured within 10 min just refreshes
+    // the timestamp instead of rebuilding + re-sending a duplicate.
+    const sig = kind + '|' + String(detail || '').slice(0, 120);
+    const seenAt = this._seen.get(sig) || 0;
+    this._seen.set(sig, Date.now());
+    if (this.last && Date.now() - seenAt < 600000) return this.last;
     const text = this.build(kind, detail);
     this.last = { kind, detail, text, at: Date.now() };
     if (typeof GHOST !== 'undefined') GHOST.report = this.last;
@@ -1838,6 +2030,7 @@ function engineTick() {
 
   if (result.signal === 'halt') {
     L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
     // Workflow auto-advance
     if (GHOST.workflow.active && GHOST.workflow.autoAdvance) {
       const wf = allWorkflows()[GHOST.workflow.selected] || WORKFLOW_LIBRARY.none;
@@ -1877,6 +2070,7 @@ function engineTick() {
 
   if (result.signal === 'proceed') {
     L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
     if (L.payloadMode === 'roadmap') {
       const R = GHOST.roadmap;
       if (!R.captured) {
@@ -1886,7 +2080,7 @@ function engineTick() {
           // common with custom GPTs that self-track "[Step X of Y]". Ask once for just the block.
           R._reask = true;
           L.detail = '🗺 No roadmap block — re-requesting format (1 auto-retry)…';
-          Timeline.add('roadmap_reask', { round: L.round });
+          Timeline.record('roadmap_reask', { round: L.round });
           engineSend('No [[GITL::ROADMAP]] block was detected in your last response. Do NOT redo the research or execute anything. Output ONLY the roadmap now, in exactly this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each self-contained) End with [[GITL::PROCEED]]', false);
           render();
         }
@@ -1924,7 +2118,29 @@ function engineTick() {
   L._thinkNoted = false;
   L.staleTicks++;
   const staleLimit = (PLAT && PLAT.staleTicks) || 5;
-  if (L.staleTicks >= staleLimit) enginePause('No signal detected — review output');
+  if (L.staleTicks >= staleLimit) {
+    /* v8.1 sigil-free completion fallback: some models (DeepSeek especially)
+       answer fully but never echo the [[GITL::…]] protocol markers. The reply
+       IS complete — generation ended and the text went quiet — so instead of
+       stranding the run, auto-continue once with a protocol reminder. Only
+       after two consecutive sigil-free replies do we pause for review. Every
+       nudge still consumes a round, so drift guard / round limit keep their
+       grip on runaway loops. */
+    const tail = text.slice(-200);
+    if (tail === L._nudgedTail && (L.isSending || L.sendPending)) return; // nudge already in flight
+    if (!L.isSending && !L.sendPending && text.length > 20 && (L.noSigilStreak || 0) < 2 && tail !== L._nudgedTail) {
+      L.noSigilStreak = (L.noSigilStreak || 0) + 1;
+      L._nudgedTail = tail;
+      L.staleTicks = 0;
+      L.detail = `🕯 Reply had no sigil — auto-continuing (${L.noSigilStreak}/2) + re-stating protocol`;
+      DIAG.push(`Sigil missing — soft proceed (${L.noSigilStreak}/2)`);
+      Timeline.record('soft_proceed', { streak: L.noSigilStreak, round: L.round });
+      engineSend('Continue.\n\n[Ghost protocol reminder — your last reply was missing the control marker. From now on END EVERY reply with exactly one of:\n[[GITL::PROCEED]] — more work remains\n[[GITL::HALT]] — the whole task is fully complete\nAlso include "[Step X of Y]" on its own line so progress can be tracked.]', false);
+      render();
+      return;
+    }
+    enginePause('No sigil after 2 auto-continues — review output (the model may be ignoring the protocol)');
+  }
 }
 
 // Watchdog heartbeat (supplements tick)
@@ -2077,21 +2293,87 @@ window.addEventListener('popstate', () => window.dispatchEvent(new Event('gitl:r
 window.addEventListener('gitl:route', () => {
   if (location.href !== _lastHref) {
     _lastHref = location.href;
-    _cache.clear();
+    _clearElementCaches();
     if (GHOST.loop.state === 'RUNNING') enginePause('Route changed — paused');
   }
 });
 
-/* Manual re-detect (v7.1): force a clean re-resolution of the page's
-   chat input / send button. Fixes the case where you move browser → app →
-   back into the same chat: the URL is unchanged so the route-watcher never
-   fired, but the SPA rebuilt the DOM and Ghost is holding stale/detached
-   element references (or the shadow-walk throttle is blocking a re-scan).
-   This clears every cache, re-resolves the platform, and re-probes —
-   no page reload, no hopping between chats. */
-function reDetect() {
+/* One place that forgets every cached element reference — the route watcher,
+   reDetect, and the visibility healer all funnel through here so no cache
+   (selector, shadow-walk throttle, heuristic) can be missed again. */
+function _clearElementCaches() {
   _cache.clear();
   _deepLast.clear();
+  _heurCache.input = { el: null, ts: 0 };
+  _heurCache.send  = { el: null, ts: 0 };
+}
+
+/* Silent self-heal (v8.1): coming back from another app/tab is exactly when
+   the SPA has rebuilt its DOM underneath us. If our cached composer is now a
+   detached node, drop the caches so the next lookup re-resolves — no UI
+   noise, no user action needed. This removes most manual 🔄 presses. */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const c = _cache.get('in');
+  if (c && !c.isConnected) _clearElementCaches();
+});
+
+/* Manual re-detect (v7.1, hardened v8.1): force a clean re-resolution of the
+   page's chat input / send button. Fixes the case where you move browser →
+   app → back into the same chat: the URL is unchanged so the route-watcher
+   never fired, but the SPA rebuilt the DOM and Ghost is holding stale nodes.
+   v8.1: no longer one-shot. If the first pass misses (SPA mid-remount — the
+   exact moment users press 🔄), a MutationObserver + interval keeps watching
+   for up to 12s and reports success the moment the composer appears. */
+const _redetectWatch = { obs: null, timer: null, deadline: 0, nudged: false };
+
+function _redetectStop() {
+  try { _redetectWatch.obs?.disconnect(); } catch(_){}
+  if (_redetectWatch.timer) clearInterval(_redetectWatch.timer);
+  _redetectWatch.obs = null; _redetectWatch.timer = null; _redetectWatch.deadline = 0;
+  try { document.querySelector('#g-redetect')?.classList.remove('spin'); } catch(_){}
+}
+
+function _redetectCheck() {
+  const input = Adapter.getInput();
+  if (input) {
+    _redetectStop();
+    try { DIAG.runProbe(); } catch(_){}
+    Timeline.record('redetect_late', { platform: PLAT?.label });
+    GHOST.loop.detail = `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`;
+    render();
+    return true;
+  }
+  if (Date.now() > _redetectWatch.deadline) {
+    _redetectStop();
+    Timeline.record('redetect_timeout', { platform: PLAT?.label });
+    GHOST.loop.detail = '🔄 Still no chat input after 12s. Tap inside the chat box once, then 🔄 again.';
+    render();
+    return false;
+  }
+  // Focus nudge (once): some editors only mount their real composer on focus.
+  // Never steal focus from the user — only when nothing meaningful is focused.
+  if (!_redetectWatch.nudged && Date.now() > _redetectWatch.deadline - 9000) {
+    _redetectWatch.nudged = true;
+    try {
+      const ae = document.activeElement;
+      if (!ae || ae === document.body) {
+        for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
+          if (_visible(el)) { el.focus(); break; }
+        }
+      }
+    } catch(_){}
+  }
+  return false;
+}
+
+function reDetect() {
+  _redetectStop();
+  _clearElementCaches();
+  // Abandoned streams from a background hop can leave stale counters that
+  // fake "still generating" — zero the network expectation state too.
+  GITL_NET._open = 0;
+  GITL_NET.expectUntil = 0;
   // Re-resolve platform in case the host changed (e.g. app vs web shell).
   let matched = null;
   for (const [, p] of Object.entries(PROFILES)) { if (p.host.test(location.hostname)) { matched = p; break; } }
@@ -2101,12 +2383,27 @@ function reDetect() {
   const send  = Adapter.getSendBtn();
   try { DIAG.runProbe(); } catch(_){}
   Timeline.record('redetect', { found_input: !!input, found_send: !!send, platform: PLAT?.label });
-  const ok = !!input;
-  GHOST.loop.detail = ok
-    ? `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`
-    : '🔄 Re-detected — still no chat input. Try clicking inside the chat box once, then re-detect.';
+  if (input) {
+    GHOST.loop.detail = `🔄 Re-detected ✓ — found chat input on ${PLAT?.label || 'page'}`;
+    render();
+    return true;
+  }
+  // Not found yet — keep watching. SPAs often remount the composer a beat
+  // after the user notices it's "gone" and presses 🔄.
+  GHOST.loop.detail = '🔄 Searching for the chat box…';
   render();
-  return ok;
+  try { document.querySelector('#g-redetect')?.classList.add('spin'); } catch(_){}
+  _redetectWatch.deadline = Date.now() + 12000;
+  _redetectWatch.nudged = false;
+  try {
+    _redetectWatch.obs = new MutationObserver(() => {
+      if (_redetectWatch._raf) return; // throttle bursts to one check per frame-ish
+      _redetectWatch._raf = setTimeout(() => { _redetectWatch._raf = null; _redetectCheck(); }, 250);
+    });
+    _redetectWatch.obs.observe(document.body, { childList: true, subtree: true });
+  } catch(_){}
+  _redetectWatch.timer = setInterval(_redetectCheck, 800);
+  return false;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3982,7 +4279,17 @@ function bindEvents() {
   });
   $('#ws-import')?.addEventListener('click', workshopImport);
   $('#ws-export')?.addEventListener('click', workshopExport);
-  $('#ws-submit')?.addEventListener('click', () => { GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = 'workshop'; GHOST.ui.tab = 'info'; render(); });
+  $('#ws-submit')?.addEventListener('click', () => {
+    // v8.1: Share now does the work — a paste-ready Discussions post (item
+    // list + JSON bundle) lands on the clipboard, then the how-to opens.
+    try {
+      const t = Workshop.shareText();
+      if (typeof GM_setClipboard === 'function') GM_setClipboard(t, { type:'text', mimetype:'text/plain' });
+      else navigator.clipboard?.writeText(t);
+      GHOST.loop.detail = '🌐 Share post copied — paste it into GitHub Discussions';
+    } catch(_) {}
+    GHOST.ui.prevTab = GHOST.ui.tab; GHOST.ui.helpSec = 'workshop'; GHOST.ui.tab = 'info'; render();
+  });
 
   // Export tab
   $('#exp-fmt')?.addEventListener('change', e => { GHOST.export.format=e.target.value; _save('expFormat',e.target.value); render(); });
@@ -4069,7 +4376,9 @@ function bindEvents() {
   $('#g-redetect')?.addEventListener('click', function(){
     this.classList.add('spin');
     const ok = reDetect();
-    setTimeout(() => this.classList.remove('spin'), 600);
+    // Found immediately → brief spin. Otherwise the async watcher keeps the
+    // spin going and clears it itself on success or 12s timeout.
+    if (ok) setTimeout(() => this.classList.remove('spin'), 600);
   });
   $('#g-info')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.tab==='info' ? 'run' : 'info'; render(); });
   $('#g-info-back')?.addEventListener('click', () => { GHOST.ui.tab = GHOST.ui.prevTab || 'run'; GHOST.ui.prevTab = null; render(); });

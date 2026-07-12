@@ -11,6 +11,30 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.1.1 — Self-healing base (send safety, sigil-free loops, selector memory)
+
+### The DeepSeek "Copy" incident — why the send heuristic was structurally unsafe
+- **Tried (v7→8.0):** score-based send finder: send-word +4, submit +2, svg-icon +1, same-form +3, proximity<320px +3, threshold 3.5, veto list of ~10 words.
+- **What happened:** on DeepSeek, the assistant reply's Copy button (svg icon, ~200px from the composer) scored 1+3=4 → clicked. User's prompt was copied, not sent. Three retries in engineSend meant it clicked Copy repeatedly before falling through to Enter.
+- **Why it failed:** proximity+icon describes EVERY message-action button on a chat page. A veto list can never enumerate them all; the scoring itself must require positive intent.
+- **Learned / done instead:** (1) hard rule — candidates need a semantic positive (send word / type=submit / same-form) before scoring; (2) veto expanded to message-action verbs anyway (defense in depth); (3) the veto now wraps ALL tiers via `_sendLooksSafe()`, because configured selectors rot too (`div[class*="send"]` can match a share widget after a redesign). Regression suite: `tests/sendsafety.test.js`.
+
+### Sigil-free models (DeepSeek) — completion must not depend on the model's cooperation
+- **Tried:** relying on `[[GITL::PROCEED]]/[[GITL::HALT]]` echoes; stale-tick pause after ~12s quiet.
+- **What happened:** DeepSeek regularly answers fully, formats output in a code block, and never prints the sigil → every round ended in "No signal detected — review output".
+- **Learned:** quiescence (generation ended + text stable) IS the completion signal; the sigil is only the intent channel. Done instead: soft-proceed — one automatic "continue + protocol reminder" per sigil-free reply, pause only after 2 consecutive misses. Bounded by rounds/drift as usual. Do NOT raise the streak cap: a model that ignores the protocol twice will ignore it forever, and silent infinite nudging would burn the user's quota.
+
+### Re-detect was one-shot — the button raced the SPA remount
+- **What happened:** users press 🔄 at the exact moment the framework is rebuilding the composer; a single synchronous probe misses, message says "try again".
+- **Done instead:** 12s MutationObserver+interval watch after a miss; ALL caches cleared (the heuristic tier's 4s cache was previously missed — a stale-but-connected wrong element could survive re-detect); network stream counters zeroed; silent visibilitychange self-heal for the browser→app→browser case.
+
+### Selector memory (Healenium pattern, minimal port)
+- **Chosen:** persist a derived stable selector (id > data-testid > aria-label > name > placeholder, verified UNIQUE at learn time) per-host after a heuristic rescue; try it between configured and heuristic tiers. 12-host LRU cap. Learned send selectors re-checked against the veto at lookup.
+- **Rejected:** remote selector config (KeepChatGPT-style) — a remotely updatable selector feed is a supply-chain risk for a script that types into people's AI accounts; fingerprint similarity scoring (full Healenium) — overkill vs. the one-attribute derive, and heavy in a userscript.
+
+### Workshop share
+- Share was a doc link. Now `shareText()` builds the Discussions post (item list + bundle in a code block) and copies it. Skins ride in the bundle through the existing skin validator, so the security boundary is unchanged (token whitelist, fx enum, size caps).
+
 ## Session: v7.1.0 — IN PROGRESS (not yet released)
 
 Working build. Nothing pushed. Unit suite at 157/157 (was 140; +17 Workshop safety tests). Each feature below was syntax-checked and the full suite re-run before moving on.

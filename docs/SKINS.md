@@ -13,6 +13,12 @@ The presets are not special — they use the exact same tokens and `fx` values
 available to you. Export any one of them to see how it's built.
 A working community example lives at `docs/skins/sakura.gitl.json`.
 
+## Sharing (v8.1)
+Workshop bundles can carry a skin: **⬇ Export** in Workshop includes your active
+custom skin, and importing a bundle with a `skin` field applies it (validated by
+the same whitelist — a bundled skin can't do anything a normal skin can't).
+The 🌐 Share button copies a paste-ready Discussions post with the JSON inline.
+
 ## The 30-second modding loop
 1. Setup tab → pick the preset closest to what you want → **⬇** (export)
 2. Edit the `.gitl.json` in any text editor
