@@ -6,6 +6,13 @@ A skin can never add, remove, hide, or rewire a control — structure and behavi
 belong to GITL core. Unknown tokens are silently ignored, which is what makes
 skins **forward- and backward-compatible** across GITL versions.
 
+## Built-in presets (all 13 are written in this same format)
+`Classic` · `Aurora` · `Glass` · `Metal` · `Neon` · `Clay` · `Liquid` · `OLED` · `Paper` · `HUD` · `Nova` · `Ion` · `Flow`
+
+The presets are not special — they use the exact same tokens and `fx` values
+available to you. Export any one of them to see how it's built.
+A working community example lives at `docs/skins/sakura.gitl.json`.
+
 ## The 30-second modding loop
 1. Setup tab → pick the preset closest to what you want → **⬇** (export)
 2. Edit the `.gitl.json` in any text editor
@@ -46,6 +53,13 @@ Set only the tokens you want to change — everything else inherits Classic.
 - No `url(`, `expression(`, `@import`, `javascript:`, `<`, `>`, `{`, `}`, `;`
   (colors, gradients, rgba/hsl, shadows, and font stacks are all fine)
 - Unknown tokens/fx: dropped silently (never an error)
+
+## Accent color
+Every skin's accent family (`--g-accent`, `-text`, `-deep`, `-bg`) can be
+re-tinted by the user from Setup — six one-tap swatches or the hue slider —
+without editing the skin. Each token keeps its own saturation and lightness,
+so a well-built skin survives any hue. Double-click the slider to return to
+the skin's own hue.
 
 ## Tips
 - Keep it dark-leaning unless you retune the full text ramp (see the Paper
