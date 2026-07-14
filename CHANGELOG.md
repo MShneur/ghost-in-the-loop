@@ -1,5 +1,35 @@
 # Changelog
 
+## [8.1.2] — TWO FIELD REPORTS CLOSED
+
+### 🐞 FIX — Grok run paused itself 1 second after a perfectly good send (issue #2)
+`send_ok` at 14:34:05, `"Route changed — paused"` at 14:34:06. Grok (like most
+chat platforms) assigns the conversation a `/c/<uuid>` URL the instant the
+FIRST message goes out — that's the same conversation continuing, not real
+navigation, but the route watcher paused any running loop on ANY URL change.
+- The watcher now only pauses when the route change looks like a genuine
+  navigation away: different hostname, **or** nothing was sent in the last
+  15s to explain the URL move. A same-host URL change right after a send is
+  now just logged (`route_id_assigned`) and the loop keeps running.
+- Element caches are still cleared on every route change either way — a
+  same-host ID assignment can still remount the composer.
+
+### 🐞 FIX — Perplexity Deep Research paused mid-thought with "No output detected" (issue #1)
+Sent fine (`send_ok`), then two re-fires, then paused ~35s later even though
+Perplexity was still visibly "thinking" — Deep Research can run silently for
+minutes with **zero assistant DOM nodes yet**, not just no new growth.
+- d13 already taught the *later* no-signal branch to hold its stale counter
+  while `Adapter.isGenerating()` is true (network/stop-button witness) and
+  use each platform's `staleTicks` budget instead of a flat 5. That fix
+  never reached the *earlier* "no text exists yet" branch, which is exactly
+  what fires before Deep Research's first message container appears — so
+  slow-starting platforms could still pause ~12s after a good send.
+- Same treatment applied here: hold the counter while generating, use the
+  per-platform budget (Perplexity: 24 ticks).
+
+Both reproduced as real-browser Playwright tests before and after the fix
+(`tests/e2e/routefix.spec.js`, `tests/issuefixes.test.js`).
+
 ## [8.1.1] — SELF-HEALING BASE
 
 ### 🐞 FIX — DeepSeek clicked "Copy" instead of Send (field report)
@@ -62,32 +92,198 @@ learned send-selectors are veto-checked.
 - Import stays additive-only: built-ins immutable, clashes auto-rename,
   invalid skins skipped, never fatal.
 
-## [8.1.0] — 2026-07-12
+## [8.0.0.13] — DEV BUILD d13
 
-First production release since 8.0.0. Promotes dev builds d6–d13. Two of these are correctness fixes for things that were silently broken in 8.0.0.
+### 🐞 FIX — Perplexity paused itself mid-thought ("No signal detected")
+Field report: Perplexity Deep Research, round 1, `stop: NO MATCH`, watchdog 45 s stale, run paused. Root cause: Perplexity's long "Thinking" phase produces **no DOM growth and no stop button** for minutes, so the 5-stale-tick counter tripped and paused a run that was working perfectly.
+- The stale counter is now **held while `Adapter.isGenerating()` is true** — the d7 network channel is the only honest witness during a silent think phase (no text yet, no stop button, but bytes are flowing). Status shows `🧠 Model is still working…`
+- Per-platform `staleTicks` budget; Perplexity gets **24** (was a flat 5)
+- Perplexity `stop` selectors widened with `aria-label*` / `data-testid*` contains-fallbacks
 
-### Fixed
-- **Personas, thinking posture and strategy never reached the model.** The directive block was assembled on exactly one code path — "user typed a fresh prompt." Starting a run from the Personas tab, resuming an existing chat, or un-pausing all sent a bare `Continue.` So unless you retyped your task every time, nothing you configured was ever transmitted. Now built by `runDirectives()` and delivered once per run on **every** entry path.
-- **Network detection was dead in production.** `GITL_NET` patched the *sandbox* `window.fetch`; under `@grant GM_*` the userscript is isolated, so the page's real requests never crossed the hook (it only ever "worked" in the test harness). Now hooks `unsafeWindow` — the page's real window.
-- **Perplexity paused itself mid-thought.** Deep Research produces no DOM growth and no stop button for minutes, tripping the stale-tick counter. The stale counter is now held while the network channel shows the model is still working. Per-platform stale budgets.
-- **Send failed silently when a site redesigned its buttons.** Added heuristic role/meaning-based element finders, `form.requestSubmit()` and ClipboardEvent paste tiers, and per-host tier memory.
+### Collapsed dock readout was unreadable ("R1 / 24 / 25 / ↻")
+Now a real **mini progress bar** + `3/7` step count, with the drift budget as a labelled `24 left` chip (tap the number to change the limit, ↻ to reset) instead of bare digits.
 
-### Added
-- **Skin engine** — skins are *data*, not code: a whitelist of CSS custom properties plus enumerated effect flags. A skin cannot add, remove, or restructure controls, and unknown tokens are dropped, so community skins stay compatible across versions. 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow), import/export as `.gitl.json`, one-tap accent swatches + hue slider. See `docs/SKINS.md`.
-- **🌙 Unattended mode** (opt-in, default off) — keeps a run going in a background tab. Relaxes only the focus guard; the tab lock is never relaxed. Moves the engine loop onto a Web Worker ticker, since browsers throttle hidden-tab timers. The tab must stay open — this is not server-side execution.
-- **🔎 Explain mode** — tap ⓘ, then tap any control for a plain-English description; the click is swallowed so nothing fires.
-- **Modular Run tab** — Transport and Progress are bordered units with icon headers. Strategy and Thinking live under Advanced.
-- Roadmap auto-recovery: one automatic format re-request when the model plans but omits the `[[GITL::ROADMAP]]` block.
+### Run tab is an interface again, not a sheet of text
+Restructured into **modules** — each function is its own bordered unit with an icon header strip and a live value on the right, rather than undifferentiated stacked rows:
+- 🎛 **Transport** — ▶ ⏸ ⊕, with run state in the header
+- 📊 **Progress** — bar, step count, drift guard; % in the header
+- Advanced ▾ → 🧭 **Strategy** · 🧠 **Thinking**
 
-### Changed
-- Thinking postures renamed to say what they do: **Locked** (exact plan) · **Adaptive** (plan may grow mid-run) · **Audit** (locked plan + final gap review). Storage keys unchanged.
-- Export actions are now a divided-row list: **Export** (full record) · **Capsule v2** (resumable JSON) · **Handoff** (AI briefs the next chat) · **Backup Handoff** (Ghost writes a lighter one when the chat is dead).
-- Collapsed dock shows a progress bar and step count instead of raw counters.
-- 180 ms panel entrance animation.
+**Strategy moved into Advanced** as requested: the basic Run view is now exactly transport + progress + drift. Everything else is one tap away. Module chrome is token-driven, so all 13 skins restyle it automatically; header strips are 8.5 px and 3 px tall, so the density gate holds.
 
-### Testing
-468 unit tests passing. Playwright e2e has **not** been run against live sites for this release.
 
+## [8.0.0.12] — DEV BUILD d12
+
+### 🌙 Unattended mode — background runs actually work now
+Reported: "I press start, leave the tab, come back and nothing happened." Correct — and it was **two** separate blockers, one of them deliberate:
+
+1. **GITL's own focus guard.** `assertInteractionSafe()` runs before every `engineSend` and returns `tab-not-focused` the instant `document.hasFocus()` goes false. Comment in the source: *"prevents background tabs from burning tokens by auto-sending prompts while user isn't looking."* Working as designed — just not what you wanted.
+2. **Browser timer throttling.** Hidden tabs throttle `setInterval` to roughly once a minute, so even without the guard the 2.5 s engine loop would crawl.
+
+**Fix — new opt-in `🌙 Unattended` toggle in Setup (default OFF):**
+- Relaxes the *focus* half of the guard only. The **tab lock is never relaxed** — two tabs still can't drive the same conversation. Drift guard and round limits still apply as runaway backstops.
+- Swaps the engine loop onto a **Web Worker ticker**, which browsers don't throttle the way they throttle hidden-tab `setInterval`. Strict page CSP (ChatGPT's, notably) can refuse `blob:` workers — so it falls back to `setInterval` automatically and reports which path is live in Diagnostics (`| Unattended | ON · ticker:worker |`) rather than failing silently.
+- Honest scope, stated in the UI and help: **the tab must stay open.** This keeps a background tab running; it does not move the run to a server. Closing the browser still ends the run.
+
+`tests/unattended.test.js` covers guard-on/guard-off semantics, the tab-lock still firing under unattended, and the CSP fallback path.
+
+
+## [8.0.0.11] — DEV BUILD d11
+
+### 🐞 MAJOR BUG FIX — personas, posture and strategy were never reaching the model
+Reported from the field: arm a committee in the Personas tab, hit **▶ Run with committee**, and the model just gets `Continue.` — no personas, no Think First, no posture. Confirmed in code.
+
+**Root cause:** the directive block (persona + strategy payload + posture clause) was assembled on exactly ONE code path — "user typed a fresh prompt into the composer." Every other way to start a run silently dropped it:
+- Run from the Personas tab (composer empty) → fell through to the resume path → bare `RESUME_TEXT`
+- Resume an existing conversation → bare `RESUME_TEXT`
+- Un-pause → the tick loop sent a bare `Continue`
+
+So unless you re-typed your task from scratch every single time, **nothing you configured was ever sent.** The settings applied locally and were rendered in the panel, which is why it looked like they were on.
+
+**Fix:** new `runDirectives()` builder + a once-per-run `persona._delivered` flag, honored by *every* entry path — typed prompt, existing-chat resume, un-pause, and mid-run persona changes. Delivered exactly once per run (not re-sent every turn), re-armed when the run ends or the selection changes. Roadmap resumes omit the strategy payload so a resume can't request a brand-new roadmap mid-run.
+`tests/directives.test.js` locks the contract shut, including a direct replay of the reported 6-persona committee flow.
+
+### Export tab — sunken row list (user request)
+The four export actions are now divided rows in a sunken well: icon button on the left, **bold name** + small description on the right, each row edge-colored by role (Export=accent, Capsule=muted, Handoff=ok-green, Backup Handoff=warn-amber). All four ids and listeners unchanged. Style is token-driven, so every skin restyles it automatically.
+
+### "Emergency Handoff" → "Backup Handoff" (user feedback: "emergency" oversells it)
+Calmer wording, still clearly Handoff's lighter sibling rather than a separate escalation. Renamed everywhere: button, explain-mode entry, tab guide, generated file header/footer, filename slug (`backup-handoff`), and `exportBackupHandoff()`.
+
+### 4 new skins, reverse-engineered from the reference UI kits
+Built purely from the existing token + fx vocabulary — no new engine capability, so they're all expressible as community `.gitl.json` files too:
+- **HUD** — sci-fi cyan wireframe: near-black ground, hairline cyan rules, flickering ghost, EKG progress
+- **Nova** — glossy pink/violet AI-dashboard glass: aurora ring, halo ghost, pill tabs, shimmer fill
+- **Ion** — brushed-metal media-deck: bezeled surfaces, teal LED accent, sheen
+- **Flow** — calm flat navy dashboard: pill tabs, minimal motion
+
+**Accent color picker:** six one-tap color swatches beside the hue slider — pick a color directly instead of hunting for it on the slider. Works on every preset (13 built-ins now) and on custom skins.
+
+
+## [8.0.0.10] — DEV BUILD d10
+
+### Renamed "Rescue" → "Emergency Handoff" (user feedback: it sounded bigger than Export, not smaller)
+It's the lightweight sibling of Handoff, not a rival to Export. New three-way framing, consistent everywhere (button, explain-mode entry, tab guide, export-tab hint, filename slug, generated file header/footer):
+- **Export** — the full record. Biggest of the three; for keeping, not resuming.
+- **Handoff** — the AI writes its own briefing, chat still alive. Fullest way to resume.
+- **Emergency Handoff** *(was Rescue)* — Ghost writes a lighter briefing when the chat is DEAD and can't write its own: state snapshot + last 10 messages verbatim. Deliberately smaller than Export — use only when Handoff isn't possible.
+
+No functional change — `exportRescue()` renamed to `exportEmergencyHandoff()`, output filename slug `rescue` → `emergency-handoff`, button id (`#g-rescue`) and all wiring left untouched.
+
+
+## [8.0.0.9] — DEV BUILD d9
+
+### Run tab: basic vs Advanced (user feedback)
+The Thinking-posture picker moved under **Advanced ▾** — the default Run view is now just Strategy → transport (▶ ⏸ ⊕) → progress. Advanced holds: posture, injected-prompt preview, End & reset. The footer status line still shows the active posture at all times.
+
+### Posture terminology (user feedback: "Extended sounds like less")
+Labels renamed so each says what it does — no false strength ladder. Storage keys and model-facing clauses unchanged (old saves keep working):
+- **Standard → Locked** — exact declared plan, no additions
+- **Evolving → Adaptive** — the plan may GROW mid-run when a justified blocker/gap forces it
+- **Extended → Audit** — locked plan, then ONE end-of-run gap review that closes only material holes
+
+### 🔎 Explain mode (tap-anything FAQ)
+New ⓘ button beside the tab ?. Tap ⓘ, then tap ANY control — a one-breath description appears and the click is swallowed (nothing activates). Registry-driven (`EXPLAIN`), 23 entries covering transport, drift guard, strategy, postures (dynamic from `POSTURES`), skins, hue, exports, tabs; graceful fallback pointing to the tab ? guide. Capture-phase intercept on the panel root; survives re-renders.
+
+### Export clarity (user question: rescue vs full export)
+Button microcopy now self-distinguishes: **⬇ full export** = the complete archival transcript · **🤝 Handoff — AI briefs the next chat (chat alive)** · **🛟 Rescue — resume a DEAD chat elsewhere** (state snapshot + roadmap position + last 10 verbatim messages + resume instructions). Explain mode carries the long-form answers.
+
+### Tests
+`tests/explain.test.js` (registry integrity, live-panel lookup, dynamic posture resolution, null fallback); posture label assertions updated.
+
+
+## [8.0.0.8] — DEV BUILD d8
+
+### Field-report fixes (first live d7 telemetry, ChatGPT mobile / Firefox Android)
+- **Roadmap auto-recovery:** when Autopilot gets a PROCEED but no `[[GITL::ROADMAP]]` block (Scholar GPT self-tracked "[Step 1 of 7]" instead), GITL now sends ONE automatic format re-request — "output only the roadmap block, don't redo the research" — before pausing. Timeline event `roadmap_reask` logged.
+- **Tier-memory bug:** the stored send path `btn-3+enter+paragraph+form` contains "btn" even when the button tier *failed*, so the 1-attempt fast path never engaged. Now only a pure `btn-N` path (button actually worked) keeps 3 attempts.
+- **Heuristic finder caching:** results memoized 4 s (element-liveness checked) — the report showed full DOM re-scans on every health tick while paused.
+- **ChatGPT selectors widened:** `data-testid*="send"/"submit"/"stop"` + `aria-label*="Stop"` contains-fallbacks appended (probe showed all exact selectors missing; note: on mobile the send button legitimately doesn't exist while the composer is empty — the voice button occupies that slot).
+
+### Skins get their effects back (state-aware, per recovered design sessions)
+Restored the effect vocabulary from the approved design language — **effects are data-driven but core-implemented**: five enumerated fx axes a skin selects from, all Firefox-safe (`transform`/`opacity`/`background-position` only, no `@property`), all honoring `prefers-reduced-motion`, and all **state-aware**: lively while RUNNING, slow subtle ambient while idle (the approved Floating-Glass behavior — `render()` now sets `data-run` on the panel).
+- `border`: `aurora` (drifting 3-stop gradient ring) · `glow` (breathing accent inlay idle → tracing light when running)
+- `ghost` (the 👻 glyph, now its own `.g-ghost` span — real emoji, never redrawn): `float` · `flicker` (neon) · `halo` (pulsing accent drop-shadow) · `glow`
+- `tabs` (paint-only restyle of the same buttons): `underline` (glow strip under active) · `pill`
+- `progress`: `shimmer` (flowing accent fill) · `ekg` (heartbeat sweep across the track)
+- `surface`: `sheen` (slow specular band)
+
+Every preset now has a distinct vocabulary, not just a palette: Aurora (aurora border + float + underline + shimmer + sheen), Neon (tracing glow border + flicker ghost + pill tabs + EKG), Liquid (aurora + sheen + halo + shimmer), OLED (glow border + glowing ghost + EKG), Glass (halo + sheen + underline), Metal (sheen + pill), Clay (float + pill), Paper (underline), Classic (clean baseline). Community skins pick any combination via `fx` — still zero structural power, still forward-compatible.
+
+
+## [8.0.0.7] — DEV BUILD d7
+
+### Network channel actually works now (dual-channel generation detection)
+**Bug found by live-repo audit:** `GITL_NET` patched the *sandbox* `window.fetch` — with `@grant GM_*`, Tampermonkey isolates the script, so the page's real requests never crossed the hook and the whole network layer was dead in production (it only ever worked inside the jsdom test harness). Fixed by targeting `unsafeWindow` (new `@grant unsafeWindow`; Firefox MV3 port note: inject in `world:"MAIN"`).
+- **Trusted channel:** known chat endpoints (list refreshed — added Gemini's current `batchexecute` streaming transport) still parse SSE chunks
+- **Heuristic channel (platform-proof):** any same-origin POST stream or `text/event-stream` response pulses a timestamp — content never read or stored; analytics/telemetry URLs excluded. Heuristic pulses only count inside a 2-minute post-send expectation window, so background streams can't fake "generating"
+- **XHR upgraded:** `loadstart`/`progress`/`loadend` pulses (Gemini streams over XHR), plus a WebSocket message pulse (Perplexity socket.io)
+- **Wired into the engine:** `Adapter.isGenerating()` = stop-button OR `GITL_NET.streaming()`; the v7.1 send-confirmation watchdog therefore confirms sends from network traffic even when a redesign removes the stop button. DOM stays authoritative; net is additive (technique studied in LightSession & KeepChatGPT, re-implemented clean-room — both hook page `fetch` in production)
+
+### Heuristic element finders (final fallback tier)
+When every configured selector fails — e.g. Gemini's May-2026 full redesign (pill composer, relocated controls) — GITL now locates the composer and send button by **role and meaning** (Playwright-style): `role=textbox`/contenteditable scoring for input; aria-label/title/testid matched against a 13-language send dictionary, `type=submit`, form kinship, and proximity for the button, with a veto list (voice/mic/attach/search/stop). Engaged only when selector arrays come up empty; DIAG-noted when it fires.
+
+### Send chain — two new buttonless tiers + tier memory
+- Tier 4 verify added to `insertParagraph`; **Tier 5: `form.requestSubmit()`** — native submission that survives any button redesign
+- **ClipboardEvent paste tier** in `injectText` for editors that ignore execCommand and synthetic input (some Lexical builds)
+- **Tier memory:** the winning send path is remembered per host (`sendTier:<host>`); if the button tier failed last time, only 1 button attempt is made before falling through (~1.8 s faster recovery on broken sites)
+
+### Smoother load
+180 ms panel entrance animation replaces the pop-in (animation-only; ends at natural state — zero behavioral surface).
+
+### Skins — 3 trend presets + easier modding (now 9 built-ins)
+- **Liquid** — liquid-glass: translucent rgba surfaces, 16 px blur, icy animated gradient border (Apple iOS-26-lineage trend)
+- **OLED** — dark-first true-black: hairline borders instead of shadows, vivid accent (2026 dark-first/OLED trend)
+- **Paper** — the first light preset, warm paper tones (enabled by tokenizing the remaining `#fff/#666/#444/#333` text literals → `--g-text-hot/-low/-faint/-ghost`)
+- **Easy modding loop:** ⬆ import / ⬇ export now always visible — pick any preset, export, edit the JSON, re-import. Hue slider gains double-click-to-reset + tooltip. New `docs/SKINS.md` authoring guide.
+
+### Tests
+`tests/net-heur.test.js` (streaming semantics, heuristic gating, `_maybeChat` filters, finder scoring/veto/own-UI exclusion); structure-test network invariants updated to the corrected page-world form; suite green.
+
+
+## [8.0.0.6] — DEV BUILD d6
+
+### Skin engine — tokens, not code (Committee-approved architecture)
+Skins are now **data**: a whitelisted set of CSS custom properties (colors, radius, shadow, font, blur, aurora stops) plus two enumerated fx flags (`border: aurora`, `ghost: float`) applied to the panel root. Core owns all structure and behavior — a skin **cannot** add, remove, hide, or restructure controls, and cannot execute anything (no selectors, no `url()`, no CSS text; JSON only). Unknown tokens/fx are silently dropped, so community skins are forward- and backward-compatible across GITL versions.
+- ~160 hardcoded hex literals in core CSS replaced with `var(--g-*)`; Classic defaults equal the previous values, so Classic renders pixel-identical
+- 6 built-in presets: Classic, Aurora (violet glass + animated gradient border, Firefox-safe `background-position` animation), Glass, Metal, Neon, Clay — all expressed in the same token format as user skins (dogfooding)
+- Custom skin import/export as `.gitl.json` (`kind:"skin"`) with ⬆/⬇ buttons in Setup; 8 KB cap, value blacklist (`url(`, braces, `@import`, `javascript:`), name sanitization — mirrors Workshop safety rules
+- Accent hue slider now real: rotates the active skin's four accent tokens (preserving each token's saturation/lightness); untouched slider = skin's native hue. Stored `skinTheme:'new'` migrates to `'aurora'`
+- New GM key `customSkin`; `SKIN.apply()` runs at boot after `mountPanel()`
+- Tests: `tests/skin.test.js` (validator security, forward-compat drops, preset integrity, hue math, apply/clear behavior)
+## [8.0.0.5] — DEV BUILD d5
+
+### UX restructure
+- **Strategy dropdown** replaces Loop/Think/Roadmap buttons (Step by step / Plan first / Autopilot)
+- **Basic/advanced split** on Run tab — posture, prompt preview, and End button behind Advanced ▾
+- **Personas tab** (was Roles) — single-select with preview, committee toggle, multi-persona builder, per-task and final-review toggles
+- **Detection status line** — shows platform · strategy · posture · round below status bar
+- **Drift guard** on/off toggle + inline editable counter
+- **Skin selector** + accent hue slider in Setup (plumbing only, no skins yet)
+
+### Committee pipeline (engine)
+- `resolvePersonaInject()` supports array selection + committee framing
+- Per-task injection in engineTick proceed path + roadmap steps
+- Post-halt final review hook — committee reviews before engineHalt
+- Migration shim: persona string→array backward compatible
+
+### SPA reliability
+- `@noframes` prevents double-injection in iframes
+- SPA boot retry: 30s element finder for late-rendering apps
+- Gemini: custom element selectors, scroll guard restricted to infinite-scroller
+- ChatGPT: data-testid fallback selectors
+- Perplexity: [data-testid=composer], role=textbox fallbacks
+
+### Three-stage send failsafe (from MCP-SuperAssistant research)
+- Stage 1: button.click() → verify input cleared
+- Stage 2: Enter key with composed:true (crosses Shadow DOM)
+- Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
+- `composed:true` on all synthetic keyboard + input events
+- Grok: comprehensive selector update
+
+### Collapsed dock redesign
+- Width 32→44px, touch targets 36×36px
+- Drift guard editable in dock strip with ↻ reset
+- Hide 🔄 and ? when collapsed
 
 ## [8.0.0] — DEV BUILD (features complete, UI reskin pending)
 
