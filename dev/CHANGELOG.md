@@ -1,5 +1,35 @@
 # Changelog
 
+## [8.1.2] — TWO FIELD REPORTS CLOSED
+
+### 🐞 FIX — Grok run paused itself 1 second after a perfectly good send (issue #2)
+`send_ok` at 14:34:05, `"Route changed — paused"` at 14:34:06. Grok (like most
+chat platforms) assigns the conversation a `/c/<uuid>` URL the instant the
+FIRST message goes out — that's the same conversation continuing, not real
+navigation, but the route watcher paused any running loop on ANY URL change.
+- The watcher now only pauses when the route change looks like a genuine
+  navigation away: different hostname, **or** nothing was sent in the last
+  15s to explain the URL move. A same-host URL change right after a send is
+  now just logged (`route_id_assigned`) and the loop keeps running.
+- Element caches are still cleared on every route change either way — a
+  same-host ID assignment can still remount the composer.
+
+### 🐞 FIX — Perplexity Deep Research paused mid-thought with "No output detected" (issue #1)
+Sent fine (`send_ok`), then two re-fires, then paused ~35s later even though
+Perplexity was still visibly "thinking" — Deep Research can run silently for
+minutes with **zero assistant DOM nodes yet**, not just no new growth.
+- d13 already taught the *later* no-signal branch to hold its stale counter
+  while `Adapter.isGenerating()` is true (network/stop-button witness) and
+  use each platform's `staleTicks` budget instead of a flat 5. That fix
+  never reached the *earlier* "no text exists yet" branch, which is exactly
+  what fires before Deep Research's first message container appears — so
+  slow-starting platforms could still pause ~12s after a good send.
+- Same treatment applied here: hold the counter while generating, use the
+  per-platform budget (Perplexity: 24 ticks).
+
+Both reproduced as real-browser Playwright tests before and after the fix
+(`tests/e2e/routefix.spec.js`, `tests/issuefixes.test.js`).
+
 ## [8.1.1] — SELF-HEALING BASE
 
 ### 🐞 FIX — DeepSeek clicked "Copy" instead of Send (field report)

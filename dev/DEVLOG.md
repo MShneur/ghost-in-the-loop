@@ -11,6 +11,38 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.1.2 — Two field-reported issues (GitHub #1, #2)
+
+### #1 Perplexity Deep Research paused mid-thought ("No output detected")
+- **What happened:** the d13 fix taught the LATER no-signal branch (ambiguous
+  `detectSignal` result) to hold its stale counter while `Adapter.isGenerating()`
+  is true. It never touched the EARLIER `if (!text)` branch — the one that
+  fires when zero assistant DOM nodes exist yet at all. Deep Research can sit
+  silently for a long time before its first message container even appears,
+  so that branch's hardcoded `>= 5` tick limit (~12s) fired first.
+- **Fix:** identical isGenerating()-witness + per-platform `staleTicks` budget
+  applied to the `!text` branch. Two branches, same failure mode, now the same
+  guard — worth checking whether any future signal-detection branch needs it too.
+
+### #2 Grok paused a running loop 1 second after a successful send
+- **What happened:** `history.pushState`/`replaceState` patch fires `gitl:route`
+  on ANY URL change; the handler paused any RUNNING loop unconditionally. Nearly
+  every chat platform assigns a conversation-id URL (`/` → `/c/<uuid>`) the
+  instant the first message sends — Grok's timeline showed `send_ok` then
+  `route pause` exactly one second apart.
+- **Rejected:** allowlisting per-platform URL patterns for "this is just an ID
+  assignment" — brittle, one more thing to maintain per site, breaks the moment
+  a platform changes its URL scheme.
+- **Done instead:** a same-host + "sent recently" heuristic (15s window, matches
+  `SEND_CONFIRM_MS` scale). Cross-host changes, or same-host changes with no
+  recent send, still pause — that's still probably a real navigation-away.
+  Caches are cleared either way regardless of the pause decision, since a
+  same-host ID assignment can still remount the composer under us.
+
+Both reproduced first as failing real-browser Playwright tests replaying the
+exact reported timeline, then fixed, then re-run green — not just unit-level
+string checks. `tests/e2e/routefix.spec.js`, `tests/issuefixes.test.js`.
+
 ## v8.1.1 — Self-healing base (send safety, sigil-free loops, selector memory)
 
 ### The DeepSeek "Copy" incident — why the send heuristic was structurally unsafe

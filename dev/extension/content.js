@@ -30,7 +30,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.1';
+const VER = '8.1.2';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -1996,7 +1996,20 @@ function engineTick() {
 
   // Read output
   const text = Adapter.getLastText();
-  if (!text) { L.staleTicks++; if (L.staleTicks >= 5) pauseWithProbe('No output detected'); return; }
+  if (!text) {
+    /* v8.1.2 field report (Perplexity Deep Research): this branch fires
+       before the FIRST assistant DOM node exists at all — during a long
+       silent "thinking" phase there is no text to read yet, but net traffic
+       or a stop button proves the model is working. The later no-signal
+       branch already got this isGenerating() witness + per-platform budget
+       in d7; this earlier branch was missed, so slow-starting platforms
+       could still pause ~12s after a perfectly good send. */
+    if (Adapter.isGenerating()) { L.staleTicks = 0; L.detail = '🧠 Model is still working…'; render(); return; }
+    L.staleTicks++;
+    const staleLimit = (PLAT && PLAT.staleTicks) || 5;
+    if (L.staleTicks >= staleLimit) pauseWithProbe('No output detected');
+    return;
+  }
 
   // Detect signal
   const result = detectSignal(text);
@@ -2270,9 +2283,25 @@ function primaryAction() {
 window.addEventListener('popstate', () => window.dispatchEvent(new Event('gitl:route')));
 window.addEventListener('gitl:route', () => {
   if (location.href !== _lastHref) {
+    const prevHref = _lastHref;
     _lastHref = location.href;
     _clearElementCaches();
-    if (GHOST.loop.state === 'RUNNING') enginePause('Route changed — paused');
+    if (GHOST.loop.state === 'RUNNING') {
+      /* v8.1.2 field report (Grok): almost every platform assigns a fresh
+         conversation URL (e.g. "/" -> "/c/<uuid>") the instant the FIRST
+         message is sent — that is normal same-conversation continuation,
+         not navigating away, but it used to pause every run one tick after
+         it started. Only treat it as a real navigation-away when the host
+         changed, or when nothing was sent recently to explain the URL move. */
+      let sameHost = false;
+      try { sameHost = new URL(prevHref).hostname === location.hostname; } catch(_) {}
+      const justSent = GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000);
+      if (sameHost && justSent) {
+        Timeline.record('route_id_assigned', { from: prevHref, to: location.href });
+        return;
+      }
+      enginePause('Route changed — paused');
+    }
   }
 });
 
