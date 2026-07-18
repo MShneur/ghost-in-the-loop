@@ -1,5 +1,39 @@
 # Changelog
 
+## [8.1.3] — GEMINI SILENT BOOT CRASH
+
+### 🐞 FIX — Ghost "doesn't seem to load" on Gemini (and any page with a hardened window.fetch)
+No error, no panel, nothing — the worst kind of bug. A full-page capture of the
+live Gemini tab (SingleFile, which does capture other extensions' live DOM
+injections — Grammarly showed up fine) proved `#gitl` never mounted at all.
+Not a selector problem: the panel was never created.
+
+**Root cause:** `GITL_NET.install()` runs at module top-level, *outside*
+`safeBoot()`'s try/catch (which only wraps panel creation, much further
+down). It did three **unguarded** strict-mode property writes —
+`window.fetch =`, `XHR.prototype.open =`, `XHR.prototype.send =`. If a page
+has hardened any of those (`Object.defineProperty(..., {writable:false})` —
+a real pattern on security-conscious sites, plausible on a Google property),
+the assignment throws a TypeError right there, and because nothing catches
+it, the **entire script dies** before a single line of panel code runs.
+Confirmed by reproducing it: froze `window.fetch` before injecting the real
+script in a test browser — panel failed to mount, exactly as reported.
+
+**Fix:** every patch (fetch, XHR open, XHR send, WebSocket) is now
+individually try/catched, the whole `install()` method has an outer
+catch-all, and the top-level call site is guarded too. A hardened site now
+just loses that one piece of network telemetry — the panel, loop engine,
+and everything else boot completely normally. Verified with the same
+frozen-property reproduction now passing, for `fetch`, `XHR.send`, and
+both at once.
+
+### Prior boot failures are no longer invisible
+`lastBootError` was already being written to GM storage on a crash — but
+nothing ever read it back. Now, on the next successful boot, a stored prior
+failure surfaces once into Diagnostics (and therefore into any auto-report)
+and clears, instead of silently expiring in storage where no one could ever
+see why a previous load failed.
+
 ## [8.1.2] — TWO FIELD REPORTS CLOSED
 
 ### 🐞 FIX — Grok run paused itself 1 second after a perfectly good send (issue #2)

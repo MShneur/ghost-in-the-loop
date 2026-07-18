@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.1.2
+// @version      8.1.3
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -52,7 +52,7 @@ window.__GITL_V8__ = true;
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.2';
+const VER = '8.1.3';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -295,11 +295,23 @@ const GITL_NET = {
   install() {
     if (this.active) return;
     this.active = true;
+    /* v8.1.3 field report (Gemini "doesn't load"): install() used to run
+       fully unguarded at module top-level, OUTSIDE safeBoot()'s try/catch
+       (which only wraps panel creation much further down). In strict mode,
+       reassigning a property a host page has hardened (Object.defineProperty
+       with writable:false — a real pattern on security-conscious Google
+       properties) throws a TypeError right here, which aborts the ENTIRE
+       script before a single line of panel code runs: no #gitl, no console
+       message a normal user would ever see, nothing. Every patch below is
+       now individually fault-tolerant, and the whole method is wrapped too,
+       so one hardened site can only cost that site's network telemetry —
+       never the panel. */
+    try {
 
     /* Fetch proxy on the PAGE window — captures SSE / JSON streams */
     const self = this;
-    const origFetch = UW.fetch;
-    if (typeof origFetch === 'function') UW.fetch = async function(...args) {
+    let origFetch; try { origFetch = UW.fetch; } catch(_) { origFetch = null; }
+    try { if (typeof origFetch === 'function') UW.fetch = async function(...args) {
       const response = await origFetch.apply(this, args);
       const listed = self._isChat(args[0]);
       let heur = false;
@@ -354,33 +366,35 @@ const GITL_NET = {
         }
       }
       return response;
-    };
+    }; } catch(err) { console.warn('[GITL] fetch patch skipped:', err); }
 
     /* XHR proxy on the PAGE window — Gemini streams via batchexecute XHRs */
-    const XP = (UW.XMLHttpRequest && UW.XMLHttpRequest.prototype) || null;
-    if (XP && XP.open && XP.send) {
-      const origOpen = XP.open;
-      XP.open = function(method, url, ...rest) {
-        this._gitlUrl = url; this._gitlMethod = method;
-        return origOpen.call(this, method, url, ...rest);
-      };
-      const origSend = XP.send;
-      XP.send = function(...args) {
-        const listed = self._isChat(this._gitlUrl);
-        const heur = !listed && self._maybeChat(this._gitlUrl, this._gitlMethod);
-        if (listed || heur) {
-          try {
-            this.addEventListener('loadstart', () => { self._open++; self._pulse(listed); });
-            this.addEventListener('progress',  () => self._pulse(listed));
-            this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
-            if (listed) this.addEventListener('load', function() {
-              if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
-            });
-          } catch(_) {}
-        }
-        return origSend.apply(this, args);
-      };
-    }
+    try {
+      const XP = (UW.XMLHttpRequest && UW.XMLHttpRequest.prototype) || null;
+      if (XP && XP.open && XP.send) {
+        const origOpen = XP.open;
+        XP.open = function(method, url, ...rest) {
+          this._gitlUrl = url; this._gitlMethod = method;
+          return origOpen.call(this, method, url, ...rest);
+        };
+        const origSend = XP.send;
+        XP.send = function(...args) {
+          const listed = self._isChat(this._gitlUrl);
+          const heur = !listed && self._maybeChat(this._gitlUrl, this._gitlMethod);
+          if (listed || heur) {
+            try {
+              this.addEventListener('loadstart', () => { self._open++; self._pulse(listed); });
+              this.addEventListener('progress',  () => self._pulse(listed));
+              this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
+              if (listed) this.addEventListener('load', function() {
+                if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
+              });
+            } catch(_) {}
+          }
+          return origSend.apply(this, args);
+        };
+      }
+    } catch(err) { console.warn('[GITL] XHR patch skipped:', err); }
 
     /* WebSocket pulse — Perplexity's socket.io traffic (timestamps only) */
     try {
@@ -393,14 +407,20 @@ const GITL_NET = {
           }
         });
       }
-    } catch(_) {}
+    } catch(err) { console.warn('[GITL] WebSocket patch skipped:', err); }
 
     console.log('[GITL] Network interceptor active');
+    } catch(err) {
+      console.error('[GITL] Network interceptor failed to install — panel will still boot:', err);
+      try { GM_setValue('lastNetInstallError', JSON.stringify({ msg: String(err?.message||err), at: new Date().toISOString() })); } catch(_) {}
+    }
   }
 };
 
-/* Install immediately — safe even before DOM */
-GITL_NET.install();
+/* Install immediately — safe even before DOM. Also guarded at the call site:
+   this runs before safeBoot() and used to be able to take the whole script
+   down with it (see the v8.1.3 note inside install()). */
+try { GITL_NET.install(); } catch(err) { console.error('[GITL] GITL_NET.install() threw at top level — continuing boot anyway:', err); }
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 1 — PLATFORM ADAPTERS (all DOM access lives here)
@@ -4491,5 +4511,19 @@ safeBoot(() => {
   }, 2000);
   Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
+
+  /* v8.1.3: surface a PRIOR boot failure once, instead of it living silently
+     in GM storage forever. Reaching this line means boot succeeded THIS
+     time (the panel you're looking at is proof), so this only fires for a
+     failure on an earlier page load — e.g. a hardened page killed the whole
+     script before install() was made fault-tolerant. Visible in the
+     Diagnostics probe / any auto-report from here on, then cleared so it
+     doesn't repeat every boot. */
+  try {
+    const lastBoot = GM_getValue('lastBootError', '');
+    const lastNet  = GM_getValue('lastNetInstallError', '');
+    if (lastBoot) { DIAG.push('Previous page load failed to boot: ' + (JSON.parse(lastBoot).msg || lastBoot)); _save('lastBootError', ''); }
+    if (lastNet)  { DIAG.push('Previous page load: network interceptor failed to install: ' + (JSON.parse(lastNet).msg || lastNet)); _save('lastNetInstallError', ''); }
+  } catch(_) {}
 });
 })();

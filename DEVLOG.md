@@ -11,6 +11,68 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.1.3 — Gemini silent boot crash (GITL_NET.install() unguarded)
+
+### The bug
+`GITL_NET.install()` is called at module top-level (`GITL_NET.install();`,
+right after the object literal) — deliberately, per its own comment,
+"install immediately — safe even before DOM," because network interception
+needs to be live before the very first fetch/XHR the page makes, which can
+happen before `document.body` exists. That's a legitimate reason to run
+outside `safeBoot()`. The bug was that "runs outside safeBoot" quietly also
+meant "runs with zero exception handling," and three of its four property
+patches (fetch, XHR.open, XHR.send) were bare assignments — no try/catch —
+while the fourth (WebSocket) already had one. That asymmetry was the tell.
+
+In strict mode (`'use strict'` at the top of the file), assigning to a
+property a page has hardened via `Object.defineProperty(..., {writable:
+false, configurable:false})` throws a TypeError synchronously. Nothing
+catches it at module scope, so the throw aborts the rest of the IIFE
+entirely — including `safeBoot(() => {...})`, which is defined and CALLED
+much later in the same top-level script flow and simply never gets reached.
+Net effect: zero panel, zero console message a normal user would ever
+notice (Tampermonkey/browser DO log the uncaught exception to devtools
+console, but essentially no one checks that), zero `lastBootError` entry
+either (that capture only lives inside safeBoot's catch, which never ran).
+
+### How this was found without live access to gemini.google.com
+Couldn't reproduce live (Gemini needs a Google login this sandbox doesn't
+have). The user attached a full-page capture of the actual failing tab, made
+with the SingleFile browser extension — which captures the live DOM
+including other extensions' injected content (confirmed: `data-gramm`
+attributes from Grammarly were present in the file). Searched the capture
+for `id="gitl"` and the literal string "GITL" — zero matches, anywhere, in
+a 4MB file. That ruled out "the script ran but couldn't find its
+selectors" (which would still leave the panel element in the DOM, just
+maybe empty/misconfigured) and pointed straight at "the script never
+finished executing far enough to create the panel at all." From there,
+tracing backward from `mountPanel()` up through everything that runs before
+it landed on the one unguarded, top-level, pre-safeBoot call.
+
+### Fix and how it was verified
+Wrapped each patch individually (matches the pattern the WebSocket patch
+already used), wrapped the whole `install()` body as a last resort, and
+wrapped the top-level call site too — three independent layers, because
+this is exactly the kind of bug where "should never happen" already
+happened once. Then reproduced the ORIGINAL failure in a real browser: used
+`page.addInitScript` to freeze `window.fetch` (and separately
+`XMLHttpRequest.prototype.send`) with `writable:false` *before* injecting
+the actual userscript source, confirmed the pre-fix code failed to mount
+`#gitl` (proving the repro was real, not a guess), then confirmed the fix
+resolves it for fetch alone, XHR alone, and both frozen at once.
+`tests/e2e/netboot.spec.js`.
+
+### Also fixed while in there: prior failures were a black hole
+`lastBootError` was captured on crash but never read back anywhere — pure
+write-only storage. A crash from six months ago and a crash from five
+minutes ago were equally invisible. Now surfaced into `DIAG` (and therefore
+into Reporter output) on the next successful boot, then cleared. Doesn't
+help the case where boot fails 100% of the time forever (nothing ever
+succeeds to surface it from) — the real fix for THAT class of bug is "don't
+let network interception take the whole panel down," which is the primary
+fix above. This is defense-in-depth for whatever the next unanticipated
+crash turns out to be.
+
 ## v8.1.2 — Two field-reported issues (GitHub #1, #2)
 
 ### #1 Perplexity Deep Research paused mid-thought ("No output detected")
