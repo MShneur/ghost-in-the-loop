@@ -1160,15 +1160,24 @@ const Workshop = {
     return id;
   },
 
-  // ── Validation: tolerant but strict enough to never inject garbage ──
+  // ── Validation: exact schemas and bounded values ──────────────────
+  _onlyKeys(value, allowed) {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+      && Object.keys(value).every(k => allowed.includes(k));
+  },
   _validPersona(p) {
-    return p && typeof p.label === 'string' && p.label.trim().length > 0
-             && typeof p.inject === 'string' && p.inject.trim().length > 0;
+    return this._onlyKeys(p, ['id','label','inject'])
+      && (p.id == null || (typeof p.id === 'string' && p.id.length <= 80))
+      && typeof p.label === 'string' && p.label.trim().length > 0 && p.label.length <= WORKSHOP_LIMITS.label
+      && typeof p.inject === 'string' && p.inject.trim().length > 0 && p.inject.length <= WORKSHOP_LIMITS.inject;
   },
   _validWorkflow(w) {
-    return w && typeof w.label === 'string' && w.label.trim().length > 0
-             && Array.isArray(w.stages) && w.stages.length > 0
-             && w.stages.every(s => typeof s === 'string' && s.trim().length > 0);
+    return this._onlyKeys(w, ['id','label','desc','stages'])
+      && (w.id == null || (typeof w.id === 'string' && w.id.length <= 80))
+      && typeof w.label === 'string' && w.label.trim().length > 0 && w.label.length <= WORKSHOP_LIMITS.label
+      && (w.desc == null || (typeof w.desc === 'string' && w.desc.length <= WORKSHOP_LIMITS.desc))
+      && Array.isArray(w.stages) && w.stages.length > 0 && w.stages.length <= WORKSHOP_LIMITS.stages
+      && w.stages.every(s => typeof s === 'string' && s.trim().length > 0 && s.length <= WORKSHOP_LIMITS.stage);
   },
 
   addPersona(label, inject) {
@@ -1229,61 +1238,106 @@ const Workshop = {
     return `## Workshop pack: ${title}\n\n**Contains:** ${nP} persona(s), ${nW} workflow(s)${skinLine}\n\n${items.join('\n')}\n\nTo use: save the JSON below as \`pack.gitl.json\`, then **⬆ Import** in Ghost's Workshop.\n\n\`\`\`json\n${this.exportBundle()}\n\`\`\`\n`;
   },
 
-  // ── Import: additive, protects built-ins, auto-renames custom clashes ──
+  // ── Import: validate and stage everything, then commit atomically ─────
   importBundle(text) {
     if (typeof text !== 'string') return { ok:false, error:'No file content' };
     // Reject oversized payloads BEFORE parsing (cheap DoS / paste-bomb guard).
     if (text.length > WORKSHOP_LIMITS.fileBytes) return { ok:false, error:`File too large (max ${Math.round(WORKSHOP_LIMITS.fileBytes/1024)} KB)` };
     let data; try { data = JSON.parse(text); } catch(_) { return { ok:false, error:'Not valid JSON' }; }
-    if (!data || typeof data !== 'object') return { ok:false, error:'Empty or malformed file' };
-    if (data.schema && !String(data.schema).startsWith('gitl-workshop/')) return { ok:false, error:'Not a Ghost Workshop file' };
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok:false, error:'Empty or malformed file' };
+    if (data.schema !== WORKSHOP_SCHEMA) return { ok:false, error:`Expected schema ${WORKSHOP_SCHEMA}` };
+    if (!this._onlyKeys(data, ['schema','tool','version','exported','personas','workflows','skin'])) {
+      return { ok:false, error:'Workshop file contains unknown top-level fields' };
+    }
     const inP = Array.isArray(data.personas)  ? data.personas  : [];
     const inW = Array.isArray(data.workflows) ? data.workflows : [];
     const hasSkin = data.skin && typeof data.skin === 'object';
     if (inP.length + inW.length === 0 && !hasSkin) return { ok:false, error:'No personas, workflows, or skin in file' };
     if (inP.length + inW.length > WORKSHOP_LIMITS.maxItems) return { ok:false, error:`Too many items (max ${WORKSHOP_LIMITS.maxItems})` };
-    const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0 };
-    const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(this.personas)]);
+    const invalidPersona = inP.findIndex(p => !this._validPersona(p));
+    if (invalidPersona >= 0) return { ok:false, error:`Invalid persona at index ${invalidPersona}` };
+    const invalidWorkflow = inW.findIndex(w => !this._validWorkflow(w));
+    if (invalidWorkflow >= 0) return { ok:false, error:`Invalid workflow at index ${invalidWorkflow}` };
+
+    const nextPersonas = { ...this.personas };
+    const nextWorkflows = { ...this.workflows };
+    const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0, skin:0 };
+    const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(nextPersonas)]);
     for (const p of inP) {
-      if (!this._validPersona(p)) { res.skipped++; continue; }
       const base = p.id || p.label;
       const id = this._uniqueId(base, pTaken);
       if (this._slug(base) !== id) res.renamed++;
       pTaken.add(id);
-      this.personas[id] = { label: p.label.trim().slice(0,WORKSHOP_LIMITS.label), inject: p.inject.trim().slice(0,WORKSHOP_LIMITS.inject), custom: true };
+      nextPersonas[id] = { label: p.label.trim(), inject: p.inject.trim(), custom: true };
       res.personas++;
     }
-    const wTaken = new Set([...Object.keys(WORKFLOW_LIBRARY), ...Object.keys(this.workflows)]);
+    const wTaken = new Set([...Object.keys(WORKFLOW_LIBRARY), ...Object.keys(nextWorkflows)]);
     for (const w of inW) {
-      if (!this._validWorkflow(w)) { res.skipped++; continue; }
       const base = w.id || w.label;
       const id = this._uniqueId(base, wTaken);
       if (this._slug(base) !== id) res.renamed++;
       wTaken.add(id);
-      this.workflows[id] = { label: w.label.trim().slice(0,WORKSHOP_LIMITS.label), desc: String(w.desc||'').trim().slice(0,WORKSHOP_LIMITS.desc),
-        stages: w.stages.map(s => String(s).trim().slice(0,WORKSHOP_LIMITS.stage)).slice(0,WORKSHOP_LIMITS.stages), custom: true };
+      nextWorkflows[id] = {
+        label: w.label.trim(),
+        desc: String(w.desc || '').trim(),
+        stages: w.stages.map(s => s.trim()),
+        custom: true
+      };
       res.workflows++;
     }
-    // v8.1: optional bundled skin — validated by the skin whitelist, applied
-    // as the custom skin. Invalid skins are skipped, never fatal.
-    res.skin = 0;
+
+    let nextSkin = null;
     if (hasSkin) {
       try {
-        if (typeof SKIN !== 'undefined') {
-          const r = SKIN.validate(JSON.stringify(data.skin));
-          if (r.ok && typeof GHOST !== 'undefined') {
-            GHOST.ui.customSkin = JSON.stringify(r.skin);
-            GHOST.ui.skinTheme = 'custom';
-            _save('customSkin', GHOST.ui.customSkin);
-            _save('skinTheme', 'custom');
-            SKIN.apply();
-            res.skin = 1;
-          } else { res.skipped++; }
-        }
-      } catch(_) { res.skipped++; }
+        if (typeof SKIN === 'undefined') return { ok:false, error:'Skin validator is unavailable' };
+        const checked = SKIN.validate(JSON.stringify(data.skin));
+        if (!checked.ok) return { ok:false, error:`Invalid bundled skin: ${checked.error}` };
+        nextSkin = JSON.stringify(checked.skin);
+        res.skin = 1;
+      } catch(_) {
+        return { ok:false, error:'Invalid bundled skin' };
+      }
     }
-    this._persist();
-    return res;
+
+    const previous = {
+      personas: this.personas,
+      workflows: this.workflows,
+      customPersonas: GM_getValue('customPersonas', '{}'),
+      customWorkflows: GM_getValue('customWorkflows', '{}'),
+      customSkin: typeof GHOST !== 'undefined' ? GHOST.ui.customSkin : '',
+      skinTheme: typeof GHOST !== 'undefined' ? GHOST.ui.skinTheme : 'classic'
+    };
+    try {
+      _save('customPersonas', JSON.stringify(nextPersonas));
+      _save('customWorkflows', JSON.stringify(nextWorkflows));
+      if (nextSkin != null) {
+        _save('customSkin', nextSkin);
+        _save('skinTheme', 'custom');
+      }
+      this.personas = nextPersonas;
+      this.workflows = nextWorkflows;
+      if (nextSkin != null && typeof GHOST !== 'undefined') {
+        GHOST.ui.customSkin = nextSkin;
+        GHOST.ui.skinTheme = 'custom';
+        SKIN.apply();
+      }
+      return res;
+    } catch(_) {
+      /* Best-effort rollback of both storage and live state. */
+      try {
+        _save('customPersonas', previous.customPersonas);
+        _save('customWorkflows', previous.customWorkflows);
+        _save('customSkin', previous.customSkin);
+        _save('skinTheme', previous.skinTheme);
+      } catch(_) {}
+      this.personas = previous.personas;
+      this.workflows = previous.workflows;
+      if (typeof GHOST !== 'undefined') {
+        GHOST.ui.customSkin = previous.customSkin;
+        GHOST.ui.skinTheme = previous.skinTheme;
+      }
+      return { ok:false, error:'Import could not be committed; previous state was restored' };
+    }
   }
 };
 
@@ -1348,7 +1402,8 @@ const GHOST = {
     filter: GM_getValue('expFilter','all'),
     includeRoles: GM_getValue('expRoles',true),
     thinking: GM_getValue('expThinking',true),
-    customSlug: GM_getValue('expSlug','')
+    customSlug: GM_getValue('expSlug',''),
+    lastResult: null
   },
   ui: {
     collapsed: GM_getValue('panelCollapsed',false),
@@ -1564,6 +1619,10 @@ const ERROR_CATALOG = Object.freeze({
   'ADAPTER-001': {
     summary: 'The site adapter could not identify a required capability.',
     guidance: 'Run Re-detect, download the diagnostic, and report the affected site.'
+  },
+  'EXPORT-001': {
+    summary: 'Export could not produce a validated transcript file.',
+    guidance: 'Keep the chat open, try once more, then download this diagnostic if it still fails.'
   },
   'MANUAL-001': {
     summary: 'A diagnostic was requested manually.',
@@ -2868,13 +2927,14 @@ function buildFilename(mode) {
       thinking, immune to virtualization and redesigns). DOM remains the fallback. ── */
 
 // ChatGPT — technique from pionxzh/chatgpt-exporter: session token + backend-api, walk the node tree
-async function apiExportChatGPT() {
+async function apiExportChatGPT(signal) {
   const id = location.pathname.match(/\/c\/([\w-]+)/)?.[1];
   if (!id) return null;
-  const sess = await (await fetch(location.origin + '/api/auth/session')).json();
+  const sess = await (await fetch(location.origin + '/api/auth/session', { signal })).json();
   if (!sess?.accessToken) return null;
   const r = await fetch(location.origin + '/backend-api/conversation/' + id, {
-    headers: { 'Authorization': 'Bearer ' + sess.accessToken }
+    headers: { 'Authorization': 'Bearer ' + sess.accessToken },
+    signal
   });
   if (!r.ok) return null;
   const conv = await r.json();
@@ -2884,48 +2944,81 @@ async function apiExportChatGPT() {
   let node = conv.mapping[conv.current_node];
   while (node) { chain.unshift(node); node = node.parent ? conv.mapping[node.parent] : null; }
   const out = [];
+  let expected = 0, omitted = 0, unsupportedParts = 0;
   for (const n of chain) {
     const m = n.message;
-    if (!m || !m.author || m.author.role === 'system' || m.author.role === 'tool') continue;
+    if (!m || !m.author || !['user','assistant'].includes(m.author.role)) continue;
+    expected++;
     const c = m.content || {};
     let text = '';
-    if (Array.isArray(c.parts)) text = c.parts.map(p => typeof p === 'string' ? p : (p?.text || '')).join('\n').trim();
+    if (Array.isArray(c.parts)) {
+      text = c.parts.map(p => {
+        if (typeof p === 'string') return p;
+        if (typeof p?.text === 'string') return p.text;
+        unsupportedParts++;
+        return '';
+      }).join('\n').trim();
+    }
     else if (typeof c.text === 'string') text = c.text.trim();
     if (c.content_type === 'code' && text) text = '```\n' + text + '\n```';
     let thinking = '';
     if (GHOST.export.thinking && Array.isArray(c.thoughts)) thinking = c.thoughts.map(t => t?.content || t?.summary || '').filter(Boolean).join('\n\n');
     if (text || thinking) out.push(thinking ? { role: m.author.role, index: out.length, text, thinking } : { role: m.author.role, index: out.length, text });
+    else omitted++;
   }
-  return out.length ? out : null;
+  return out.length ? {
+    messages: out,
+    source: 'chatgpt-api',
+    expected,
+    omitted,
+    unsupportedParts,
+    scope: 'active-branch'
+  } : null;
 }
 
 // Claude — technique from socketteer/Claude-Conversation-Exporter, improved: orgId auto-fetched
 // (their users had to paste it manually — their top setup complaint)
-async function apiExportClaude() {
+async function apiExportClaude(signal) {
   const convId = location.pathname.match(/\/chat\/([\w-]+)/)?.[1];
   if (!convId) return null;
-  const orgs = await (await fetch('/api/organizations', { credentials: 'include' })).json();
+  const orgs = await (await fetch('/api/organizations', { credentials: 'include', signal })).json();
   const orgId = Array.isArray(orgs) ? orgs[0]?.uuid : null;
   if (!orgId) return null;
-  const r = await fetch(`/api/organizations/${orgId}/chat_conversations/${convId}?tree=True&rendering_mode=messages&render_all_tools=true`, { credentials: 'include' });
+  const r = await fetch(`/api/organizations/${orgId}/chat_conversations/${convId}?tree=True&rendering_mode=messages&render_all_tools=true`, { credentials: 'include', signal });
   if (!r.ok) return null;
   const data = await r.json();
   const msgs = data?.chat_messages;
   if (!Array.isArray(msgs)) return null;
   const out = [];
+  let omitted = 0, unsupportedParts = 0;
   for (const m of msgs) {
     const role = m.sender === 'human' ? 'user' : 'assistant';
     let text = '', thinking = '';
     for (const b of (m.content || [])) {
       if (b.type === 'text' && b.text) text += (text ? '\n\n' : '') + b.text;
-      else if (b.type === 'thinking' && GHOST.export.thinking) thinking += (thinking ? '\n\n' : '') + (b.thinking || b.text || '');
-      else if (b.type === 'tool_use') text += (text ? '\n' : '') + `[tool: ${b.name || 'call'}]`;
+      else if (b.type === 'thinking') {
+        if (GHOST.export.thinking) thinking += (thinking ? '\n\n' : '') + (b.thinking || b.text || '');
+      }
+      else if (b.type === 'tool_use') {
+        text += (text ? '\n' : '') + `[tool: ${b.name || 'call'}]`;
+        unsupportedParts++;
+      } else {
+        unsupportedParts++;
+      }
     }
     if (!text && typeof m.text === 'string') text = m.text;
     text = text.trim();
     if (text || thinking) out.push(thinking ? { role, index: out.length, text, thinking } : { role, index: out.length, text });
+    else omitted++;
   }
-  return out.length ? out : null;
+  return out.length ? {
+    messages: out,
+    source: 'claude-api',
+    expected: msgs.length,
+    omitted,
+    unsupportedParts,
+    scope: 'conversation'
+  } : null;
 }
 
 const API_EXPORTERS = { 'ChatGPT': apiExportChatGPT, 'Claude': apiExportClaude };
@@ -2933,6 +3026,7 @@ const API_EXPORTERS = { 'ChatGPT': apiExportChatGPT, 'Claude': apiExportClaude }
 /* ── The Veil: export progress overlay ───────────────────────── */
 const VEIL = {
   el: null, steps: [], idx: 0, cancelled: false, lastBeat: 0, _wd: null,
+  controller: null,
   _popover: false,        // true if using the Popover API top-layer path
   _richChecked: false,    // FPS probe runs once per session
   _visBound: false,
@@ -2961,7 +3055,12 @@ const VEIL = {
         <button class="gv-cancel" id="gv-cancel">Cancel</button>
       </div>`);
     document.body.appendChild(this.el);
-    this.el.querySelector('#gv-cancel').addEventListener('click', () => { this.cancelled = true; this.el.querySelector('#gv-title').textContent = 'Stopping…'; });
+    this.el.querySelector('#gv-cancel').addEventListener('click', () => {
+      this.cancelled = true;
+      try { this.controller?.abort(); } catch(_) {}
+      this.el.querySelector('#gv-title').textContent = 'Stopping…';
+      this.el.querySelector('#gv-note').textContent = 'No file will be created.';
+    });
     // Re-assert top-layer if the tab was backgrounded (mobile browsers can drop
     // the overlay behind native chrome when returning to the foreground).
     if (!this._visBound) {
@@ -3000,6 +3099,7 @@ const VEIL = {
   },
   show(steps) {
     this.ensure(); this.steps = steps; this.idx = 0; this.cancelled = false; this.lastBeat = Date.now();
+    this.controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     if (this._popover) { try { this.el.showPopover(); } catch(_) { this._popover = false; this.el.style.display = 'flex'; } }
     else { this.el.style.display = 'flex'; }
     this._maybeRich();
@@ -3008,7 +3108,7 @@ const VEIL = {
       const quiet = Date.now() - this.lastBeat;
       const note = this.el.querySelector('#gv-note');
       if (quiet > 8000) note.textContent = '⏳ Still working — the page is slow. Don\'t reload.';
-      if (quiet > 25000) note.textContent = '⚠️ This looks stuck. Cancel is safe — Ghost keeps what it collected.';
+      if (quiet > 25000) note.textContent = '⚠️ This looks stuck. Cancel is safe — no file will be created.';
     }, 2000);
   },
   step(i, label) {
@@ -3032,6 +3132,7 @@ const VEIL = {
     if (!this.el) return;
     if (this._popover) { try { this.el.hidePopover(); } catch(_){} this.el.style.display = 'none'; }
     else { this.el.style.display = 'none'; }
+    this.controller = null;
   }
 };
 
@@ -3042,12 +3143,15 @@ async function expandThinking() {
   // Auto-click collapsed "Thinking" toggles so reasoning text enters the DOM.
   let clicked = 0;
   for (let pass = 0; pass < 3; pass++) {
+    if (VEIL.cancelled) break;
     let n = 0;
     document.querySelectorAll('details:not([open])').forEach(d => {
+      if (VEIL.cancelled) return;
       if (!d.closest('#gitl')) { try { d.open = true; n++; } catch(_){} }
     });
     document.querySelectorAll('button,[role="button"],summary').forEach(b => {
       try {
+        if (VEIL.cancelled) return;
         if (b.closest('#gitl') || b.dataset.gitlExpanded) return;
         const label = ((b.innerText || '') + ' ' + (b.getAttribute('aria-label') || '')).slice(0, 80);
         if (THINK_TOGGLE_RX.test(label) && b.getAttribute('aria-expanded') !== 'true') {
@@ -3222,7 +3326,67 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+/* Config backup intentionally excludes project/chat/roadmap text, custom
+   personas/workflows, skins, custom site selectors, and diagnostics. Those
+   have separate formats and validators. */
+const CONFIG_SCHEMA = 'gitl.config.v1';
+const CONFIG_KEYS = [
+  'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
+  'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
+  'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
+  'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
+  'skinTheme','accentHue','unattended','firstRun'
+];
+const CONFIG_BOOL_KEYS = new Set([
+  'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
+  'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
+  'cfgAdv','expAdv','unattended','firstRun'
+]);
+const CONFIG_DEFAULTS = Object.freeze({
+  wfAuto:true, wfPause:false,
+  personaCommittee:false, personaPerTask:false, personaFinalReview:false,
+  payloadMode:'loop', posture:'standard', maxRounds:20, driftEnabled:true,
+  customProceed:'', customStop:'', sigWindow:400,
+  expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
+  panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
+  cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
+  unattended:false, firstRun:true
+});
+
+function _validConfigValue(key, value) {
+  if (CONFIG_BOOL_KEYS.has(key)) return typeof value === 'boolean';
+  if (key === 'maxRounds') return Number.isInteger(value) && value >= 1 && value <= 999;
+  if (key === 'sigWindow') return Number.isInteger(value) && value >= 200 && value <= 1200;
+  if (key === 'accentHue') return value === '' || (Number.isInteger(value) && value >= 0 && value <= 360);
+  if (key === 'payloadMode') return ['loop','think','roadmap'].includes(value);
+  if (key === 'posture') return Object.prototype.hasOwnProperty.call(POSTURES, value);
+  if (key === 'expFormat') return ['markdown','json'].includes(value);
+  if (key === 'expFilter') return ['all','user','assistant','code'].includes(value);
+  if (key === 'panelPosition') return ['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left'].includes(value);
+  if (key === 'skinTheme') return Object.prototype.hasOwnProperty.call(SKIN_PRESETS, value);
+  if (key === 'customProceed' || key === 'customStop') return typeof value === 'string' && value.length <= 120;
+  if (key === 'expSlug') return typeof value === 'string' && value.length <= 80;
+  return false;
+}
+
+function _validateConfigBundle(jsonText) {
+  let data;
+  try { data = JSON.parse(jsonText); } catch(_) { return { ok:false, error:'Invalid JSON' }; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok:false, error:'Malformed config file' };
+  if (data.schema !== CONFIG_SCHEMA) return { ok:false, error:`Expected schema ${CONFIG_SCHEMA}` };
+  if (!Object.keys(data).every(k => ['schema','version','exported','config'].includes(k))) {
+    return { ok:false, error:'Config file contains unknown top-level fields' };
+  }
+  const cfg = data.config;
+  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return { ok:false, error:'Missing config object' };
+  const keys = Object.keys(cfg);
+  if (!keys.length) return { ok:false, error:'Config file is empty' };
+  for (const key of keys) {
+    if (!CONFIG_KEYS.includes(key)) return { ok:false, error:`Unknown config key: ${key}` };
+    if (!_validConfigValue(key, cfg[key])) return { ok:false, error:`Invalid value for ${key}` };
+  }
+  return { ok:true, config:{ ...cfg } };
+}
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -3341,65 +3505,215 @@ function handoffInChat() {
 
 function backupConfig() {
   const cfg = {};
-  for (const k of GM_KEYS) cfg[k] = GM_getValue(k, undefined);
-  downloadText(JSON.stringify({ gitl_version: VER, exported: new Date().toISOString(), config: cfg }, null, 2),
+  for (const key of CONFIG_KEYS) {
+    const value = GM_getValue(key, CONFIG_DEFAULTS[key]);
+    if (value !== undefined && _validConfigValue(key, value)) cfg[key] = value;
+  }
+  downloadText(JSON.stringify({
+    schema: CONFIG_SCHEMA,
+    version: VER,
+    exported: new Date().toISOString(),
+    config: cfg
+  }, null, 2),
     'gitl-config-backup.json', 'application/json');
 }
 
 function restoreConfig(jsonText) {
+  const checked = _validateConfigBundle(jsonText);
+  if (!checked.ok) return `⚠ Import failed: ${checked.error}. Nothing changed.`;
+  const previous = {};
+  for (const key of Object.keys(checked.config)) previous[key] = GM_getValue(key, undefined);
   try {
-    const data = JSON.parse(jsonText);
-    const cfg = data.config || data;
-    let n = 0;
-    for (const k of GM_KEYS) { if (k in cfg && cfg[k] !== undefined) { GM_setValue(k, cfg[k]); n++; } }
-    return `✓ Restored ${n} settings — reload the page to apply.`;
-  } catch(e) { return '⚠ Invalid backup file.'; }
+    for (const [key, value] of Object.entries(checked.config)) GM_setValue(key, value);
+    Timeline.record('config_import', { settings: Object.keys(checked.config).length, ok:true });
+    return `✓ Restored ${Object.keys(checked.config).length} settings — reload the page to apply.`;
+  } catch(_) {
+    try { for (const [key, value] of Object.entries(previous)) GM_setValue(key, value); } catch(_) {}
+    Timeline.record('config_import', { settings:0, ok:false });
+    return '⚠ Import could not be committed; previous settings were restored.';
+  }
+}
+
+function _assessExportCapture(capture) {
+  const messages = Array.isArray(capture?.messages) ? capture.messages : [];
+  const source = String(capture?.source || 'unknown');
+  const expected = Number.isInteger(capture?.expected) ? capture.expected : null;
+  const omitted = Math.max(0, Number(capture?.omitted) || 0);
+  const unsupportedParts = Math.max(0, Number(capture?.unsupportedParts) || 0);
+  const warnings = Array.isArray(capture?.warnings) ? [...capture.warnings] : [];
+  const roles = messages.reduce((out, m) => {
+    const role = m?.role === 'user' ? 'user' : m?.role === 'assistant' ? 'assistant' : 'other';
+    out[role] = (out[role] || 0) + 1;
+    return out;
+  }, { user: 0, assistant: 0, other: 0 });
+
+  if (!messages.length) {
+    return {
+      schema: 'gitl.export-result.v1',
+      status: 'failed',
+      source,
+      captured: 0,
+      expected,
+      roles,
+      warnings: [...new Set([...warnings, 'No messages were captured.'])]
+    };
+  }
+
+  let status = source.endsWith('-api') ? 'complete' : 'partial';
+  if (!source.endsWith('-api')) {
+    warnings.push('DOM capture cannot prove that lazy-loaded or virtualized history is complete.');
+  }
+  if (expected != null && expected !== messages.length) {
+    status = 'partial';
+    warnings.push(`Captured ${messages.length} of ${expected} supported conversation turns.`);
+  }
+  if (omitted > 0) {
+    status = 'partial';
+    warnings.push(`${omitted} conversation turn(s) had no supported text content.`);
+  }
+  if (unsupportedParts > 0) {
+    status = 'partial';
+    warnings.push(`${unsupportedParts} attachment/tool/content part(s) were represented incompletely.`);
+  }
+  if (messages.length > 1 && (!roles.user || !roles.assistant)) {
+    status = 'partial';
+    warnings.push('Only one conversation role was detected.');
+  }
+  return {
+    schema: 'gitl.export-result.v1',
+    status,
+    source,
+    captured: messages.length,
+    expected,
+    roles,
+    warnings: [...new Set(warnings)]
+  };
+}
+
+function _setExportResult(result) {
+  GHOST.export.lastResult = result;
+  const icon = result.status === 'complete' ? '✓'
+    : result.status === 'partial' ? '⚠'
+    : result.status === 'cancelled' ? '■' : '✕';
+  GHOST.loop.detail = `${icon} Export ${result.status}`
+    + (Number.isFinite(result.captured) ? ` · ${result.captured} message(s)` : '');
+  Timeline.record('export_finished', {
+    state: result.status,
+    messages: Number(result.captured) || 0
+  });
+  render();
+  return result;
 }
 
 async function runExport() {
   const isManus = /Manus/i.test(PLAT.label);
   const apiFn = API_EXPORTERS[PLAT.label];
-  let raw = null;
-  // Path 1 — the platform's own archive: complete, exact, virtualization-proof
+  let capture = null;
+  let archiveUnavailable = false;
+
+  // Path 1 — platform archive. This is complete only when the returned turn
+  // count matches and no unsupported parts were observed.
   if (apiFn) {
     VEIL.show(['Fetching from platform archive', 'Building your file']);
     try {
       VEIL.step(0, 'Fetching from platform archive…');
-      raw = await apiFn().catch(e => { DIAG.push('API export failed: ' + e.message); return null; });
+      capture = await apiFn(VEIL.controller?.signal);
+      if (!capture) archiveUnavailable = true;
       VEIL.step(1, 'Building your file…');
       await sleep(150);
-    } finally { if (raw) { VEIL.hide(); } }
+    } catch(e) {
+      if (VEIL.cancelled || e?.name === 'AbortError') {
+        VEIL.hide();
+        return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'platform-api', captured:0, warnings:[] });
+      }
+      archiveUnavailable = true;
+      DIAG.push('Platform archive export was unavailable; using DOM fallback.');
+    } finally {
+      VEIL.hide();
+    }
+    if (VEIL.cancelled) {
+      return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'platform-api', captured:0, warnings:[] });
+    }
   }
-  // Path 2 — DOM (fallback, and the only path on platforms without a known API)
-  if (!raw) {
+
+  // Path 2 — DOM snapshot. It is useful but always marked partial because a
+  // rendered page cannot prove that lazy-loaded history, branches, or
+  // attachments were present.
+  if (!capture) {
     const steps = ['Reading chat', ...(GHOST.export.thinking ? ['Opening thinking blocks'] : []), ...(isManus ? ['Collecting every message'] : []), 'Building your file'];
     VEIL.show(steps);
     try {
       VEIL.step(0);
       await sleep(250);
+      if (VEIL.cancelled) return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
       if (GHOST.export.thinking) {
         VEIL.step(1, 'Opening thinking blocks…');
         const n = await expandThinking();
         await sleep(n ? 600 : 0);
       }
+      if (VEIL.cancelled) return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
       if (isManus && !VEIL.cancelled) {
         VEIL.step(steps.indexOf('Collecting every message'), 'Collecting every message…');
-        raw = await harvestManus();
+        const messages = await harvestManus();
+        if (messages) capture = { messages, source:'manus-dom', warnings:[] };
       }
+      if (!capture && !VEIL.cancelled) {
+        capture = { messages: extractMessages(GHOST.export.thinking), source:'dom', warnings:[] };
+      }
+      if (archiveUnavailable && capture) capture.warnings.push('Platform archive was unavailable; DOM fallback was used.');
       VEIL.step(steps.length - 1, 'Building your file…');
       await sleep(200);
-    } finally { VEIL.hide(); GHOST.loop.detail = ''; render(); }
-  } else { VEIL.hide(); GHOST.loop.detail = ''; render(); }
-  const msgs = applyFilter(raw || extractMessages(GHOST.export.thinking));
-  if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
+    } finally {
+      VEIL.hide();
+    }
+    if (VEIL.cancelled) {
+      return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
+    }
+  }
+
+  let contract = _assessExportCapture(capture);
+  if (contract.status === 'failed') {
+    Reporter.capture('EXPORT-001');
+    return _setExportResult(contract);
+  }
+
+  const msgs = applyFilter(capture.messages);
+  if (!msgs.length) {
+    contract = {
+      ...contract,
+      status: 'failed',
+      warnings: [...contract.warnings, `The “${GHOST.export.filter}” filter matched no messages.`]
+    };
+    Reporter.capture('EXPORT-001');
+    return _setExportResult(contract);
+  }
+  contract.filteredMessages = msgs.length;
+  contract.filter = GHOST.export.filter;
+
   const proj = GHOST.project.name || 'Untitled';
-  const ts = new Date().toLocaleString();
+  const ts = new Date().toISOString();
   let content, mime;
   if (GHOST.export.format === 'json') {
-    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None', messages: msgs }, null, 2);
+    content = JSON.stringify({
+      schema: 'gitl.transcript.v1',
+      export: contract,
+      project: proj,
+      platform: PLAT.key || 'generic',
+      exported: ts,
+      rounds: GHOST.loop.round,
+      workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label,
+      persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None',
+      messages: msgs
+    }, null, 2);
     mime = 'application/json';
   } else {
-    const lines = [`# Ghost Export — ${proj}`, `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`, '', '---', ''];
+    const lines = [
+      `# Ghost Export — ${proj}`,
+      `**Status:** ${contract.status.toUpperCase()} | **Source:** ${contract.source} | **Captured:** ${contract.captured}${contract.expected == null ? '' : '/' + contract.expected}`,
+      `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`,
+      ...(contract.warnings.length ? ['', '**Validation notes:**', ...contract.warnings.map(w => `- ${w}`)] : []),
+      '', '---', ''
+    ];
     for (const m of msgs) {
       if (GHOST.export.includeRoles) lines.push(`## ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}`, '');
       if (m.thinking) lines.push('> 💭 **Thinking**', ...m.thinking.split('\n').map(l => '> ' + l), '');
@@ -3408,17 +3722,15 @@ async function runExport() {
     content = lines.join('\n');
     mime = 'text/markdown';
   }
-  const blob = new Blob([content], { type: mime });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = buildFilename('export');
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  downloadText(content, buildFilename('export'), mime);
+  return _setExportResult(contract);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   S5 — ENHANCED EXPORT: SHA-256 DEDUP + CAPSULE V2
-   Deduplicates messages from virtualized DOM re-renders.
-   Produces resumable capsule with DAG links + resume token.
-   Sources: Kimi capsule, ChatGPT Export 3 capsule builder
+   S5 — EXPERIMENTAL CAPSULE V2
+   Preserves every non-empty turn in order, including legitimate repeats and
+   short replies. Hashes provide integrity hints, not deduplication. Ghost
+   does not claim resumability until an importer exists.
    ═══════════════════════════════════════════════════════════════ */
 async function gitlSha256(text) {
   try {
@@ -3435,15 +3747,13 @@ async function gitlSha256(text) {
 }
 
 async function buildCapsuleV2(rawMessages) {
-  const seen = new Set();
   const graph = [];
+  let skippedEmpty = 0;
   for (let i = 0; i < rawMessages.length; i++) {
     const m = rawMessages[i];
     const text = (m.text || '').trim();
-    if (!text || text.length < 5) continue;
+    if (!text) { skippedEmpty++; continue; }
     const hash = await gitlSha256(`${m.role}:${text}`);
-    if (seen.has(hash)) continue;
-    seen.add(hash);
     graph.push({
       id: `m_${graph.length + 1}`,
       role: m.role || 'unknown',
@@ -3455,16 +3765,18 @@ async function buildCapsuleV2(rawMessages) {
   const h = typeof platformHealth === 'function' ? platformHealth() : {};
   return {
     schema: 'gitl.capsule.v2',
+    experimental: true,
+    import_supported: false,
     version: VER,
     exported_at: new Date().toISOString(),
-    platform: PLAT.label,
-    url: location.href,
-    title: document.title || '',
+    platform: PLAT.key || 'generic',
     project: GHOST.project || {},
     workflow: { selected: GHOST.workflow.selected, stage: GHOST.workflow.stageIndex },
     health: { score: h.score, badge: h.badge },
     messages: graph,
-    deduplicated: rawMessages.length - graph.length,
+    deduplicated: 0,
+    skipped_empty: skippedEmpty,
+    export: _assessExportCapture({ messages: graph, source:'dom' }),
     resume: {
       last_id: graph.length ? graph[graph.length - 1].id : null,
       next_action: 'continue_from_capsule',
@@ -4031,8 +4343,8 @@ const EXPLAIN = [
   { sel:'.g-pst',         name: el => 'Posture: ' + ((POSTURES[el.dataset.pst]||{}).label||''), desc: el => (POSTURES[el.dataset.pst]||{}).desc || '' },
   { sel:'#g-peek-btn',    name:'What gets injected',desc:'Shows the exact instruction block Ghost appends to your prompt for the current Strategy.' },
   { sel:'#g-handoff',     name:'🤝 Handoff',        desc:'The AI writes its own briefing for a fresh chat. Best choice while the current chat STILL RESPONDS.' },
-  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads the full transcript. The complete record of the four export actions — for keeping, not for resuming.' },
-  { sel:'#g-capsule',     name:'💊 Capsule v2',       desc:'A resumable JSON snapshot with dedup + a resume token — built for feeding back into an API or another tool, not for reading.' },
+  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads a transcript with an explicit complete, partial, or failed validation result.' },
+  { sel:'#g-capsule',     name:'💊 Experimental Capsule v2', desc:'Advanced machine JSON for external tools. Ghost does not import it yet, so it is not presented as a finished resume format.' },
   { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
   { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
   { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
@@ -4133,7 +4445,7 @@ function renderRunTab() {
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-mod g-mod-transport">
-      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${statLabel()}</span></div>
+      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${_esc(statLabel())}</span></div>
     <div class="g-btns">
       <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶ ${L.state==='PAUSED'?'Resume':'Start'}</button>
       <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸ Pause</button>
@@ -4145,7 +4457,7 @@ function renderRunTab() {
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
       <div class="g-plbl">
-        <span class="g-step">${p?`${pm==='think'?'Batch':'Step'} <b>${p.step}</b> / ${p.total}${p.desc?' — '+p.desc.slice(0,22):''}` : (L.state==='RUNNING'||L.state==='LIMIT'?`Round <b>${L.round}</b>`:'Waiting…')}</span>
+        <span class="g-step">${p?`${pm==='think'?'Batch':'Step'} <b>${Number(p.step)||0}</b> / ${Number(p.total)||0}${p.desc?' — '+_esc(p.desc.slice(0,22)):''}` : (L.state==='RUNNING'||L.state==='LIMIT'?`Round <b>${L.round}</b>`:'Waiting…')}</span>
         <span class="g-step-pct">${p?pct+'%':''}</span>
       </div>
       ${(L.state==='RUNNING'||L.state==='PAUSED'||L.state==='LIMIT') ? (()=>{
@@ -4166,7 +4478,7 @@ function renderRunTab() {
       })() : ''}
     </div>
     </div>
-    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
+    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${_esc(PLAT?PLAT.label:'—')} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
     ${GHOST.report ? `<div class="g-report">
       <div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${_esc(GHOST.report.kind)}</span></div>
       <div class="g-report-b">${_esc((GHOST.report.detail||'').slice(0,120))}</div>
@@ -4260,7 +4572,7 @@ const HELP_SECTIONS = {
   run: { label: 'Run', html: `
     <b>The Run tab</b> is command center.<br><br>
     <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
-    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⊕ reground (re-anchor AI to the original task if you see drift). Full stop is in Advanced ▾.<br><br>
+    <b>Buttons:</b> ▶ Start/Resume · ⏸ Pause · ■ Stop (preserves progress). Reground and Reset are separate under Advanced ▾.<br><br>
     <b>Personas line:</b> shows your active persona or committee. Tap "edit" to jump to the Personas tab.<br><br>
     <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard catching a long run. It's a grounding pause so an unattended run cannot wander off-task. Three choices:<br>· <b>▶ Continue</b> — run more<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>You can edit the cap inline, toggle the guard off, or tap ↻ to reset.` },
   auto: { label: 'Auto', html: `
@@ -4282,10 +4594,10 @@ const HELP_SECTIONS = {
     <b>On Perplexity</b>, Round Table becomes a REAL round table: switch models between turns, each model gives independent assessment naming who goes next.` },
   export: { label: 'Export', html: `
     <b>Three buttons, three jobs:</b><br><br>
-    <b>⬇ Export</b> — the full record. The whole conversation as a file (with 💭 thinking logs). For archiving and reading.<br><br>
+    <b>⬇ Export</b> — a validated transcript. The file says <b>complete</b>, <b>partial</b>, or <b>failed</b> and explains fallbacks or omissions instead of silently claiming completeness.<br><br>
     <b>🤝 Handoff</b> — moving to another model? Ghost asks THIS AI to write a structured briefing in-chat (mission, decisions, failures, next steps). Paste it into the new model. The AI's own summary beats a raw transcript — decisions don't get buried.<br><br>
     <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
-    <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Backup Handoff (Ghost writes it, lighter — Handoff's calmer sibling, not a separate emergency). Complete record → Export (fullest of all four, not for resuming — for keeping).</i>` },
+    <i>Working chat → Handoff. Dead chat → Backup Handoff. Archive → validated Export. Experimental Capsule v2 is under Advanced for external tools; Ghost does not import it yet.</i>` },
   setup: { label: 'Setup', html: `
     <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
 · <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
@@ -4339,7 +4651,7 @@ function renderAutoTab() {
   const rows = d.map((s,i) => `
     <div class="g-qrow">
       <span style="color:#555;width:14px;font-size:9px">${i+1}.</span>
-      <input type="text" class="g-qin" data-qi="${i}" value="${(s||'').replace(/"/g,'&quot;')}" placeholder="Step ${i+1}…">
+      <input type="text" class="g-qin" data-qi="${i}" value="${_esc(s || '')}" placeholder="Step ${i+1}…">
       <button class="g-qdel" data-qd="${i}">✕</button>
     </div>`).join('');
   return `
@@ -4404,20 +4716,22 @@ function renderPersonasTab() {
 function renderExportTab() {
   const fn = buildFilename('export');
   const adv = GHOST.ui.expAdv;
+  const last = GHOST.export.lastResult;
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <div class="g-xlist">
-      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Full transcript, markdown or JSON. The complete record — for keeping.</span></div></div>
-      <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Capsule v2</b><span>Resumable JSON with a resume token — for feeding back into an API or tool.</span></div></div>
+      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Validated transcript with a truthful complete, partial, or failed result.</span></div></div>
       <div class="g-xrow g-xrow-ok" id="g-handoff"><span class="g-xicon">🤝</span><div class="g-xtext"><b>Handoff</b><span>Chat still responds: asks the AI to write its own briefing for the next chat.</span></div></div>
       <div class="g-xrow g-xrow-warn" id="g-rescue"><span class="g-xicon">🧷</span><div class="g-xtext"><b>Backup Handoff</b><span>Chat is dead: Ghost writes a lighter one itself — state + last 10 messages, enough to resume elsewhere.</span></div></div>
     </div>
+    ${last ? `<div class="g-hint" style="border-left-color:${last.status==='complete'?'#10b981':last.status==='partial'?'#f59e0b':'#ef4444'}"><b>${_esc(last.status.toUpperCase())}</b> · ${Number(last.captured)||0} captured via ${_esc(last.source || 'unknown')}${last.warnings?.length?`<br>${_esc(last.warnings[0])}`:''}</div>` : ''}
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
+    <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Experimental Capsule v2</b><span>Machine JSON for external tools. Ghost does not import it yet; repeated and short turns are preserved.</span></div></div>
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
     <div class="g-row"><label>Roles</label><div class="g-tog${GHOST.export.includeRoles?' on':''}" id="exp-roles"></div></div>
-    <div class="g-row"><label>Slug</label><input type="text" id="exp-slug" placeholder="auto" value="${GHOST.export.customSlug}" style="width:100px"></div>
+    <div class="g-row"><label>Slug</label><input type="text" id="exp-slug" placeholder="auto" value="${_esc(GHOST.export.customSlug)}" style="width:100px"></div>
     <div style="font-size:8.5px;color:#383940;margin-bottom:5px;word-break:break-all">${fn}</div>
     <div style="display:flex;gap:5px">
       <button class="g-btn-sm" id="g-backup" style="flex:1;margin-top:0">⚙ Backup config</button>
@@ -4448,11 +4762,11 @@ function renderSettingsTab() {
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
-    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${GHOST.signals.customProceed}"></div>
-    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${GHOST.signals.customStop}"></div>
+    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${_esc(GHOST.signals.customProceed)}"></div>
+    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${_esc(GHOST.signals.customStop)}"></div>
     <div class="g-row"><label>🌐 Custom sites</label><div class="g-tog${GHOST.ui.showSites?' on':''}" id="cfg-sites-tog"></div></div>
     ${GHOST.ui.showSites ? `
-      <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${GM_getValue('customSites','').replace(/</g,'&lt;')}</textarea>
+      <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${_esc(GM_getValue('customSites',''))}</textarea>
       <div class="g-hint" id="cfg-sites-status">Per-host selector overrides (JSON). Also add the site under Tampermonkey → script settings → User matches.</div>` : ''}
     <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
     ${GHOST.ui.showDiag ? renderDiag() : ''}` : ''}
@@ -4464,19 +4778,19 @@ function renderDiag() {
   const h = typeof platformHealth === 'function' ? platformHealth() : null;
   const lines = [
     h ? `<span class="ok">Health:</span> ${h.badge} ${h.score}/100 (in:${h.input?'✓':'✗'} send:${h.send?'✓':'✗'} read:${h.assistantCount} net:${h.netActive?'✓':'✗'})` : '',
-    `<span class="ok">Adapter:</span> ${DIAG.adapter}`,
-    `<span class="ok">Platform:</span> ${PLAT.label}`,
-    `<span>Selector:</span> ${DIAG.selector || '—'}`,
-    `<span>Send path:</span> ${DIAG.sendPath || '—'}`,
-    `<span>Signal:</span> ${L.lastSignal} (${L.lastConfidence}) ${DIAG.lastSignal}`,
-    `<span>Tail:</span> ${DIAG.lastTail ? DIAG.lastTail.slice(-50) : '—'}`,
+    `<span class="ok">Adapter:</span> ${_esc(DIAG.adapter)}`,
+    `<span class="ok">Platform:</span> ${_esc(PLAT.label)}`,
+    `<span>Selector:</span> ${_esc(DIAG.selector || '—')}`,
+    `<span>Send path:</span> ${_esc(DIAG.sendPath || '—')}`,
+    `<span>Signal:</span> ${_esc(L.lastSignal)} (${Number(L.lastConfidence)||0}) ${_esc(DIAG.lastSignal)}`,
+    `<span>Tail:</span> ${_esc(DIAG.lastTail ? DIAG.lastTail.slice(-50) : '—')}`,
     `<span>Round:</span> ${L.round} / ${L.maxRounds}`,
-    `<span>State:</span> ${L.state}`,
+    `<span>State:</span> ${_esc(L.state)}`,
     `<span>Stale:</span> ${L.staleTicks}`,
     `<span>Tick:</span> ${L.lastActivity ? Math.round((Date.now()-L.lastActivity)/1000)+'s ago' : '—'}`,
     `<span>Tab:</span> ${GITL_TAB_ID.slice(0,8)}`,
-    DIAG.probe ? `<span class="ok">Probe:</span>\n${DIAG.probe}` : '',
-    DIAG.errors.length ? `<span class="warn">Errors:</span>\n${DIAG.errors.slice(0,5).join('\n')}` : ''
+    DIAG.probe ? `<span class="ok">Probe:</span>\n${_esc(DIAG.probe)}` : '',
+    DIAG.errors.length ? `<span class="warn">Errors:</span>\n${_esc(DIAG.errors.slice(0,5).join('\n'))}` : ''
   ].filter(Boolean).join('\n');
   return `<div class="g-diag">${lines}</div><button class="g-btn-sm" id="g-probe">🔍 Probe selectors</button> <button class="g-btn-sm" id="g-report-now">⚠ Report a problem</button>`;
 }
@@ -4533,7 +4847,7 @@ function render() {
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
-        <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
+        <span class="g-plat">${_esc((typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label)}</span>
         <button class="g-minbtn" id="g-redetect" title="Re-detect the chat box — fixes 'can't find input' after switching browser/app or tabs (no page reload)">🔄</button>
         <button class="g-minbtn" id="g-info" title="Help & FAQ">?</button>
         <button class="g-minbtn" id="g-col" title="${col?'Expand':'Minimize'}">${GHOST.ui.position==='dock' ? (col?'◀':'▶') : GHOST.ui.position==='dock-left' ? (col?'▶':'◀') : (col?'＋':'－')}</button>
@@ -4547,7 +4861,7 @@ function render() {
     <div class="g-body">
       <div class="g-proj">
         <span class="g-proj-lbl">📁</span>
-        <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${GHOST.project.name}">
+        <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${_esc(GHOST.project.name)}">
       </div>
       <div class="g-tabs">
         <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Standard continue loop">Run</button>

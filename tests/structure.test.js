@@ -74,7 +74,8 @@ describe('S5 — Capsule v2', () => {
   test('buildCapsuleV2 function present',   () => expect(has('async function buildCapsuleV2')).toBe(true));
   test('exportCapsuleV2 function present',  () => expect(has('async function exportCapsuleV2')).toBe(true));
   test('capsule v2 schema string present',  () => expect(has('gitl.capsule.v2')).toBe(true));
-  test('SHA-256 dedup uses Set',            () => expect(has('const seen = new Set')).toBe(true));
+  test('Capsule preserves repeated turns',  () => expect(has('deduplicated: 0')).toBe(true));
+  test('Capsule is explicitly experimental',() => expect(has('import_supported: false')).toBe(true));
   test('Capsule has resume token',          () => expect(has('continue_from_capsule')).toBe(true));
   test('Capsule UI button present',         () => expect(has('g-capsule')).toBe(true));
 });
