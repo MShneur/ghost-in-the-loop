@@ -37,4 +37,28 @@ describe('Execution canary', () => {
     expect(SRC).toContain('attachShadow');
     expect(SRC).toContain('html.appendChild(host)');
   });
+
+  test('creates stable incidents for missing injection, failed boot, and missing panel', () => {
+    expect(SRC).toContain("code: 'INJECT-001'");
+    expect(SRC).toContain("code: 'BOOT-001'");
+    expect(SRC).toContain("code: 'BOOT-003'");
+    expect(SRC).toContain('elapsed >= 15000');
+  });
+
+  test('redacted reports never include full URLs, raw UA, exception text, or stacks', () => {
+    const reportFn = SRC.match(/function report\(\)[\s\S]*?\n  }/)?.[0] || '';
+    expect(reportFn).not.toContain('location.href');
+    expect(reportFn).not.toContain('userAgent:');
+    expect(SRC).not.toContain('value.message');
+    expect(SRC).not.toContain('.stack');
+    expect(SRC).not.toContain('href: location.href');
+  });
+
+  test('supports local review/download and opens GitHub without a diagnostic body', () => {
+    expect(SRC).toContain('Download JSON');
+    expect(SRC).toContain('Review & report bug');
+    expect(SRC).toContain('application/json');
+    expect(SRC).toContain('/issues/new?title=');
+    expect(SRC).not.toContain('&body=');
+  });
 });

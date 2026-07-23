@@ -55,9 +55,10 @@ const _beacon = (s) => { try { document.documentElement.setAttribute('data-gitl-
 _beacon('started');
 function _gitlFatal(stage, err) {
   const msg = String((err && (err.message || err)) || 'unknown');
-  const stack = String((err && err.stack) || '');
   _beacon('error:' + stage);
-  try { GM_setValue('lastBootError', JSON.stringify({ stage, msg, stack, at: new Date().toISOString() })); } catch(_) {}
+  /* Persist metadata only. The live banner can show the browser's error, but
+     recovery/reporting must never retain page content, URLs, or stack data. */
+  try { GM_setValue('lastBootError', JSON.stringify({ code: 'BOOT-001', stage, at: new Date().toISOString() })); } catch(_) {}
   try { console.error('[GITL] FATAL @' + stage + ':', err); } catch(_) {}
   try { if (typeof GM_notification === 'function') GM_notification({ title: '👻 Ghost failed to load (' + stage + ')', text: msg, timeout: 15000 }); } catch(_) {}
   try {
@@ -82,8 +83,7 @@ try {
    ═══════════════════════════════════════════════════════════════ */
 const VER = '8.2.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
-const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
-const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
+const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
 /* ═══════════════════════════════════════════════════════════════
    TRUSTED TYPES (v8.1.5) — the actual Gemini root cause
@@ -298,14 +298,14 @@ const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow 
 
 const GITL_NET = {
   bus: new EventTarget(),
-  lastChunk: '',
-  lastComplete: '',
   capturedAt: 0,
+  lastEventBytes: 0,
+  bytesSeen: 0,
   active: false,        // interceptor installed (kept for health snapshot compat)
   lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
   lastPulseH: 0,        // last traffic on a heuristic same-origin stream
   _open: 0,             // streams currently open
-  expectUntil: 0,       // set by _onSendOk: window in which heuristic pulses count
+  expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -355,14 +355,14 @@ const GITL_NET = {
     return false;
   },
 
-  _emit(raw, isDone) {
-    if (raw === '[DONE]') isDone = true;
-    this.lastChunk = raw;
+  _emit(byteCount, isDone) {
+    const bytes = Math.max(0, Number(byteCount) || 0);
+    this.lastEventBytes = bytes;
+    this.bytesSeen += bytes;
     this.capturedAt = Date.now();
     this._pulse(true);
-    if (isDone) this.lastComplete = raw;
     this.bus.dispatchEvent(new CustomEvent('gitl:net', {
-      detail: { raw, isDone, ts: Date.now() }
+      detail: { bytes, isDone: !!isDone, ts: Date.now() }
     }));
   },
 
@@ -412,27 +412,17 @@ const GITL_NET = {
       }
       if (listed) {
         try {
-          const cloned = response.clone();
-          if (cloned.body) {
-            const reader = cloned.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            (async () => {
-              let buf = '';
-              try {
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) { if (buf) self._emit(buf, true); break; }
-                  buf += decoder.decode(value, { stream: true });
-                  const lines = buf.split('\n');
-                  buf = lines.pop() || '';
-                  for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (trimmed.startsWith('data: ')) {
-                      self._emit(trimmed.slice(6), false);
+              const cloned = response.clone();
+              if (cloned.body) {
+                const reader = cloned.body.getReader();
+                (async () => {
+                  try {
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) { self._emit(0, true); break; }
+                      self._emit(value?.byteLength || value?.length || 0, false);
                     }
-                  }
-                }
-              } catch(_) { /* stream aborted — normal on navigation */ }
+                  } catch(_) { /* stream aborted — normal on navigation */ }
             })();
           }
         } catch(err) {
@@ -461,7 +451,7 @@ const GITL_NET = {
               this.addEventListener('progress',  () => self._pulse(listed));
               this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
               if (listed) this.addEventListener('load', function() {
-                if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
+                if (this.status >= 200 && this.status < 300) self._emit(this.responseText?.length || 0, true);
               });
             } catch(_) {}
           }
@@ -486,7 +476,7 @@ const GITL_NET = {
     console.log('[GITL] Network interceptor active');
     } catch(err) {
       console.error('[GITL] Network interceptor failed to install — panel will still boot:', err);
-      try { GM_setValue('lastNetInstallError', JSON.stringify({ msg: String(err?.message||err), at: new Date().toISOString() })); } catch(_) {}
+      try { GM_setValue('lastNetInstallError', JSON.stringify({ code: 'BOOT-002', at: new Date().toISOString() })); } catch(_) {}
     }
   }
 };
@@ -1435,26 +1425,86 @@ function platformHealth() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   S3 — TIMELINE (lightweight event log with capped GM store)
-   Append-only log for observability, failure learning, metrics.
-   Sources: Kimi Timeline, ChatGPT Export 4 Metrics pattern
+   S3 — PRIVACY-SAFE TIMELINE
+   The timeline is useful for sequencing failures, not for retaining chat
+   content. It accepts metadata primitives and a small set of enum-like
+   strings; selectors, URLs, error messages, prompts, and arbitrary text are
+   dropped at the storage boundary.
    ═══════════════════════════════════════════════════════════════ */
+const _TL_STRING_KEYS = new Set([
+  'code','stage','reason','evidence','path','kind','name','platform',
+  'version','signal','state','mode','adapter','ticker'
+]);
+const _TL_PLATFORMS = new Set([
+  'chatgpt','perplexity','gemini','deepseek','copilot',
+  'grok','claude','manus','generic'
+]);
+
+function _safeTimelineString(key, value) {
+  const s = String(value == null ? '' : value).slice(0, 80);
+  if (!_TL_STRING_KEYS.has(key)) return '';
+  if (/https?:|www\.|[?&][^ ]*=|[a-f0-9]{8}-[a-f0-9-]{20,}/i.test(s)) return '';
+  if (key === 'platform') return _TL_PLATFORMS.has(s.toLowerCase()) ? s.toLowerCase() : '';
+  return /^[a-z0-9_.:+-]{1,80}$/i.test(s) ? s : '';
+}
+
+function _safeTimelineData(data) {
+  const out = {};
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return out;
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'boolean') out[key] = value;
+    else if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+    else if (typeof value === 'string') {
+      const safe = _safeTimelineString(key, value);
+      if (safe) out[key] = safe;
+    } else if (Array.isArray(value)) {
+      out[`${key}Count`] = value.length;
+    }
+  }
+  return out;
+}
+
+function _safeTimelineEvent(event) {
+  const type = /^[a-z0-9_.:-]{1,64}$/i.test(String(event?.type || ''))
+    ? String(event.type) : 'unknown';
+  const at = /^\d{4}-\d{2}-\d{2}T/.test(String(event?.at || ''))
+    ? String(event.at) : new Date().toISOString();
+  const workflow = String(event?.wf || 'none');
+  return {
+    type,
+    data: _safeTimelineData(event?.data),
+    platform: _safeTimelineString('platform', event?.platform) || 'generic',
+    wf: workflow === 'none' || Object.prototype.hasOwnProperty.call(WORKFLOW_LIBRARY, workflow)
+      ? workflow : 'custom',
+    at
+  };
+}
+
 const Timeline = {
   key: 'gitlTimeline',
   _cache: null,
   all() {
     if (this._cache) return this._cache;
-    try { this._cache = JSON.parse(GM_getValue(this.key, '[]')); } catch { this._cache = []; }
+    try {
+      const raw = JSON.parse(GM_getValue(this.key, '[]'));
+      this._cache = Array.isArray(raw) ? raw.map(_safeTimelineEvent) : [];
+      /* Rewrite older entries once so previously retained selectors/error
+         strings do not linger after upgrading. */
+      GM_setValue(this.key, JSON.stringify(this._cache));
+    } catch {
+      this._cache = [];
+    }
     return this._cache;
   },
   record(type, data = {}) {
     const items = this.all();
-    items.push({
-      type, data,
-      platform: PLAT?.label || '?',
+    items.push(_safeTimelineEvent({
+      type,
+      data,
+      platform: PLAT?.key || 'generic',
       wf: (typeof GHOST !== 'undefined' && GHOST.workflow) ? GHOST.workflow.selected : 'none',
       at: new Date().toISOString()
-    });
+    }));
     if (items.length > 500) items.splice(0, items.length - 500);
     this._cache = items;
     GM_setValue(this.key, JSON.stringify(items));
@@ -1464,76 +1514,216 @@ const Timeline = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   S3.5 — REPORTER (v7.1): structured trouble reports
-   When the loop hits trouble (send never started, stopped early, probe
-   failure) a report is assembled automatically. Transport is pluggable:
-     • clipboard     — always available, one-tap copy (default)
-     • prefilledURL  — opens a pre-filled GitHub issue (one tap, no token)
-     • worker        — silent POST to a relay you control (set REPORT_WORKER_URL)
-   No credential is ever embedded in this script.
+   S3.5 — LOCAL, PRIVACY-SAFE INCIDENT REPORTER
+   Failures automatically create a redacted local diagnostic. Nothing is
+   uploaded and no GitHub issue body is prefilled. The user can review,
+   copy, or download the exact metadata before deciding to report it.
    ═══════════════════════════════════════════════════════════════ */
-const Reporter = {
-  last: null,         // most recent assembled report {kind, detail, text, at}
-  _seen: new Map(),   // dedupe: signature -> last capture ts (10-min window)
+const ERROR_CATALOG = Object.freeze({
+  'BOOT-001': {
+    summary: 'Ghost could not complete its critical startup sequence.',
+    guidance: 'Reload once. If the banner returns, download this diagnostic and open a bug.'
+  },
+  'BOOT-002': {
+    summary: 'Optional network observation could not start; the panel may still work.',
+    guidance: 'Continue manually if needed, then download this diagnostic for a bug report.'
+  },
+  'COMPOSER-001': {
+    summary: 'No unique, usable chat composer was available.',
+    guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
+  },
+  'SEND-001': {
+    summary: 'No unique reviewed Send control could be safely activated.',
+    guidance: 'Review the inserted prompt and use the site Send button manually.'
+  },
+  'SEND-002': {
+    summary: 'A Send attempt occurred but delivery could not be confirmed.',
+    guidance: 'Check the conversation before doing anything else. Ghost did not resend.'
+  },
+  'ADAPTER-001': {
+    summary: 'The site adapter could not identify a required capability.',
+    guidance: 'Run Re-detect, download the diagnostic, and report the affected site.'
+  },
+  'MANUAL-001': {
+    summary: 'A diagnostic was requested manually.',
+    guidance: 'Review the contents below before copying, downloading, or opening a bug.'
+  },
+  'UNKNOWN-001': {
+    summary: 'An unexpected runtime failure was detected.',
+    guidance: 'Pause the run, review the page, and download this diagnostic.'
+  }
+});
 
-  build(kind, detail) {
+const ERROR_ALIASES = Object.freeze({
+  probe_fail: 'ADAPTER-001',
+  manual: 'MANUAL-001'
+});
+
+function _browserSummary() {
+  const ua = String((typeof navigator !== 'undefined' && navigator.userAgent) || '');
+  let family = 'Other', major = null;
+  const matchers = [
+    ['Edge', /Edg\/(\d+)/],
+    ['Firefox', /Firefox\/(\d+)/],
+    ['Chrome', /(?:Chrome|CriOS)\/(\d+)/],
+    ['Safari', /Version\/(\d+).+Safari/]
+  ];
+  for (const [name, rx] of matchers) {
+    const m = ua.match(rx);
+    if (m) { family = name; major = Number(m[1]) || null; break; }
+  }
+  const os = /Android/i.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Mac OS X|Macintosh/i.test(ua) ? 'macOS'
+    : /Linux/i.test(ua) ? 'Linux' : 'Other';
+  return { family, major, os, mobile: /Android|Mobile|iPhone|iPad|iPod/i.test(ua) };
+}
+
+function _ageBucket(ts) {
+  if (!ts) return 'none';
+  const age = Math.max(0, Date.now() - ts);
+  if (age < 2000) return '<2s';
+  if (age < 10000) return '2-10s';
+  if (age < 60000) return '10-60s';
+  return '>60s';
+}
+
+const Reporter = {
+  last: null,
+  _seen: new Map(),
+
+  code(kind) {
+    const candidate = ERROR_ALIASES[kind] || String(kind || '').toUpperCase();
+    return ERROR_CATALOG[candidate] ? candidate : 'UNKNOWN-001';
+  },
+
+  envelope(kind) {
+    const code = this.code(kind);
+    const catalog = ERROR_CATALOG[code];
     const L = (typeof GHOST !== 'undefined') ? GHOST.loop : {};
     const h = (typeof platformHealth === 'function') ? platformHealth() : {};
     const p = L.lastProgress;
-    const tl = (typeof Timeline !== 'undefined') ? Timeline.since(120000).slice(-20) : [];
+    const recent = (typeof Timeline !== 'undefined')
+      ? Timeline.since(120000).slice(-16).map(_safeTimelineEvent) : [];
+    let learnedKinds = [];
+    try {
+      const lm = SelectorMemory._load()[location.hostname] || {};
+      learnedKinds = Object.keys(lm).filter(k => k !== 'send').sort().slice(0, 8);
+    } catch(_) {}
+    const send = L.sendTxn || null;
+    return {
+      schema: 'gitl.diagnostic.v1',
+      code,
+      summary: catalog.summary,
+      guidance: catalog.guidance,
+      createdAt: new Date().toISOString(),
+      app: {
+        version: VER,
+        platform: /^[a-z0-9_-]{1,32}$/i.test(String(PLAT?.key || ''))
+          ? PLAT.key : 'generic',
+        reviewedAdapter: !!PLAT?.reviewed
+      },
+      runtime: {
+        state: String(L.state || 'unknown'),
+        round: Number(L.round) || 0,
+        maxRounds: Number(L.maxRounds) || 0,
+        signal: String(L.lastSignal || 'none'),
+        confidence: Number(L.lastConfidence) || 0,
+        progress: p ? { step: Number(p.step) || 0, total: Number(p.total) || 0 } : null,
+        send: send ? {
+          state: String(send.state || 'unknown'),
+          path: String(send.path || 'unknown'),
+          attemptedAge: _ageBucket(send.attemptedAt)
+        } : null,
+        unattended: !!unattendedOn(),
+        ticker: String(Ticker.mode || 'unknown'),
+        degradedPhases: Array.isArray(GHOST?._degraded)
+          ? GHOST._degraded.filter(x => /^[a-z0-9-]{1,32}$/i.test(String(x))).slice(0, 12) : []
+      },
+      capabilities: {
+        input: !!h.input,
+        send: !!h.send,
+        stop: !!h.stop,
+        canRead: Number(h.assistantCount) > 0,
+        assistantCount: Number(h.assistantCount) || 0,
+        learnedKinds,
+        heuristicInputCandidate: !!(() => { try { return _heurInput(); } catch(_) { return false; } })(),
+        heuristicSendCandidate: !!(() => { try { return Adapter.getSendCandidate(); } catch(_) { return false; } })()
+      },
+      network: {
+        observerInstalled: !!h.netActive,
+        streaming: !!h.netStreaming,
+        trustedPulseAge: _ageBucket(GITL_NET.lastPulseT),
+        streamOpen: GITL_NET._open > 0
+      },
+      environment: {
+        ..._browserSummary(),
+        focused: typeof document !== 'undefined' ? !!document.hasFocus() : false,
+        hidden: typeof document !== 'undefined' ? !!document.hidden : false
+      },
+      timeline: recent
+    };
+  },
+
+  human(envelope) {
+    const d = envelope;
     const lines = [];
     lines.push(`### Ghost in the Loop — auto report`);
-    lines.push(``);
-    lines.push(`**Kind:** ${kind}`);
-    if (detail) lines.push(`**What happened:** ${detail}`);
-    lines.push(``);
+    lines.push('');
+    lines.push(`**Error code:** ${d.code}`);
+    lines.push(`**Summary:** ${d.summary}`);
+    lines.push(`**Suggested next step:** ${d.guidance}`);
+    lines.push('');
     lines.push(`| Field | Value |`);
     lines.push(`|---|---|`);
-    lines.push(`| Version | ${VER} |`);
-    lines.push(`| Platform | ${PLAT?.label || '?'} |`);
-    lines.push(`| Loop state | ${L.state || '?'} |`);
-    lines.push(`| Round | ${L.round ?? '?'} / ${L.maxRounds ?? '?'} |`);
-    lines.push(`| Progress | ${p ? `${p.step}/${p.total}${p.desc ? ' — ' + p.desc : ''}` : 'n/a'} |`);
-    lines.push(`| Last signal | ${L.lastSignal || '?'} (conf ${L.lastConfidence ?? '?'}) |`);
-    lines.push(`| Signal scores | ${DIAG?.lastSignal || 'n/a'} |`);
-    lines.push(`| Send path | ${DIAG?.sendPath || 'n/a'} |`);
-    lines.push(`| Health | ${h.badge || ''} ${h.score ?? '?'}/100 (in:${h.input} send:${h.send} stop:${h.stop} msgs:${h.assistantCount}) |`);
-    lines.push(`| Net intercept | ${h.netActive ? 'active' : 'off'} |`);
-    try {
-      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
-      lines.push(`| Learned selectors | ${lm ? Object.entries(lm).map(([k,v]) => k + ': ' + v.sel).join(' · ') : 'none'} |`);
-    } catch(_) {}
-    lines.push(`| Focus | hasFocus:${typeof document!=='undefined'?document.hasFocus():'?'} hidden:${typeof document!=='undefined'?document.hidden:'?'} |`);
-    lines.push(`| Unattended | ${unattendedOn()?'ON':'off'} · ticker:${Ticker.mode} |`);
-    lines.push(`| UA | ${typeof navigator!=='undefined'?navigator.userAgent:'?'} |`);
-    lines.push(`| When | ${new Date().toISOString()} |`);
-    lines.push(``);
-    if (DIAG?.lastTail) { lines.push(`**Last output tail:**`); lines.push('```'); lines.push(String(DIAG.lastTail).slice(0,300)); lines.push('```'); lines.push(``); }
-    if (DIAG?.probe)    { lines.push(`**Selector probe:**`); lines.push('```'); lines.push(DIAG.probe); lines.push('```'); lines.push(``); }
-    if (DIAG?.errors?.length) { lines.push(`**Recent diagnostics:**`); lines.push('```'); lines.push(DIAG.errors.slice(0,8).join('\n')); lines.push('```'); lines.push(``); }
-    if (tl.length) { lines.push(`**Timeline (last 2 min):**`); lines.push('```'); lines.push(tl.map(e => `${e.at.slice(11,19)} ${e.type} ${JSON.stringify(e.data)}`).join('\n')); lines.push('```'); }
+    lines.push(`| Version | ${d.app.version} |`);
+    lines.push(`| Platform adapter | ${d.app.platform} (${d.app.reviewedAdapter ? 'reviewed' : 'manual-send only'}) |`);
+    lines.push(`| Loop | ${d.runtime.state} · round ${d.runtime.round}/${d.runtime.maxRounds} |`);
+    lines.push(`| Capabilities | input:${d.capabilities.input} send:${d.capabilities.send} stop:${d.capabilities.stop} read:${d.capabilities.canRead} |`);
+    lines.push(`| Learned locator kinds | ${d.capabilities.learnedKinds.join(', ') || 'none'} (values excluded) |`);
+    lines.push(`| Network observer | ${d.network.observerInstalled ? 'active' : 'off'} · trusted pulse:${d.network.trustedPulseAge} |`);
+    lines.push(`| Browser | ${d.environment.family}${d.environment.major ? ' ' + d.environment.major : ''} · ${d.environment.os}${d.environment.mobile ? ' · mobile' : ''} |`);
+    lines.push(`| Focus | focused:${d.environment.focused} hidden:${d.environment.hidden} |`);
+    lines.push(`| When | ${d.createdAt} |`);
+    lines.push('');
+    lines.push(`_Privacy: this diagnostic excludes prompts, chat/output text, URLs, conversation IDs, selector strings, raw user-agent text, credentials, and stack traces._`);
+    if (d.timeline.length) {
+      lines.push('');
+      lines.push(`**Metadata timeline (last 2 min):**`);
+      lines.push('```json');
+      lines.push(JSON.stringify(d.timeline, null, 2));
+      lines.push('```');
+    }
     return lines.join('\n');
   },
 
-  // Auto-capture: assemble + store + surface a non-intrusive affordance.
-  capture(kind, detail) {
-    // Dedupe: the same failure re-captured within 10 min just refreshes
-    // the timestamp instead of rebuilding + re-sending a duplicate.
-    const sig = kind + '|' + String(detail || '').slice(0, 120);
-    const seenAt = this._seen.get(sig) || 0;
-    this._seen.set(sig, Date.now());
-    if (this.last && Date.now() - seenAt < 600000) return this.last;
-    const text = this.build(kind, detail);
-    this.last = { kind, detail, text, at: Date.now() };
+  build(kind) {
+    return this.human(this.envelope(kind));
+  },
+
+  capture(kind) {
+    const code = this.code(kind);
+    const seenAt = this._seen.get(code) || 0;
+    this._seen.set(code, Date.now());
+    if (this.last?.kind === code && Date.now() - seenAt < 600000) return this.last;
+    const envelope = this.envelope(code);
+    const text = this.human(envelope);
+    this.last = {
+      kind: code,
+      detail: envelope.summary,
+      envelope,
+      text,
+      at: Date.now()
+    };
     if (typeof GHOST !== 'undefined') GHOST.report = this.last;
-    // Optional silent transport if a relay is configured.
-    if (REPORT_WORKER_URL) { this.sendWorker(text, kind).catch(()=>{}); }
+    try { GM_setValue('lastDiagnostic', JSON.stringify(envelope)); } catch(_) {}
     try { if (typeof renderReportBadge === 'function') renderReportBadge(); } catch(_){}
     return this.last;
   },
 
   copy() {
-    const t = this.last?.text || this.build('manual', 'User-triggered report');
+    const t = this.last?.text || this.build('MANUAL-001');
     try {
       if (typeof GM_setClipboard === 'function') { GM_setClipboard(t, { type:'text', mimetype:'text/plain' }); return Promise.resolve(true); }
       if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(t).then(()=>true).catch(()=>false);
@@ -1541,28 +1731,35 @@ const Reporter = {
     return Promise.resolve(false);
   },
 
+  download() {
+    const r = this.last || this.capture('MANUAL-001');
+    const day = new Date(r.envelope.createdAt).toISOString().slice(0, 10);
+    downloadText(
+      JSON.stringify(r.envelope, null, 2),
+      `gitl-diagnostic-${r.kind.toLowerCase()}-${day}.json`,
+      'application/json'
+    );
+    Timeline.record('report_downloaded', { code: r.kind });
+    return true;
+  },
+
   issueURL() {
-    const r = this.last || { kind: 'manual', text: this.build('manual','') };
-    const title = `[auto] ${r.kind} on ${PLAT?.label || 'platform'} (v${VER})`;
-    const body  = (r.text || '').slice(0, 6000); // URL length safety
-    return `https://github.com/${REPORT_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    const r = this.last || this.capture('MANUAL-001');
+    const title = `[diagnostic] ${r.kind} on ${r.envelope.app.platform} (v${VER})`;
+    /* Title only: opening GitHub never transmits the diagnostic. The user
+       chooses whether to paste the already-reviewed redacted report. */
+    return `https://github.com/${REPORT_REPO}/issues/new?title=${encodeURIComponent(title)}`;
   },
 
   openIssue() {
-    try { window.open(this.issueURL(), '_blank', 'noopener'); return true; } catch(_) { return false; }
-  },
-
-  async sendWorker(text, kind) {
-    if (!REPORT_WORKER_URL) return false;
     try {
-      const res = await fetch(REPORT_WORKER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, version: VER, platform: PLAT?.label, report: text })
-      });
-      Timeline.record('report_sent', { kind, ok: res.ok, status: res.status });
-      return res.ok;
-    } catch(e) { Timeline.record('report_send_fail', { error: String(e) }); return false; }
+      const r = this.last || this.capture('MANUAL-001');
+      Timeline.record('report_issue_opened', { code: r.kind });
+      window.open(this.issueURL(), '_blank', 'noopener');
+      return true;
+    } catch(_) {
+      return false;
+    }
   }
 };
 
@@ -2035,15 +2232,24 @@ function engineHalt(reason) {
 
 function enginePause(reason) {
   const L = GHOST.loop;
+  let interruptedDispatch = false;
   if (L.sendPending) {
     L.sendPending = false;
     L.sendDeadline = 0;
-    if (L.sendTxn && L.sendTxn.state === 'dispatching') L.sendTxn.state = 'uncertain';
+    if (L.sendTxn && L.sendTxn.state === 'dispatching') {
+      L.sendTxn.state = 'uncertain';
+      L.sendTxn.uncertainAt = Date.now();
+      interruptedDispatch = true;
+    }
     _settleSendPromise(false);
   }
   L.state = 'PAUSED'; L.detail = reason;
   Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
+  if (interruptedDispatch) {
+    Timeline.record('send_uncertain', { code: 'SEND-002', round: L.round });
+    Reporter.capture('SEND-002');
+  }
   render();
   notify('⏸ ' + reason);
 }
@@ -2405,6 +2611,12 @@ function primaryAction() {
 }
 
 function stopLoop() {
+  const L = GHOST.loop;
+  if (L.state === 'IDLE' || L.state === 'COMPLETE') return;
+  enginePause('Stopped — progress preserved. Resume or reset when ready.');
+}
+
+function resetLoop() {
   const L = GHOST.loop;
   _settleSendPromise(false);
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
@@ -3740,7 +3952,10 @@ function injectStyles() {
 .g-report-h{font-size:10px;font-weight:700;color:#f1b4b4;display:flex;align-items:center;gap:6px}
 .g-report-k{font-size:8px;font-weight:600;color:#c88;background:#1c1416;border:1px solid #3a2a2a;border-radius:4px;padding:1px 5px}
 .g-report-b{font-size:9px;color:#caa;line-height:1.4;margin:4px 0 6px}
-.g-report-btns{display:flex;gap:5px}
+.g-report-preview{margin:5px 0;font-size:8.5px;color:#d6a4a4}
+.g-report-preview summary{cursor:pointer;color:#e0a0a0}
+.g-report-preview textarea{box-sizing:border-box;width:100%;height:110px;margin-top:4px;padding:5px;resize:vertical;background:#120f11;border:1px solid #43292d;border-radius:4px;color:#c9b8bb;font:8px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}
+.g-report-btns{display:flex;gap:5px;margin-top:5px}
 .g-report-btns .g-btn-sm{margin-top:0;border-color:#5a2e2e;background:#1c1416;color:#e0a0a0;flex:1}
 .g-limit{margin:6px 0;padding:8px 9px;background:#231a0c;border:1px solid #5a4420;border-radius:7px;text-align:center}
 .g-limit-h{font-size:10px;font-weight:700;color:#fcd34d}
@@ -3899,9 +4114,9 @@ function renderRunTab() {
     <div class="g-mod g-mod-transport">
       <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${statLabel()}</span></div>
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶</button>
-      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸</button>
-      <button class="g-btn${idle?' g-dim':''}" id="g-reground" title="Re-anchor AI to original task — use when you see drift">⊕</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶ ${L.state==='PAUSED'?'Resume':'Start'}</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸ Pause</button>
+      <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
     <div class="g-mod g-mod-prog">
@@ -3935,7 +4150,9 @@ function renderRunTab() {
       <div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${_esc(GHOST.report.kind)}</span></div>
       <div class="g-report-b">${_esc((GHOST.report.detail||'').slice(0,120))}</div>
       ${L.sendTxn?.state === 'uncertain' ? `<div class="g-report-b">Nothing was resent. Check the conversation:</div><div class="g-report-btns"><button class="g-btn-sm" id="g-send-seen">✓ I see it in chat</button><button class="g-btn-sm" id="g-send-manual">Leave for manual Send</button></div>` : ''}
-      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div>
+      <details class="g-report-preview"><summary>Review redacted contents</summary><textarea readonly spellcheck="false">${_esc(GHOST.report.text || '')}</textarea></details>
+      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-dl">⇩ Download</button></div>
+      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-issue">↗ Review &amp; report bug</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">Dismiss</button></div>
     </div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
@@ -3957,7 +4174,10 @@ function renderRunTab() {
     </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
-    <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
+    <div class="g-btns" style="margin-top:5px">
+      <button class="g-btn" id="g-reground" title="Re-anchor AI to the original task">⊕ Reground</button>
+      <button class="g-btn st" id="g-reset" title="Clear run state and start over">↻ Reset session</button>
+    </div>
     ` : ''}
     <div class="g-shortcuts">v${VER} · Alt+P toggle · Alt+S stop</div>`;
 }
@@ -4388,9 +4608,11 @@ function bindEvents() {
   });
   $('#g-pause')?.addEventListener('click', pauseLoop);
   $('#g-stop')?.addEventListener('click', stopLoop);
+  $('#g-reset')?.addEventListener('click', resetLoop);
   $('#g-send-seen')?.addEventListener('click', () => reconcileUncertainSend(true));
   $('#g-send-manual')?.addEventListener('click', () => reconcileUncertainSend(false));
   $('#g-rep-copy')?.addEventListener('click', function(){ Reporter.copy().then(ok => { this.textContent = ok ? '✓ Copied' : '✕ Failed'; setTimeout(()=>{ this.textContent='📋 Copy'; }, 1500); }); });
+  $('#g-rep-dl')?.addEventListener('click', function(){ const ok = Reporter.download(); this.textContent = ok ? '✓ Downloaded' : '✕ Failed'; });
   $('#g-rep-issue')?.addEventListener('click', () => Reporter.openIssue());
   $('#g-rep-x')?.addEventListener('click', () => {
     if (GHOST.loop.sendTxn?.state === 'uncertain') {
@@ -4589,13 +4811,40 @@ function bindEvents() {
   bindDrag();
 }
 
+let _dragBound = false;
+let _dragging = false;
+let _dragOffsetX = 0;
+let _dragOffsetY = 0;
+
 function bindDrag() {
-  const hdr = panel.querySelector('#g-drag');
-  if (!hdr) return;
-  let dragging=false, ox=0, oy=0;
-  hdr.addEventListener('mousedown', e => { if(e.button!==0)return; dragging=true; ox=e.clientX-panel.getBoundingClientRect().left; oy=e.clientY-panel.getBoundingClientRect().top; e.preventDefault(); });
-  document.addEventListener('mousemove', e => { if(!dragging)return; panel.style.left=`${e.clientX-ox}px`; panel.style.top=`${e.clientY-oy}px`; panel.style.right='auto'; panel.style.bottom='auto'; });
-  document.addEventListener('mouseup', () => { dragging=false; });
+  /* panel is a stable shell; its contents are re-rendered. Delegate the
+     pointer-down once and install one document move/up pair for the lifetime
+     of the script. This prevents two global listeners being added per render
+     and gives touch/pen the same path as a mouse. */
+  if (_dragBound) return;
+  _dragBound = true;
+  panel.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || !e.target?.closest?.('#g-drag')) return;
+    if (e.target.closest('button,input,select,a')) return;
+    const rect = panel.getBoundingClientRect();
+    _dragging = true;
+    _dragOffsetX = e.clientX - rect.left;
+    _dragOffsetY = e.clientY - rect.top;
+    try { panel.setPointerCapture(e.pointerId); } catch(_) {}
+    e.preventDefault();
+  });
+  document.addEventListener('pointermove', e => {
+    if (!_dragging) return;
+    panel.style.left = `${e.clientX - _dragOffsetX}px`;
+    panel.style.top = `${e.clientY - _dragOffsetY}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  });
+  document.addEventListener('pointerup', e => {
+    if (!_dragging) return;
+    _dragging = false;
+    try { panel.releasePointerCapture(e.pointerId); } catch(_) {}
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4692,15 +4941,23 @@ safeBoot(() => {
 
   _phase('prior-error-surface', false, () => {
     /* Surface a PRIOR boot failure once (from GM storage), then clear it, so a
-       failure on an earlier load becomes visible in Diagnostics/reports now
-       that the panel is up. */
+       failure on an earlier load becomes a reviewable local diagnostic now
+       that the panel is up. Persisted records contain metadata only. */
     const lastBoot = GM_getValue('lastBootError', '');
     const lastNet  = GM_getValue('lastNetInstallError', '');
-    if (lastBoot) { DIAG.push('Previous page load failed to boot: ' + (JSON.parse(lastBoot).msg || lastBoot)); _save('lastBootError', ''); }
-    if (lastNet)  { DIAG.push('Previous page load: network interceptor failed to install: ' + (JSON.parse(lastNet).msg || lastNet)); _save('lastNetInstallError', ''); }
+    if (lastBoot) {
+      DIAG.push('Previous page load failed during critical boot.');
+      Reporter.capture('BOOT-001');
+      _save('lastBootError', '');
+    }
+    if (lastNet) {
+      DIAG.push('Previous page load could not install optional network observation.');
+      Reporter.capture('BOOT-002');
+      _save('lastNetInstallError', '');
+    }
   });
 
-  Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8), degraded: GHOST._degraded });
+  Timeline.record('boot', { version: VER, platform: PLAT.key, degraded: GHOST._degraded });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}` + (GHOST._degraded.length ? ` | degraded:${GHOST._degraded.join(',')}` : ''));
 });
 
