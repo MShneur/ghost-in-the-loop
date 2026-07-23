@@ -56,34 +56,51 @@ test.describe('Boot beacon + panel presence', () => {
   });
 });
 
-test.describe('Fail-loud: a boot throw is visible, not silent', () => {
-  test('forcing the boot callback to throw shows the #gitl-fatal banner + error beacon', async ({ page }) => {
+test.describe('Transactional boot: optional-phase failure never suppresses the panel', () => {
+  test('breaking MutationObserver (optional phases) still mounts the panel', async ({ page }) => {
+    // Pre-v8.2.0 the continue-observer was the boot callback's FIRST statement,
+    // so breaking .observe() killed the whole boot. It is now an OPTIONAL phase
+    // that runs AFTER the panel is mounted — so breaking it must degrade
+    // gracefully, never blank the panel. (Critical-phase failure being LOUD is
+    // covered by trustedtypes.spec.js "policy blocked → fails loud".)
     await page.addInitScript(GM);
-    // Break the first thing the boot callback does — new MutationObserver().observe(document.body,…).
-    // That is the FIRST .observe() call in the whole script's execution order
-    // (the redetect + panel-sentinel observers run later/on demand), so an
-    // UNCONDITIONAL throw deterministically fails exactly the boot callback,
-    // in every engine. (An earlier timing-armed version raced boot in Firefox.)
     await page.addInitScript(`
       const _RealMO = window.MutationObserver;
       window.MutationObserver = class extends _RealMO {
-        observe() { throw new Error('e2e-forced-boot-throw'); }
+        observe() { throw new Error('e2e-observer-broken'); }
       };
     `);
     await page.addInitScript(RAW);
     await page.goto(MOCK);
     await page.waitForTimeout(800);
 
-    const banner = await page.evaluate(() => {
-      const b = document.getElementById('gitl-fatal');
-      return b ? b.textContent : null;
-    });
+    const mounted = await page.evaluate(() => !!document.getElementById('gitl'));
     const beacon = await page.evaluate(() => document.documentElement.getAttribute('data-gitl-boot'));
-    const stored = await page.evaluate(() => window.GM_getValue('lastBootError', ''));
+    const fatal = await page.evaluate(() => !!document.getElementById('gitl-fatal'));
+    // The broken optional phases are recorded in the persisted Timeline.
+    const brokenPhases = await page.evaluate(() => {
+      try {
+        const tl = JSON.parse(window.GM_getValue('gitlTimeline', '[]'));
+        return tl.filter(e => e.type === 'boot_phase' && e.data && e.data.ok === false)
+                 .map(e => e.data.name);
+      } catch (_) { return []; }
+    });
 
-    expect(banner).toContain('couldn’t start');
-    expect(beacon).toBe('error:boot');
-    expect(stored).toContain('e2e-forced-boot-throw');
+    expect(mounted).toBe(true);              // panel survives the optional failure
+    expect(beacon).toMatch(/^ok:8\.\d+\.\d+$/);
+    expect(fatal).toBe(false);               // NOT a fatal — optional degraded only
+    expect(brokenPhases).toContain('continue-observer');
+  });
+
+  test('the singleton is committed only after the panel is up', async ({ page }) => {
+    await page.addInitScript(GM);
+    await page.addInitScript(RAW);
+    await page.goto(MOCK);
+    await page.waitForTimeout(800);
+    const committed = await page.evaluate(() => window.__GITL_V8__ === true);
+    const mounted = await page.evaluate(() => !!document.getElementById('gitl'));
+    expect(mounted).toBe(true);
+    expect(committed).toBe(true);
   });
 });
 
