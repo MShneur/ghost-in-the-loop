@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "8.1.4",
+  "version": "8.1.5",
   "description": "\ud83d\udc7b AI workflow engine \u2014 boot safety, network intercept, recovery engine, capsule v2, diagnostics.",
   "permissions": [
     "storage"

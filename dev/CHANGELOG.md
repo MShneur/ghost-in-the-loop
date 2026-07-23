@@ -1,5 +1,39 @@
 # Changelog
 
+## [8.1.5] — GEMINI ROOT CAUSE FOUND & FIXED (Trusted Types)
+
+### 🎯 The actual cause — and the v8.1.4 banner is what caught it
+On the reporter's phone the v8.1.4 fail-loud banner read, on Gemini:
+> Element.innerHTML setter: **Sink type mismatch violation blocked by CSP**
+
+That is a **Trusted Types** violation. Gemini (a Google property) enforces
+`require-trusted-types-for 'script'` in its CSP. Under that policy, assigning a
+plain string to `.innerHTML` **throws** — and GITL builds its panel from
+`.innerHTML` templates, so the first render in the boot path threw and killed
+boot before the panel could mount. **This is exactly why it was Gemini-only:**
+no other supported platform (ChatGPT, Claude, Perplexity, DeepSeek, Grok…)
+enforces Trusted Types, so raw `.innerHTML` worked everywhere else. It was never
+a selector, a network hook, or a manager problem — every earlier guess was wrong.
+
+### The fix
+GITL now registers one Trusted Types policy (`gitl-ui`) at boot and routes its
+**four** `.innerHTML` sinks through it. On any site that does NOT enforce Trusted
+Types, the policy is never created and the wrapper returns the raw string —
+**byte-identical behaviour off Gemini, zero regression risk.** GITL only ever
+passes its own static templates through the policy (imported persona/workflow
+text is already escaped via `_esc` upstream), so it adds no injection surface.
+
+### Verified for real this time
+A new Chromium e2e loads the actual userscript on a page that genuinely enforces
+Trusted Types (`tests/e2e/trustedtypes.spec.js` + `mock-chat-tt.html`) and proves
+three things: (1) the fixture really enforces TT — a raw `innerHTML` throws;
+(2) v8.1.5 mounts `#gitl` anyway; (3) if a restrictive `trusted-types` allow-list
+were to block our policy, boot still fails LOUD (banner + error beacon), never a
+blank page. **Honest scope:** this is verified under Trusted Types enforcement in
+a real browser engine; final confirmation on the reporter's Firefox-Android +
+authenticated Gemini still rests with them — but the error it fixes is the exact
+one their device reported.
+
 ## [8.1.4] — FAIL-LOUD BOOT + PANEL SELF-HEAL (Gemini diagnosis)
 
 ### The honest status
