@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "8.2.1",
-  "description": "\ud83d\udc7b AI workflow engine \u2014 boot safety, network intercept, recovery engine, capsule v2, diagnostics.",
+  "version": "8.3.0",
+  "description": "\ud83d\udc7b AI workflow engine \u2014 fail-closed sending, validated exports, local diagnostics, and crash-safe recovery.",
+  "author": "Michael S (CTRL-AI); v8.3.0 main editor Agent CG (ChatGPT)",
   "permissions": [
     "storage"
   ],

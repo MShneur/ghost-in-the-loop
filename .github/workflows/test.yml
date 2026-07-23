@@ -27,10 +27,10 @@ jobs:
       - name: Syntax checks
         run: npm run lint
       - name: Run unit tests
-        run: npm test
+        run: npm run test:unit
 
   e2e:
-    name: E2E Boot-Timing Tests (Playwright)
+    name: E2E Boot and Send-Safety Tests (Playwright)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
         # only when a Firefox build is present, so installing it here is what
         # makes CI actually run the Gecko matrix.
         run: npx playwright install --with-deps chromium firefox
-      - name: Run e2e boot tests
+      - name: Run browser safety tests
         run: npm run test:e2e
       - name: Upload e2e results
         if: always()

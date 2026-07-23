@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.2.1
+// @version      8.3.0
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
-// @author       Michael S (CTRL-AI) — Architecture by Claude
+// @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @match        https://www.perplexity.ai/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.2.1';
+const VER = '8.3.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
