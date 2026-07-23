@@ -147,7 +147,6 @@ const MIN_RESPONSE_LEN = 50;
    notification focus-steal" failure where the script thinks it sent
    but the platform never began generating. */
 const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)
-const SEND_MAX_RETRIES = 2;     // re-fire attempts before pausing
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0.5 — BOOT SAFETY + TAB LOCK + FOCUS GUARD
@@ -195,6 +194,21 @@ function claimTabLock() {
   } catch(_){}
   GM_setValue(key, JSON.stringify({ tabId: GITL_TAB_ID, ts: now }));
   return true;
+}
+
+/* A read/write lease is not atomic across tabs. Before any actuator runs,
+   claim, yield briefly, then re-read. If two tabs raced from an empty lock,
+   only the deterministic last owner survives this verification step. */
+async function verifyTabLease() {
+  if (!claimTabLock()) return false;
+  await new Promise(resolve => setTimeout(resolve, 35 + Math.floor(Math.random() * 45)));
+  try {
+    const raw = GM_getValue(_tabLockKey(), null);
+    const lock = raw ? JSON.parse(raw) : null;
+    return !!lock && lock.tabId === GITL_TAB_ID && Date.now() - lock.ts < 8000;
+  } catch(_) {
+    return false;
+  }
 }
 
 function releaseTabLock() {
@@ -509,6 +523,7 @@ try { GITL_NET.install(); } catch(err) { console.error('[GITL] GITL_NET.install(
    ═══════════════════════════════════════════════════════════════ */
 const PROFILES = {
   chatgpt: {
+    key: 'chatgpt', reviewed: true,
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
@@ -519,6 +534,7 @@ const PROFILES = {
     useCE: false, useNS: true
   },
   perplexity: {
+    key: 'perplexity', reviewed: true,
     host: /perplexity\.ai/,
     label: 'Perplexity',
     input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
@@ -530,6 +546,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   gemini: {
+    key: 'gemini', reviewed: true,
     host: /gemini\.google\.com/,
     label: 'Gemini',
     input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[role="textbox"][contenteditable="true"]','div[contenteditable="true"]','textarea'],
@@ -540,6 +557,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   deepseek: {
+    key: 'deepseek', reviewed: true,
     host: /chat\.deepseek\.com/,
     label: 'DeepSeek',
     input: ['textarea[placeholder]','#chat-input','textarea'],
@@ -550,6 +568,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   copilot: {
+    key: 'copilot', reviewed: true,
     host: /copilot\.microsoft\.com/,
     label: 'Copilot',
     input: ['textarea#userInput','#searchbox','textarea[placeholder*="message"]','textarea'],
@@ -560,6 +579,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   grok: {
+    key: 'grok', reviewed: true,
     host: /grok\.com/,
     label: 'Grok',
     input: ['textarea[aria-label="Ask Grok anything"]','textarea[placeholder*="Grok"]','textarea[placeholder*="Ask"]','textarea[data-testid="grok-compose-input"]','div[contenteditable="true"][data-lexical-editor="true"]','div[contenteditable="true"]','textarea'],
@@ -570,6 +590,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   claude: {
+    key: 'claude', reviewed: true,
     host: /claude\.ai/,
     label: 'Claude',
     input: ['div[contenteditable="true"].ProseMirror','div[contenteditable="true"][aria-label*="message"]','div.ProseMirror','div[contenteditable="true"]'],
@@ -580,6 +601,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   manus: {
+    key: 'manus', reviewed: true,
     host: /manus\.im/,
     label: 'Manus',
     // Verified against real Manus DOM: Tiptap ProseMirror input; Monaco code viewer has a decoy <textarea>.
@@ -618,6 +640,7 @@ if (!PLAT) {
   let gLabel = 'Generic';
   for (const [rx, label] of GENERIC_HOSTS) { if (rx.test(location.hostname)) { gLabel = label; break; } }
   PLAT = {
+    key: 'generic', reviewed: false,
     label: gLabel,
     input: ['textarea:not([disabled])','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]','textarea','input[type="text"]'],
     send: ['button[type="submit"]','button[aria-label*="Send" i]','button[aria-label*="Submit" i]','button[data-testid*="send"]','button[class*="send" i]'],
@@ -640,6 +663,9 @@ try {
       if (o.label) PLAT.label = o.label + ' (custom)';
       if (typeof o.useCE === 'boolean') PLAT.useCE = o.useCE;
       if (typeof o.useNS === 'boolean') PLAT.useNS = o.useNS;
+      // Custom selectors remain useful for read-only capture, but an
+      // unreviewed import must never gain autonomous actuator authority.
+      PLAT.reviewed = false;
       break;
     }
   }
@@ -740,7 +766,7 @@ function _sendLooksSafe(el) {
                    el.getAttribute('title'), el.getAttribute('data-testid'),
                    el.textContent].join(' ').slice(0, 160);
     return !SEND_VETO.test(label);
-  } catch(_) { return true; }
+  } catch(_) { return false; }
 }
 
 function _visible(el) {
@@ -794,8 +820,7 @@ function _heurSend(anchor) {
        their own (that combination is every message-action button on the
        page). A candidate needs at least one POSITIVE send signal. */
     const sem = SEND_WORDS.test(label)
-             || (el.getAttribute('type') || '') === 'submit'
-             || (aForm && el.closest && el.closest('form') === aForm);
+             || (el.getAttribute('type') || '') === 'submit';
     if (!sem) continue;
     let s = 0;
     if (SEND_WORDS.test(label)) s += 4;
@@ -814,13 +839,10 @@ function _heurSend(anchor) {
   return best;
 }
 
-/* ── SELECTOR MEMORY (v8.1) — self-healing learned locators ──────
-   Healenium-style: when the configured selectors fail but the heuristic
-   tier finds the element, derive a STABLE selector from the found node
-   (id > data-testid > aria-label > name > placeholder > role) and persist
-   it per-host. Next time — including after a reload — the learned selector
-   is tried right after the configured ones, so a site redesign pays the
-   heuristic cost once and the fix survives sessions. Capped + self-pruning. */
+/* ── SELECTOR MEMORY (read-only locators only) ───────────────────
+   Composer/message observation may learn a unique locator. Actuators never
+   do: an automatically learned Send/Delete/Continue control would turn a
+   guess into persistent authority. */
 const SelectorMemory = {
   key: 'gitlLearnedSelectors',
   MAX_HOSTS: 12,
@@ -854,6 +876,10 @@ const SelectorMemory = {
   },
 
   learn(kind, el) {
+    if (kind === 'send') {
+      this.forget('send');
+      return null;
+    }
     const sel = this.derive(el);
     if (!sel) return null;
     const d = this._load(), h = location.hostname;
@@ -877,12 +903,15 @@ const SelectorMemory = {
   },
 
   lookup(kind) {
+    if (kind === 'send') {
+      this.forget('send');
+      return null;
+    }
     const rec = this._load()[location.hostname]?.[kind];
     if (!rec || !rec.sel) return null;
     try {
       for (const el of document.querySelectorAll(rec.sel)) {
         if (el && !_isOwnUI(el) && _visible(el)) {
-          if (kind === 'send' && !_sendLooksSafe(el)) { this.forget(kind); return null; }
           return el;
         }
       }
@@ -900,23 +929,43 @@ const SelectorMemory = {
   }
 };
 
+/* Only reviewed profile selectors can authorize a send. A heuristic result
+   is diagnostic information, never an actuator. Each selector tier must
+   resolve to exactly one enabled, visible, veto-safe element. */
+function _reviewedSend() {
+  if (!PLAT?.reviewed) return null;
+  for (const sel of PLAT.send || []) {
+    let matches = [];
+    try {
+      matches = [...document.querySelectorAll(sel)].filter(el =>
+        !_isOwnUI(el)
+        && !el.disabled
+        && el.getAttribute('aria-disabled') !== 'true'
+        && _visible(el)
+        && _sendLooksSafe(el));
+    } catch(_) {
+      matches = [];
+    }
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
+  peekInput() {
+    return _q('in', PLAT.input) || SelectorMemory.lookup('input');
+  },
   getInput() {
-    let el = _q('in', PLAT.input) || SelectorMemory.lookup('input');
+    let el = this.peekInput();
     if (!el) { el = _heurInput(); if (el) SelectorMemory.learn('input', el); }
     return el;
   },
   getSendBtn() {
-    // Every tier passes through the veto — a stale configured selector must
-    // never hand back a Copy/Share/Download control (DeepSeek incident).
-    const b = _q('send', PLAT.send);
-    if (b && !b.disabled && _sendLooksSafe(b)) return b;
-    const learned = SelectorMemory.lookup('send');
-    if (learned && !learned.disabled) return learned;
-    const h = _heurSend(this.getInput() || null);
-    if (h) { SelectorMemory.learn('send', h); return h; }
-    return (b && _sendLooksSafe(b)) ? b : null;
+    return _reviewedSend();
+  },
+  getSendCandidate() {
+    return _heurSend(this.peekInput() || null);
   },
   isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
@@ -1293,12 +1342,10 @@ const GHOST = {
     lastConfidence: 0,
     lastProgress: null,
     detail: '',
-    // v7.1 send-confirmation watchdog
-    sendPending: false,      // a send fired; generation not yet confirmed
-    sendDeadline: 0,         // Date.now() by which generation must start
-    sendRetries: 0,          // re-fire attempts used for the pending send
-    lastSentText: '',        // payload of the pending send, for re-fire
-    lastTextLen: 0,          // output length at send time, to detect new output
+    // At-most-once send transaction. Prompt text is never retained here.
+    sendPending: false,
+    sendDeadline: 0,
+    sendTxn: null,
     originalTask: ''         // first task text of the run, for the reground gate
   },
   signals: {
@@ -1388,7 +1435,7 @@ const DIAG = {
    Sources: HTML/CSS GPT capability scoring, Software Architect GPT
    ═══════════════════════════════════════════════════════════════ */
 function platformHealth() {
-  const input = Adapter.getInput();
+  const input = Adapter.peekInput();
   const send  = Adapter.getSendBtn();
   const stop  = _q('gen', PLAT.stop);
   const msgs  = _qAll(PLAT.assistant);
@@ -1537,104 +1584,6 @@ const Reporter = {
       Timeline.record('report_sent', { kind, ok: res.ok, status: res.status });
       return res.ok;
     } catch(e) { Timeline.record('report_send_fail', { error: String(e) }); return false; }
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   S4 — RECOVERY ENGINE (escalating send strategies)
-   When primary send fails, tries alternative injection paths
-   with exponential backoff. Logs every attempt to Timeline.
-   Sources: Kimi Deep Dive, DeepSeek fallback chain
-   ═══════════════════════════════════════════════════════════════ */
-const RecoveryEngine = {
-  async recoverSend(text) {
-    const strategies = [
-      { name: 'ce-reinsert', fn: () => this._tryCE(text) },
-      { name: 'native-setter', fn: () => this._tryNative(text) },
-      { name: 'direct-value', fn: () => this._tryDirect(text) },
-      { name: 'enter-dispatch', fn: () => this._tryEnterKey(text) },
-      { name: 'refocus-retry', fn: () => this._tryRefocus(text) }
-    ];
-    let attempt = 0;
-    for (const s of strategies) {
-      attempt++;
-      try {
-        const result = await s.fn();
-        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: result.ok });
-        if (result.ok) return { ok: true, path: s.name, attempt };
-      } catch(e) {
-        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: false, error: String(e) });
-      }
-      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
-    }
-    Timeline.record('recovery_exhausted', { text: text.slice(0, 80) });
-    return { ok: false, path: 'exhausted', attempt };
-  },
-
-  _getInput() { return Adapter.getInput(); },
-
-  async _tryCE(text) {
-    const el = this._getInput();
-    if (!el || el.getAttribute('contenteditable') !== 'true') return { ok: false };
-    el.focus();
-    document.execCommand('selectAll', false, null);
-    const ok = document.execCommand('insertText', false, text);
-    if (ok) el.dispatchEvent(new Event('input', { bubbles: true }));
-    await this._clickSend();
-    return { ok };
-  },
-
-  async _tryNative(text) {
-    const el = this._getInput();
-    if (!el || el.tagName !== 'TEXTAREA') return { ok: false };
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    if (!setter) return { ok: false };
-    el.focus();
-    setter.call(el, text);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _tryDirect(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.focus();
-    el.value = text;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _tryEnterKey(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.focus();
-    Adapter.pressEnter(el);
-    return { ok: true };
-  },
-
-  async _tryRefocus(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.scrollIntoView({ behavior: 'instant', block: 'center' });
-    el.focus();
-    await new Promise(r => setTimeout(r, 300));
-    el.value = text;
-    el.textContent = text;
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _clickSend() {
-    await new Promise(r => setTimeout(r, 400));
-    const btn = Adapter.getSendBtn();
-    if (btn && !btn.disabled) { btn.click(); return true; }
-    const input = this._getInput();
-    if (input) Adapter.pressEnter(input);
-    return true;
   }
 };
 
@@ -1846,9 +1795,9 @@ function sendRoadmapStep() {
 }
 
 function sendRoadmapSynthesis() {
-  GHOST.roadmap.synthSent = true;
   GHOST.loop.detail = '🗺 Final synthesis';
-  engineSend(`Continue.\n\n[Ghost roadmap — final synthesis]\nAll roadmap steps are complete. Compile the final deliverable: merge every step's output into one clean, complete, ready-to-use result. No recap of process, no fluff. End with [[GITL::HALT]].`, false);
+  engineSend(`Continue.\n\n[Ghost roadmap — final synthesis]\nAll roadmap steps are complete. Compile the final deliverable: merge every step's output into one clean, complete, ready-to-use result. No recap of process, no fluff. End with [[GITL::HALT]].`, false)
+    .then(ok => { GHOST.roadmap.synthSent = !!ok; render(); });
 }
 
 /* ── Walk-away notifications ─────────────────────────────────── */
@@ -1880,10 +1829,69 @@ function randomDelay(round) {
   return (8 + Math.random() * 7) * 1000;
 }
 
+let _pendingSendResolve = null;
+
+function _composerText(el) {
+  return String((el && (el.value || el.textContent)) || '').trim();
+}
+
+function _settleSendPromise(ok) {
+  const resolve = _pendingSendResolve;
+  _pendingSendResolve = null;
+  if (resolve) {
+    try { resolve(!!ok); } catch(_) {}
+  }
+}
+
+function _beginSendAttempt(path, input) {
+  const L = GHOST.loop;
+  const lastText = Adapter.getLastText() || '';
+  const txn = {
+    id: crypto.randomUUID?.() || `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    state: 'dispatching',
+    path: String(path || 'reviewed-button'),
+    attemptedAt: Date.now(),
+    assistantCount: _qAll(PLAT.assistant).length,
+    assistantTextLength: lastText.length,
+    trustedPulseAt: GITL_NET.lastPulseT || 0,
+    composerHadText: _composerText(input).length > 0
+  };
+  L.sendTxn = txn;
+  L.sendPending = true;
+  L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
+  GITL_NET.expectUntil = Date.now() + SEND_CONFIRM_MS;
+  Timeline.record('send_attempted', {
+    command: txn.id.slice(0, 8),
+    round: L.round + 1,
+    path: txn.path
+  });
+  return new Promise(resolve => { _pendingSendResolve = resolve; });
+}
+
+function _sendEvidence() {
+  const L = GHOST.loop;
+  const txn = L.sendTxn;
+  if (!txn || txn.state !== 'dispatching') return { confirmed: false, evidence: 'none' };
+
+  const assistantCount = _qAll(PLAT.assistant).length;
+  const assistantTextLength = (Adapter.getLastText() || '').length;
+  if (assistantCount > txn.assistantCount || assistantTextLength > txn.assistantTextLength + 4) {
+    return { confirmed: true, evidence: 'assistant-transition' };
+  }
+
+  const input = Adapter.peekInput();
+  const composerCleared = txn.composerHadText && !!input && _composerText(input).length < 4;
+  const stopVisible = !!_q('gen', PLAT.stop);
+  const trustedNetwork = GITL_NET.lastPulseT > txn.trustedPulseAt
+    && Date.now() - GITL_NET.lastPulseT < 5000;
+  if (composerCleared && stopVisible) return { confirmed: true, evidence: 'composer+stop' };
+  if (composerCleared && trustedNetwork) return { confirmed: true, evidence: 'composer+trusted-network' };
+  return { confirmed: false, evidence: 'insufficient' };
+}
+
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
-  /* S0: pre-send safety gate */
   const safe = assertInteractionSafe();
   if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
@@ -1895,133 +1903,145 @@ async function engineSend(text, skipDelay) {
       await sleep(delay);
     }
     if (L.state !== 'RUNNING') return false;
+    if (!await verifyTabLease()) {
+      L.detail = '⚠ Another tab owns this conversation';
+      Timeline.record('send_blocked', { reason: 'tab-lease-lost' });
+      enginePause('Another tab owns this conversation');
+      return false;
+    }
+    if (Adapter.isGenerating()) {
+      L.detail = '⚠ Reply is still generating';
+      Timeline.record('send_blocked', { reason: 'reply-generating' });
+      render();
+      return false;
+    }
     const input = Adapter.getInput();
     if (!input) {
-      /* S4: try recovery engine before giving up */
-      DIAG.push('No input — trying recovery');
-      const r = await RecoveryEngine.recoverSend(text);
-      if (r.ok) { _onSendOk(text, `recovery-${r.path}`); return true; }
-      pauseWithProbe('Input element missing — recovery exhausted'); return false;
+      Reporter.capture('COMPOSER-001', 'No uniquely identifiable chat composer was available.');
+      pauseWithProbe('No safe chat composer found');
+      return false;
     }
     if (!Adapter.injectText(input, text)) {
-      DIAG.push('Inject failed — trying recovery');
-      const r = await RecoveryEngine.recoverSend(text);
-      if (r.ok) { _onSendOk(text, `recovery-${r.path}`); return true; }
-      pauseWithProbe('Text injection failed — recovery exhausted'); return false;
+      Reporter.capture('COMPOSER-001', 'The reviewed composer rejected text injection.');
+      pauseWithProbe('Chat composer rejected the prompt');
+      return false;
     }
     await sleep(500);
-    // Three-stage send with verification (from MCP-SuperAssistant research):
-    // Stage 1: button.click() → verify input cleared
-    // Stage 2: Enter key with composed:true (crosses Shadow DOM)
-    // Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
-    let sent = false;
-    const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
-    // Tier memory: if the button tier failed here last time, don't burn 3 tries on it again.
-    const _lastTier = GM_getValue('sendTier:' + location.hostname, '');
-    const _btnWorked = /^btn-\d+$/.test(_lastTier); // pure button path = the button actually worked last time
-    const _btnTries = (!_lastTier || _btnWorked) ? 3 : 1;
-    for (let attempt = 0; attempt < _btnTries; attempt++) {
-      const btn = Adapter.getSendBtn();
-      if (btn && !btn.disabled) {
-        btn.click(); DIAG.sendPath = `btn-${attempt+1}`;
-        await sleep(400);
-        if (inputIsEmpty()) { sent = true; break; }
-      }
-      await sleep(500);
+    const btn = Adapter.getSendBtn();
+    if (!btn) {
+      Reporter.capture('SEND-001', PLAT?.reviewed
+        ? 'No unique reviewed Send control was available.'
+        : 'This site has no reviewed automation adapter; use manual Send.');
+      pauseWithProbe('No safe Send control — prompt left for manual review');
+      return false;
     }
-    if (!sent) {
-      input.focus();
-      ['keydown','keypress','keyup'].forEach(t => {
-        input.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
-      });
-      DIAG.sendPath = (DIAG.sendPath||'none') + '+enter';
-      await sleep(300);
-      if (inputIsEmpty()) sent = true;
+    DIAG.sendPath = 'reviewed-button';
+    const completion = _beginSendAttempt(DIAG.sendPath, input);
+    try {
+      btn.click();
+    } catch(_) {
+      L.sendPending = false;
+      L.sendDeadline = 0;
+      if (L.sendTxn) L.sendTxn.state = 'failed';
+      Timeline.record('send_failed', { code: 'SEND-001', stage: 'dispatch' });
+      Reporter.capture('SEND-001', 'The reviewed Send control could not be activated.');
+      _settleSendPromise(false);
+      enginePause('Send failed before dispatch');
+      return false;
     }
-    if (!sent) {
-      try { input.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
-      DIAG.sendPath = (DIAG.sendPath||'none') + '+paragraph';
-      await sleep(300);
-      if (inputIsEmpty()) sent = true;
-    }
-    // Tier 5: native form submission — buttonless, survives any button redesign.
-    if (!sent) {
-      try {
-        const f = input.closest && input.closest('form');
-        if (f && f.requestSubmit) {
-          f.requestSubmit();
-          DIAG.sendPath = (DIAG.sendPath||'none') + '+form';
-          await sleep(300);
-          if (inputIsEmpty()) sent = true;
-        }
-      } catch(_){}
-    }
-    _onSendOk(text, DIAG.sendPath);
-    return true;
+    return await completion;
   } catch(e) {
-    DIAG.push('Send error: ' + String(e));
-    Timeline.record('send_fail', { error: String(e) });
+    DIAG.push('Send error');
+    if (L.sendPending) {
+      L.sendPending = false;
+      if (L.sendTxn) L.sendTxn.state = 'uncertain';
+    }
+    _settleSendPromise(false);
+    Timeline.record('send_failed', { code: 'SEND-002', stage: 'exception' });
+    Reporter.capture('SEND-002', 'Send could not be confirmed after an internal error.');
     enginePause('Send failed');
     return false;
   } finally {
-    setTimeout(() => { L.isSending = false; }, 1500);
+    L.isSending = false;
   }
 }
 
-/* Records a successful send AND arms the confirmation watchdog.
-   The send isn't "done" until generation actually starts — see
-   the confirmation branch in engineTick. */
-function _onSendOk(text, path) {
+/* Commit is the only transition allowed to advance state. */
+function _confirmSend(evidence) {
   const L = GHOST.loop;
-  GITL_NET.expectUntil = Date.now() + 120000; // heuristic net pulses count for 2 min
-  try { GM_setValue('sendTier:' + location.hostname, String(path || '')); } catch(_) {}
+  const txn = L.sendTxn;
+  if (!L.sendPending || !txn || txn.state !== 'dispatching') return false;
+  txn.state = 'committed';
+  txn.evidence = evidence || 'independent-observation';
+  txn.committedAt = Date.now();
+  L.sendPending = false;
+  L.sendDeadline = 0;
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
   L.detail = '';
-  // Arm confirmation: generation must begin before the deadline.
-  L.sendPending   = true;
-  L.sendDeadline  = Date.now() + SEND_CONFIRM_MS;
-  L.lastSentText  = text;
-  L.lastTextLen   = (Adapter.getLastText() || '').length;
-  L.sendRetries   = 0;
-  Timeline.record('send_ok', { round: L.round, path });
+  try { GM_setValue('sendTier:' + location.hostname, txn.path); } catch(_) {}
+  Timeline.record('send_confirmed', {
+    command: txn.id.slice(0, 8),
+    round: L.round,
+    path: txn.path,
+    evidence: txn.evidence
+  });
+  _settleSendPromise(true);
   render();
+  return true;
 }
 
-/* Clears the pending-send flag once generation is confirmed. */
-function _confirmSend() {
+function _markSendUncertain() {
   const L = GHOST.loop;
-  if (!L.sendPending) return;
-  L.sendPending  = false;
+  const txn = L.sendTxn;
+  if (!L.sendPending || !txn) return false;
+  txn.state = 'uncertain';
+  txn.uncertainAt = Date.now();
+  L.sendPending = false;
   L.sendDeadline = 0;
-  L.sendRetries  = 0;
-  Timeline.record('send_confirmed', { round: L.round });
+  Timeline.record('send_uncertain', {
+    code: 'SEND-002',
+    command: txn.id.slice(0, 8),
+    round: L.round
+  });
+  Reporter.capture('SEND-002', 'Send could not be confirmed. Nothing was resent.');
+  _settleSendPromise(false);
+  try { DIAG.runProbe(); GHOST.ui.showDiag = true; } catch(_) {}
+  enginePause('Send uncertain — review the conversation before retrying');
+  return true;
 }
 
-/* Re-fires the pending send without bumping the round counter.
-   Used when a send appears to have been swallowed (no generation). */
-async function _refireSend() {
+/* Human reconciliation is the only way out of an ambiguous dispatch.
+   This never re-clicks Send. */
+function reconcileUncertainSend(delivered) {
   const L = GHOST.loop;
-  const text = L.lastSentText;
-  L.sendRetries++;
-  DIAG.push(`Send unconfirmed — re-firing (attempt ${L.sendRetries}/${SEND_MAX_RETRIES})`);
-  Timeline.record('send_refire', { round: L.round, attempt: L.sendRetries });
-  L.detail = `↻ Re-sending (${L.sendRetries}/${SEND_MAX_RETRIES})…`;
-  render();
-  const input = Adapter.getInput();
-  if (input) {
-    Adapter.injectText(input, text);
-    await sleep(400);
-    const btn = Adapter.getSendBtn();
-    if (btn && !btn.disabled) btn.click();
-    else Adapter.pressEnter(input);
-  } else {
-    await RecoveryEngine.recoverSend(text);
+  const txn = L.sendTxn;
+  if (!txn || txn.state !== 'uncertain') return false;
+  if (!delivered) {
+    txn.state = 'failed';
+    txn.reconciledAt = Date.now();
+    L.detail = 'Prompt left in the composer — use the site’s Send button manually.';
+    Timeline.record('send_reconciled', { command: txn.id.slice(0, 8), delivered: false });
+    render();
+    return true;
   }
-  // Re-arm the confirmation window for this attempt.
-  L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
+  txn.state = 'committed';
+  txn.evidence = 'human-confirmed';
+  txn.committedAt = Date.now();
+  L.round++;
   L.lastActivity = Date.now();
+  L.staleTicks = 0;
+  L.state = 'RUNNING';
+  L.detail = '✓ Delivery confirmed by you';
+  Timeline.record('send_reconciled', {
+    command: txn.id.slice(0, 8),
+    delivered: true,
+    round: L.round
+  });
+  L.timer = Ticker.start(engineTick, 2500);
+  render();
+  return true;
 }
 
 function engineHalt(reason) {
@@ -2036,6 +2056,12 @@ function engineHalt(reason) {
 
 function enginePause(reason) {
   const L = GHOST.loop;
+  if (L.sendPending) {
+    L.sendPending = false;
+    L.sendDeadline = 0;
+    if (L.sendTxn && L.sendTxn.state === 'dispatching') L.sendTxn.state = 'uncertain';
+    _settleSendPromise(false);
+  }
   L.state = 'PAUSED'; L.detail = reason;
   Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
@@ -2095,28 +2121,20 @@ function engineTick() {
   const L = GHOST.loop;
   if (L.state !== 'RUNNING') return;
 
-  // ── Send-confirmation watchdog (v7.1) ──────────────────────────
-  // A send was fired; confirm generation actually started. Catches the
-  // "Enter swallowed by a notification focus-steal" stuck-screen bug.
+  // ── At-most-once send observation ─────────────────────────────
   if (L.sendPending) {
-    const grewOutput = (Adapter.getLastText() || '').length > L.lastTextLen + 4;
-    if (Adapter.isGenerating() || grewOutput) {
-      _confirmSend();
+    const observed = _sendEvidence();
+    if (observed.confirmed) {
+      _confirmSend(observed.evidence);
       L.lastActivity = Date.now();
-      // fall through: if generating, the branch below will hold the loop
     } else if (Date.now() >= L.sendDeadline) {
-      if (L.sendRetries < SEND_MAX_RETRIES && (unattendedOn() || (document.hasFocus() && !document.hidden))) {
-        _refireSend();           // re-fire; confirm on a later tick
-        return;
-      }
-      // Exhausted re-fires (or tab not actionable) → pause + report
-      L.sendPending = false;
-      Timeline.record('send_unconfirmed', { round: L.round, retries: L.sendRetries });
-      Reporter.capture('send_unconfirmed', `Generation never started after ${L.sendRetries} re-fire(s). Likely the send was swallowed (focus-steal / disabled control).`);
-      pauseWithProbe('Send didn’t start — generation never began');
+      _markSendUncertain();
+      return;
+    } else {
+      // Do not parse stale output or dispatch another command while the
+      // current attempt is unresolved.
       return;
     }
-    // else: still inside the grace window, keep waiting
   }
 
   // Watchdog — 90s soft, 180s hard
@@ -2326,6 +2344,11 @@ function startWorkflow() {
 function startLoop() {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (L.sendTxn?.state === 'uncertain') {
+    L.detail = 'Choose “I see it in chat” or “Leave for manual Send” first.';
+    render();
+    return;
+  }
   const input = Adapter.getInput();
   const typed = input ? (input.value || input.textContent || '').trim() : '';
 
@@ -2400,12 +2423,15 @@ function primaryAction() {
   if (s === 'RUNNING') return pauseLoop();
   if (s === 'LIMIT')   return extendLimit();
   return startLoop();
-}function stopLoop() {
+}
+
+function stopLoop() {
   const L = GHOST.loop;
+  _settleSendPromise(false);
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
-  L.sendPending = false; L.sendRetries = 0;
+  L.sendPending = false; L.sendDeadline = 0; L.sendTxn = null;
   GHOST.persona._reviewDone = false;
   GHOST.persona._delivered = false;
   Ticker.stop(); L.timer = null;
@@ -2442,7 +2468,10 @@ window.addEventListener('gitl:route', () => {
       try { sameHost = new URL(prevHref).hostname === location.hostname; } catch(_) {}
       const justSent = GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000);
       if (sameHost && justSent) {
-        Timeline.record('route_id_assigned', { from: prevHref, to: location.href });
+        Timeline.record('route_id_assigned', {
+          from: _safeRouteClass(prevHref),
+          to: _safeRouteClass(location.href)
+        });
         return;
       }
       enginePause('Route changed — paused');
@@ -2561,11 +2590,25 @@ function reDetect() {
 /* ═══════════════════════════════════════════════════════════════
    CRASH RECOVERY
    ═══════════════════════════════════════════════════════════════ */
+function _safeRouteClass(href) {
+  try {
+    const pathname = href ? new URL(href, location.origin).pathname : location.pathname;
+    return pathname.split('/').filter(Boolean).slice(0, 3)
+      .map(part => (/^[a-f0-9-]{12,}$/i.test(part) || part.length > 32) ? ':id' : part)
+      .join('/') || '/';
+  } catch(_) {
+    return '/';
+  }
+}
+
 window.addEventListener('beforeunload', () => {
   if (GHOST.loop.state === 'RUNNING' || GHOST.loop.state === 'PAUSED') {
+    const txn = GHOST.loop.sendTxn;
     _save('crashState', JSON.stringify({
       state: GHOST.loop.state, round: GHOST.loop.round, mode: GHOST.loop.payloadMode,
-      url: location.href, ts: Date.now(), wasRunning: GHOST.loop.state === 'RUNNING'
+      site: PLAT?.key || 'generic', routeClass: _safeRouteClass(),
+      ts: Date.now(), wasRunning: GHOST.loop.state === 'RUNNING',
+      send: txn ? { id: String(txn.id || '').slice(0, 8), state: txn.state, attemptedAt: txn.attemptedAt || 0 } : null
     }));
   }
 });
@@ -2577,7 +2620,18 @@ window.addEventListener('beforeunload', () => {
     const cs = JSON.parse(raw);
     _save('crashState', '');
     if (Date.now() - cs.ts > 300000) return;
-    if (cs.url !== location.href) return;
+    if (cs.site !== (PLAT?.key || 'generic') || cs.routeClass !== _safeRouteClass()) return;
+    if (cs.send && (cs.send.state === 'dispatching' || cs.send.state === 'uncertain')) {
+      GHOST.loop.state = 'PAUSED';
+      GHOST.loop.sendTxn = {
+        id: cs.send.id || 'unknown',
+        state: 'uncertain',
+        attemptedAt: cs.send.attemptedAt || cs.ts
+      };
+      GHOST.loop.detail = 'Crash recovery: prior Send is uncertain. Check the conversation; nothing was resent.';
+      Reporter.capture('SEND-002', 'A reload interrupted Send confirmation. Nothing was resent.');
+      return;
+    }
     // Only flag as crash if it was running (not manual refresh)
     if (cs.wasRunning) {
       const rm = GHOST.roadmap.captured && GHOST.roadmap.steps.length ? ` Roadmap at step ${GHOST.roadmap.index}/${GHOST.roadmap.steps.length}.` : '';
@@ -3898,7 +3952,12 @@ function renderRunTab() {
     </div>
     </div>
     <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
-    ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
+    ${GHOST.report ? `<div class="g-report">
+      <div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${_esc(GHOST.report.kind)}</span></div>
+      <div class="g-report-b">${_esc((GHOST.report.detail||'').slice(0,120))}</div>
+      ${L.sendTxn?.state === 'uncertain' ? `<div class="g-report-b">Nothing was resent. Check the conversation:</div><div class="g-report-btns"><button class="g-btn-sm" id="g-send-seen">✓ I see it in chat</button><button class="g-btn-sm" id="g-send-manual">Leave for manual Send</button></div>` : ''}
+      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div>
+    </div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
     <div class="g-mod g-mod-adv">
@@ -4350,9 +4409,18 @@ function bindEvents() {
   });
   $('#g-pause')?.addEventListener('click', pauseLoop);
   $('#g-stop')?.addEventListener('click', stopLoop);
+  $('#g-send-seen')?.addEventListener('click', () => reconcileUncertainSend(true));
+  $('#g-send-manual')?.addEventListener('click', () => reconcileUncertainSend(false));
   $('#g-rep-copy')?.addEventListener('click', function(){ Reporter.copy().then(ok => { this.textContent = ok ? '✓ Copied' : '✕ Failed'; setTimeout(()=>{ this.textContent='📋 Copy'; }, 1500); }); });
   $('#g-rep-issue')?.addEventListener('click', () => Reporter.openIssue());
-  $('#g-rep-x')?.addEventListener('click', () => { GHOST.report = null; Reporter.last = null; render(); });
+  $('#g-rep-x')?.addEventListener('click', () => {
+    if (GHOST.loop.sendTxn?.state === 'uncertain') {
+      GHOST.loop.detail = 'Reconcile the uncertain Send before dismissing this report.';
+      render();
+      return;
+    }
+    GHOST.report = null; Reporter.last = null; render();
+  });
   $('#g-peek-btn')?.addEventListener('click', () => {
     const p=$('#g-peek'),b=$('#g-peek-btn');
     if(p&&b){p.classList.toggle('open'); b.textContent=p.classList.contains('open')?'▾ Hide prompt':'▸ What gets injected';}

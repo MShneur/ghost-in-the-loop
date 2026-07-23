@@ -40,17 +40,25 @@ describe('S2 — Selector doctor', () => {
 describe('S3 — Timeline', () => {
   test('Timeline object present',           () => expect(has('const Timeline')).toBe(true));
   test('Timeline.record used in boot',      () => expect(has("Timeline.record('boot'")).toBe(true));
-  test('Timeline.record used in send_ok',   () => expect(has("Timeline.record('send_ok'")).toBe(true));
+  test('Timeline records attempted sends',  () => expect(has("Timeline.record('send_attempted'")).toBe(true));
+  test('Timeline records confirmed sends',  () => expect(has("Timeline.record('send_confirmed'")).toBe(true));
+  test('Timeline records uncertain sends',  () => expect(has("Timeline.record('send_uncertain'")).toBe(true));
   test('Timeline.record used in halt',      () => expect(has("Timeline.record('halt'")).toBe(true));
   test('Timeline capped at 500 events',     () => expect(has('500')).toBe(true));
 });
 
-describe('S4 — Recovery engine + GhostBus', () => {
-  test('RecoveryEngine present',            () => expect(has('const RecoveryEngine')).toBe(true));
-  test('recoverSend method present',        () => expect(has('recoverSend')).toBe(true));
+describe('S4 — At-most-once transaction + GhostBus', () => {
+  test('send lease is re-read before actuation', () => expect(has('async function verifyTabLease')).toBe(true));
+  test('explicit send transaction is present', () => expect(has('function _beginSendAttempt')).toBe(true));
+  test('confirmation is a distinct commit step', () => expect(has('function _confirmSend')).toBe(true));
+  test('ambiguous sends become uncertain',  () => expect(has('function _markSendUncertain')).toBe(true));
+  test('automatic resend recovery is absent', () => {
+    expect(has('RecoveryEngine.recoverSend')).toBe(false);
+    expect(has('_refireSend')).toBe(false);
+    expect(has('SEND_MAX_RETRIES')).toBe(false);
+  });
   test('GhostBus present',                  () => expect(has('const GhostBus')).toBe(true));
   test('BroadcastChannel used',             () => expect(has('BroadcastChannel')).toBe(true));
-  test('RecoveryEngine wired into engineSend', () => expect(has('RecoveryEngine.recoverSend')).toBe(true));
   test('GhostBus.init called at boot',      () => expect(has('GhostBus.init()')).toBe(true));
   test('Handoff not auto-injected (security)', () => {
     // The received handoff must be STORED not auto-sent
