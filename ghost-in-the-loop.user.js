@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.2.1
+// @version      8.3.0
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
-// @author       Michael S (CTRL-AI) — Architecture by Claude
+// @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
 // @match        https://www.perplexity.ai/*
@@ -76,9 +76,10 @@ const _beacon = (s) => { try { document.documentElement.setAttribute('data-gitl-
 _beacon('started');
 function _gitlFatal(stage, err) {
   const msg = String((err && (err.message || err)) || 'unknown');
-  const stack = String((err && err.stack) || '');
   _beacon('error:' + stage);
-  try { GM_setValue('lastBootError', JSON.stringify({ stage, msg, stack, at: new Date().toISOString() })); } catch(_) {}
+  /* Persist metadata only. The live banner can show the browser's error, but
+     recovery/reporting must never retain page content, URLs, or stack data. */
+  try { GM_setValue('lastBootError', JSON.stringify({ code: 'BOOT-001', stage, at: new Date().toISOString() })); } catch(_) {}
   try { console.error('[GITL] FATAL @' + stage + ':', err); } catch(_) {}
   try { if (typeof GM_notification === 'function') GM_notification({ title: '👻 Ghost failed to load (' + stage + ')', text: msg, timeout: 15000 }); } catch(_) {}
   try {
@@ -101,10 +102,9 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.2.1';
+const VER = '8.3.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
-const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
-const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
+const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
 /* ═══════════════════════════════════════════════════════════════
    TRUSTED TYPES (v8.1.5) — the actual Gemini root cause
@@ -147,7 +147,6 @@ const MIN_RESPONSE_LEN = 50;
    notification focus-steal" failure where the script thinks it sent
    but the platform never began generating. */
 const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)
-const SEND_MAX_RETRIES = 2;     // re-fire attempts before pausing
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0.5 — BOOT SAFETY + TAB LOCK + FOCUS GUARD
@@ -195,6 +194,21 @@ function claimTabLock() {
   } catch(_){}
   GM_setValue(key, JSON.stringify({ tabId: GITL_TAB_ID, ts: now }));
   return true;
+}
+
+/* A read/write lease is not atomic across tabs. Before any actuator runs,
+   claim, yield briefly, then re-read. If two tabs raced from an empty lock,
+   only the deterministic last owner survives this verification step. */
+async function verifyTabLease() {
+  if (!claimTabLock()) return false;
+  await new Promise(resolve => setTimeout(resolve, 35 + Math.floor(Math.random() * 45)));
+  try {
+    const raw = GM_getValue(_tabLockKey(), null);
+    const lock = raw ? JSON.parse(raw) : null;
+    return !!lock && lock.tabId === GITL_TAB_ID && Date.now() - lock.ts < 8000;
+  } catch(_) {
+    return false;
+  }
 }
 
 function releaseTabLock() {
@@ -305,14 +319,14 @@ const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow 
 
 const GITL_NET = {
   bus: new EventTarget(),
-  lastChunk: '',
-  lastComplete: '',
   capturedAt: 0,
+  lastEventBytes: 0,
+  bytesSeen: 0,
   active: false,        // interceptor installed (kept for health snapshot compat)
   lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
   lastPulseH: 0,        // last traffic on a heuristic same-origin stream
   _open: 0,             // streams currently open
-  expectUntil: 0,       // set by _onSendOk: window in which heuristic pulses count
+  expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -362,14 +376,14 @@ const GITL_NET = {
     return false;
   },
 
-  _emit(raw, isDone) {
-    if (raw === '[DONE]') isDone = true;
-    this.lastChunk = raw;
+  _emit(byteCount, isDone) {
+    const bytes = Math.max(0, Number(byteCount) || 0);
+    this.lastEventBytes = bytes;
+    this.bytesSeen += bytes;
     this.capturedAt = Date.now();
     this._pulse(true);
-    if (isDone) this.lastComplete = raw;
     this.bus.dispatchEvent(new CustomEvent('gitl:net', {
-      detail: { raw, isDone, ts: Date.now() }
+      detail: { bytes, isDone: !!isDone, ts: Date.now() }
     }));
   },
 
@@ -419,27 +433,17 @@ const GITL_NET = {
       }
       if (listed) {
         try {
-          const cloned = response.clone();
-          if (cloned.body) {
-            const reader = cloned.body.getReader();
-            const decoder = new TextDecoder('utf-8');
-            (async () => {
-              let buf = '';
-              try {
-                while (true) {
-                  const { done, value } = await reader.read();
-                  if (done) { if (buf) self._emit(buf, true); break; }
-                  buf += decoder.decode(value, { stream: true });
-                  const lines = buf.split('\n');
-                  buf = lines.pop() || '';
-                  for (const line of lines) {
-                    const trimmed = line.trim();
-                    if (trimmed.startsWith('data: ')) {
-                      self._emit(trimmed.slice(6), false);
+              const cloned = response.clone();
+              if (cloned.body) {
+                const reader = cloned.body.getReader();
+                (async () => {
+                  try {
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) { self._emit(0, true); break; }
+                      self._emit(value?.byteLength || value?.length || 0, false);
                     }
-                  }
-                }
-              } catch(_) { /* stream aborted — normal on navigation */ }
+                  } catch(_) { /* stream aborted — normal on navigation */ }
             })();
           }
         } catch(err) {
@@ -468,7 +472,7 @@ const GITL_NET = {
               this.addEventListener('progress',  () => self._pulse(listed));
               this.addEventListener('loadend',   () => { self._open = Math.max(0, self._open - 1); self._pulse(listed); });
               if (listed) this.addEventListener('load', function() {
-                if (this.status >= 200 && this.status < 300 && this.responseText) self._emit(this.responseText, true);
+                if (this.status >= 200 && this.status < 300) self._emit(this.responseText?.length || 0, true);
               });
             } catch(_) {}
           }
@@ -493,7 +497,7 @@ const GITL_NET = {
     console.log('[GITL] Network interceptor active');
     } catch(err) {
       console.error('[GITL] Network interceptor failed to install — panel will still boot:', err);
-      try { GM_setValue('lastNetInstallError', JSON.stringify({ msg: String(err?.message||err), at: new Date().toISOString() })); } catch(_) {}
+      try { GM_setValue('lastNetInstallError', JSON.stringify({ code: 'BOOT-002', at: new Date().toISOString() })); } catch(_) {}
     }
   }
 };
@@ -509,6 +513,7 @@ try { GITL_NET.install(); } catch(err) { console.error('[GITL] GITL_NET.install(
    ═══════════════════════════════════════════════════════════════ */
 const PROFILES = {
   chatgpt: {
+    key: 'chatgpt', reviewed: true,
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
@@ -519,6 +524,7 @@ const PROFILES = {
     useCE: false, useNS: true
   },
   perplexity: {
+    key: 'perplexity', reviewed: true,
     host: /perplexity\.ai/,
     label: 'Perplexity',
     input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
@@ -530,6 +536,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   gemini: {
+    key: 'gemini', reviewed: true,
     host: /gemini\.google\.com/,
     label: 'Gemini',
     input: ['rich-textarea .ql-editor[contenteditable="true"]','div.ql-editor[contenteditable="true"]','rich-textarea div[contenteditable="true"]','div[role="textbox"][contenteditable="true"]','div[contenteditable="true"]','textarea'],
@@ -540,6 +547,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   deepseek: {
+    key: 'deepseek', reviewed: true,
     host: /chat\.deepseek\.com/,
     label: 'DeepSeek',
     input: ['textarea[placeholder]','#chat-input','textarea'],
@@ -550,6 +558,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   copilot: {
+    key: 'copilot', reviewed: true,
     host: /copilot\.microsoft\.com/,
     label: 'Copilot',
     input: ['textarea#userInput','#searchbox','textarea[placeholder*="message"]','textarea'],
@@ -560,6 +569,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   grok: {
+    key: 'grok', reviewed: true,
     host: /grok\.com/,
     label: 'Grok',
     input: ['textarea[aria-label="Ask Grok anything"]','textarea[placeholder*="Grok"]','textarea[placeholder*="Ask"]','textarea[data-testid="grok-compose-input"]','div[contenteditable="true"][data-lexical-editor="true"]','div[contenteditable="true"]','textarea'],
@@ -570,6 +580,7 @@ const PROFILES = {
     useCE: false, useNS: false
   },
   claude: {
+    key: 'claude', reviewed: true,
     host: /claude\.ai/,
     label: 'Claude',
     input: ['div[contenteditable="true"].ProseMirror','div[contenteditable="true"][aria-label*="message"]','div.ProseMirror','div[contenteditable="true"]'],
@@ -580,6 +591,7 @@ const PROFILES = {
     useCE: true, useNS: false
   },
   manus: {
+    key: 'manus', reviewed: true,
     host: /manus\.im/,
     label: 'Manus',
     // Verified against real Manus DOM: Tiptap ProseMirror input; Monaco code viewer has a decoy <textarea>.
@@ -618,6 +630,7 @@ if (!PLAT) {
   let gLabel = 'Generic';
   for (const [rx, label] of GENERIC_HOSTS) { if (rx.test(location.hostname)) { gLabel = label; break; } }
   PLAT = {
+    key: 'generic', reviewed: false,
     label: gLabel,
     input: ['textarea:not([disabled])','div[contenteditable="true"][role="textbox"]','div[contenteditable="true"]','textarea','input[type="text"]'],
     send: ['button[type="submit"]','button[aria-label*="Send" i]','button[aria-label*="Submit" i]','button[data-testid*="send"]','button[class*="send" i]'],
@@ -640,6 +653,9 @@ try {
       if (o.label) PLAT.label = o.label + ' (custom)';
       if (typeof o.useCE === 'boolean') PLAT.useCE = o.useCE;
       if (typeof o.useNS === 'boolean') PLAT.useNS = o.useNS;
+      // Custom selectors remain useful for read-only capture, but an
+      // unreviewed import must never gain autonomous actuator authority.
+      PLAT.reviewed = false;
       break;
     }
   }
@@ -740,7 +756,7 @@ function _sendLooksSafe(el) {
                    el.getAttribute('title'), el.getAttribute('data-testid'),
                    el.textContent].join(' ').slice(0, 160);
     return !SEND_VETO.test(label);
-  } catch(_) { return true; }
+  } catch(_) { return false; }
 }
 
 function _visible(el) {
@@ -794,8 +810,7 @@ function _heurSend(anchor) {
        their own (that combination is every message-action button on the
        page). A candidate needs at least one POSITIVE send signal. */
     const sem = SEND_WORDS.test(label)
-             || (el.getAttribute('type') || '') === 'submit'
-             || (aForm && el.closest && el.closest('form') === aForm);
+             || (el.getAttribute('type') || '') === 'submit';
     if (!sem) continue;
     let s = 0;
     if (SEND_WORDS.test(label)) s += 4;
@@ -814,13 +829,10 @@ function _heurSend(anchor) {
   return best;
 }
 
-/* ── SELECTOR MEMORY (v8.1) — self-healing learned locators ──────
-   Healenium-style: when the configured selectors fail but the heuristic
-   tier finds the element, derive a STABLE selector from the found node
-   (id > data-testid > aria-label > name > placeholder > role) and persist
-   it per-host. Next time — including after a reload — the learned selector
-   is tried right after the configured ones, so a site redesign pays the
-   heuristic cost once and the fix survives sessions. Capped + self-pruning. */
+/* ── SELECTOR MEMORY (read-only locators only) ───────────────────
+   Composer/message observation may learn a unique locator. Actuators never
+   do: an automatically learned Send/Delete/Continue control would turn a
+   guess into persistent authority. */
 const SelectorMemory = {
   key: 'gitlLearnedSelectors',
   MAX_HOSTS: 12,
@@ -854,6 +866,10 @@ const SelectorMemory = {
   },
 
   learn(kind, el) {
+    if (kind === 'send') {
+      this.forget('send');
+      return null;
+    }
     const sel = this.derive(el);
     if (!sel) return null;
     const d = this._load(), h = location.hostname;
@@ -877,12 +893,15 @@ const SelectorMemory = {
   },
 
   lookup(kind) {
+    if (kind === 'send') {
+      this.forget('send');
+      return null;
+    }
     const rec = this._load()[location.hostname]?.[kind];
     if (!rec || !rec.sel) return null;
     try {
       for (const el of document.querySelectorAll(rec.sel)) {
         if (el && !_isOwnUI(el) && _visible(el)) {
-          if (kind === 'send' && !_sendLooksSafe(el)) { this.forget(kind); return null; }
           return el;
         }
       }
@@ -900,23 +919,43 @@ const SelectorMemory = {
   }
 };
 
+/* Only reviewed profile selectors can authorize a send. A heuristic result
+   is diagnostic information, never an actuator. Each selector tier must
+   resolve to exactly one enabled, visible, veto-safe element. */
+function _reviewedSend() {
+  if (!PLAT?.reviewed) return null;
+  for (const sel of PLAT.send || []) {
+    let matches = [];
+    try {
+      matches = [...document.querySelectorAll(sel)].filter(el =>
+        !_isOwnUI(el)
+        && !el.disabled
+        && el.getAttribute('aria-disabled') !== 'true'
+        && _visible(el)
+        && _sendLooksSafe(el));
+    } catch(_) {
+      matches = [];
+    }
+    if (matches.length === 1) return matches[0];
+  }
+  return null;
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
+  peekInput() {
+    return _q('in', PLAT.input) || SelectorMemory.lookup('input');
+  },
   getInput() {
-    let el = _q('in', PLAT.input) || SelectorMemory.lookup('input');
+    let el = this.peekInput();
     if (!el) { el = _heurInput(); if (el) SelectorMemory.learn('input', el); }
     return el;
   },
   getSendBtn() {
-    // Every tier passes through the veto — a stale configured selector must
-    // never hand back a Copy/Share/Download control (DeepSeek incident).
-    const b = _q('send', PLAT.send);
-    if (b && !b.disabled && _sendLooksSafe(b)) return b;
-    const learned = SelectorMemory.lookup('send');
-    if (learned && !learned.disabled) return learned;
-    const h = _heurSend(this.getInput() || null);
-    if (h) { SelectorMemory.learn('send', h); return h; }
-    return (b && _sendLooksSafe(b)) ? b : null;
+    return _reviewedSend();
+  },
+  getSendCandidate() {
+    return _heurSend(this.peekInput() || null);
   },
   isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
@@ -1121,15 +1160,24 @@ const Workshop = {
     return id;
   },
 
-  // ── Validation: tolerant but strict enough to never inject garbage ──
+  // ── Validation: exact schemas and bounded values ──────────────────
+  _onlyKeys(value, allowed) {
+    return !!value && typeof value === 'object' && !Array.isArray(value)
+      && Object.keys(value).every(k => allowed.includes(k));
+  },
   _validPersona(p) {
-    return p && typeof p.label === 'string' && p.label.trim().length > 0
-             && typeof p.inject === 'string' && p.inject.trim().length > 0;
+    return this._onlyKeys(p, ['id','label','inject'])
+      && (p.id == null || (typeof p.id === 'string' && p.id.length <= 80))
+      && typeof p.label === 'string' && p.label.trim().length > 0 && p.label.length <= WORKSHOP_LIMITS.label
+      && typeof p.inject === 'string' && p.inject.trim().length > 0 && p.inject.length <= WORKSHOP_LIMITS.inject;
   },
   _validWorkflow(w) {
-    return w && typeof w.label === 'string' && w.label.trim().length > 0
-             && Array.isArray(w.stages) && w.stages.length > 0
-             && w.stages.every(s => typeof s === 'string' && s.trim().length > 0);
+    return this._onlyKeys(w, ['id','label','desc','stages'])
+      && (w.id == null || (typeof w.id === 'string' && w.id.length <= 80))
+      && typeof w.label === 'string' && w.label.trim().length > 0 && w.label.length <= WORKSHOP_LIMITS.label
+      && (w.desc == null || (typeof w.desc === 'string' && w.desc.length <= WORKSHOP_LIMITS.desc))
+      && Array.isArray(w.stages) && w.stages.length > 0 && w.stages.length <= WORKSHOP_LIMITS.stages
+      && w.stages.every(s => typeof s === 'string' && s.trim().length > 0 && s.length <= WORKSHOP_LIMITS.stage);
   },
 
   addPersona(label, inject) {
@@ -1190,61 +1238,106 @@ const Workshop = {
     return `## Workshop pack: ${title}\n\n**Contains:** ${nP} persona(s), ${nW} workflow(s)${skinLine}\n\n${items.join('\n')}\n\nTo use: save the JSON below as \`pack.gitl.json\`, then **⬆ Import** in Ghost's Workshop.\n\n\`\`\`json\n${this.exportBundle()}\n\`\`\`\n`;
   },
 
-  // ── Import: additive, protects built-ins, auto-renames custom clashes ──
+  // ── Import: validate and stage everything, then commit atomically ─────
   importBundle(text) {
     if (typeof text !== 'string') return { ok:false, error:'No file content' };
     // Reject oversized payloads BEFORE parsing (cheap DoS / paste-bomb guard).
     if (text.length > WORKSHOP_LIMITS.fileBytes) return { ok:false, error:`File too large (max ${Math.round(WORKSHOP_LIMITS.fileBytes/1024)} KB)` };
     let data; try { data = JSON.parse(text); } catch(_) { return { ok:false, error:'Not valid JSON' }; }
-    if (!data || typeof data !== 'object') return { ok:false, error:'Empty or malformed file' };
-    if (data.schema && !String(data.schema).startsWith('gitl-workshop/')) return { ok:false, error:'Not a Ghost Workshop file' };
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok:false, error:'Empty or malformed file' };
+    if (data.schema !== WORKSHOP_SCHEMA) return { ok:false, error:`Expected schema ${WORKSHOP_SCHEMA}` };
+    if (!this._onlyKeys(data, ['schema','tool','version','exported','personas','workflows','skin'])) {
+      return { ok:false, error:'Workshop file contains unknown top-level fields' };
+    }
     const inP = Array.isArray(data.personas)  ? data.personas  : [];
     const inW = Array.isArray(data.workflows) ? data.workflows : [];
     const hasSkin = data.skin && typeof data.skin === 'object';
     if (inP.length + inW.length === 0 && !hasSkin) return { ok:false, error:'No personas, workflows, or skin in file' };
     if (inP.length + inW.length > WORKSHOP_LIMITS.maxItems) return { ok:false, error:`Too many items (max ${WORKSHOP_LIMITS.maxItems})` };
-    const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0 };
-    const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(this.personas)]);
+    const invalidPersona = inP.findIndex(p => !this._validPersona(p));
+    if (invalidPersona >= 0) return { ok:false, error:`Invalid persona at index ${invalidPersona}` };
+    const invalidWorkflow = inW.findIndex(w => !this._validWorkflow(w));
+    if (invalidWorkflow >= 0) return { ok:false, error:`Invalid workflow at index ${invalidWorkflow}` };
+
+    const nextPersonas = { ...this.personas };
+    const nextWorkflows = { ...this.workflows };
+    const res = { ok:true, personas:0, workflows:0, skipped:0, renamed:0, skin:0 };
+    const pTaken = new Set([...Object.keys(PERSONA_LIBRARY), ...Object.keys(nextPersonas)]);
     for (const p of inP) {
-      if (!this._validPersona(p)) { res.skipped++; continue; }
       const base = p.id || p.label;
       const id = this._uniqueId(base, pTaken);
       if (this._slug(base) !== id) res.renamed++;
       pTaken.add(id);
-      this.personas[id] = { label: p.label.trim().slice(0,WORKSHOP_LIMITS.label), inject: p.inject.trim().slice(0,WORKSHOP_LIMITS.inject), custom: true };
+      nextPersonas[id] = { label: p.label.trim(), inject: p.inject.trim(), custom: true };
       res.personas++;
     }
-    const wTaken = new Set([...Object.keys(WORKFLOW_LIBRARY), ...Object.keys(this.workflows)]);
+    const wTaken = new Set([...Object.keys(WORKFLOW_LIBRARY), ...Object.keys(nextWorkflows)]);
     for (const w of inW) {
-      if (!this._validWorkflow(w)) { res.skipped++; continue; }
       const base = w.id || w.label;
       const id = this._uniqueId(base, wTaken);
       if (this._slug(base) !== id) res.renamed++;
       wTaken.add(id);
-      this.workflows[id] = { label: w.label.trim().slice(0,WORKSHOP_LIMITS.label), desc: String(w.desc||'').trim().slice(0,WORKSHOP_LIMITS.desc),
-        stages: w.stages.map(s => String(s).trim().slice(0,WORKSHOP_LIMITS.stage)).slice(0,WORKSHOP_LIMITS.stages), custom: true };
+      nextWorkflows[id] = {
+        label: w.label.trim(),
+        desc: String(w.desc || '').trim(),
+        stages: w.stages.map(s => s.trim()),
+        custom: true
+      };
       res.workflows++;
     }
-    // v8.1: optional bundled skin — validated by the skin whitelist, applied
-    // as the custom skin. Invalid skins are skipped, never fatal.
-    res.skin = 0;
+
+    let nextSkin = null;
     if (hasSkin) {
       try {
-        if (typeof SKIN !== 'undefined') {
-          const r = SKIN.validate(JSON.stringify(data.skin));
-          if (r.ok && typeof GHOST !== 'undefined') {
-            GHOST.ui.customSkin = JSON.stringify(r.skin);
-            GHOST.ui.skinTheme = 'custom';
-            _save('customSkin', GHOST.ui.customSkin);
-            _save('skinTheme', 'custom');
-            SKIN.apply();
-            res.skin = 1;
-          } else { res.skipped++; }
-        }
-      } catch(_) { res.skipped++; }
+        if (typeof SKIN === 'undefined') return { ok:false, error:'Skin validator is unavailable' };
+        const checked = SKIN.validate(JSON.stringify(data.skin));
+        if (!checked.ok) return { ok:false, error:`Invalid bundled skin: ${checked.error}` };
+        nextSkin = JSON.stringify(checked.skin);
+        res.skin = 1;
+      } catch(_) {
+        return { ok:false, error:'Invalid bundled skin' };
+      }
     }
-    this._persist();
-    return res;
+
+    const previous = {
+      personas: this.personas,
+      workflows: this.workflows,
+      customPersonas: GM_getValue('customPersonas', '{}'),
+      customWorkflows: GM_getValue('customWorkflows', '{}'),
+      customSkin: typeof GHOST !== 'undefined' ? GHOST.ui.customSkin : '',
+      skinTheme: typeof GHOST !== 'undefined' ? GHOST.ui.skinTheme : 'classic'
+    };
+    try {
+      _save('customPersonas', JSON.stringify(nextPersonas));
+      _save('customWorkflows', JSON.stringify(nextWorkflows));
+      if (nextSkin != null) {
+        _save('customSkin', nextSkin);
+        _save('skinTheme', 'custom');
+      }
+      this.personas = nextPersonas;
+      this.workflows = nextWorkflows;
+      if (nextSkin != null && typeof GHOST !== 'undefined') {
+        GHOST.ui.customSkin = nextSkin;
+        GHOST.ui.skinTheme = 'custom';
+        SKIN.apply();
+      }
+      return res;
+    } catch(_) {
+      /* Best-effort rollback of both storage and live state. */
+      try {
+        _save('customPersonas', previous.customPersonas);
+        _save('customWorkflows', previous.customWorkflows);
+        _save('customSkin', previous.customSkin);
+        _save('skinTheme', previous.skinTheme);
+      } catch(_) {}
+      this.personas = previous.personas;
+      this.workflows = previous.workflows;
+      if (typeof GHOST !== 'undefined') {
+        GHOST.ui.customSkin = previous.customSkin;
+        GHOST.ui.skinTheme = previous.skinTheme;
+      }
+      return { ok:false, error:'Import could not be committed; previous state was restored' };
+    }
   }
 };
 
@@ -1293,12 +1386,10 @@ const GHOST = {
     lastConfidence: 0,
     lastProgress: null,
     detail: '',
-    // v7.1 send-confirmation watchdog
-    sendPending: false,      // a send fired; generation not yet confirmed
-    sendDeadline: 0,         // Date.now() by which generation must start
-    sendRetries: 0,          // re-fire attempts used for the pending send
-    lastSentText: '',        // payload of the pending send, for re-fire
-    lastTextLen: 0,          // output length at send time, to detect new output
+    // At-most-once send transaction. Prompt text is never retained here.
+    sendPending: false,
+    sendDeadline: 0,
+    sendTxn: null,
     originalTask: ''         // first task text of the run, for the reground gate
   },
   signals: {
@@ -1311,7 +1402,8 @@ const GHOST = {
     filter: GM_getValue('expFilter','all'),
     includeRoles: GM_getValue('expRoles',true),
     thinking: GM_getValue('expThinking',true),
-    customSlug: GM_getValue('expSlug','')
+    customSlug: GM_getValue('expSlug',''),
+    lastResult: null
   },
   ui: {
     collapsed: GM_getValue('panelCollapsed',false),
@@ -1388,7 +1480,7 @@ const DIAG = {
    Sources: HTML/CSS GPT capability scoring, Software Architect GPT
    ═══════════════════════════════════════════════════════════════ */
 function platformHealth() {
-  const input = Adapter.getInput();
+  const input = Adapter.peekInput();
   const send  = Adapter.getSendBtn();
   const stop  = _q('gen', PLAT.stop);
   const msgs  = _qAll(PLAT.assistant);
@@ -1409,26 +1501,86 @@ function platformHealth() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   S3 — TIMELINE (lightweight event log with capped GM store)
-   Append-only log for observability, failure learning, metrics.
-   Sources: Kimi Timeline, ChatGPT Export 4 Metrics pattern
+   S3 — PRIVACY-SAFE TIMELINE
+   The timeline is useful for sequencing failures, not for retaining chat
+   content. It accepts metadata primitives and a small set of enum-like
+   strings; selectors, URLs, error messages, prompts, and arbitrary text are
+   dropped at the storage boundary.
    ═══════════════════════════════════════════════════════════════ */
+const _TL_STRING_KEYS = new Set([
+  'code','stage','reason','evidence','path','kind','name','platform',
+  'version','signal','state','mode','adapter','ticker'
+]);
+const _TL_PLATFORMS = new Set([
+  'chatgpt','perplexity','gemini','deepseek','copilot',
+  'grok','claude','manus','generic'
+]);
+
+function _safeTimelineString(key, value) {
+  const s = String(value == null ? '' : value).slice(0, 80);
+  if (!_TL_STRING_KEYS.has(key)) return '';
+  if (/https?:|www\.|[?&][^ ]*=|[a-f0-9]{8}-[a-f0-9-]{20,}/i.test(s)) return '';
+  if (key === 'platform') return _TL_PLATFORMS.has(s.toLowerCase()) ? s.toLowerCase() : '';
+  return /^[a-z0-9_.:+-]{1,80}$/i.test(s) ? s : '';
+}
+
+function _safeTimelineData(data) {
+  const out = {};
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return out;
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === 'boolean') out[key] = value;
+    else if (typeof value === 'number' && Number.isFinite(value)) out[key] = value;
+    else if (typeof value === 'string') {
+      const safe = _safeTimelineString(key, value);
+      if (safe) out[key] = safe;
+    } else if (Array.isArray(value)) {
+      out[`${key}Count`] = value.length;
+    }
+  }
+  return out;
+}
+
+function _safeTimelineEvent(event) {
+  const type = /^[a-z0-9_.:-]{1,64}$/i.test(String(event?.type || ''))
+    ? String(event.type) : 'unknown';
+  const at = /^\d{4}-\d{2}-\d{2}T/.test(String(event?.at || ''))
+    ? String(event.at) : new Date().toISOString();
+  const workflow = String(event?.wf || 'none');
+  return {
+    type,
+    data: _safeTimelineData(event?.data),
+    platform: _safeTimelineString('platform', event?.platform) || 'generic',
+    wf: workflow === 'none' || Object.prototype.hasOwnProperty.call(WORKFLOW_LIBRARY, workflow)
+      ? workflow : 'custom',
+    at
+  };
+}
+
 const Timeline = {
   key: 'gitlTimeline',
   _cache: null,
   all() {
     if (this._cache) return this._cache;
-    try { this._cache = JSON.parse(GM_getValue(this.key, '[]')); } catch { this._cache = []; }
+    try {
+      const raw = JSON.parse(GM_getValue(this.key, '[]'));
+      this._cache = Array.isArray(raw) ? raw.map(_safeTimelineEvent) : [];
+      /* Rewrite older entries once so previously retained selectors/error
+         strings do not linger after upgrading. */
+      GM_setValue(this.key, JSON.stringify(this._cache));
+    } catch {
+      this._cache = [];
+    }
     return this._cache;
   },
   record(type, data = {}) {
     const items = this.all();
-    items.push({
-      type, data,
-      platform: PLAT?.label || '?',
+    items.push(_safeTimelineEvent({
+      type,
+      data,
+      platform: PLAT?.key || 'generic',
       wf: (typeof GHOST !== 'undefined' && GHOST.workflow) ? GHOST.workflow.selected : 'none',
       at: new Date().toISOString()
-    });
+    }));
     if (items.length > 500) items.splice(0, items.length - 500);
     this._cache = items;
     GM_setValue(this.key, JSON.stringify(items));
@@ -1438,76 +1590,220 @@ const Timeline = {
 };
 
 /* ═══════════════════════════════════════════════════════════════
-   S3.5 — REPORTER (v7.1): structured trouble reports
-   When the loop hits trouble (send never started, stopped early, probe
-   failure) a report is assembled automatically. Transport is pluggable:
-     • clipboard     — always available, one-tap copy (default)
-     • prefilledURL  — opens a pre-filled GitHub issue (one tap, no token)
-     • worker        — silent POST to a relay you control (set REPORT_WORKER_URL)
-   No credential is ever embedded in this script.
+   S3.5 — LOCAL, PRIVACY-SAFE INCIDENT REPORTER
+   Failures automatically create a redacted local diagnostic. Nothing is
+   uploaded and no GitHub issue body is prefilled. The user can review,
+   copy, or download the exact metadata before deciding to report it.
    ═══════════════════════════════════════════════════════════════ */
-const Reporter = {
-  last: null,         // most recent assembled report {kind, detail, text, at}
-  _seen: new Map(),   // dedupe: signature -> last capture ts (10-min window)
+const ERROR_CATALOG = Object.freeze({
+  'BOOT-001': {
+    summary: 'Ghost could not complete its critical startup sequence.',
+    guidance: 'Reload once. If the banner returns, download this diagnostic and open a bug.'
+  },
+  'BOOT-002': {
+    summary: 'Optional network observation could not start; the panel may still work.',
+    guidance: 'Continue manually if needed, then download this diagnostic for a bug report.'
+  },
+  'COMPOSER-001': {
+    summary: 'No unique, usable chat composer was available.',
+    guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
+  },
+  'SEND-001': {
+    summary: 'No unique reviewed Send control could be safely activated.',
+    guidance: 'Review the inserted prompt and use the site Send button manually.'
+  },
+  'SEND-002': {
+    summary: 'A Send attempt occurred but delivery could not be confirmed.',
+    guidance: 'Check the conversation before doing anything else. Ghost did not resend.'
+  },
+  'ADAPTER-001': {
+    summary: 'The site adapter could not identify a required capability.',
+    guidance: 'Run Re-detect, download the diagnostic, and report the affected site.'
+  },
+  'EXPORT-001': {
+    summary: 'Export could not produce a validated transcript file.',
+    guidance: 'Keep the chat open, try once more, then download this diagnostic if it still fails.'
+  },
+  'MANUAL-001': {
+    summary: 'A diagnostic was requested manually.',
+    guidance: 'Review the contents below before copying, downloading, or opening a bug.'
+  },
+  'UNKNOWN-001': {
+    summary: 'An unexpected runtime failure was detected.',
+    guidance: 'Pause the run, review the page, and download this diagnostic.'
+  }
+});
 
-  build(kind, detail) {
+const ERROR_ALIASES = Object.freeze({
+  probe_fail: 'ADAPTER-001',
+  manual: 'MANUAL-001'
+});
+
+function _browserSummary() {
+  const ua = String((typeof navigator !== 'undefined' && navigator.userAgent) || '');
+  let family = 'Other', major = null;
+  const matchers = [
+    ['Edge', /Edg\/(\d+)/],
+    ['Firefox', /Firefox\/(\d+)/],
+    ['Chrome', /(?:Chrome|CriOS)\/(\d+)/],
+    ['Safari', /Version\/(\d+).+Safari/]
+  ];
+  for (const [name, rx] of matchers) {
+    const m = ua.match(rx);
+    if (m) { family = name; major = Number(m[1]) || null; break; }
+  }
+  const os = /Android/i.test(ua) ? 'Android'
+    : /iPhone|iPad|iPod/i.test(ua) ? 'iOS'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Mac OS X|Macintosh/i.test(ua) ? 'macOS'
+    : /Linux/i.test(ua) ? 'Linux' : 'Other';
+  return { family, major, os, mobile: /Android|Mobile|iPhone|iPad|iPod/i.test(ua) };
+}
+
+function _ageBucket(ts) {
+  if (!ts) return 'none';
+  const age = Math.max(0, Date.now() - ts);
+  if (age < 2000) return '<2s';
+  if (age < 10000) return '2-10s';
+  if (age < 60000) return '10-60s';
+  return '>60s';
+}
+
+const Reporter = {
+  last: null,
+  _seen: new Map(),
+
+  code(kind) {
+    const candidate = ERROR_ALIASES[kind] || String(kind || '').toUpperCase();
+    return ERROR_CATALOG[candidate] ? candidate : 'UNKNOWN-001';
+  },
+
+  envelope(kind) {
+    const code = this.code(kind);
+    const catalog = ERROR_CATALOG[code];
     const L = (typeof GHOST !== 'undefined') ? GHOST.loop : {};
     const h = (typeof platformHealth === 'function') ? platformHealth() : {};
     const p = L.lastProgress;
-    const tl = (typeof Timeline !== 'undefined') ? Timeline.since(120000).slice(-20) : [];
+    const recent = (typeof Timeline !== 'undefined')
+      ? Timeline.since(120000).slice(-16).map(_safeTimelineEvent) : [];
+    let learnedKinds = [];
+    try {
+      const lm = SelectorMemory._load()[location.hostname] || {};
+      learnedKinds = Object.keys(lm).filter(k => k !== 'send').sort().slice(0, 8);
+    } catch(_) {}
+    const send = L.sendTxn || null;
+    return {
+      schema: 'gitl.diagnostic.v1',
+      code,
+      summary: catalog.summary,
+      guidance: catalog.guidance,
+      createdAt: new Date().toISOString(),
+      app: {
+        version: VER,
+        platform: /^[a-z0-9_-]{1,32}$/i.test(String(PLAT?.key || ''))
+          ? PLAT.key : 'generic',
+        reviewedAdapter: !!PLAT?.reviewed
+      },
+      runtime: {
+        state: String(L.state || 'unknown'),
+        round: Number(L.round) || 0,
+        maxRounds: Number(L.maxRounds) || 0,
+        signal: String(L.lastSignal || 'none'),
+        confidence: Number(L.lastConfidence) || 0,
+        progress: p ? { step: Number(p.step) || 0, total: Number(p.total) || 0 } : null,
+        send: send ? {
+          state: String(send.state || 'unknown'),
+          path: String(send.path || 'unknown'),
+          attemptedAge: _ageBucket(send.attemptedAt)
+        } : null,
+        unattended: !!unattendedOn(),
+        ticker: String(Ticker.mode || 'unknown'),
+        degradedPhases: Array.isArray(GHOST?._degraded)
+          ? GHOST._degraded.filter(x => /^[a-z0-9-]{1,32}$/i.test(String(x))).slice(0, 12) : []
+      },
+      capabilities: {
+        input: !!h.input,
+        send: !!h.send,
+        stop: !!h.stop,
+        canRead: Number(h.assistantCount) > 0,
+        assistantCount: Number(h.assistantCount) || 0,
+        learnedKinds,
+        heuristicInputCandidate: !!(() => { try { return _heurInput(); } catch(_) { return false; } })(),
+        heuristicSendCandidate: !!(() => { try { return Adapter.getSendCandidate(); } catch(_) { return false; } })()
+      },
+      network: {
+        observerInstalled: !!h.netActive,
+        streaming: !!h.netStreaming,
+        trustedPulseAge: _ageBucket(GITL_NET.lastPulseT),
+        streamOpen: GITL_NET._open > 0
+      },
+      environment: {
+        ..._browserSummary(),
+        focused: typeof document !== 'undefined' ? !!document.hasFocus() : false,
+        hidden: typeof document !== 'undefined' ? !!document.hidden : false
+      },
+      timeline: recent
+    };
+  },
+
+  human(envelope) {
+    const d = envelope;
     const lines = [];
     lines.push(`### Ghost in the Loop — auto report`);
-    lines.push(``);
-    lines.push(`**Kind:** ${kind}`);
-    if (detail) lines.push(`**What happened:** ${detail}`);
-    lines.push(``);
+    lines.push('');
+    lines.push(`**Error code:** ${d.code}`);
+    lines.push(`**Summary:** ${d.summary}`);
+    lines.push(`**Suggested next step:** ${d.guidance}`);
+    lines.push('');
     lines.push(`| Field | Value |`);
     lines.push(`|---|---|`);
-    lines.push(`| Version | ${VER} |`);
-    lines.push(`| Platform | ${PLAT?.label || '?'} |`);
-    lines.push(`| Loop state | ${L.state || '?'} |`);
-    lines.push(`| Round | ${L.round ?? '?'} / ${L.maxRounds ?? '?'} |`);
-    lines.push(`| Progress | ${p ? `${p.step}/${p.total}${p.desc ? ' — ' + p.desc : ''}` : 'n/a'} |`);
-    lines.push(`| Last signal | ${L.lastSignal || '?'} (conf ${L.lastConfidence ?? '?'}) |`);
-    lines.push(`| Signal scores | ${DIAG?.lastSignal || 'n/a'} |`);
-    lines.push(`| Send path | ${DIAG?.sendPath || 'n/a'} |`);
-    lines.push(`| Health | ${h.badge || ''} ${h.score ?? '?'}/100 (in:${h.input} send:${h.send} stop:${h.stop} msgs:${h.assistantCount}) |`);
-    lines.push(`| Net intercept | ${h.netActive ? 'active' : 'off'} |`);
-    try {
-      const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
-      lines.push(`| Learned selectors | ${lm ? Object.entries(lm).map(([k,v]) => k + ': ' + v.sel).join(' · ') : 'none'} |`);
-    } catch(_) {}
-    lines.push(`| Focus | hasFocus:${typeof document!=='undefined'?document.hasFocus():'?'} hidden:${typeof document!=='undefined'?document.hidden:'?'} |`);
-    lines.push(`| Unattended | ${unattendedOn()?'ON':'off'} · ticker:${Ticker.mode} |`);
-    lines.push(`| UA | ${typeof navigator!=='undefined'?navigator.userAgent:'?'} |`);
-    lines.push(`| When | ${new Date().toISOString()} |`);
-    lines.push(``);
-    if (DIAG?.lastTail) { lines.push(`**Last output tail:**`); lines.push('```'); lines.push(String(DIAG.lastTail).slice(0,300)); lines.push('```'); lines.push(``); }
-    if (DIAG?.probe)    { lines.push(`**Selector probe:**`); lines.push('```'); lines.push(DIAG.probe); lines.push('```'); lines.push(``); }
-    if (DIAG?.errors?.length) { lines.push(`**Recent diagnostics:**`); lines.push('```'); lines.push(DIAG.errors.slice(0,8).join('\n')); lines.push('```'); lines.push(``); }
-    if (tl.length) { lines.push(`**Timeline (last 2 min):**`); lines.push('```'); lines.push(tl.map(e => `${e.at.slice(11,19)} ${e.type} ${JSON.stringify(e.data)}`).join('\n')); lines.push('```'); }
+    lines.push(`| Version | ${d.app.version} |`);
+    lines.push(`| Platform adapter | ${d.app.platform} (${d.app.reviewedAdapter ? 'reviewed' : 'manual-send only'}) |`);
+    lines.push(`| Loop | ${d.runtime.state} · round ${d.runtime.round}/${d.runtime.maxRounds} |`);
+    lines.push(`| Capabilities | input:${d.capabilities.input} send:${d.capabilities.send} stop:${d.capabilities.stop} read:${d.capabilities.canRead} |`);
+    lines.push(`| Learned locator kinds | ${d.capabilities.learnedKinds.join(', ') || 'none'} (values excluded) |`);
+    lines.push(`| Network observer | ${d.network.observerInstalled ? 'active' : 'off'} · trusted pulse:${d.network.trustedPulseAge} |`);
+    lines.push(`| Browser | ${d.environment.family}${d.environment.major ? ' ' + d.environment.major : ''} · ${d.environment.os}${d.environment.mobile ? ' · mobile' : ''} |`);
+    lines.push(`| Focus | focused:${d.environment.focused} hidden:${d.environment.hidden} |`);
+    lines.push(`| When | ${d.createdAt} |`);
+    lines.push('');
+    lines.push(`_Privacy: this diagnostic excludes prompts, chat/output text, URLs, conversation IDs, selector strings, raw user-agent text, credentials, and stack traces._`);
+    if (d.timeline.length) {
+      lines.push('');
+      lines.push(`**Metadata timeline (last 2 min):**`);
+      lines.push('```json');
+      lines.push(JSON.stringify(d.timeline, null, 2));
+      lines.push('```');
+    }
     return lines.join('\n');
   },
 
-  // Auto-capture: assemble + store + surface a non-intrusive affordance.
-  capture(kind, detail) {
-    // Dedupe: the same failure re-captured within 10 min just refreshes
-    // the timestamp instead of rebuilding + re-sending a duplicate.
-    const sig = kind + '|' + String(detail || '').slice(0, 120);
-    const seenAt = this._seen.get(sig) || 0;
-    this._seen.set(sig, Date.now());
-    if (this.last && Date.now() - seenAt < 600000) return this.last;
-    const text = this.build(kind, detail);
-    this.last = { kind, detail, text, at: Date.now() };
+  build(kind) {
+    return this.human(this.envelope(kind));
+  },
+
+  capture(kind) {
+    const code = this.code(kind);
+    const seenAt = this._seen.get(code) || 0;
+    this._seen.set(code, Date.now());
+    if (this.last?.kind === code && Date.now() - seenAt < 600000) return this.last;
+    const envelope = this.envelope(code);
+    const text = this.human(envelope);
+    this.last = {
+      kind: code,
+      detail: envelope.summary,
+      envelope,
+      text,
+      at: Date.now()
+    };
     if (typeof GHOST !== 'undefined') GHOST.report = this.last;
-    // Optional silent transport if a relay is configured.
-    if (REPORT_WORKER_URL) { this.sendWorker(text, kind).catch(()=>{}); }
+    try { GM_setValue('lastDiagnostic', JSON.stringify(envelope)); } catch(_) {}
     try { if (typeof renderReportBadge === 'function') renderReportBadge(); } catch(_){}
     return this.last;
   },
 
   copy() {
-    const t = this.last?.text || this.build('manual', 'User-triggered report');
+    const t = this.last?.text || this.build('MANUAL-001');
     try {
       if (typeof GM_setClipboard === 'function') { GM_setClipboard(t, { type:'text', mimetype:'text/plain' }); return Promise.resolve(true); }
       if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(t).then(()=>true).catch(()=>false);
@@ -1515,126 +1811,35 @@ const Reporter = {
     return Promise.resolve(false);
   },
 
+  download() {
+    const r = this.last || this.capture('MANUAL-001');
+    const day = new Date(r.envelope.createdAt).toISOString().slice(0, 10);
+    downloadText(
+      JSON.stringify(r.envelope, null, 2),
+      `gitl-diagnostic-${r.kind.toLowerCase()}-${day}.json`,
+      'application/json'
+    );
+    Timeline.record('report_downloaded', { code: r.kind });
+    return true;
+  },
+
   issueURL() {
-    const r = this.last || { kind: 'manual', text: this.build('manual','') };
-    const title = `[auto] ${r.kind} on ${PLAT?.label || 'platform'} (v${VER})`;
-    const body  = (r.text || '').slice(0, 6000); // URL length safety
-    return `https://github.com/${REPORT_REPO}/issues/new?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+    const r = this.last || this.capture('MANUAL-001');
+    const title = `[diagnostic] ${r.kind} on ${r.envelope.app.platform} (v${VER})`;
+    /* Title only: opening GitHub never transmits the diagnostic. The user
+       chooses whether to paste the already-reviewed redacted report. */
+    return `https://github.com/${REPORT_REPO}/issues/new?title=${encodeURIComponent(title)}`;
   },
 
   openIssue() {
-    try { window.open(this.issueURL(), '_blank', 'noopener'); return true; } catch(_) { return false; }
-  },
-
-  async sendWorker(text, kind) {
-    if (!REPORT_WORKER_URL) return false;
     try {
-      const res = await fetch(REPORT_WORKER_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, version: VER, platform: PLAT?.label, report: text })
-      });
-      Timeline.record('report_sent', { kind, ok: res.ok, status: res.status });
-      return res.ok;
-    } catch(e) { Timeline.record('report_send_fail', { error: String(e) }); return false; }
-  }
-};
-
-/* ═══════════════════════════════════════════════════════════════
-   S4 — RECOVERY ENGINE (escalating send strategies)
-   When primary send fails, tries alternative injection paths
-   with exponential backoff. Logs every attempt to Timeline.
-   Sources: Kimi Deep Dive, DeepSeek fallback chain
-   ═══════════════════════════════════════════════════════════════ */
-const RecoveryEngine = {
-  async recoverSend(text) {
-    const strategies = [
-      { name: 'ce-reinsert', fn: () => this._tryCE(text) },
-      { name: 'native-setter', fn: () => this._tryNative(text) },
-      { name: 'direct-value', fn: () => this._tryDirect(text) },
-      { name: 'enter-dispatch', fn: () => this._tryEnterKey(text) },
-      { name: 'refocus-retry', fn: () => this._tryRefocus(text) }
-    ];
-    let attempt = 0;
-    for (const s of strategies) {
-      attempt++;
-      try {
-        const result = await s.fn();
-        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: result.ok });
-        if (result.ok) return { ok: true, path: s.name, attempt };
-      } catch(e) {
-        Timeline.record('recovery_attempt', { strategy: s.name, attempt, ok: false, error: String(e) });
-      }
-      await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt - 1)));
+      const r = this.last || this.capture('MANUAL-001');
+      Timeline.record('report_issue_opened', { code: r.kind });
+      window.open(this.issueURL(), '_blank', 'noopener');
+      return true;
+    } catch(_) {
+      return false;
     }
-    Timeline.record('recovery_exhausted', { text: text.slice(0, 80) });
-    return { ok: false, path: 'exhausted', attempt };
-  },
-
-  _getInput() { return Adapter.getInput(); },
-
-  async _tryCE(text) {
-    const el = this._getInput();
-    if (!el || el.getAttribute('contenteditable') !== 'true') return { ok: false };
-    el.focus();
-    document.execCommand('selectAll', false, null);
-    const ok = document.execCommand('insertText', false, text);
-    if (ok) el.dispatchEvent(new Event('input', { bubbles: true }));
-    await this._clickSend();
-    return { ok };
-  },
-
-  async _tryNative(text) {
-    const el = this._getInput();
-    if (!el || el.tagName !== 'TEXTAREA') return { ok: false };
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    if (!setter) return { ok: false };
-    el.focus();
-    setter.call(el, text);
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _tryDirect(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.focus();
-    el.value = text;
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _tryEnterKey(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.focus();
-    Adapter.pressEnter(el);
-    return { ok: true };
-  },
-
-  async _tryRefocus(text) {
-    const el = this._getInput();
-    if (!el) return { ok: false };
-    el.scrollIntoView({ behavior: 'instant', block: 'center' });
-    el.focus();
-    await new Promise(r => setTimeout(r, 300));
-    el.value = text;
-    el.textContent = text;
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }));
-    await this._clickSend();
-    return { ok: true };
-  },
-
-  async _clickSend() {
-    await new Promise(r => setTimeout(r, 400));
-    const btn = Adapter.getSendBtn();
-    if (btn && !btn.disabled) { btn.click(); return true; }
-    const input = this._getInput();
-    if (input) Adapter.pressEnter(input);
-    return true;
   }
 };
 
@@ -1846,9 +2051,9 @@ function sendRoadmapStep() {
 }
 
 function sendRoadmapSynthesis() {
-  GHOST.roadmap.synthSent = true;
   GHOST.loop.detail = '🗺 Final synthesis';
-  engineSend(`Continue.\n\n[Ghost roadmap — final synthesis]\nAll roadmap steps are complete. Compile the final deliverable: merge every step's output into one clean, complete, ready-to-use result. No recap of process, no fluff. End with [[GITL::HALT]].`, false);
+  engineSend(`Continue.\n\n[Ghost roadmap — final synthesis]\nAll roadmap steps are complete. Compile the final deliverable: merge every step's output into one clean, complete, ready-to-use result. No recap of process, no fluff. End with [[GITL::HALT]].`, false)
+    .then(ok => { GHOST.roadmap.synthSent = !!ok; render(); });
 }
 
 /* ── Walk-away notifications ─────────────────────────────────── */
@@ -1880,10 +2085,69 @@ function randomDelay(round) {
   return (8 + Math.random() * 7) * 1000;
 }
 
+let _pendingSendResolve = null;
+
+function _composerText(el) {
+  return String((el && (el.value || el.textContent)) || '').trim();
+}
+
+function _settleSendPromise(ok) {
+  const resolve = _pendingSendResolve;
+  _pendingSendResolve = null;
+  if (resolve) {
+    try { resolve(!!ok); } catch(_) {}
+  }
+}
+
+function _beginSendAttempt(path, input) {
+  const L = GHOST.loop;
+  const lastText = Adapter.getLastText() || '';
+  const txn = {
+    id: crypto.randomUUID?.() || `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    state: 'dispatching',
+    path: String(path || 'reviewed-button'),
+    attemptedAt: Date.now(),
+    assistantCount: _qAll(PLAT.assistant).length,
+    assistantTextLength: lastText.length,
+    trustedPulseAt: GITL_NET.lastPulseT || 0,
+    composerHadText: _composerText(input).length > 0
+  };
+  L.sendTxn = txn;
+  L.sendPending = true;
+  L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
+  GITL_NET.expectUntil = Date.now() + SEND_CONFIRM_MS;
+  Timeline.record('send_attempted', {
+    command: txn.id.slice(0, 8),
+    round: L.round + 1,
+    path: txn.path
+  });
+  return new Promise(resolve => { _pendingSendResolve = resolve; });
+}
+
+function _sendEvidence() {
+  const L = GHOST.loop;
+  const txn = L.sendTxn;
+  if (!txn || txn.state !== 'dispatching') return { confirmed: false, evidence: 'none' };
+
+  const assistantCount = _qAll(PLAT.assistant).length;
+  const assistantTextLength = (Adapter.getLastText() || '').length;
+  if (assistantCount > txn.assistantCount || assistantTextLength > txn.assistantTextLength + 4) {
+    return { confirmed: true, evidence: 'assistant-transition' };
+  }
+
+  const input = Adapter.peekInput();
+  const composerCleared = txn.composerHadText && !!input && _composerText(input).length < 4;
+  const stopVisible = !!_q('gen', PLAT.stop);
+  const trustedNetwork = GITL_NET.lastPulseT > txn.trustedPulseAt
+    && Date.now() - GITL_NET.lastPulseT < 5000;
+  if (composerCleared && stopVisible) return { confirmed: true, evidence: 'composer+stop' };
+  if (composerCleared && trustedNetwork) return { confirmed: true, evidence: 'composer+trusted-network' };
+  return { confirmed: false, evidence: 'insufficient' };
+}
+
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
-  /* S0: pre-send safety gate */
   const safe = assertInteractionSafe();
   if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
@@ -1895,133 +2159,145 @@ async function engineSend(text, skipDelay) {
       await sleep(delay);
     }
     if (L.state !== 'RUNNING') return false;
+    if (!await verifyTabLease()) {
+      L.detail = '⚠ Another tab owns this conversation';
+      Timeline.record('send_blocked', { reason: 'tab-lease-lost' });
+      enginePause('Another tab owns this conversation');
+      return false;
+    }
+    if (Adapter.isGenerating()) {
+      L.detail = '⚠ Reply is still generating';
+      Timeline.record('send_blocked', { reason: 'reply-generating' });
+      render();
+      return false;
+    }
     const input = Adapter.getInput();
     if (!input) {
-      /* S4: try recovery engine before giving up */
-      DIAG.push('No input — trying recovery');
-      const r = await RecoveryEngine.recoverSend(text);
-      if (r.ok) { _onSendOk(text, `recovery-${r.path}`); return true; }
-      pauseWithProbe('Input element missing — recovery exhausted'); return false;
+      Reporter.capture('COMPOSER-001', 'No uniquely identifiable chat composer was available.');
+      pauseWithProbe('No safe chat composer found');
+      return false;
     }
     if (!Adapter.injectText(input, text)) {
-      DIAG.push('Inject failed — trying recovery');
-      const r = await RecoveryEngine.recoverSend(text);
-      if (r.ok) { _onSendOk(text, `recovery-${r.path}`); return true; }
-      pauseWithProbe('Text injection failed — recovery exhausted'); return false;
+      Reporter.capture('COMPOSER-001', 'The reviewed composer rejected text injection.');
+      pauseWithProbe('Chat composer rejected the prompt');
+      return false;
     }
     await sleep(500);
-    // Three-stage send with verification (from MCP-SuperAssistant research):
-    // Stage 1: button.click() → verify input cleared
-    // Stage 2: Enter key with composed:true (crosses Shadow DOM)
-    // Stage 3: insertParagraph beforeinput (ProseMirror/Lexical native)
-    let sent = false;
-    const inputIsEmpty = () => { const v = input.value || input.textContent || ''; return v.trim().length < 4; };
-    // Tier memory: if the button tier failed here last time, don't burn 3 tries on it again.
-    const _lastTier = GM_getValue('sendTier:' + location.hostname, '');
-    const _btnWorked = /^btn-\d+$/.test(_lastTier); // pure button path = the button actually worked last time
-    const _btnTries = (!_lastTier || _btnWorked) ? 3 : 1;
-    for (let attempt = 0; attempt < _btnTries; attempt++) {
-      const btn = Adapter.getSendBtn();
-      if (btn && !btn.disabled) {
-        btn.click(); DIAG.sendPath = `btn-${attempt+1}`;
-        await sleep(400);
-        if (inputIsEmpty()) { sent = true; break; }
-      }
-      await sleep(500);
+    const btn = Adapter.getSendBtn();
+    if (!btn) {
+      Reporter.capture('SEND-001', PLAT?.reviewed
+        ? 'No unique reviewed Send control was available.'
+        : 'This site has no reviewed automation adapter; use manual Send.');
+      pauseWithProbe('No safe Send control — prompt left for manual review');
+      return false;
     }
-    if (!sent) {
-      input.focus();
-      ['keydown','keypress','keyup'].forEach(t => {
-        input.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
-      });
-      DIAG.sendPath = (DIAG.sendPath||'none') + '+enter';
-      await sleep(300);
-      if (inputIsEmpty()) sent = true;
+    DIAG.sendPath = 'reviewed-button';
+    const completion = _beginSendAttempt(DIAG.sendPath, input);
+    try {
+      btn.click();
+    } catch(_) {
+      L.sendPending = false;
+      L.sendDeadline = 0;
+      if (L.sendTxn) L.sendTxn.state = 'failed';
+      Timeline.record('send_failed', { code: 'SEND-001', stage: 'dispatch' });
+      Reporter.capture('SEND-001', 'The reviewed Send control could not be activated.');
+      _settleSendPromise(false);
+      enginePause('Send failed before dispatch');
+      return false;
     }
-    if (!sent) {
-      try { input.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
-      DIAG.sendPath = (DIAG.sendPath||'none') + '+paragraph';
-      await sleep(300);
-      if (inputIsEmpty()) sent = true;
-    }
-    // Tier 5: native form submission — buttonless, survives any button redesign.
-    if (!sent) {
-      try {
-        const f = input.closest && input.closest('form');
-        if (f && f.requestSubmit) {
-          f.requestSubmit();
-          DIAG.sendPath = (DIAG.sendPath||'none') + '+form';
-          await sleep(300);
-          if (inputIsEmpty()) sent = true;
-        }
-      } catch(_){}
-    }
-    _onSendOk(text, DIAG.sendPath);
-    return true;
+    return await completion;
   } catch(e) {
-    DIAG.push('Send error: ' + String(e));
-    Timeline.record('send_fail', { error: String(e) });
+    DIAG.push('Send error');
+    if (L.sendPending) {
+      L.sendPending = false;
+      if (L.sendTxn) L.sendTxn.state = 'uncertain';
+    }
+    _settleSendPromise(false);
+    Timeline.record('send_failed', { code: 'SEND-002', stage: 'exception' });
+    Reporter.capture('SEND-002', 'Send could not be confirmed after an internal error.');
     enginePause('Send failed');
     return false;
   } finally {
-    setTimeout(() => { L.isSending = false; }, 1500);
+    L.isSending = false;
   }
 }
 
-/* Records a successful send AND arms the confirmation watchdog.
-   The send isn't "done" until generation actually starts — see
-   the confirmation branch in engineTick. */
-function _onSendOk(text, path) {
+/* Commit is the only transition allowed to advance state. */
+function _confirmSend(evidence) {
   const L = GHOST.loop;
-  GITL_NET.expectUntil = Date.now() + 120000; // heuristic net pulses count for 2 min
-  try { GM_setValue('sendTier:' + location.hostname, String(path || '')); } catch(_) {}
+  const txn = L.sendTxn;
+  if (!L.sendPending || !txn || txn.state !== 'dispatching') return false;
+  txn.state = 'committed';
+  txn.evidence = evidence || 'independent-observation';
+  txn.committedAt = Date.now();
+  L.sendPending = false;
+  L.sendDeadline = 0;
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
   L.detail = '';
-  // Arm confirmation: generation must begin before the deadline.
-  L.sendPending   = true;
-  L.sendDeadline  = Date.now() + SEND_CONFIRM_MS;
-  L.lastSentText  = text;
-  L.lastTextLen   = (Adapter.getLastText() || '').length;
-  L.sendRetries   = 0;
-  Timeline.record('send_ok', { round: L.round, path });
+  try { GM_setValue('sendTier:' + location.hostname, txn.path); } catch(_) {}
+  Timeline.record('send_confirmed', {
+    command: txn.id.slice(0, 8),
+    round: L.round,
+    path: txn.path,
+    evidence: txn.evidence
+  });
+  _settleSendPromise(true);
   render();
+  return true;
 }
 
-/* Clears the pending-send flag once generation is confirmed. */
-function _confirmSend() {
+function _markSendUncertain() {
   const L = GHOST.loop;
-  if (!L.sendPending) return;
-  L.sendPending  = false;
+  const txn = L.sendTxn;
+  if (!L.sendPending || !txn) return false;
+  txn.state = 'uncertain';
+  txn.uncertainAt = Date.now();
+  L.sendPending = false;
   L.sendDeadline = 0;
-  L.sendRetries  = 0;
-  Timeline.record('send_confirmed', { round: L.round });
+  Timeline.record('send_uncertain', {
+    code: 'SEND-002',
+    command: txn.id.slice(0, 8),
+    round: L.round
+  });
+  Reporter.capture('SEND-002', 'Send could not be confirmed. Nothing was resent.');
+  _settleSendPromise(false);
+  try { DIAG.runProbe(); GHOST.ui.showDiag = true; } catch(_) {}
+  enginePause('Send uncertain — review the conversation before retrying');
+  return true;
 }
 
-/* Re-fires the pending send without bumping the round counter.
-   Used when a send appears to have been swallowed (no generation). */
-async function _refireSend() {
+/* Human reconciliation is the only way out of an ambiguous dispatch.
+   This never re-clicks Send. */
+function reconcileUncertainSend(delivered) {
   const L = GHOST.loop;
-  const text = L.lastSentText;
-  L.sendRetries++;
-  DIAG.push(`Send unconfirmed — re-firing (attempt ${L.sendRetries}/${SEND_MAX_RETRIES})`);
-  Timeline.record('send_refire', { round: L.round, attempt: L.sendRetries });
-  L.detail = `↻ Re-sending (${L.sendRetries}/${SEND_MAX_RETRIES})…`;
-  render();
-  const input = Adapter.getInput();
-  if (input) {
-    Adapter.injectText(input, text);
-    await sleep(400);
-    const btn = Adapter.getSendBtn();
-    if (btn && !btn.disabled) btn.click();
-    else Adapter.pressEnter(input);
-  } else {
-    await RecoveryEngine.recoverSend(text);
+  const txn = L.sendTxn;
+  if (!txn || txn.state !== 'uncertain') return false;
+  if (!delivered) {
+    txn.state = 'failed';
+    txn.reconciledAt = Date.now();
+    L.detail = 'Prompt left in the composer — use the site’s Send button manually.';
+    Timeline.record('send_reconciled', { command: txn.id.slice(0, 8), delivered: false });
+    render();
+    return true;
   }
-  // Re-arm the confirmation window for this attempt.
-  L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
+  txn.state = 'committed';
+  txn.evidence = 'human-confirmed';
+  txn.committedAt = Date.now();
+  L.round++;
   L.lastActivity = Date.now();
+  L.staleTicks = 0;
+  L.state = 'RUNNING';
+  L.detail = '✓ Delivery confirmed by you';
+  Timeline.record('send_reconciled', {
+    command: txn.id.slice(0, 8),
+    delivered: true,
+    round: L.round
+  });
+  L.timer = Ticker.start(engineTick, 2500);
+  render();
+  return true;
 }
 
 function engineHalt(reason) {
@@ -2036,9 +2312,24 @@ function engineHalt(reason) {
 
 function enginePause(reason) {
   const L = GHOST.loop;
+  let interruptedDispatch = false;
+  if (L.sendPending) {
+    L.sendPending = false;
+    L.sendDeadline = 0;
+    if (L.sendTxn && L.sendTxn.state === 'dispatching') {
+      L.sendTxn.state = 'uncertain';
+      L.sendTxn.uncertainAt = Date.now();
+      interruptedDispatch = true;
+    }
+    _settleSendPromise(false);
+  }
   L.state = 'PAUSED'; L.detail = reason;
   Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
+  if (interruptedDispatch) {
+    Timeline.record('send_uncertain', { code: 'SEND-002', round: L.round });
+    Reporter.capture('SEND-002');
+  }
   render();
   notify('⏸ ' + reason);
 }
@@ -2095,28 +2386,20 @@ function engineTick() {
   const L = GHOST.loop;
   if (L.state !== 'RUNNING') return;
 
-  // ── Send-confirmation watchdog (v7.1) ──────────────────────────
-  // A send was fired; confirm generation actually started. Catches the
-  // "Enter swallowed by a notification focus-steal" stuck-screen bug.
+  // ── At-most-once send observation ─────────────────────────────
   if (L.sendPending) {
-    const grewOutput = (Adapter.getLastText() || '').length > L.lastTextLen + 4;
-    if (Adapter.isGenerating() || grewOutput) {
-      _confirmSend();
+    const observed = _sendEvidence();
+    if (observed.confirmed) {
+      _confirmSend(observed.evidence);
       L.lastActivity = Date.now();
-      // fall through: if generating, the branch below will hold the loop
     } else if (Date.now() >= L.sendDeadline) {
-      if (L.sendRetries < SEND_MAX_RETRIES && (unattendedOn() || (document.hasFocus() && !document.hidden))) {
-        _refireSend();           // re-fire; confirm on a later tick
-        return;
-      }
-      // Exhausted re-fires (or tab not actionable) → pause + report
-      L.sendPending = false;
-      Timeline.record('send_unconfirmed', { round: L.round, retries: L.sendRetries });
-      Reporter.capture('send_unconfirmed', `Generation never started after ${L.sendRetries} re-fire(s). Likely the send was swallowed (focus-steal / disabled control).`);
-      pauseWithProbe('Send didn’t start — generation never began');
+      _markSendUncertain();
+      return;
+    } else {
+      // Do not parse stale output or dispatch another command while the
+      // current attempt is unresolved.
       return;
     }
-    // else: still inside the grace window, keep waiting
   }
 
   // Watchdog — 90s soft, 180s hard
@@ -2326,6 +2609,11 @@ function startWorkflow() {
 function startLoop() {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (L.sendTxn?.state === 'uncertain') {
+    L.detail = 'Choose “I see it in chat” or “Leave for manual Send” first.';
+    render();
+    return;
+  }
   const input = Adapter.getInput();
   const typed = input ? (input.value || input.textContent || '').trim() : '';
 
@@ -2400,12 +2688,21 @@ function primaryAction() {
   if (s === 'RUNNING') return pauseLoop();
   if (s === 'LIMIT')   return extendLimit();
   return startLoop();
-}function stopLoop() {
+}
+
+function stopLoop() {
   const L = GHOST.loop;
+  if (L.state === 'IDLE' || L.state === 'COMPLETE') return;
+  enginePause('Stopped — progress preserved. Resume or reset when ready.');
+}
+
+function resetLoop() {
+  const L = GHOST.loop;
+  _settleSendPromise(false);
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
-  L.sendPending = false; L.sendRetries = 0;
+  L.sendPending = false; L.sendDeadline = 0; L.sendTxn = null;
   GHOST.persona._reviewDone = false;
   GHOST.persona._delivered = false;
   Ticker.stop(); L.timer = null;
@@ -2442,7 +2739,10 @@ window.addEventListener('gitl:route', () => {
       try { sameHost = new URL(prevHref).hostname === location.hostname; } catch(_) {}
       const justSent = GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000);
       if (sameHost && justSent) {
-        Timeline.record('route_id_assigned', { from: prevHref, to: location.href });
+        Timeline.record('route_id_assigned', {
+          from: _safeRouteClass(prevHref),
+          to: _safeRouteClass(location.href)
+        });
         return;
       }
       enginePause('Route changed — paused');
@@ -2561,11 +2861,25 @@ function reDetect() {
 /* ═══════════════════════════════════════════════════════════════
    CRASH RECOVERY
    ═══════════════════════════════════════════════════════════════ */
+function _safeRouteClass(href) {
+  try {
+    const pathname = href ? new URL(href, location.origin).pathname : location.pathname;
+    return pathname.split('/').filter(Boolean).slice(0, 3)
+      .map(part => (/^[a-f0-9-]{12,}$/i.test(part) || part.length > 32) ? ':id' : part)
+      .join('/') || '/';
+  } catch(_) {
+    return '/';
+  }
+}
+
 window.addEventListener('beforeunload', () => {
   if (GHOST.loop.state === 'RUNNING' || GHOST.loop.state === 'PAUSED') {
+    const txn = GHOST.loop.sendTxn;
     _save('crashState', JSON.stringify({
       state: GHOST.loop.state, round: GHOST.loop.round, mode: GHOST.loop.payloadMode,
-      url: location.href, ts: Date.now(), wasRunning: GHOST.loop.state === 'RUNNING'
+      site: PLAT?.key || 'generic', routeClass: _safeRouteClass(),
+      ts: Date.now(), wasRunning: GHOST.loop.state === 'RUNNING',
+      send: txn ? { id: String(txn.id || '').slice(0, 8), state: txn.state, attemptedAt: txn.attemptedAt || 0 } : null
     }));
   }
 });
@@ -2577,7 +2891,18 @@ window.addEventListener('beforeunload', () => {
     const cs = JSON.parse(raw);
     _save('crashState', '');
     if (Date.now() - cs.ts > 300000) return;
-    if (cs.url !== location.href) return;
+    if (cs.site !== (PLAT?.key || 'generic') || cs.routeClass !== _safeRouteClass()) return;
+    if (cs.send && (cs.send.state === 'dispatching' || cs.send.state === 'uncertain')) {
+      GHOST.loop.state = 'PAUSED';
+      GHOST.loop.sendTxn = {
+        id: cs.send.id || 'unknown',
+        state: 'uncertain',
+        attemptedAt: cs.send.attemptedAt || cs.ts
+      };
+      GHOST.loop.detail = 'Crash recovery: prior Send is uncertain. Check the conversation; nothing was resent.';
+      Reporter.capture('SEND-002', 'A reload interrupted Send confirmation. Nothing was resent.');
+      return;
+    }
     // Only flag as crash if it was running (not manual refresh)
     if (cs.wasRunning) {
       const rm = GHOST.roadmap.captured && GHOST.roadmap.steps.length ? ` Roadmap at step ${GHOST.roadmap.index}/${GHOST.roadmap.steps.length}.` : '';
@@ -2602,13 +2927,14 @@ function buildFilename(mode) {
       thinking, immune to virtualization and redesigns). DOM remains the fallback. ── */
 
 // ChatGPT — technique from pionxzh/chatgpt-exporter: session token + backend-api, walk the node tree
-async function apiExportChatGPT() {
+async function apiExportChatGPT(signal) {
   const id = location.pathname.match(/\/c\/([\w-]+)/)?.[1];
   if (!id) return null;
-  const sess = await (await fetch(location.origin + '/api/auth/session')).json();
+  const sess = await (await fetch(location.origin + '/api/auth/session', { signal })).json();
   if (!sess?.accessToken) return null;
   const r = await fetch(location.origin + '/backend-api/conversation/' + id, {
-    headers: { 'Authorization': 'Bearer ' + sess.accessToken }
+    headers: { 'Authorization': 'Bearer ' + sess.accessToken },
+    signal
   });
   if (!r.ok) return null;
   const conv = await r.json();
@@ -2618,48 +2944,81 @@ async function apiExportChatGPT() {
   let node = conv.mapping[conv.current_node];
   while (node) { chain.unshift(node); node = node.parent ? conv.mapping[node.parent] : null; }
   const out = [];
+  let expected = 0, omitted = 0, unsupportedParts = 0;
   for (const n of chain) {
     const m = n.message;
-    if (!m || !m.author || m.author.role === 'system' || m.author.role === 'tool') continue;
+    if (!m || !m.author || !['user','assistant'].includes(m.author.role)) continue;
+    expected++;
     const c = m.content || {};
     let text = '';
-    if (Array.isArray(c.parts)) text = c.parts.map(p => typeof p === 'string' ? p : (p?.text || '')).join('\n').trim();
+    if (Array.isArray(c.parts)) {
+      text = c.parts.map(p => {
+        if (typeof p === 'string') return p;
+        if (typeof p?.text === 'string') return p.text;
+        unsupportedParts++;
+        return '';
+      }).join('\n').trim();
+    }
     else if (typeof c.text === 'string') text = c.text.trim();
     if (c.content_type === 'code' && text) text = '```\n' + text + '\n```';
     let thinking = '';
     if (GHOST.export.thinking && Array.isArray(c.thoughts)) thinking = c.thoughts.map(t => t?.content || t?.summary || '').filter(Boolean).join('\n\n');
     if (text || thinking) out.push(thinking ? { role: m.author.role, index: out.length, text, thinking } : { role: m.author.role, index: out.length, text });
+    else omitted++;
   }
-  return out.length ? out : null;
+  return out.length ? {
+    messages: out,
+    source: 'chatgpt-api',
+    expected,
+    omitted,
+    unsupportedParts,
+    scope: 'active-branch'
+  } : null;
 }
 
 // Claude — technique from socketteer/Claude-Conversation-Exporter, improved: orgId auto-fetched
 // (their users had to paste it manually — their top setup complaint)
-async function apiExportClaude() {
+async function apiExportClaude(signal) {
   const convId = location.pathname.match(/\/chat\/([\w-]+)/)?.[1];
   if (!convId) return null;
-  const orgs = await (await fetch('/api/organizations', { credentials: 'include' })).json();
+  const orgs = await (await fetch('/api/organizations', { credentials: 'include', signal })).json();
   const orgId = Array.isArray(orgs) ? orgs[0]?.uuid : null;
   if (!orgId) return null;
-  const r = await fetch(`/api/organizations/${orgId}/chat_conversations/${convId}?tree=True&rendering_mode=messages&render_all_tools=true`, { credentials: 'include' });
+  const r = await fetch(`/api/organizations/${orgId}/chat_conversations/${convId}?tree=True&rendering_mode=messages&render_all_tools=true`, { credentials: 'include', signal });
   if (!r.ok) return null;
   const data = await r.json();
   const msgs = data?.chat_messages;
   if (!Array.isArray(msgs)) return null;
   const out = [];
+  let omitted = 0, unsupportedParts = 0;
   for (const m of msgs) {
     const role = m.sender === 'human' ? 'user' : 'assistant';
     let text = '', thinking = '';
     for (const b of (m.content || [])) {
       if (b.type === 'text' && b.text) text += (text ? '\n\n' : '') + b.text;
-      else if (b.type === 'thinking' && GHOST.export.thinking) thinking += (thinking ? '\n\n' : '') + (b.thinking || b.text || '');
-      else if (b.type === 'tool_use') text += (text ? '\n' : '') + `[tool: ${b.name || 'call'}]`;
+      else if (b.type === 'thinking') {
+        if (GHOST.export.thinking) thinking += (thinking ? '\n\n' : '') + (b.thinking || b.text || '');
+      }
+      else if (b.type === 'tool_use') {
+        text += (text ? '\n' : '') + `[tool: ${b.name || 'call'}]`;
+        unsupportedParts++;
+      } else {
+        unsupportedParts++;
+      }
     }
     if (!text && typeof m.text === 'string') text = m.text;
     text = text.trim();
     if (text || thinking) out.push(thinking ? { role, index: out.length, text, thinking } : { role, index: out.length, text });
+    else omitted++;
   }
-  return out.length ? out : null;
+  return out.length ? {
+    messages: out,
+    source: 'claude-api',
+    expected: msgs.length,
+    omitted,
+    unsupportedParts,
+    scope: 'conversation'
+  } : null;
 }
 
 const API_EXPORTERS = { 'ChatGPT': apiExportChatGPT, 'Claude': apiExportClaude };
@@ -2667,6 +3026,7 @@ const API_EXPORTERS = { 'ChatGPT': apiExportChatGPT, 'Claude': apiExportClaude }
 /* ── The Veil: export progress overlay ───────────────────────── */
 const VEIL = {
   el: null, steps: [], idx: 0, cancelled: false, lastBeat: 0, _wd: null,
+  controller: null,
   _popover: false,        // true if using the Popover API top-layer path
   _richChecked: false,    // FPS probe runs once per session
   _visBound: false,
@@ -2695,7 +3055,12 @@ const VEIL = {
         <button class="gv-cancel" id="gv-cancel">Cancel</button>
       </div>`);
     document.body.appendChild(this.el);
-    this.el.querySelector('#gv-cancel').addEventListener('click', () => { this.cancelled = true; this.el.querySelector('#gv-title').textContent = 'Stopping…'; });
+    this.el.querySelector('#gv-cancel').addEventListener('click', () => {
+      this.cancelled = true;
+      try { this.controller?.abort(); } catch(_) {}
+      this.el.querySelector('#gv-title').textContent = 'Stopping…';
+      this.el.querySelector('#gv-note').textContent = 'No file will be created.';
+    });
     // Re-assert top-layer if the tab was backgrounded (mobile browsers can drop
     // the overlay behind native chrome when returning to the foreground).
     if (!this._visBound) {
@@ -2734,6 +3099,7 @@ const VEIL = {
   },
   show(steps) {
     this.ensure(); this.steps = steps; this.idx = 0; this.cancelled = false; this.lastBeat = Date.now();
+    this.controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     if (this._popover) { try { this.el.showPopover(); } catch(_) { this._popover = false; this.el.style.display = 'flex'; } }
     else { this.el.style.display = 'flex'; }
     this._maybeRich();
@@ -2742,7 +3108,7 @@ const VEIL = {
       const quiet = Date.now() - this.lastBeat;
       const note = this.el.querySelector('#gv-note');
       if (quiet > 8000) note.textContent = '⏳ Still working — the page is slow. Don\'t reload.';
-      if (quiet > 25000) note.textContent = '⚠️ This looks stuck. Cancel is safe — Ghost keeps what it collected.';
+      if (quiet > 25000) note.textContent = '⚠️ This looks stuck. Cancel is safe — no file will be created.';
     }, 2000);
   },
   step(i, label) {
@@ -2766,6 +3132,7 @@ const VEIL = {
     if (!this.el) return;
     if (this._popover) { try { this.el.hidePopover(); } catch(_){} this.el.style.display = 'none'; }
     else { this.el.style.display = 'none'; }
+    this.controller = null;
   }
 };
 
@@ -2776,12 +3143,15 @@ async function expandThinking() {
   // Auto-click collapsed "Thinking" toggles so reasoning text enters the DOM.
   let clicked = 0;
   for (let pass = 0; pass < 3; pass++) {
+    if (VEIL.cancelled) break;
     let n = 0;
     document.querySelectorAll('details:not([open])').forEach(d => {
+      if (VEIL.cancelled) return;
       if (!d.closest('#gitl')) { try { d.open = true; n++; } catch(_){} }
     });
     document.querySelectorAll('button,[role="button"],summary').forEach(b => {
       try {
+        if (VEIL.cancelled) return;
         if (b.closest('#gitl') || b.dataset.gitlExpanded) return;
         const label = ((b.innerText || '') + ' ' + (b.getAttribute('aria-label') || '')).slice(0, 80);
         if (THINK_TOGGLE_RX.test(label) && b.getAttribute('aria-expanded') !== 'true') {
@@ -2956,7 +3326,67 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+/* Config backup intentionally excludes project/chat/roadmap text, custom
+   personas/workflows, skins, custom site selectors, and diagnostics. Those
+   have separate formats and validators. */
+const CONFIG_SCHEMA = 'gitl.config.v1';
+const CONFIG_KEYS = [
+  'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
+  'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
+  'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
+  'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
+  'skinTheme','accentHue','unattended','firstRun'
+];
+const CONFIG_BOOL_KEYS = new Set([
+  'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
+  'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
+  'cfgAdv','expAdv','unattended','firstRun'
+]);
+const CONFIG_DEFAULTS = Object.freeze({
+  wfAuto:true, wfPause:false,
+  personaCommittee:false, personaPerTask:false, personaFinalReview:false,
+  payloadMode:'loop', posture:'standard', maxRounds:20, driftEnabled:true,
+  customProceed:'', customStop:'', sigWindow:400,
+  expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
+  panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
+  cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
+  unattended:false, firstRun:true
+});
+
+function _validConfigValue(key, value) {
+  if (CONFIG_BOOL_KEYS.has(key)) return typeof value === 'boolean';
+  if (key === 'maxRounds') return Number.isInteger(value) && value >= 1 && value <= 999;
+  if (key === 'sigWindow') return Number.isInteger(value) && value >= 200 && value <= 1200;
+  if (key === 'accentHue') return value === '' || (Number.isInteger(value) && value >= 0 && value <= 360);
+  if (key === 'payloadMode') return ['loop','think','roadmap'].includes(value);
+  if (key === 'posture') return Object.prototype.hasOwnProperty.call(POSTURES, value);
+  if (key === 'expFormat') return ['markdown','json'].includes(value);
+  if (key === 'expFilter') return ['all','user','assistant','code'].includes(value);
+  if (key === 'panelPosition') return ['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left'].includes(value);
+  if (key === 'skinTheme') return Object.prototype.hasOwnProperty.call(SKIN_PRESETS, value);
+  if (key === 'customProceed' || key === 'customStop') return typeof value === 'string' && value.length <= 120;
+  if (key === 'expSlug') return typeof value === 'string' && value.length <= 80;
+  return false;
+}
+
+function _validateConfigBundle(jsonText) {
+  let data;
+  try { data = JSON.parse(jsonText); } catch(_) { return { ok:false, error:'Invalid JSON' }; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok:false, error:'Malformed config file' };
+  if (data.schema !== CONFIG_SCHEMA) return { ok:false, error:`Expected schema ${CONFIG_SCHEMA}` };
+  if (!Object.keys(data).every(k => ['schema','version','exported','config'].includes(k))) {
+    return { ok:false, error:'Config file contains unknown top-level fields' };
+  }
+  const cfg = data.config;
+  if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) return { ok:false, error:'Missing config object' };
+  const keys = Object.keys(cfg);
+  if (!keys.length) return { ok:false, error:'Config file is empty' };
+  for (const key of keys) {
+    if (!CONFIG_KEYS.includes(key)) return { ok:false, error:`Unknown config key: ${key}` };
+    if (!_validConfigValue(key, cfg[key])) return { ok:false, error:`Invalid value for ${key}` };
+  }
+  return { ok:true, config:{ ...cfg } };
+}
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -3075,65 +3505,215 @@ function handoffInChat() {
 
 function backupConfig() {
   const cfg = {};
-  for (const k of GM_KEYS) cfg[k] = GM_getValue(k, undefined);
-  downloadText(JSON.stringify({ gitl_version: VER, exported: new Date().toISOString(), config: cfg }, null, 2),
+  for (const key of CONFIG_KEYS) {
+    const value = GM_getValue(key, CONFIG_DEFAULTS[key]);
+    if (value !== undefined && _validConfigValue(key, value)) cfg[key] = value;
+  }
+  downloadText(JSON.stringify({
+    schema: CONFIG_SCHEMA,
+    version: VER,
+    exported: new Date().toISOString(),
+    config: cfg
+  }, null, 2),
     'gitl-config-backup.json', 'application/json');
 }
 
 function restoreConfig(jsonText) {
+  const checked = _validateConfigBundle(jsonText);
+  if (!checked.ok) return `⚠ Import failed: ${checked.error}. Nothing changed.`;
+  const previous = {};
+  for (const key of Object.keys(checked.config)) previous[key] = GM_getValue(key, undefined);
   try {
-    const data = JSON.parse(jsonText);
-    const cfg = data.config || data;
-    let n = 0;
-    for (const k of GM_KEYS) { if (k in cfg && cfg[k] !== undefined) { GM_setValue(k, cfg[k]); n++; } }
-    return `✓ Restored ${n} settings — reload the page to apply.`;
-  } catch(e) { return '⚠ Invalid backup file.'; }
+    for (const [key, value] of Object.entries(checked.config)) GM_setValue(key, value);
+    Timeline.record('config_import', { settings: Object.keys(checked.config).length, ok:true });
+    return `✓ Restored ${Object.keys(checked.config).length} settings — reload the page to apply.`;
+  } catch(_) {
+    try { for (const [key, value] of Object.entries(previous)) GM_setValue(key, value); } catch(_) {}
+    Timeline.record('config_import', { settings:0, ok:false });
+    return '⚠ Import could not be committed; previous settings were restored.';
+  }
+}
+
+function _assessExportCapture(capture) {
+  const messages = Array.isArray(capture?.messages) ? capture.messages : [];
+  const source = String(capture?.source || 'unknown');
+  const expected = Number.isInteger(capture?.expected) ? capture.expected : null;
+  const omitted = Math.max(0, Number(capture?.omitted) || 0);
+  const unsupportedParts = Math.max(0, Number(capture?.unsupportedParts) || 0);
+  const warnings = Array.isArray(capture?.warnings) ? [...capture.warnings] : [];
+  const roles = messages.reduce((out, m) => {
+    const role = m?.role === 'user' ? 'user' : m?.role === 'assistant' ? 'assistant' : 'other';
+    out[role] = (out[role] || 0) + 1;
+    return out;
+  }, { user: 0, assistant: 0, other: 0 });
+
+  if (!messages.length) {
+    return {
+      schema: 'gitl.export-result.v1',
+      status: 'failed',
+      source,
+      captured: 0,
+      expected,
+      roles,
+      warnings: [...new Set([...warnings, 'No messages were captured.'])]
+    };
+  }
+
+  let status = source.endsWith('-api') ? 'complete' : 'partial';
+  if (!source.endsWith('-api')) {
+    warnings.push('DOM capture cannot prove that lazy-loaded or virtualized history is complete.');
+  }
+  if (expected != null && expected !== messages.length) {
+    status = 'partial';
+    warnings.push(`Captured ${messages.length} of ${expected} supported conversation turns.`);
+  }
+  if (omitted > 0) {
+    status = 'partial';
+    warnings.push(`${omitted} conversation turn(s) had no supported text content.`);
+  }
+  if (unsupportedParts > 0) {
+    status = 'partial';
+    warnings.push(`${unsupportedParts} attachment/tool/content part(s) were represented incompletely.`);
+  }
+  if (messages.length > 1 && (!roles.user || !roles.assistant)) {
+    status = 'partial';
+    warnings.push('Only one conversation role was detected.');
+  }
+  return {
+    schema: 'gitl.export-result.v1',
+    status,
+    source,
+    captured: messages.length,
+    expected,
+    roles,
+    warnings: [...new Set(warnings)]
+  };
+}
+
+function _setExportResult(result) {
+  GHOST.export.lastResult = result;
+  const icon = result.status === 'complete' ? '✓'
+    : result.status === 'partial' ? '⚠'
+    : result.status === 'cancelled' ? '■' : '✕';
+  GHOST.loop.detail = `${icon} Export ${result.status}`
+    + (Number.isFinite(result.captured) ? ` · ${result.captured} message(s)` : '');
+  Timeline.record('export_finished', {
+    state: result.status,
+    messages: Number(result.captured) || 0
+  });
+  render();
+  return result;
 }
 
 async function runExport() {
   const isManus = /Manus/i.test(PLAT.label);
   const apiFn = API_EXPORTERS[PLAT.label];
-  let raw = null;
-  // Path 1 — the platform's own archive: complete, exact, virtualization-proof
+  let capture = null;
+  let archiveUnavailable = false;
+
+  // Path 1 — platform archive. This is complete only when the returned turn
+  // count matches and no unsupported parts were observed.
   if (apiFn) {
     VEIL.show(['Fetching from platform archive', 'Building your file']);
     try {
       VEIL.step(0, 'Fetching from platform archive…');
-      raw = await apiFn().catch(e => { DIAG.push('API export failed: ' + e.message); return null; });
+      capture = await apiFn(VEIL.controller?.signal);
+      if (!capture) archiveUnavailable = true;
       VEIL.step(1, 'Building your file…');
       await sleep(150);
-    } finally { if (raw) { VEIL.hide(); } }
+    } catch(e) {
+      if (VEIL.cancelled || e?.name === 'AbortError') {
+        VEIL.hide();
+        return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'platform-api', captured:0, warnings:[] });
+      }
+      archiveUnavailable = true;
+      DIAG.push('Platform archive export was unavailable; using DOM fallback.');
+    } finally {
+      VEIL.hide();
+    }
+    if (VEIL.cancelled) {
+      return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'platform-api', captured:0, warnings:[] });
+    }
   }
-  // Path 2 — DOM (fallback, and the only path on platforms without a known API)
-  if (!raw) {
+
+  // Path 2 — DOM snapshot. It is useful but always marked partial because a
+  // rendered page cannot prove that lazy-loaded history, branches, or
+  // attachments were present.
+  if (!capture) {
     const steps = ['Reading chat', ...(GHOST.export.thinking ? ['Opening thinking blocks'] : []), ...(isManus ? ['Collecting every message'] : []), 'Building your file'];
     VEIL.show(steps);
     try {
       VEIL.step(0);
       await sleep(250);
+      if (VEIL.cancelled) return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
       if (GHOST.export.thinking) {
         VEIL.step(1, 'Opening thinking blocks…');
         const n = await expandThinking();
         await sleep(n ? 600 : 0);
       }
+      if (VEIL.cancelled) return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
       if (isManus && !VEIL.cancelled) {
         VEIL.step(steps.indexOf('Collecting every message'), 'Collecting every message…');
-        raw = await harvestManus();
+        const messages = await harvestManus();
+        if (messages) capture = { messages, source:'manus-dom', warnings:[] };
       }
+      if (!capture && !VEIL.cancelled) {
+        capture = { messages: extractMessages(GHOST.export.thinking), source:'dom', warnings:[] };
+      }
+      if (archiveUnavailable && capture) capture.warnings.push('Platform archive was unavailable; DOM fallback was used.');
       VEIL.step(steps.length - 1, 'Building your file…');
       await sleep(200);
-    } finally { VEIL.hide(); GHOST.loop.detail = ''; render(); }
-  } else { VEIL.hide(); GHOST.loop.detail = ''; render(); }
-  const msgs = applyFilter(raw || extractMessages(GHOST.export.thinking));
-  if (!msgs.length) { alert('Ghost: no messages found to export.'); return; }
+    } finally {
+      VEIL.hide();
+    }
+    if (VEIL.cancelled) {
+      return _setExportResult({ schema:'gitl.export-result.v1', status:'cancelled', source:'dom', captured:0, warnings:[] });
+    }
+  }
+
+  let contract = _assessExportCapture(capture);
+  if (contract.status === 'failed') {
+    Reporter.capture('EXPORT-001');
+    return _setExportResult(contract);
+  }
+
+  const msgs = applyFilter(capture.messages);
+  if (!msgs.length) {
+    contract = {
+      ...contract,
+      status: 'failed',
+      warnings: [...contract.warnings, `The “${GHOST.export.filter}” filter matched no messages.`]
+    };
+    Reporter.capture('EXPORT-001');
+    return _setExportResult(contract);
+  }
+  contract.filteredMessages = msgs.length;
+  contract.filter = GHOST.export.filter;
+
   const proj = GHOST.project.name || 'Untitled';
-  const ts = new Date().toLocaleString();
+  const ts = new Date().toISOString();
   let content, mime;
   if (GHOST.export.format === 'json') {
-    content = JSON.stringify({ project: proj, platform: PLAT.label, exported: ts, rounds: GHOST.loop.round, workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label, persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None', messages: msgs }, null, 2);
+    content = JSON.stringify({
+      schema: 'gitl.transcript.v1',
+      export: contract,
+      project: proj,
+      platform: PLAT.key || 'generic',
+      exported: ts,
+      rounds: GHOST.loop.round,
+      workflow: (allWorkflows()[GHOST.workflow.selected]||WORKFLOW_LIBRARY.none).label,
+      persona: (GHOST.persona.selected||['none']).filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ')||'None',
+      messages: msgs
+    }, null, 2);
     mime = 'application/json';
   } else {
-    const lines = [`# Ghost Export — ${proj}`, `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`, '', '---', ''];
+    const lines = [
+      `# Ghost Export — ${proj}`,
+      `**Status:** ${contract.status.toUpperCase()} | **Source:** ${contract.source} | **Captured:** ${contract.captured}${contract.expected == null ? '' : '/' + contract.expected}`,
+      `**Platform:** ${PLAT.label} | **Exported:** ${ts} | **Rounds:** ${GHOST.loop.round}`,
+      ...(contract.warnings.length ? ['', '**Validation notes:**', ...contract.warnings.map(w => `- ${w}`)] : []),
+      '', '---', ''
+    ];
     for (const m of msgs) {
       if (GHOST.export.includeRoles) lines.push(`## ${m.role === 'user' ? '👤 User' : '🤖 Assistant'}`, '');
       if (m.thinking) lines.push('> 💭 **Thinking**', ...m.thinking.split('\n').map(l => '> ' + l), '');
@@ -3142,17 +3722,15 @@ async function runExport() {
     content = lines.join('\n');
     mime = 'text/markdown';
   }
-  const blob = new Blob([content], { type: mime });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = buildFilename('export');
-  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  downloadText(content, buildFilename('export'), mime);
+  return _setExportResult(contract);
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   S5 — ENHANCED EXPORT: SHA-256 DEDUP + CAPSULE V2
-   Deduplicates messages from virtualized DOM re-renders.
-   Produces resumable capsule with DAG links + resume token.
-   Sources: Kimi capsule, ChatGPT Export 3 capsule builder
+   S5 — EXPERIMENTAL CAPSULE V2
+   Preserves every non-empty turn in order, including legitimate repeats and
+   short replies. Hashes provide integrity hints, not deduplication. Ghost
+   does not claim resumability until an importer exists.
    ═══════════════════════════════════════════════════════════════ */
 async function gitlSha256(text) {
   try {
@@ -3169,15 +3747,13 @@ async function gitlSha256(text) {
 }
 
 async function buildCapsuleV2(rawMessages) {
-  const seen = new Set();
   const graph = [];
+  let skippedEmpty = 0;
   for (let i = 0; i < rawMessages.length; i++) {
     const m = rawMessages[i];
     const text = (m.text || '').trim();
-    if (!text || text.length < 5) continue;
+    if (!text) { skippedEmpty++; continue; }
     const hash = await gitlSha256(`${m.role}:${text}`);
-    if (seen.has(hash)) continue;
-    seen.add(hash);
     graph.push({
       id: `m_${graph.length + 1}`,
       role: m.role || 'unknown',
@@ -3189,16 +3765,18 @@ async function buildCapsuleV2(rawMessages) {
   const h = typeof platformHealth === 'function' ? platformHealth() : {};
   return {
     schema: 'gitl.capsule.v2',
+    experimental: true,
+    import_supported: false,
     version: VER,
     exported_at: new Date().toISOString(),
-    platform: PLAT.label,
-    url: location.href,
-    title: document.title || '',
+    platform: PLAT.key || 'generic',
     project: GHOST.project || {},
     workflow: { selected: GHOST.workflow.selected, stage: GHOST.workflow.stageIndex },
     health: { score: h.score, badge: h.badge },
     messages: graph,
-    deduplicated: rawMessages.length - graph.length,
+    deduplicated: 0,
+    skipped_empty: skippedEmpty,
+    export: _assessExportCapture({ messages: graph, source:'dom' }),
     resume: {
       last_id: graph.length ? graph[graph.length - 1].id : null,
       next_action: 'continue_from_capsule',
@@ -3707,7 +4285,10 @@ function injectStyles() {
 .g-report-h{font-size:10px;font-weight:700;color:#f1b4b4;display:flex;align-items:center;gap:6px}
 .g-report-k{font-size:8px;font-weight:600;color:#c88;background:#1c1416;border:1px solid #3a2a2a;border-radius:4px;padding:1px 5px}
 .g-report-b{font-size:9px;color:#caa;line-height:1.4;margin:4px 0 6px}
-.g-report-btns{display:flex;gap:5px}
+.g-report-preview{margin:5px 0;font-size:8.5px;color:#d6a4a4}
+.g-report-preview summary{cursor:pointer;color:#e0a0a0}
+.g-report-preview textarea{box-sizing:border-box;width:100%;height:110px;margin-top:4px;padding:5px;resize:vertical;background:#120f11;border:1px solid #43292d;border-radius:4px;color:#c9b8bb;font:8px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}
+.g-report-btns{display:flex;gap:5px;margin-top:5px}
 .g-report-btns .g-btn-sm{margin-top:0;border-color:#5a2e2e;background:#1c1416;color:#e0a0a0;flex:1}
 .g-limit{margin:6px 0;padding:8px 9px;background:#231a0c;border:1px solid #5a4420;border-radius:7px;text-align:center}
 .g-limit-h{font-size:10px;font-weight:700;color:#fcd34d}
@@ -3762,8 +4343,8 @@ const EXPLAIN = [
   { sel:'.g-pst',         name: el => 'Posture: ' + ((POSTURES[el.dataset.pst]||{}).label||''), desc: el => (POSTURES[el.dataset.pst]||{}).desc || '' },
   { sel:'#g-peek-btn',    name:'What gets injected',desc:'Shows the exact instruction block Ghost appends to your prompt for the current Strategy.' },
   { sel:'#g-handoff',     name:'🤝 Handoff',        desc:'The AI writes its own briefing for a fresh chat. Best choice while the current chat STILL RESPONDS.' },
-  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads the full transcript. The complete record of the four export actions — for keeping, not for resuming.' },
-  { sel:'#g-capsule',     name:'💊 Capsule v2',       desc:'A resumable JSON snapshot with dedup + a resume token — built for feeding back into an API or another tool, not for reading.' },
+  { sel:'#g-export',      name:'⬇ Export',          desc:'Downloads a transcript with an explicit complete, partial, or failed validation result.' },
+  { sel:'#g-capsule',     name:'💊 Experimental Capsule v2', desc:'Advanced machine JSON for external tools. Ghost does not import it yet, so it is not presented as a finished resume format.' },
   { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
   { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
   { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
@@ -3864,11 +4445,11 @@ function renderRunTab() {
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-mod g-mod-transport">
-      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${statLabel()}</span></div>
+      <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${_esc(statLabel())}</span></div>
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶</button>
-      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸</button>
-      <button class="g-btn${idle?' g-dim':''}" id="g-reground" title="Re-anchor AI to original task — use when you see drift">⊕</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶ ${L.state==='PAUSED'?'Resume':'Start'}</button>
+      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸ Pause</button>
+      <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
     <div class="g-mod g-mod-prog">
@@ -3876,7 +4457,7 @@ function renderRunTab() {
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
       <div class="g-plbl">
-        <span class="g-step">${p?`${pm==='think'?'Batch':'Step'} <b>${p.step}</b> / ${p.total}${p.desc?' — '+p.desc.slice(0,22):''}` : (L.state==='RUNNING'||L.state==='LIMIT'?`Round <b>${L.round}</b>`:'Waiting…')}</span>
+        <span class="g-step">${p?`${pm==='think'?'Batch':'Step'} <b>${Number(p.step)||0}</b> / ${Number(p.total)||0}${p.desc?' — '+_esc(p.desc.slice(0,22)):''}` : (L.state==='RUNNING'||L.state==='LIMIT'?`Round <b>${L.round}</b>`:'Waiting…')}</span>
         <span class="g-step-pct">${p?pct+'%':''}</span>
       </div>
       ${(L.state==='RUNNING'||L.state==='PAUSED'||L.state==='LIMIT') ? (()=>{
@@ -3897,8 +4478,15 @@ function renderRunTab() {
       })() : ''}
     </div>
     </div>
-    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${PLAT?PLAT.label:'—'} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
-    ${GHOST.report ? `<div class="g-report"><div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${GHOST.report.kind}</span></div><div class="g-report-b">${(GHOST.report.detail||'').slice(0,120)}</div><div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-issue">↗ Open issue</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">✕</button></div></div>` : ''}
+    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${_esc(PLAT?PLAT.label:'—')} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
+    ${GHOST.report ? `<div class="g-report">
+      <div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${_esc(GHOST.report.kind)}</span></div>
+      <div class="g-report-b">${_esc((GHOST.report.detail||'').slice(0,120))}</div>
+      ${L.sendTxn?.state === 'uncertain' ? `<div class="g-report-b">Nothing was resent. Check the conversation:</div><div class="g-report-btns"><button class="g-btn-sm" id="g-send-seen">✓ I see it in chat</button><button class="g-btn-sm" id="g-send-manual">Leave for manual Send</button></div>` : ''}
+      <details class="g-report-preview"><summary>Review redacted contents</summary><textarea readonly spellcheck="false">${_esc(GHOST.report.text || '')}</textarea></details>
+      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-dl">⇩ Download</button></div>
+      <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-issue">↗ Review &amp; report bug</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">Dismiss</button></div>
+    </div>` : ''}
     <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
     ${runAdv ? `
     <div class="g-mod g-mod-adv">
@@ -3919,7 +4507,10 @@ function renderRunTab() {
     </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
-    <button class="g-btn st" id="g-stop" style="width:100%;font-size:9px;padding:5px;margin-top:5px">✕ End &amp; reset</button>
+    <div class="g-btns" style="margin-top:5px">
+      <button class="g-btn" id="g-reground" title="Re-anchor AI to the original task">⊕ Reground</button>
+      <button class="g-btn st" id="g-reset" title="Clear run state and start over">↻ Reset session</button>
+    </div>
     ` : ''}
     <div class="g-shortcuts">v${VER} · Alt+P toggle · Alt+S stop</div>`;
 }
@@ -3981,7 +4572,7 @@ const HELP_SECTIONS = {
   run: { label: 'Run', html: `
     <b>The Run tab</b> is command center.<br><br>
     <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
-    <b>Buttons:</b> ▶ start/resume · ⏸ pause · ⊕ reground (re-anchor AI to the original task if you see drift). Full stop is in Advanced ▾.<br><br>
+    <b>Buttons:</b> ▶ Start/Resume · ⏸ Pause · ■ Stop (preserves progress). Reground and Reset are separate under Advanced ▾.<br><br>
     <b>Personas line:</b> shows your active persona or committee. Tap "edit" to jump to the Personas tab.<br><br>
     <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard catching a long run. It's a grounding pause so an unattended run cannot wander off-task. Three choices:<br>· <b>▶ Continue</b> — run more<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>You can edit the cap inline, toggle the guard off, or tap ↻ to reset.` },
   auto: { label: 'Auto', html: `
@@ -4003,10 +4594,10 @@ const HELP_SECTIONS = {
     <b>On Perplexity</b>, Round Table becomes a REAL round table: switch models between turns, each model gives independent assessment naming who goes next.` },
   export: { label: 'Export', html: `
     <b>Three buttons, three jobs:</b><br><br>
-    <b>⬇ Export</b> — the full record. The whole conversation as a file (with 💭 thinking logs). For archiving and reading.<br><br>
+    <b>⬇ Export</b> — a validated transcript. The file says <b>complete</b>, <b>partial</b>, or <b>failed</b> and explains fallbacks or omissions instead of silently claiming completeness.<br><br>
     <b>🤝 Handoff</b> — moving to another model? Ghost asks THIS AI to write a structured briefing in-chat (mission, decisions, failures, next steps). Paste it into the new model. The AI's own summary beats a raw transcript — decisions don't get buried.<br><br>
     <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
-    <i>Working chat → Handoff (AI writes it, fullest briefing). Dead chat → Backup Handoff (Ghost writes it, lighter — Handoff's calmer sibling, not a separate emergency). Complete record → Export (fullest of all four, not for resuming — for keeping).</i>` },
+    <i>Working chat → Handoff. Dead chat → Backup Handoff. Archive → validated Export. Experimental Capsule v2 is under Advanced for external tools; Ghost does not import it yet.</i>` },
   setup: { label: 'Setup', html: `
     <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
 · <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
@@ -4060,7 +4651,7 @@ function renderAutoTab() {
   const rows = d.map((s,i) => `
     <div class="g-qrow">
       <span style="color:#555;width:14px;font-size:9px">${i+1}.</span>
-      <input type="text" class="g-qin" data-qi="${i}" value="${(s||'').replace(/"/g,'&quot;')}" placeholder="Step ${i+1}…">
+      <input type="text" class="g-qin" data-qi="${i}" value="${_esc(s || '')}" placeholder="Step ${i+1}…">
       <button class="g-qdel" data-qd="${i}">✕</button>
     </div>`).join('');
   return `
@@ -4125,20 +4716,22 @@ function renderPersonasTab() {
 function renderExportTab() {
   const fn = buildFilename('export');
   const adv = GHOST.ui.expAdv;
+  const last = GHOST.export.lastResult;
   return `
     <div class="g-row"><label>Format</label><select id="exp-fmt"><option value="markdown"${GHOST.export.format==='markdown'?' selected':''}>Markdown</option><option value="json"${GHOST.export.format==='json'?' selected':''}>JSON</option></select></div>
     <div class="g-row"><label>💭 Thinking logs</label><div class="g-tog${GHOST.export.thinking?' on':''}" id="exp-think"></div></div>
     <div class="g-xlist">
-      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Full transcript, markdown or JSON. The complete record — for keeping.</span></div></div>
-      <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Capsule v2</b><span>Resumable JSON with a resume token — for feeding back into an API or tool.</span></div></div>
+      <div class="g-xrow g-xrow-accent" id="g-export"><span class="g-xicon">⬇</span><div class="g-xtext"><b>Export</b><span>Validated transcript with a truthful complete, partial, or failed result.</span></div></div>
       <div class="g-xrow g-xrow-ok" id="g-handoff"><span class="g-xicon">🤝</span><div class="g-xtext"><b>Handoff</b><span>Chat still responds: asks the AI to write its own briefing for the next chat.</span></div></div>
       <div class="g-xrow g-xrow-warn" id="g-rescue"><span class="g-xicon">🧷</span><div class="g-xtext"><b>Backup Handoff</b><span>Chat is dead: Ghost writes a lighter one itself — state + last 10 messages, enough to resume elsewhere.</span></div></div>
     </div>
+    ${last ? `<div class="g-hint" style="border-left-color:${last.status==='complete'?'#10b981':last.status==='partial'?'#f59e0b':'#ef4444'}"><b>${_esc(last.status.toUpperCase())}</b> · ${Number(last.captured)||0} captured via ${_esc(last.source || 'unknown')}${last.warnings?.length?`<br>${_esc(last.warnings[0])}`:''}</div>` : ''}
     <button class="g-adv" id="exp-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
+    <div class="g-xrow g-xrow-muted" id="g-capsule"><span class="g-xicon">💊</span><div class="g-xtext"><b>Experimental Capsule v2</b><span>Machine JSON for external tools. Ghost does not import it yet; repeated and short turns are preserved.</span></div></div>
     <div class="g-row"><label>Filter</label><select id="exp-flt"><option value="all"${GHOST.export.filter==='all'?' selected':''}>All</option><option value="user"${GHOST.export.filter==='user'?' selected':''}>User</option><option value="assistant"${GHOST.export.filter==='assistant'?' selected':''}>Assistant</option><option value="code"${GHOST.export.filter==='code'?' selected':''}>Code blocks</option></select></div>
     <div class="g-row"><label>Roles</label><div class="g-tog${GHOST.export.includeRoles?' on':''}" id="exp-roles"></div></div>
-    <div class="g-row"><label>Slug</label><input type="text" id="exp-slug" placeholder="auto" value="${GHOST.export.customSlug}" style="width:100px"></div>
+    <div class="g-row"><label>Slug</label><input type="text" id="exp-slug" placeholder="auto" value="${_esc(GHOST.export.customSlug)}" style="width:100px"></div>
     <div style="font-size:8.5px;color:#383940;margin-bottom:5px;word-break:break-all">${fn}</div>
     <div style="display:flex;gap:5px">
       <button class="g-btn-sm" id="g-backup" style="flex:1;margin-top:0">⚙ Backup config</button>
@@ -4169,11 +4762,11 @@ function renderSettingsTab() {
     <button class="g-adv" id="cfg-adv">${adv?'Advanced ▴':'Advanced ▾'}</button>
     ${adv ? `
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
-    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${GHOST.signals.customProceed}"></div>
-    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${GHOST.signals.customStop}"></div>
+    <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${_esc(GHOST.signals.customProceed)}"></div>
+    <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${_esc(GHOST.signals.customStop)}"></div>
     <div class="g-row"><label>🌐 Custom sites</label><div class="g-tog${GHOST.ui.showSites?' on':''}" id="cfg-sites-tog"></div></div>
     ${GHOST.ui.showSites ? `
-      <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${GM_getValue('customSites','').replace(/</g,'&lt;')}</textarea>
+      <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${_esc(GM_getValue('customSites',''))}</textarea>
       <div class="g-hint" id="cfg-sites-status">Per-host selector overrides (JSON). Also add the site under Tampermonkey → script settings → User matches.</div>` : ''}
     <div class="g-row"><label>🔧 Diagnostics</label><div class="g-tog${GHOST.ui.showDiag?' on':''}" id="cfg-diag"></div></div>
     ${GHOST.ui.showDiag ? renderDiag() : ''}` : ''}
@@ -4185,19 +4778,19 @@ function renderDiag() {
   const h = typeof platformHealth === 'function' ? platformHealth() : null;
   const lines = [
     h ? `<span class="ok">Health:</span> ${h.badge} ${h.score}/100 (in:${h.input?'✓':'✗'} send:${h.send?'✓':'✗'} read:${h.assistantCount} net:${h.netActive?'✓':'✗'})` : '',
-    `<span class="ok">Adapter:</span> ${DIAG.adapter}`,
-    `<span class="ok">Platform:</span> ${PLAT.label}`,
-    `<span>Selector:</span> ${DIAG.selector || '—'}`,
-    `<span>Send path:</span> ${DIAG.sendPath || '—'}`,
-    `<span>Signal:</span> ${L.lastSignal} (${L.lastConfidence}) ${DIAG.lastSignal}`,
-    `<span>Tail:</span> ${DIAG.lastTail ? DIAG.lastTail.slice(-50) : '—'}`,
+    `<span class="ok">Adapter:</span> ${_esc(DIAG.adapter)}`,
+    `<span class="ok">Platform:</span> ${_esc(PLAT.label)}`,
+    `<span>Selector:</span> ${_esc(DIAG.selector || '—')}`,
+    `<span>Send path:</span> ${_esc(DIAG.sendPath || '—')}`,
+    `<span>Signal:</span> ${_esc(L.lastSignal)} (${Number(L.lastConfidence)||0}) ${_esc(DIAG.lastSignal)}`,
+    `<span>Tail:</span> ${_esc(DIAG.lastTail ? DIAG.lastTail.slice(-50) : '—')}`,
     `<span>Round:</span> ${L.round} / ${L.maxRounds}`,
-    `<span>State:</span> ${L.state}`,
+    `<span>State:</span> ${_esc(L.state)}`,
     `<span>Stale:</span> ${L.staleTicks}`,
     `<span>Tick:</span> ${L.lastActivity ? Math.round((Date.now()-L.lastActivity)/1000)+'s ago' : '—'}`,
     `<span>Tab:</span> ${GITL_TAB_ID.slice(0,8)}`,
-    DIAG.probe ? `<span class="ok">Probe:</span>\n${DIAG.probe}` : '',
-    DIAG.errors.length ? `<span class="warn">Errors:</span>\n${DIAG.errors.slice(0,5).join('\n')}` : ''
+    DIAG.probe ? `<span class="ok">Probe:</span>\n${_esc(DIAG.probe)}` : '',
+    DIAG.errors.length ? `<span class="warn">Errors:</span>\n${_esc(DIAG.errors.slice(0,5).join('\n'))}` : ''
   ].filter(Boolean).join('\n');
   return `<div class="g-diag">${lines}</div><button class="g-btn-sm" id="g-probe">🔍 Probe selectors</button> <button class="g-btn-sm" id="g-report-now">⚠ Report a problem</button>`;
 }
@@ -4254,7 +4847,7 @@ function render() {
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
-        <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
+        <span class="g-plat">${_esc((typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label)}</span>
         <button class="g-minbtn" id="g-redetect" title="Re-detect the chat box — fixes 'can't find input' after switching browser/app or tabs (no page reload)">🔄</button>
         <button class="g-minbtn" id="g-info" title="Help & FAQ">?</button>
         <button class="g-minbtn" id="g-col" title="${col?'Expand':'Minimize'}">${GHOST.ui.position==='dock' ? (col?'◀':'▶') : GHOST.ui.position==='dock-left' ? (col?'▶':'◀') : (col?'＋':'－')}</button>
@@ -4268,7 +4861,7 @@ function render() {
     <div class="g-body">
       <div class="g-proj">
         <span class="g-proj-lbl">📁</span>
-        <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${GHOST.project.name}">
+        <input class="g-proj-in" id="g-projname" type="text" placeholder="Project name…" value="${_esc(GHOST.project.name)}">
       </div>
       <div class="g-tabs">
         <button class="g-tab${tab==='run'?' act':''}" data-t="run" title="Standard continue loop">Run</button>
@@ -4350,9 +4943,20 @@ function bindEvents() {
   });
   $('#g-pause')?.addEventListener('click', pauseLoop);
   $('#g-stop')?.addEventListener('click', stopLoop);
+  $('#g-reset')?.addEventListener('click', resetLoop);
+  $('#g-send-seen')?.addEventListener('click', () => reconcileUncertainSend(true));
+  $('#g-send-manual')?.addEventListener('click', () => reconcileUncertainSend(false));
   $('#g-rep-copy')?.addEventListener('click', function(){ Reporter.copy().then(ok => { this.textContent = ok ? '✓ Copied' : '✕ Failed'; setTimeout(()=>{ this.textContent='📋 Copy'; }, 1500); }); });
+  $('#g-rep-dl')?.addEventListener('click', function(){ const ok = Reporter.download(); this.textContent = ok ? '✓ Downloaded' : '✕ Failed'; });
   $('#g-rep-issue')?.addEventListener('click', () => Reporter.openIssue());
-  $('#g-rep-x')?.addEventListener('click', () => { GHOST.report = null; Reporter.last = null; render(); });
+  $('#g-rep-x')?.addEventListener('click', () => {
+    if (GHOST.loop.sendTxn?.state === 'uncertain') {
+      GHOST.loop.detail = 'Reconcile the uncertain Send before dismissing this report.';
+      render();
+      return;
+    }
+    GHOST.report = null; Reporter.last = null; render();
+  });
   $('#g-peek-btn')?.addEventListener('click', () => {
     const p=$('#g-peek'),b=$('#g-peek-btn');
     if(p&&b){p.classList.toggle('open'); b.textContent=p.classList.contains('open')?'▾ Hide prompt':'▸ What gets injected';}
@@ -4542,13 +5146,40 @@ function bindEvents() {
   bindDrag();
 }
 
+let _dragBound = false;
+let _dragging = false;
+let _dragOffsetX = 0;
+let _dragOffsetY = 0;
+
 function bindDrag() {
-  const hdr = panel.querySelector('#g-drag');
-  if (!hdr) return;
-  let dragging=false, ox=0, oy=0;
-  hdr.addEventListener('mousedown', e => { if(e.button!==0)return; dragging=true; ox=e.clientX-panel.getBoundingClientRect().left; oy=e.clientY-panel.getBoundingClientRect().top; e.preventDefault(); });
-  document.addEventListener('mousemove', e => { if(!dragging)return; panel.style.left=`${e.clientX-ox}px`; panel.style.top=`${e.clientY-oy}px`; panel.style.right='auto'; panel.style.bottom='auto'; });
-  document.addEventListener('mouseup', () => { dragging=false; });
+  /* panel is a stable shell; its contents are re-rendered. Delegate the
+     pointer-down once and install one document move/up pair for the lifetime
+     of the script. This prevents two global listeners being added per render
+     and gives touch/pen the same path as a mouse. */
+  if (_dragBound) return;
+  _dragBound = true;
+  panel.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || !e.target?.closest?.('#g-drag')) return;
+    if (e.target.closest('button,input,select,a')) return;
+    const rect = panel.getBoundingClientRect();
+    _dragging = true;
+    _dragOffsetX = e.clientX - rect.left;
+    _dragOffsetY = e.clientY - rect.top;
+    try { panel.setPointerCapture(e.pointerId); } catch(_) {}
+    e.preventDefault();
+  });
+  document.addEventListener('pointermove', e => {
+    if (!_dragging) return;
+    panel.style.left = `${e.clientX - _dragOffsetX}px`;
+    panel.style.top = `${e.clientY - _dragOffsetY}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  });
+  document.addEventListener('pointerup', e => {
+    if (!_dragging) return;
+    _dragging = false;
+    try { panel.releasePointerCapture(e.pointerId); } catch(_) {}
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4645,15 +5276,23 @@ safeBoot(() => {
 
   _phase('prior-error-surface', false, () => {
     /* Surface a PRIOR boot failure once (from GM storage), then clear it, so a
-       failure on an earlier load becomes visible in Diagnostics/reports now
-       that the panel is up. */
+       failure on an earlier load becomes a reviewable local diagnostic now
+       that the panel is up. Persisted records contain metadata only. */
     const lastBoot = GM_getValue('lastBootError', '');
     const lastNet  = GM_getValue('lastNetInstallError', '');
-    if (lastBoot) { DIAG.push('Previous page load failed to boot: ' + (JSON.parse(lastBoot).msg || lastBoot)); _save('lastBootError', ''); }
-    if (lastNet)  { DIAG.push('Previous page load: network interceptor failed to install: ' + (JSON.parse(lastNet).msg || lastNet)); _save('lastNetInstallError', ''); }
+    if (lastBoot) {
+      DIAG.push('Previous page load failed during critical boot.');
+      Reporter.capture('BOOT-001');
+      _save('lastBootError', '');
+    }
+    if (lastNet) {
+      DIAG.push('Previous page load could not install optional network observation.');
+      Reporter.capture('BOOT-002');
+      _save('lastNetInstallError', '');
+    }
   });
 
-  Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8), degraded: GHOST._degraded });
+  Timeline.record('boot', { version: VER, platform: PLAT.key, degraded: GHOST._degraded });
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}` + (GHOST._degraded.length ? ` | degraded:${GHOST._degraded.join(',')}` : ''));
 });
 

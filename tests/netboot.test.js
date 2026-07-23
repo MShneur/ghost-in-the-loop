@@ -35,18 +35,26 @@ describe('GITL_NET.install() is fault-tolerant end to end', () => {
   });
 });
 
-describe('A prior boot failure is surfaced instead of living silently in GM storage', () => {
-  test('lastBootError is read back and pushed to DIAG on a later successful boot', () => {
+describe('A prior boot failure becomes a local reviewable diagnostic', () => {
+  test('lastBootError is read back and captured on a later successful boot', () => {
     expect(src).toContain("const lastBoot = GM_getValue('lastBootError', '');");
-    expect(src).toContain("DIAG.push('Previous page load failed to boot:");
+    expect(src).toContain("Reporter.capture('BOOT-001')");
   });
 
-  test('lastNetInstallError is read back too', () => {
+  test('lastNetInstallError is captured with its own stable code', () => {
     expect(src).toContain("const lastNet  = GM_getValue('lastNetInstallError', '');");
+    expect(src).toContain("Reporter.capture('BOOT-002')");
   });
 
   test('both are cleared after surfacing once, so they do not repeat every boot', () => {
     expect(src).toMatch(/_save\('lastBootError', ''\)/);
     expect(src).toMatch(/_save\('lastNetInstallError', ''\)/);
+  });
+
+  test('persisted boot failures contain metadata, not messages or stacks', () => {
+    const fatal = src.match(/function _gitlFatal[\s\S]*?\n}/)?.[0] || '';
+    expect(fatal).toContain("code: 'BOOT-001'");
+    expect(fatal).not.toContain('stack,');
+    expect(fatal).not.toContain('{ stage, msg');
   });
 });

@@ -67,21 +67,23 @@ const EXPORT_HOOK = `
 if (typeof __GITL_TEST_SINK__ !== 'undefined') {
   const _exp = __GITL_TEST_SINK__;
   [ 'VER','SIGIL_PROCEED','SIGIL_HALT','LEGACY_PROCEED','LEGACY_HALT',
-    'MIN_RESPONSE_LEN','GHOST','DIAG','Timeline','GITL_NET',
+    'MIN_RESPONSE_LEN','GHOST','DIAG','Timeline','GITL_NET','Reporter','ERROR_CATALOG',
     'detectSignal','parseProgress','parseRoadmap','randomDelay','sleep',
-    'platformHealth','assertInteractionSafe','claimTabLock','releaseTabLock',
-    '_tabLockKey','GITL_TAB_ID','RecoveryEngine','GhostBus',
-    'gitlSha256','buildCapsuleV2','buildFilename','PROFILES',
+    'platformHealth','assertInteractionSafe','claimTabLock','verifyTabLease','releaseTabLock',
+    '_tabLockKey','GITL_TAB_ID','GhostBus',
+    'gitlSha256','buildCapsuleV2','buildFilename','_assessExportCapture','runExport',
+    'CONFIG_SCHEMA','CONFIG_KEYS','_validateConfigBundle','restoreConfig','PROFILES',
     'FUZZY_PROCEED','FUZZY_HALT','WORKFLOW_LIBRARY','PERSONA_LIBRARY',
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
-    'Adapter','_heurSend','_heurInput','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW',
+    'Adapter','_heurSend','_heurInput','_reviewedSend','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW',
     'EXPLAIN','_explainLookup',
-    'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resolvePersonaInject',
+    'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resetLoop','resolvePersonaInject',
     'PERSONA_LIBRARY','PAYLOADS','POSTURES',
     'Ticker','unattendedOn','isTabSafeToAct','assertInteractionSafe',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
-    'startTabHeartbeat','engineSend','engineHalt','enginePause'
+    'startTabHeartbeat','engineSend','engineHalt','enginePause',
+    '_beginSendAttempt','_sendEvidence','_confirmSend','_markSendUncertain','reconcileUncertainSend'
   ].forEach(name => {
     try { if (typeof eval(name) !== 'undefined') _exp[name] = eval(name); } catch(_) {}
   });

@@ -74,7 +74,7 @@ describe('hasPendingDirectives — once-per-run delivery', () => {
   test('ending a run re-arms delivery for the next run', () => {
     GHOST.persona.selected = ['builder'];
     GHOST.persona._delivered = true;
-    stopLoop();
+    resetLoop();
     expect(GHOST.persona._delivered).toBe(false);
     expect(hasPendingDirectives()).toBe(true);
   });

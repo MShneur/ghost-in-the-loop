@@ -11,6 +11,109 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.3.0 — system reliability restructure (2026-07-23)
+
+**Updated by MShneur. Main editor: Agent CG (ChatGPT).**
+
+### Why this was a restructure
+
+The triggering CI failure and issues #4/#5 looked like selector bugs, but the
+repository audit found four separate contracts had been blurred together:
+
+1. locating something that resembles Send,
+2. authorizing an actuator,
+3. observing whether delivery occurred, and
+4. advancing workflow state.
+
+The project also had two divergent product trees, so “green main” could
+double-count tests while the development PR exercised stale source. Export,
+diagnostics, and import each had similar truth-boundary problems. The work was
+therefore landed in small reviewable batches, not as another site-specific
+selector patch.
+
+### Batch 1 — one canonical source and honest CI
+
+- Deleted `dev/`; the root userscript is the only editable runtime source.
+- Replaced ad-hoc extension copying with deterministic
+  `scripts/build-extension.js`.
+- CI checks generated parity and syntax before the canonical Jest suite.
+- Removed duplicate-suite counting and the unused zero-coverage report.
+
+### Batch 2 — at-most-once Send
+
+- Send selectors cannot be learned. Heuristics may locate a composer or present
+  a candidate in diagnostics, but only one reviewed selector can authorize a
+  click.
+- Removed Enter/form/refocus/retry dispatch paths. One command gets one click.
+- Added a persisted transaction journal and independent confirmation evidence.
+  Attempted is not confirmed; only confirmed advances the round/roadmap.
+- An ambiguous result becomes `uncertain`, pauses, and requires the user to say
+  whether the message appeared. No automatic resend occurs, including after a
+  crash.
+- Added a claim/yield/re-read verification immediately before clicking to close
+  the practical two-tab race in the storage lease.
+
+**Deliberate constraint:** generic and custom-site adapters are manual-send
+unless reviewed. Compatibility is not worth silent authority over the wrong
+page control.
+
+### Batch 3 — diagnostic privacy and render performance
+
+- Network hooks retain only timestamps/counts needed for correlation, never
+  response payloads.
+- Reports use stable codes and bounded metadata. Prompt text, message text, full
+  URLs, query strings, route IDs, and raw errors do not enter a public link.
+- A report is captured locally first and must be reviewed before copy/download.
+  GitHub receives only the issue title automatically.
+- The standalone canary covers “userscript manager did not execute”; core covers
+  failures after bootstrap begins.
+- Replaced render-time drag-listener accumulation with one Pointer Event binding.
+- Made text-labeled Stop permanent and state-preserving; Reset is distinct.
+
+### Batch 4 — truthful export and transactional import
+
+- Export has a formal `complete | partial | failed | cancelled` result. API
+  counts and unsupported parts are validated; DOM snapshots are always partial.
+- Cancellation uses `AbortController` and creates no file.
+- Config and Workshop formats have exact schemas, bounded fields, whole-file
+  validation, staged writes, and rollback.
+- Capsule v2 is now experimental Advanced machine JSON. It keeps repeated/short
+  turns and disclaims import/resume support.
+- Escaped every newly audited untrusted value at panel HTML sinks.
+
+### What was intentionally not added
+
+- No heavyweight agent framework, replay system, or runtime dependency.
+- No automatic GitHub report upload.
+- No auto-promoted “self-healed” Send selector.
+- No broad six-tab rewrite in the same safety release. The beginner surface was
+  simplified where risk was concrete (Pause/Stop/Reset, export status, Advanced
+  Capsule); broader information-architecture work should be separately tested
+  with users instead of bundled into actuator changes.
+
+### Verification and release discipline
+
+Each batch was committed and pushed separately with:
+
+```
+Updated-by: MShneur
+Main-Editor: Agent CG (ChatGPT)
+```
+
+Final local result: 28 Jest suites / 371 tests, generated extension parity,
+userscript syntax, and extension syntax all green. Browser boot timing remains a
+GitHub Actions responsibility because the local runner had no installed
+Playwright browser binary.
+
+**CI correction before merge.** The first Playwright run failed two
+`sendsafety.spec.js` expectations in Chromium and Firefox. The product behaved
+correctly: the fixture was a generic `data:` host, so v8.3 returned no actuator
+even after a Send-looking button appeared. The old test still encoded the v8.1
+heuristic-authority contract. The test now first proves generic remains manual,
+then explicitly marks exact selectors reviewed and verifies the real Send wins
+while model-picker, attachment, and Copy traps remain vetoed. No production
+authority was weakened to satisfy a stale test.
+
 ## v8.2.1 — Send-target mislearn (issues #4, #5)
 
 **What was tried / observed.** Two `probe_fail` reports showed SelectorMemory

@@ -133,21 +133,37 @@ Sometimes websites change.
 Sometimes buttons disappear.  
 Sometimes the frontend team chooses violence.
 
-Ghost includes five escalating fallback strategies to keep the workflow moving regardless of what the interface has decided to become today.
+Ghost now fails closed when the page no longer matches a reviewed adapter. It can
+identify a composer heuristically, but only one unique, reviewed Send control has
+authority to click. If delivery cannot be independently confirmed, Ghost pauses
+in an **uncertain** state and never sends the prompt again behind your back.
 
 ### Export
 
-Every conversation can be exported — as Markdown, JSON, or a resumable Capsule that contains the full context, a SHA-256 deduplicated message graph, and a resume token for continuing in a fresh session.
+Every transcript export reports one of three outcomes:
+
+- **Complete** — a platform archive returned the expected supported turns.
+- **Partial** — a DOM fallback, lazy-loaded history, attachment, branch, or filter
+  means completeness cannot be proved.
+- **Failed** — no usable messages were captured, so no misleading empty export is
+  presented as success.
+
+Markdown and `gitl.transcript.v1` JSON include this validation result. Cancel
+aborts the active archive request and promises no file.
 
 Because eventually someone will ask *"wait, how did we get this result?"*
 
 And for once, you'll have an answer.
 
-### Handoff Capsule
+### Handoff and Experimental Capsule
 
 One click. Ghost writes a compressed briefing — mission, current position, last output, open questions — formatted for immediate paste into any AI model.
 
 The baton passes. The work continues. Nobody has to explain anything from scratch.
+
+The separate Capsule v2 machine format is under **Export → Advanced**. It
+preserves short and repeated turns, but it is explicitly experimental and Ghost
+does not claim that it is resumable until an importer exists.
 
 ### Crash Recovery
 
@@ -174,33 +190,56 @@ For people who want to know what's actually happening under the hood:
 
 | What | How |
 |------|-----|
-| **Boot safety** | `safeBoot()` defers all DOM work until `document.body` exists. Tab lock via `GM_setValue` heartbeat prevents multi-tab conflicts. Focus guard blocks background token burn. |
+| **Boot safety** | Transactional boot isolates optional subsystems, mounts a fail-loud banner for critical failures, and records stable local error codes. An independent canary distinguishes “Ghost failed” from “the userscript manager never injected it.” |
 | **Signal detection** | Weighted scoring: custom sigils `[[GITL::PROCEED]]` / `[[GITL::HALT]]` (+4), legacy keywords (+3), fuzzy matches (+2). HALT always wins ties. |
-| **Network interceptor** | Proxies `fetch` and `XHR` to capture AI responses before DOM paint — faster, more reliable signal detection on platforms with virtualized rendering. |
-| **Recovery engine** | 5-strategy send fallback with exponential backoff: contenteditable reinsertion → native setter → direct value → Enter key dispatch → refocus retry. |
+| **Private diagnostics** | Network telemetry stores timing and byte counts only. Reports omit prompts, message text, full URLs, query strings, and conversation identifiers; users review locally before copying or downloading. |
+| **At-most-once send** | A two-phase tab lease gates one reviewed button click. State advances only after an assistant transition or correlated composer-plus-generation evidence. Ambiguity pauses for human reconciliation; there is no blind retry, Enter fallback, or learned Send actuator. |
 | **Anti-automation delay** | Randomized 8–15s between sends (2s on the first round). |
-| **SHA-256 deduplication** | Capsule exports deduplicate messages using Web Crypto API hashes — eliminates duplicates from platforms that re-render the DOM on scroll. |
+| **Truthful export** | Platform API capture is checked against expected counts and unsupported parts. DOM capture is always labeled partial. Capsule hashes are integrity hints, never a reason to delete legitimate repeated turns. |
+| **Transactional import** | Config and Workshop bundles require exact schemas, validate every field before mutation, and roll back if persistence fails. |
 | **Own-UI isolation** | All DOM selectors exclude `#gitl` descendants. Ghost cannot accidentally type into its own panel. This needed to be a feature. |
-| **CI tested** | 135 unit tests (jest) + Playwright e2e boot-timing tests. Runs on every push. |
+| **CI tested** | 371 unit tests (jest) plus Playwright boot-timing and send-safety tests in Chromium and Firefox. Runs on every push and pull request. |
 
 ---
 
 ## Architecture
 
 ```
-Layer 0:   Constants + Boot Safety (safeBoot, tab lock, focus guard)
-Layer 0.5: Network Interceptor (fetch/XHR proxy)
-Layer 0.7: Selector Doctor + Health Scoring
-Layer 1:   Platform Adapters (all DOM access isolated here)
-Layer 2:   State (GHOST object)
-Layer 3:   Diagnostics + Timeline (event log)
-Layer 4:   Signal Engine (pure logic — detectSignal, parseProgress)
-Layer 5:   Loop Engine + Recovery Engine + GhostBus
-Layer 6:   Export (Capsule v2, SHA-256 dedup)
-Layer 7:   UI (render, panel, tabs)
+Layer 0:   Transactional boot + two-phase tab lease
+Layer 0.5: Metadata-only network telemetry
+Layer 0.7: Selector diagnostics + health scoring
+Layer 1:   Reviewed platform adapters; read-only selector learning
+Layer 2:   State + persisted send transaction journal
+Layer 3:   Redacted diagnostics + bounded timeline
+Layer 4:   Signal engine (pure logic)
+Layer 5:   At-most-once loop engine + human reconciliation
+Layer 6:   Validated export + transactional import
+Layer 7:   Basic controls + progressively disclosed advanced UI
 ```
 
-No external dependencies. Single file. Works anywhere Tampermonkey works.
+The userscript is the canonical source. `npm run build` deterministically
+generates `extension/content.js`; CI rejects drift. There is no second `dev/`
+copy of the product.
+
+No runtime dependencies. One userscript source. Works anywhere Tampermonkey works.
+
+---
+
+## Safety and Troubleshooting
+
+- **Pause** and **Stop** are always text-labeled. Stop preserves the run; Reset is
+  a separate Advanced action.
+- A guessed Send candidate is diagnostic evidence only. Generic/custom sites are
+  manual-send unless they have a reviewed adapter.
+- If Ghost attempted a Send but cannot prove delivery, choose either **I see it
+  in chat** or leave the prompt for manual Send. Ghost never re-clicks.
+- On a failure, open **Settings → Advanced → Diagnostics**. Ghost automatically
+  prepares a redacted local report with a stable error code and offers **Review**,
+  **Copy**, and **Download**. Public bug reporting never includes report content
+  automatically.
+- If no Ghost UI or error banner appears at all, install the independent canary
+  from [`diagnostics/`](diagnostics/) to determine whether the userscript manager
+  executed on that site.
 
 ---
 
@@ -223,6 +262,8 @@ Before touching anything, read:
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — contracts, selector patterns, signal scoring, platform quirks, test harness design.
 
 Every push must update at minimum DEVLOG.md and CHANGELOG.md. The project has been built across multiple AI sessions and needs its history documented so future sessions don't re-solve solved problems.
+
+Release 8.3.0 was updated by MShneur. Main editor: **Agent CG (ChatGPT)**.
 
 ---
 
