@@ -4601,7 +4601,7 @@ safeBoot(() => {
   _phase('heartbeat', false, () => startTabHeartbeat());
   _phase('tab-lock',  false, () => claimTabLock());
   _phase('bus',       false, () => GhostBus.init());
-  _phase('panel-sentinel', false, () => startPanelWatchdog());
+  _phase('panel-sentinel', false, () => startPanelSentinel());
 
   _phase('boot-retry', false, () => {
     // SPA boot retry: ChatGPT/Gemini/Angular render chat elements late; keep
@@ -4638,24 +4638,89 @@ safeBoot(() => {
   console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}` + (GHOST._degraded.length ? ` | degraded:${GHOST._degraded.join(',')}` : ''));
 });
 
-/* Re-mounts the panel if the page framework removes it from the DOM. */
-function startPanelWatchdog() {
-  let remounts = 0;
+/* PANEL SENTINEL (v8.2.0) — bounded, visibility-aware panel liveness.
+   Replaces the v8.1.4 watchdog, which only checked ABSENCE and had no cap, so
+   a page that re-hid the panel each time could drive an unbounded
+   append/remove storm. This version:
+     • treats the panel as "down" when it is disconnected, in a display:none /
+       visibility:hidden subtree, or has zero size (host may move #gitl into a
+       hidden container rather than remove it) — re-appending to document.body
+       rescues all of those. NOTE: safe because GITL never hides its OWN root
+       (collapsed state only hides the inner .g-body; the root keeps ≥44px);
+     • debounces, and CAPS remounts within a rolling window;
+     • on exceeding the cap, OPENS A CIRCUIT BREAKER: stops observing and shows
+       a visible, dismissible note instead of thrashing forever;
+     • disconnects observers/timers on teardown. */
+function startPanelSentinel() {
+  const MAX = 5, WINDOW_MS = 30000, DEBOUNCE_MS = 120;
+  let mo = null, poll = null, scheduled = null, opened = false;
+  const times = [];
+
+  const isDown = () => {
+    const n = document.getElementById('gitl');
+    if (!n || !n.isConnected || !document.body) return true;
+    try {
+      const st = getComputedStyle(n);
+      if (st.display === 'none' || st.visibility === 'hidden') return true;
+      const r = n.getBoundingClientRect();
+      if (r.width <= 2 && r.height <= 2) return true;
+    } catch(_) {}
+    return false;
+  };
+
+  const teardown = () => {
+    try { mo && mo.disconnect(); } catch(_) {}
+    if (poll) clearInterval(poll);
+    if (scheduled) clearTimeout(scheduled);
+    mo = poll = scheduled = null;
+  };
+
+  const openBreaker = () => {
+    opened = true;
+    teardown();
+    _beacon('sentinel-open');
+    Timeline.record('panel_circuit_open', { remounts: times.length, windowMs: WINDOW_MS });
+    try { DIAG.push('Panel sentinel opened: the page kept removing/hiding the panel — stopped re-mounting to avoid a loop.'); } catch(_) {}
+    // Visible, dismissible note (reuses the fatal-banner style, distinct id).
+    try {
+      if (document.getElementById('gitl-sentinel')) return;
+      const b = document.createElement('div');
+      b.id = 'gitl-sentinel';
+      b.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#2a230a;color:#ffe6a6;font:600 12px/1.4 system-ui,sans-serif;padding:9px 32px 9px 12px;border-bottom:2px solid #d9a441;white-space:pre-wrap');
+      b.textContent = "👻 Ghost's panel keeps being removed by this page, so it stopped re-adding it. Tap 🔄 re-detect or reload to try again.";
+      const x = document.createElement('span');
+      x.textContent = '×';
+      x.setAttribute('style', 'position:absolute;top:5px;right:10px;cursor:pointer;font-size:18px;line-height:1');
+      x.addEventListener('click', () => b.remove());
+      b.appendChild(x);
+      (document.body || document.documentElement).appendChild(b);
+    } catch(_) {}
+  };
+
   const ensure = () => {
-    if (document.getElementById('gitl') || !document.body) return;
-    // Panel vanished — re-append the SAME node (state/handlers intact).
+    if (opened || !isDown()) return;
+    const now = Date.now();
+    while (times.length && now - times[0] > WINDOW_MS) times.shift();
+    if (times.length >= MAX) { openBreaker(); return; }
+    times.push(now);
+    // Re-append the SAME node (state + event handlers intact).
     _panelMounted = false;
     mountPanel();
-    remounts++;
-    _beacon('remounted:' + remounts);
-    Timeline.record('panel_remount', { count: remounts });
-    DIAG.push('Panel was removed by the page — re-mounted (#' + remounts + ')');
+    _beacon('remounted:' + times.length);
+    Timeline.record('panel_remount', { count: times.length });
+    try { DIAG.push('Panel was removed/hidden by the page — re-mounted (#' + times.length + ')'); } catch(_) {}
     render();
   };
-  const mo = new MutationObserver(ensure);
+
+  const schedule = () => {
+    if (opened || scheduled) return;
+    scheduled = setTimeout(() => { scheduled = null; ensure(); }, DEBOUNCE_MS);
+  };
+
+  mo = new MutationObserver(schedule);
   mo.observe(document.documentElement, { childList: true, subtree: true });
-  // Belt-and-suspenders: a slow poll in case a body swap escapes the observer.
-  setInterval(ensure, 3000);
+  // Belt-and-suspenders: catch body swaps / CSS-only hides the observer may miss.
+  poll = setInterval(ensure, 3000);
 }
 
 } catch(__gitlBootErr) { _gitlFatal('top-level', __gitlBootErr); }
