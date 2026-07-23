@@ -11,6 +11,54 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.1.4 — Gemini "installed + active but nothing shows" (diagnosis, not a claimed fix)
+
+### Where the previous fix went wrong
+v8.1.3 guarded GITL_NET.install() and was verified against a frozen-window.fetch
+reproduction. Real bug, real fix — but the user's Tampermonkey dashboard then
+showed **8.1.3 installed, enabled, matched on Gemini**, and #gitl was still absent
+from a fresh page capture (Grammarly's data-gramm present in the same file =
+capture works; panel mounts fine on other sites on the same phone). So the frozen-
+fetch crash was NOT this symptom's cause. Lesson banked: I shipped and declared
+victory on a reproduction that tested a *different* failure mode than the user's.
+Don't do that. When the environment can't be reproduced (Firefox Android + Gemini,
+needs a Google login the sandbox lacks), make the software self-report instead of
+guessing again.
+
+### Why it was undiagnosable
+Every artifact available is blind to GITL's execution: a SingleFile save shows the
+DOM but not whether the script ran; MobiDevTools forwarded exactly one error across
+a 40s session and it was Gemini's own cross-origin-masked "Script error." at a
+gstatic BardChatUi bundle (present with and without our script — a red herring).
+And the existing lastBootError capture is circular: it's surfaced through the panel,
+which is the very thing that didn't mount.
+
+### What we added (all dependency-free, all work with no panel)
+1. Boot beacon on `<html data-gitl-boot>` — `started`/`ok:<ver>`/`error:<stage>`/
+   `remounted:N`. A plain page-save now answers "did it run, how far did it get."
+2. Whole-IIFE try/catch → `_gitlFatal()` → GM_notification + a banner injected at
+   documentElement level. Catches the entire "throws before safeBoot" class, not
+   just the network interceptor. safeBoot's own catch routes here too.
+3. Panel watchdog: re-mount #gitl if the framework removes it (leading Gemini
+   hypothesis — Angular owns document.body and can wipe children on re-render with
+   no throw).
+
+### Test-harness gotcha this introduced
+Wrapping the IIFE body in `try { … } catch(__gitlBootErr){}` block-scopes every
+const/function inside the try. The unit harness and two e2e specs injected their
+export hooks before the final `})();` — now OUTSIDE the try, where those symbols
+are invisible. Fixed all three to inject before the outer catch (still inside the
+try), with a fallback to the old position for pre-8.1.4 builds. If a future change
+moves the catch, those injection regexes need to move with it.
+
+### Still open
+This is a diagnosis play. Next Gemini load should either (a) show the panel
+(watchdog fixed an SPA removal), or (b) show a red banner / fire a notification with
+the actual error + set data-gitl-boot=error:<stage>. Either outcome finally tells
+us what's wrong. If the beacon reads `ok:8.1.4` yet the user still sees nothing,
+the panel is mounting and being hidden/covered (CSS/stacking/viewport) rather than
+missing — a different investigation.
+
 ## v8.1.3 — Gemini silent boot crash (GITL_NET.install() unguarded)
 
 ### The bug
