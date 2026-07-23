@@ -72,10 +72,41 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.4';
+const VER = '8.1.5';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
+
+/* ═══════════════════════════════════════════════════════════════
+   TRUSTED TYPES (v8.1.5) — the actual Gemini root cause
+   Gemini (a Google property) enforces `require-trusted-types-for 'script'`.
+   Under that CSP, assigning a plain string to `.innerHTML` THROWS
+   ("Sink type mismatch violation blocked by CSP" in Firefox) — which killed
+   boot on the very first render and is why the panel never appeared on
+   Gemini specifically (no other supported platform enforces Trusted Types).
+   Confirmed from the v8.1.4 fail-loud banner on the reporter's device.
+   Fix: register one policy at boot and route GITL's 4 innerHTML sinks through
+   it. On every site that does NOT enforce Trusted Types, `_ttPolicy` stays
+   null and `_TT()` returns the raw string — byte-identical behaviour, zero
+   regression risk off Gemini. GITL only ever passes its OWN static templates
+   here (persona/workflow text is already escaped via _esc upstream), so the
+   pass-through policy introduces no new injection surface. */
+let _ttPolicy = null;
+try {
+  if (typeof window !== 'undefined' && window.trustedTypes && window.trustedTypes.createPolicy) {
+    // A per-script named policy — page-scoped, does NOT touch the page's own
+    // default policy or other code. Name kept unique to avoid collisions.
+    _ttPolicy = window.trustedTypes.createPolicy('gitl-ui', { createHTML: (s) => s });
+  }
+} catch (e) {
+  // A restrictive `trusted-types` allow-list can forbid creating our policy.
+  // Record it (surfaces via the beacon/banner) — the panel would then need a
+  // DOM-built fallback, tracked as follow-up. Never fatal here.
+  _ttPolicy = null;
+  try { _beacon('tt-policy-blocked'); } catch(_) {}
+}
+/* Wrap any HTML string destined for an innerHTML sink. */
+function _TT(s) { return _ttPolicy ? _ttPolicy.createHTML(s) : s; }
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
@@ -2596,7 +2627,7 @@ const VEIL = {
     // immune to z-index wars and transform-based parents. Feature-detected.
     this._popover = typeof this.el.showPopover === 'function';
     if (this._popover) { try { this.el.setAttribute('popover', 'manual'); } catch(_) { this._popover = false; } }
-    this.el.innerHTML = `
+    this.el.innerHTML = _TT(`
       <div class="gv-card">
         <div class="gv-ringwrap">
           <div class="gv-ghost-x gv-gx1">👻</div>
@@ -2611,7 +2642,7 @@ const VEIL = {
         <div class="gv-pct" id="gv-pct"></div>
         <div class="gv-note" id="gv-note">Please don't reload the page</div>
         <button class="gv-cancel" id="gv-cancel">Cancel</button>
-      </div>`;
+      </div>`);
     document.body.appendChild(this.el);
     this.el.querySelector('#gv-cancel').addEventListener('click', () => { this.cancelled = true; this.el.querySelector('#gv-title').textContent = 'Stopping…'; });
     // Re-assert top-layer if the tab was backgrounded (mobile browsers can drop
@@ -2669,8 +2700,8 @@ const VEIL = {
     this.renderSteps(); this.beat(null);
   },
   renderSteps() {
-    this.el.querySelector('#gv-steps').innerHTML = this.steps.map((s, i) =>
-      `<div class="gv-step${i < this.idx ? ' done' : i === this.idx ? ' act' : ''}">${i < this.idx ? '✓' : i === this.idx ? '▶' : '·'} ${s}</div>`).join('');
+    this.el.querySelector('#gv-steps').innerHTML = _TT(this.steps.map((s, i) =>
+      `<div class="gv-step${i < this.idx ? ' done' : i === this.idx ? ' act' : ''}">${i < this.idx ? '✓' : i === this.idx ? '▶' : '·'} ${s}</div>`).join(''));
   },
   beat(pct) {
     this.lastBeat = Date.now();
@@ -3708,7 +3739,7 @@ function _explainLookup(target) {
 function _explainShow(info) {
   let tip = panel.querySelector('.g-xtip');
   if (!tip) { tip = document.createElement('div'); tip.className = 'g-xtip'; panel.appendChild(tip); }
-  tip.innerHTML = `<span class="x" id="g-xtip-x">✕</span><b>${info.name}</b><br>${info.desc}`;
+  tip.innerHTML = _TT(`<span class="x" id="g-xtip-x">✕</span><b>${info.name}</b><br>${info.desc}`);
 }
 function _explainIntercept(e) {
   const t = e.target;
@@ -4168,7 +4199,7 @@ function render() {
       : '';
     return [bar, line1, line2].filter(Boolean).join('');
   })();
-  panel.innerHTML = `
+  panel.innerHTML = _TT(`
     <div class="g-hdr" id="g-drag">
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
@@ -4203,7 +4234,7 @@ function render() {
         ${tab==='personas'?renderPersonasTab():''}${tab==='export'?renderExportTab():''}
         ${tab==='settings'?renderSettingsTab():''}
       </div>
-    </div>`;
+    </div>`);
   bindEvents();
   applyPosition(GHOST.ui.position);
 }

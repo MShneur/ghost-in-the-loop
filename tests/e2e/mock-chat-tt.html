@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- Reproduces Gemini's enforcement: under require-trusted-types-for
+       'script', assigning a plain string to .innerHTML THROWS. Chromium
+       enforces this from a meta CSP at parse time. No `trusted-types`
+       allow-list directive here, so creating a policy is permitted — which
+       is the case GITL v8.1.5's `gitl-ui` policy relies on. -->
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+  <title>Mock AI Chat (Trusted Types enforced) — GITL e2e harness</title>
+</head>
+<body>
+  <main>
+    <div class="conversation">
+      <div class="message assistant" data-message-author-role="assistant">Test AI Message</div>
+    </div>
+    <div class="composer">
+      <div
+        id="prompt-textarea"
+        class="ProseMirror"
+        contenteditable="true"
+        data-placeholder="Message..."
+        role="textbox"></div>
+      <button data-testid="send-button" aria-label="Send">Send</button>
+    </div>
+  </main>
+</body>
+</html>

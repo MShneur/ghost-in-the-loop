@@ -11,6 +11,58 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.1.5 — Gemini root cause: Trusted Types (found via the v8.1.4 banner)
+
+### The whole thread in one line
+Gemini enforces `require-trusted-types-for 'script'`; GITL renders with
+`.innerHTML = <string>`; under Trusted Types that assignment throws; it threw on
+the first render in the boot path, killing boot before the panel mounted. Only
+Gemini enforces TT among supported sites → Gemini-only symptom.
+
+### Why it took five releases and what actually cracked it
+- 8.1.3 guarded the network interceptor (real bug, wrong symptom).
+- 8.1.4 added fail-loud: a beacon + a banner injected with `textContent`/
+  `createElement` (deliberately NOT innerHTML, which is why the banner itself
+  survived the very CSP that was killing the panel). On the reporter's device
+  that banner printed the exact error: "Element.innerHTML setter: Sink type
+  mismatch violation blocked by CSP." THAT is what turned a week of guessing
+  into a five-minute diagnosis. Lesson banked: when you can't reproduce the
+  environment, spend the effort making the software report its own failure in a
+  way that can't be swallowed — it pays for itself immediately.
+- The external repair-pack the user brought (canary userscript, boot-supervisor,
+  panel-sentinel, hostile-shell tests) was good and correctly sequenced
+  (diagnose before rewrite), and it surfaced two genuine findings worth keeping
+  regardless: `__GITL_V8__` is committed before boot succeeds (blocks same-page
+  retry), and Playwright is Chromium-only while the field is Firefox. Neither is
+  the Gemini cause, but both are real; see follow-ups. The canary wasn't needed
+  in the end because the banner already proved GITL executes on Gemini — it just
+  threw on innerHTML.
+
+### The fix and its bound
+One `gitl-ui` policy created at boot; 4 innerHTML sinks wrapped in `_TT()`.
+`_TT` is a pure pass-through when `trustedTypes` is absent (every non-Gemini
+site), so behaviour there is unchanged. Named (not default) policy so we never
+touch Gemini's own default/named policies — page-scoped, minimal blast radius.
+Only GITL's own static templates go through it; imported text is `_esc`-escaped
+upstream, so no new injection surface.
+
+### Residual risk (stated honestly, not papered over)
+If a site enforced TT AND shipped a restrictive `trusted-types` allow-list that
+forbids creating our `gitl-ui` policy, `createPolicy` throws, `_ttPolicy` stays
+null, and the first innerHTML would still throw — but now it fails LOUD (banner +
+`error:` beacon + a `tt-policy-blocked` beacon marker) instead of a blank page,
+and the real remedy would be a DOM-built panel (no innerHTML at all). Gemini's
+banner reported a SINK violation, not a policy-creation violation, which is
+consistent with "no policy existed yet," and most `require-trusted-types-for`
+deployments don't also ship a name allow-list — so the policy approach is very
+likely sufficient on Gemini. Covered both ways in trustedtypes.spec.js.
+
+### Follow-ups (not done here; from the repair-pack audit, now de-risked)
+1. Commit `__GITL_V8__` only after critical boot phases (transactional boot).
+2. Add a Firefox Playwright project so tests run in the engine that actually
+   failed. TT is spec-level so the Chromium proof is strong, but the field is
+   Firefox Android and that gap should close.
+
 ## v8.1.4 — Gemini "installed + active but nothing shows" (diagnosis, not a claimed fix)
 
 ### Where the previous fix went wrong
