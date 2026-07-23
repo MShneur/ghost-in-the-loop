@@ -1,5 +1,42 @@
 # Changelog
 
+## [8.1.4] — FAIL-LOUD BOOT + PANEL SELF-HEAL (Gemini diagnosis)
+
+### The honest status
+v8.1.3 was **confirmed installed and active** on the reporter's phone (Tampermonkey
+dashboard showed Version 8.1.3, enabled, matched on Gemini) and the panel STILL
+never entered the DOM — Gemini only; it mounts fine on other sites on the same
+device. So the v8.1.3 network-interceptor fix, though a real bug fix, was NOT the
+cause of this symptom. This release does not *claim* to fix Gemini — it makes the
+failure **diagnosable and self-healing**, because a static page-save plus a mobile
+console that only forwards one cross-origin-masked error can't say why boot fails.
+
+### 🔦 Boot beacon (works in a plain "save page" capture)
+`<html data-gitl-boot="…">` is written at each phase: `started` the instant the
+script runs, `ok:<ver>` once the panel is mounted, or `error:<stage>` if boot
+throws. A basic page save now reveals whether the script executed at all and how
+far it got — the single most useful signal, since that's the artifact we can get.
+
+### 📣 Fail-loud (no more silent death)
+The whole IIFE body is wrapped so ANY top-level throw — not just the network
+interceptor (there's a lot of pre-boot code: state build, crash recovery, history
+patching) — routes to `_gitlFatal()`: a `GM_notification` **and** a fixed banner
+injected at `documentElement` level (not `body`, which may be the missing/hostile
+thing). Previously such a throw died silently and `lastBootError` was invisible
+because the panel that displays it never mounted. Now you SEE the error and can
+screenshot it.
+
+### 🔁 Panel self-heal
+A watchdog re-mounts `#gitl` if the page framework removes it. Gemini's Angular
+shell is unusually aggressive about owning `document.body`, and a full re-render
+can wipe the panel out with no error thrown — a leading suspect for "installed and
+active but nothing shows up." Re-mount is logged (`panel_remount`) and reflected on
+the beacon (`remounted:N`).
+
+Verified in real Chromium: successful-boot beacon, a forced boot-throw showing the
+banner + `error:boot` beacon + persisted error, and panel re-mount after removal
+(`tests/e2e/bootdiag.spec.js`).
+
 ## [8.1.3] — GEMINI SILENT BOOT CRASH
 
 ### 🐞 FIX — Ghost "doesn't seem to load" on Gemini (and any page with a hardened window.fetch)

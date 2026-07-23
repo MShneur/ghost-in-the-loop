@@ -88,8 +88,15 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
 }
 `;
 
-/* Find the last })(); and insert hook before it */
-const instrumented = noHeader.replace(/(\}\)\(\)\s*;?\s*)$/, `${EXPORT_HOOK}\n$1`);
+/* Inject the export hook so it runs where the closure's locals are visible.
+   v8.1.4 wrapped the whole IIFE body in `try { … } catch(__gitlBootErr){…}`,
+   so the symbols are block-scoped INSIDE that try. Insert the hook just before
+   the outer catch (still inside the try); fall back to the pre-8.1.4 layout
+   (before the final `})();`) when the wrapper isn't present. */
+const CATCH_RE = /\n\} catch\(__gitlBootErr\)/;
+const instrumented = CATCH_RE.test(noHeader)
+  ? noHeader.replace(CATCH_RE, `\n${EXPORT_HOOK}\n} catch(__gitlBootErr)`)
+  : noHeader.replace(/(\}\)\(\)\s*;?\s*)$/, `${EXPORT_HOOK}\n$1`);
 
 /* Sink object that the hook writes into */
 const sink = {};

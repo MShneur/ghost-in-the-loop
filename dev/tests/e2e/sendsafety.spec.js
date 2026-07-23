@@ -16,10 +16,15 @@ const path = require('path');
  * moment one exists.
  */
 
-const SCRIPT = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.js'), 'utf8')
-  .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '')
-  // expose the adapter for assertions
-  .replace(/(\}\)\(\)\s*;?\s*)$/, 'window.__GITL_Adapter = Adapter; window.__GITL_SelMem = SelectorMemory;\n$1');
+const RAW = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.js'), 'utf8')
+  .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
+// Expose closure locals for assertions. v8.1.4 wrapped the IIFE body in
+// try/catch, so inject INSIDE the try (before the outer catch) where Adapter
+// is in scope; fall back to the old before-`})()` spot for pre-8.1.4 builds.
+const EXPOSE = 'window.__GITL_Adapter = Adapter; window.__GITL_SelMem = SelectorMemory;';
+const SCRIPT = /\n\} catch\(__gitlBootErr\)/.test(RAW)
+  ? RAW.replace(/\n\} catch\(__gitlBootErr\)/, '\n' + EXPOSE + '\n} catch(__gitlBootErr)')
+  : RAW.replace(/(\}\)\(\)\s*;?\s*)$/, EXPOSE + '\n$1');
 
 const GM = `
   window.__gmStore = {};

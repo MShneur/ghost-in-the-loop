@@ -28,9 +28,51 @@ if (window.__GITL_V8__) return;
 window.__GITL_V8__ = true;
 
 /* ═══════════════════════════════════════════════════════════════
+   BOOT BEACON + FAIL-LOUD (v8.1.4)
+   The Gemini "panel never appears" reports were undiagnosable because a
+   silent top-level throw kills the whole script before the panel (which is
+   where all diagnostics live) can mount — so lastBootError was invisible.
+   Two dependency-free instruments that work even when nothing else does:
+     • a beacon written to <html data-gitl-boot="…"> at each phase, so it
+       shows up in a plain SingleFile/"save page" capture: `started` →
+       `ok:<ver>` on success, or `error:<stage>` if boot throws. This turns a
+       static page save into a real diagnosis of whether the script even ran.
+     • _gitlFatal(): on any fatal boot throw, surface it via GM_notification
+       AND a fixed banner injected at documentElement level (not body — body
+       may be the very thing that's missing/hostile), so the user can SEE and
+       screenshot the actual error instead of a blank page.
+   _gitlFatal is declared at IIFE scope (outside the try below) so it is
+   reachable from both the top-level catch and safeBoot's catch. */
+const _beacon = (s) => { try { document.documentElement.setAttribute('data-gitl-boot', s); } catch(_) {} };
+_beacon('started');
+function _gitlFatal(stage, err) {
+  const msg = String((err && (err.message || err)) || 'unknown');
+  const stack = String((err && err.stack) || '');
+  _beacon('error:' + stage);
+  try { GM_setValue('lastBootError', JSON.stringify({ stage, msg, stack, at: new Date().toISOString() })); } catch(_) {}
+  try { console.error('[GITL] FATAL @' + stage + ':', err); } catch(_) {}
+  try { if (typeof GM_notification === 'function') GM_notification({ title: '👻 Ghost failed to load (' + stage + ')', text: msg, timeout: 15000 }); } catch(_) {}
+  try {
+    if (document.getElementById('gitl-fatal')) return;
+    const b = document.createElement('div');
+    b.id = 'gitl-fatal';
+    b.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483647;background:#3a0d12;color:#ffd7dd;font:600 12px/1.4 system-ui,sans-serif;padding:10px 34px 10px 12px;border-bottom:2px solid #ff5570;box-shadow:0 4px 18px rgba(0,0,0,.5);white-space:pre-wrap;word-break:break-word');
+    b.textContent = '👻 Ghost in the Loop couldn’t start on this page (' + stage + ').\n' + msg + '\nScreenshot this and send it — it says exactly what broke.';
+    const x = document.createElement('span');
+    x.textContent = '×';
+    x.setAttribute('style', 'position:absolute;top:6px;right:10px;cursor:pointer;font-size:18px;line-height:1');
+    x.addEventListener('click', () => b.remove());
+    b.appendChild(x);
+    (document.body || document.documentElement).appendChild(b);
+  } catch(_) {}
+}
+
+try {
+
+/* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.3';
+const VER = '8.1.4';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -64,8 +106,9 @@ function safeBoot(fn) {
       if (!document.body) { requestAnimationFrame(boot); return; }
       fn();
     } catch (err) {
-      console.error('[GITL] boot failed:', err);
-      try { GM_setValue('lastBootError', JSON.stringify({ msg: String(err?.message||err), stack: String(err?.stack||''), at: new Date().toISOString() })); } catch(_){}
+      // v8.1.4: was silent (stored to GM only, invisible since the panel that
+      // shows it never mounted). Now fails loud via the same beacon+banner.
+      _gitlFatal('boot', err);
     }
   };
   if (document.readyState === 'loading') {
@@ -4503,6 +4546,38 @@ safeBoot(() => {
     if (lastBoot) { DIAG.push('Previous page load failed to boot: ' + (JSON.parse(lastBoot).msg || lastBoot)); _save('lastBootError', ''); }
     if (lastNet)  { DIAG.push('Previous page load: network interceptor failed to install: ' + (JSON.parse(lastNet).msg || lastNet)); _save('lastNetInstallError', ''); }
   } catch(_) {}
+
+  // Boot completed AND the panel is in the DOM — record success on the beacon.
+  _beacon(document.getElementById('gitl') ? 'ok:' + VER : 'no-panel:' + VER);
+  // Panel self-heal: Gemini's Angular framework (and some other SPAs) can
+  // wipe document.body's children out from under us on route/re-render,
+  // silently removing #gitl with no error thrown — a leading suspect for
+  // "installed and active but nothing shows up" on Gemini specifically.
+  // Watch for the panel disappearing and re-mount it. Cheap: one observer,
+  // only acts when #gitl is actually gone.
+  try { startPanelWatchdog(); } catch(e) { DIAG.push('panel watchdog failed: ' + e); }
 });
+
+/* Re-mounts the panel if the page framework removes it from the DOM. */
+function startPanelWatchdog() {
+  let remounts = 0;
+  const ensure = () => {
+    if (document.getElementById('gitl') || !document.body) return;
+    // Panel vanished — re-append the SAME node (state/handlers intact).
+    _panelMounted = false;
+    mountPanel();
+    remounts++;
+    _beacon('remounted:' + remounts);
+    Timeline.record('panel_remount', { count: remounts });
+    DIAG.push('Panel was removed by the page — re-mounted (#' + remounts + ')');
+    render();
+  };
+  const mo = new MutationObserver(ensure);
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+  // Belt-and-suspenders: a slow poll in case a body swap escapes the observer.
+  setInterval(ensure, 3000);
+}
+
+} catch(__gitlBootErr) { _gitlFatal('top-level', __gitlBootErr); }
 })();
 });

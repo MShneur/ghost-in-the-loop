@@ -13,9 +13,14 @@ const path = require('path');
  * A genuine navigation to a different host still should.
  */
 
-const SCRIPT = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.js'), 'utf8')
-  .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '')
-  .replace(/(\}\)\(\)\s*;?\s*)$/, 'window.__GITL_GHOST = GHOST;\n$1');
+const RAW = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.js'), 'utf8')
+  .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
+// Expose a closure local for assertions. v8.1.4 wrapped the IIFE body in
+// try/catch, so inject INSIDE the try (before the outer catch) where GHOST is
+// in scope; fall back to the old before-`})()` spot for pre-8.1.4 builds.
+const SCRIPT = /\n\} catch\(__gitlBootErr\)/.test(RAW)
+  ? RAW.replace(/\n\} catch\(__gitlBootErr\)/, '\nwindow.__GITL_GHOST = GHOST;\n} catch(__gitlBootErr)')
+  : RAW.replace(/(\}\)\(\)\s*;?\s*)$/, 'window.__GITL_GHOST = GHOST;\n$1');
 
 const GM = `
   window.__gmStore = {};
