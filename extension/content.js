@@ -1,5 +1,5 @@
-/* Ghost in the Loop — Firefox MV3 Extension Wrapper
-   GM_* API shim for browser.storage.local */
+/* GENERATED FILE — edit ghost-in-the-loop.user.js, then run npm run build.
+   Firefox MV3 wrapper: GM_* compatibility over browser.storage.local. */
 const _store = typeof browser !== 'undefined' ? browser.storage.local : chrome.storage.local;
 const _cache = {};
 async function _initStore() {
