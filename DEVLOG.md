@@ -11,6 +11,44 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.2.1 — Send-target mislearn (issues #4, #5)
+
+**What was tried / observed.** Two `probe_fail` reports showed SelectorMemory
+had *learned* the wrong send control: `#model-select-trigger` on Grok (#5) and
+`#composer-plus-btn` on ChatGPT (#4). The loop then "sent" by opening a dropdown
+and stalled with "No output detected."
+
+**Why it happened.** `_heurSend`'s semantic gate accepts three positive signals:
+a send word, `type=submit`, or *same-form*. Both wrong controls live inside the
+composer form, so *same-form alone* qualified them, and nothing looked at their
+`id` or the fact that they open a menu. The DeepSeek-era veto only inspected
+aria-label/title/testid/text — never `id`, and had no structural check.
+
+**What we did instead.**
+1. Structural gate in `_sendLooksSafe`: any element with `aria-haspopup` or
+   `aria-expanded` is refused — a send button submits, it never opens a menu.
+   This is label-independent and kills both field cases directly.
+2. Folded `id` into the veto surface and added `model|plus|tool|option|picker|
+   dropdown|emoji|format` to `SEND_VETO`, so the two ids read unsafe by name.
+3. Made `_heurSend` use `_sendLooksSafe` as its single veto gate instead of a
+   private inline `SEND_VETO.test(label)` — id + structural rules now apply in
+   the heuristic tier too. Persisted poison self-heals: `lookup('send')` already
+   forgets a stored selector that fails `_sendLooksSafe`.
+
+**Why this is safe.** Send never depended solely on the button: the pipeline
+verifies the input actually cleared and falls through Enter → insertParagraph →
+form-submit. Refusing a bad button degrades to those tiers, not to no-send.
+
+**Coverage.** `tests/mislearn.test.js` (unit) + a same-form popup-toggle
+reproduction in `tests/e2e/sendsafety.spec.js`, both engines.
+
+**Honest limit.** #4 was mobile ChatGPT (Edge Mobile / Android) with *every*
+selector NO MATCH — a different DOM I can't fully verify without the device.
+This fix removes the mislearn poison and lets the role/meaning heuristics work,
+but full mobile-ChatGPT certification still needs a real-device confirmation.
+
+---
+
 ## v8.2.0 — Reliability overhaul (working the failure audit, judiciously)
 
 The user brought a well-built external repair pack (canary, boot-supervisor,

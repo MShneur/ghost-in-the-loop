@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.2.0
+// @version      8.2.1
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — Architecture by Claude
 // @match        https://chatgpt.com/*
@@ -101,7 +101,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.2.0';
+const VER = '8.2.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -713,7 +713,13 @@ const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|se
    clicked the reply's "Copy" button (svg icon + proximity alone scored past
    the old threshold) and the user's prompt got copied instead of sent.
    Message-action verbs are now hard-vetoed on EVERY send tier. */
-const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close|copy|download|share|edit|delete|regenerat|retry|rewrite|like|dislike|thumb|feedback|read.?aloud|speaker|volume|translat|pin\b|bookmark|history|sidebar|scroll|expand|collapse|fullscreen|deep.?think|research/i;
+/* v8.2.1: added model/plus/tool/option after issues #4 and #5 — the heuristic
+   tier learned a WRONG send control on two sites because it lived inside the
+   composer form (the "same-form" signal alone qualified it): #model-select-
+   trigger on Grok and #composer-plus-btn on ChatGPT. Their ids/labels are now
+   vetoed too, and a structural popup-toggle check (below) catches the general
+   case regardless of wording. */
+const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close|copy|download|share|edit|delete|regenerat|retry|rewrite|like|dislike|thumb|feedback|read.?aloud|speaker|volume|translat|pin\b|bookmark|history|sidebar|scroll|expand|collapse|fullscreen|deep.?think|research|model|plus\b|tool|option|picker|dropdown|emoji|format/i;
 
 /* A candidate send control must clear the veto no matter which tier found
    it — configured selectors can rot into matching the wrong control after
@@ -721,8 +727,18 @@ const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings
 function _sendLooksSafe(el) {
   if (!el) return false;
   try {
-    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
-                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    /* v8.2.1 structural gate (issues #4/#5): a send button submits — it never
+       opens a menu or toggles a disclosure. Model pickers, the "+" attach menu
+       and tool dropdowns all carry aria-haspopup and/or aria-expanded. This
+       one check kills #model-select-trigger (Grok) and #composer-plus-btn
+       (ChatGPT) no matter how they are labelled. */
+    if (el.getAttribute('aria-haspopup')) return false;
+    if (el.getAttribute('aria-expanded') != null) return false;
+    /* id is telltale on both field mislearns ("model-select", "plus-btn") yet
+       was never inspected before — fold it into the veto surface. */
+    const label = [el.getAttribute('id'), el.getAttribute('aria-label'),
+                   el.getAttribute('title'), el.getAttribute('data-testid'),
+                   el.textContent].join(' ').slice(0, 160);
     return !SEND_VETO.test(label);
   } catch(_) { return true; }
 }
@@ -770,7 +786,10 @@ function _heurSend(anchor) {
     if (!_visible(el) || el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
     const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
                    el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
-    if (SEND_VETO.test(label)) continue; // hard veto — a wrong click (mic, attach) is worse than no click
+    // Single veto gate (v8.2.1): _sendLooksSafe now also inspects id and rejects
+    // popup-toggles (aria-haspopup/aria-expanded), so a wrong click (mic, attach,
+    // model-picker, "+") is filtered here too — worse than no click at all.
+    if (!_sendLooksSafe(el)) continue;
     /* v8.1 semantic gate: proximity + an svg icon must NEVER be enough on
        their own (that combination is every message-action button on the
        page). A candidate needs at least one POSITIVE send signal. */

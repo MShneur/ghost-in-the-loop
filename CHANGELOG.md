@@ -1,5 +1,42 @@
 # Changelog
 
+## [8.2.1] — send-target mislearn fix (issues #4, #5)
+
+Two field reports showed the self-healing SelectorMemory learning the **wrong**
+send control and then "sending" by clicking it:
+
+- **#5 (Grok)** learned `#model-select-trigger` — the model-picker dropdown.
+- **#4 (ChatGPT)** learned `#composer-plus-btn` — the "+" attach menu.
+
+Root cause: both controls sit *inside the composer form*, so the heuristic
+tier's "same-form" positive signal alone qualified them as a send button, and
+nothing inspected their `id` or the fact that they open a menu. The loop then
+"sent" by opening a dropdown, and the run stalled with *"No output detected."*
+
+### ✅ Structural popup-toggle veto
+`_sendLooksSafe` now rejects any candidate carrying `aria-haspopup` or
+`aria-expanded` — a send button submits, it never opens a menu or toggles a
+disclosure. This one check kills both field mislearns regardless of wording.
+
+### ✅ id folded into the veto surface
+The element `id` was never inspected before. It is now part of the label the
+veto runs against, and `SEND_VETO` gained `model|plus|tool|option|picker|
+dropdown|emoji|format`, so `#model-select-trigger` and `#composer-plus-btn`
+read as unsafe by name alone.
+
+### ✅ One veto gate for every tier
+`_heurSend` now routes its veto through `_sendLooksSafe` (single source of
+truth) instead of a private inline check, so the id + structural rules apply in
+the heuristic tier too. A persisted wrong selector also self-heals:
+`SelectorMemory.lookup('send')` already forgets a stored selector that fails
+`_sendLooksSafe`, so existing poisoned memory is dropped on next lookup.
+
+Send itself was never solely dependent on the button: the pipeline verifies the
+input actually cleared and falls through Enter → insertParagraph → form-submit,
+so vetoing a bad button degrades to those tiers rather than failing.
+
+New regression suite: `tests/mislearn.test.js`.
+
 ## [8.2.0] — RELIABILITY OVERHAUL (post-Gemini hardening)
 
 With the Gemini root cause fixed in 8.1.5 (Trusted Types), this release works
