@@ -24,8 +24,15 @@ function GM_notification(detail) {
 _initStore().then(() => {
 (() => {
 'use strict';
-if (window.__GITL_V8__) return;
-window.__GITL_V8__ = true;
+/* v8.2.0 transactional boot: do NOT commit the singleton here. Committing it
+   before boot succeeded meant a partial/failed boot (e.g. the Trusted Types
+   throw) permanently blocked any same-page retry. `window.__GITL_V8__` is now
+   set to `true` only after the CRITICAL UI phases (styles → panel → render)
+   succeed. A short in-flight marker prevents concurrent double-execution
+   without poisoning a retry after a failed attempt. */
+if (window.__GITL_V8__ === true) return;                                          // already fully booted
+if (window.__GITL_BOOTING__ && Date.now() - window.__GITL_BOOTING__ < 15000) return; // an attempt is in flight
+window.__GITL_BOOTING__ = Date.now();
 
 /* ═══════════════════════════════════════════════════════════════
    BOOT BEACON + FAIL-LOUD (v8.1.4)
@@ -72,7 +79,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.1.5';
+const VER = '8.2.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -2369,6 +2376,9 @@ function primaryAction() {
    SPA ROUTE DETECTION
    ═══════════════════════════════════════════════════════════════ */
 (function patchHistory() {
+  // Guarded so a boot retry (top-level code re-running) can't double-wrap.
+  if (window.__GITL_HIST_PATCHED__) return;
+  window.__GITL_HIST_PATCHED__ = true;
   const orig = history.pushState;
   history.pushState = function(...a) { orig.apply(this, a); window.dispatchEvent(new Event('gitl:route')); };
   const origR = history.replaceState;
@@ -4517,96 +4527,178 @@ let _mutDebounce;
    BOOT — wrapped in safeBoot to prevent v7.0-alpha loading failures
    ═══════════════════════════════════════════════════════════════ */
 safeBoot(() => {
-  // Observer watches childList (new nodes) AND a narrow set of attributes
-  // (style/class/hidden), so a Continue button revealed via CSS — not just
-  // one freshly inserted — also triggers the auto-click fast-path.
-  // Loop tick (setInterval) remains the primary driver; this is a fast-path.
-  new MutationObserver(() => {
-    if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
-    clearTimeout(_mutDebounce);
-    _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
-  }).observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ['style', 'class', 'hidden', 'disabled', 'aria-hidden']
+  /* v8.2.0 TRANSACTIONAL BOOT.
+     Previously boot was one straight-line block: any throw before mountPanel()
+     — including in an OPTIONAL subsystem like the tab bus or heartbeat — aborted
+     the rest and the panel never appeared. Now boot runs as isolated phases:
+       • CRITICAL phases (styles → panel → render) must succeed; a failure is
+         fatal AND loud (_gitlFatal via safeBoot's catch).
+       • OPTIONAL phases are each caught: one failing subsystem degrades health
+         and is logged, but can never suppress the panel or the phases after it.
+     The singleton `window.__GITL_V8__` is committed only after the critical
+     phases succeed, so a failed attempt no longer blocks a retry. */
+  GHOST._degraded = [];
+  const _phase = (name, critical, fn) => {
+    const t = Date.now();
+    try {
+      fn();
+      Timeline.record('boot_phase', { name, ok: true, ms: Date.now() - t });
+    } catch (e) {
+      Timeline.record('boot_phase', { name, ok: false, error: String(e && e.message || e) });
+      if (critical) throw new Error('critical boot phase "' + name + '" failed: ' + (e && e.message || e));
+      GHOST._degraded.push(name);
+      try { DIAG.push('Boot phase "' + name + '" failed (non-critical, panel unaffected): ' + (e && e.message || e)); } catch(_) {}
+    }
+  };
+
+  // ── CRITICAL: get the panel on screen. Nothing optional runs before this. ──
+  _phase('workshop', false, () => Workshop.load());   // custom items for first render; non-fatal if it throws
+  _phase('styles',   true,  () => injectStyles());
+  _phase('panel',    true,  () => mountPanel());
+  _phase('skin',     true,  () => SKIN.apply());
+  _phase('render',   true,  () => render());
+
+  // Panel is up and rendered — commit the singleton NOW (never before boot).
+  window.__GITL_V8__ = true;
+  window.__GITL_BOOTING__ = 0;
+  _beacon(document.getElementById('gitl') ? 'ok:' + VER : 'no-panel:' + VER);
+
+  // ── OPTIONAL: isolated. None of these can remove the panel if they throw. ──
+  _phase('continue-observer', false, () => {
+    // Fast-path: a Continue button revealed via CSS (not just freshly inserted)
+    // also triggers the auto-click. The loop tick remains the primary driver.
+    new MutationObserver(() => {
+      if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
+      clearTimeout(_mutDebounce);
+      _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
+    }).observe(document.body, {
+      childList: true, subtree: true, attributes: true,
+      attributeFilter: ['style', 'class', 'hidden', 'disabled', 'aria-hidden']
+    });
+  });
+  _phase('heartbeat', false, () => startTabHeartbeat());
+  _phase('tab-lock',  false, () => claimTabLock());
+  _phase('bus',       false, () => GhostBus.init());
+  _phase('panel-sentinel', false, () => startPanelSentinel());
+
+  _phase('boot-retry', false, () => {
+    // SPA boot retry: ChatGPT/Gemini/Angular render chat elements late; keep
+    // trying to find input+send for 30s (every 2s), then stop.
+    let _bootRetry = 0;
+    const _bootInterval = setInterval(() => {
+      _bootRetry++;
+      const inp = _q('input', PLAT.input);
+      if (inp) {
+        clearInterval(_bootInterval);
+        GHOST.loop.detail = `✓ Connected to ${PLAT.label}`;
+        render();
+        DIAG.push(`Boot: elements found after ${_bootRetry * 2}s`);
+      } else if (_bootRetry >= 15) {
+        clearInterval(_bootInterval);
+        DIAG.push('Boot: gave up waiting for elements after 30s');
+      } else {
+        _cache.clear(); // re-attempt detect during SPA hydration
+      }
+    }, 2000);
   });
 
-  startTabHeartbeat();
-  claimTabLock();
-  GhostBus.init();
-  Workshop.load();
-  injectStyles();
-  mountPanel();
-  SKIN.apply();
-  render();
-
-  // SPA boot retry: ChatGPT/Gemini/Angular apps render chat elements late.
-  // Keep trying to find input+send for 30s after boot (every 2s).
-  // Once found, update status and stop retrying.
-  let _bootRetry = 0;
-  const _bootInterval = setInterval(() => {
-    _bootRetry++;
-    const inp = _q('input', PLAT.input);
-    if (inp) {
-      clearInterval(_bootInterval);
-      GHOST.loop.detail = `✓ Connected to ${PLAT.label}`;
-      render();
-      DIAG.push(`Boot: elements found after ${_bootRetry * 2}s`);
-    } else if (_bootRetry >= 15) {
-      clearInterval(_bootInterval);
-      DIAG.push('Boot: gave up waiting for elements after 30s');
-    } else {
-      // Re-attempt detect during SPA hydration
-      _cache.clear();
-    }
-  }, 2000);
-  Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8) });
-  console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}`);
-
-  /* v8.1.3: surface a PRIOR boot failure once, instead of it living silently
-     in GM storage forever. Reaching this line means boot succeeded THIS
-     time (the panel you're looking at is proof), so this only fires for a
-     failure on an earlier page load — e.g. a hardened page killed the whole
-     script before install() was made fault-tolerant. Visible in the
-     Diagnostics probe / any auto-report from here on, then cleared so it
-     doesn't repeat every boot. */
-  try {
+  _phase('prior-error-surface', false, () => {
+    /* Surface a PRIOR boot failure once (from GM storage), then clear it, so a
+       failure on an earlier load becomes visible in Diagnostics/reports now
+       that the panel is up. */
     const lastBoot = GM_getValue('lastBootError', '');
     const lastNet  = GM_getValue('lastNetInstallError', '');
     if (lastBoot) { DIAG.push('Previous page load failed to boot: ' + (JSON.parse(lastBoot).msg || lastBoot)); _save('lastBootError', ''); }
     if (lastNet)  { DIAG.push('Previous page load: network interceptor failed to install: ' + (JSON.parse(lastNet).msg || lastNet)); _save('lastNetInstallError', ''); }
-  } catch(_) {}
+  });
 
-  // Boot completed AND the panel is in the DOM — record success on the beacon.
-  _beacon(document.getElementById('gitl') ? 'ok:' + VER : 'no-panel:' + VER);
-  // Panel self-heal: Gemini's Angular framework (and some other SPAs) can
-  // wipe document.body's children out from under us on route/re-render,
-  // silently removing #gitl with no error thrown — a leading suspect for
-  // "installed and active but nothing shows up" on Gemini specifically.
-  // Watch for the panel disappearing and re-mount it. Cheap: one observer,
-  // only acts when #gitl is actually gone.
-  try { startPanelWatchdog(); } catch(e) { DIAG.push('panel watchdog failed: ' + e); }
+  Timeline.record('boot', { version: VER, platform: PLAT.label, tab: GITL_TAB_ID.slice(0,8), degraded: GHOST._degraded });
+  console.log(`[Ghost in the Loop v${VER}] ${PLAT.label} | ${DIAG.adapter} | tab:${GITL_TAB_ID.slice(0,8)}` + (GHOST._degraded.length ? ` | degraded:${GHOST._degraded.join(',')}` : ''));
 });
 
-/* Re-mounts the panel if the page framework removes it from the DOM. */
-function startPanelWatchdog() {
-  let remounts = 0;
+/* PANEL SENTINEL (v8.2.0) — bounded, visibility-aware panel liveness.
+   Replaces the v8.1.4 watchdog, which only checked ABSENCE and had no cap, so
+   a page that re-hid the panel each time could drive an unbounded
+   append/remove storm. This version:
+     • treats the panel as "down" when it is disconnected, in a display:none /
+       visibility:hidden subtree, or has zero size (host may move #gitl into a
+       hidden container rather than remove it) — re-appending to document.body
+       rescues all of those. NOTE: safe because GITL never hides its OWN root
+       (collapsed state only hides the inner .g-body; the root keeps ≥44px);
+     • debounces, and CAPS remounts within a rolling window;
+     • on exceeding the cap, OPENS A CIRCUIT BREAKER: stops observing and shows
+       a visible, dismissible note instead of thrashing forever;
+     • disconnects observers/timers on teardown. */
+function startPanelSentinel() {
+  const MAX = 5, WINDOW_MS = 30000, DEBOUNCE_MS = 120;
+  let mo = null, poll = null, scheduled = null, opened = false;
+  const times = [];
+
+  const isDown = () => {
+    const n = document.getElementById('gitl');
+    if (!n || !n.isConnected || !document.body) return true;
+    try {
+      const st = getComputedStyle(n);
+      if (st.display === 'none' || st.visibility === 'hidden') return true;
+      const r = n.getBoundingClientRect();
+      if (r.width <= 2 && r.height <= 2) return true;
+    } catch(_) {}
+    return false;
+  };
+
+  const teardown = () => {
+    try { mo && mo.disconnect(); } catch(_) {}
+    if (poll) clearInterval(poll);
+    if (scheduled) clearTimeout(scheduled);
+    mo = poll = scheduled = null;
+  };
+
+  const openBreaker = () => {
+    opened = true;
+    teardown();
+    _beacon('sentinel-open');
+    Timeline.record('panel_circuit_open', { remounts: times.length, windowMs: WINDOW_MS });
+    try { DIAG.push('Panel sentinel opened: the page kept removing/hiding the panel — stopped re-mounting to avoid a loop.'); } catch(_) {}
+    // Visible, dismissible note (reuses the fatal-banner style, distinct id).
+    try {
+      if (document.getElementById('gitl-sentinel')) return;
+      const b = document.createElement('div');
+      b.id = 'gitl-sentinel';
+      b.setAttribute('style', 'position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#2a230a;color:#ffe6a6;font:600 12px/1.4 system-ui,sans-serif;padding:9px 32px 9px 12px;border-bottom:2px solid #d9a441;white-space:pre-wrap');
+      b.textContent = "👻 Ghost's panel keeps being removed by this page, so it stopped re-adding it. Tap 🔄 re-detect or reload to try again.";
+      const x = document.createElement('span');
+      x.textContent = '×';
+      x.setAttribute('style', 'position:absolute;top:5px;right:10px;cursor:pointer;font-size:18px;line-height:1');
+      x.addEventListener('click', () => b.remove());
+      b.appendChild(x);
+      (document.body || document.documentElement).appendChild(b);
+    } catch(_) {}
+  };
+
   const ensure = () => {
-    if (document.getElementById('gitl') || !document.body) return;
-    // Panel vanished — re-append the SAME node (state/handlers intact).
+    if (opened || !isDown()) return;
+    const now = Date.now();
+    while (times.length && now - times[0] > WINDOW_MS) times.shift();
+    if (times.length >= MAX) { openBreaker(); return; }
+    times.push(now);
+    // Re-append the SAME node (state + event handlers intact).
     _panelMounted = false;
     mountPanel();
-    remounts++;
-    _beacon('remounted:' + remounts);
-    Timeline.record('panel_remount', { count: remounts });
-    DIAG.push('Panel was removed by the page — re-mounted (#' + remounts + ')');
+    _beacon('remounted:' + times.length);
+    Timeline.record('panel_remount', { count: times.length });
+    try { DIAG.push('Panel was removed/hidden by the page — re-mounted (#' + times.length + ')'); } catch(_) {}
     render();
   };
-  const mo = new MutationObserver(ensure);
+
+  const schedule = () => {
+    if (opened || scheduled) return;
+    scheduled = setTimeout(() => { scheduled = null; ensure(); }, DEBOUNCE_MS);
+  };
+
+  mo = new MutationObserver(schedule);
   mo.observe(document.documentElement, { childList: true, subtree: true });
-  // Belt-and-suspenders: a slow poll in case a body swap escapes the observer.
-  setInterval(ensure, 3000);
+  // Belt-and-suspenders: catch body swaps / CSS-only hides the observer may miss.
+  poll = setInterval(ensure, 3000);
 }
 
 } catch(__gitlBootErr) { _gitlFatal('top-level', __gitlBootErr); }

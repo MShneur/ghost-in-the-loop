@@ -8,13 +8,17 @@
 ## File Structure
 
 ```
-ghost-in-the-loop.user.js    Main userscript (~3250 lines)
+ghost-in-the-loop.user.js    Main userscript (~4600 lines)
 extension/
   manifest.json              Firefox MV3 manifest
   content.js                 Built from userscript via sed extraction + GM shim header
+diagnostics/
+  gitl-canary.user.js        Standalone execution canary (NOT core; see its README)
+  README.md
 tests/
   setup.js                   VM harness: mocks GM_*, injects export hook into IIFE
-  *.test.js                  Unit tests (157 total)
+  *.test.js                  Unit tests (~300)
+  e2e/*.spec.js              Playwright, run in BOTH Chromium and Firefox (Gecko)
 docs/
   ARCHITECTURE.md            This file
 CHANGELOG.md                 What shipped per version
@@ -41,8 +45,49 @@ DEVLOG.md                    What was tried, what failed, why — read before re
 | **8** | 1091–1250 | Start/stop/queue, SPA route watcher |
 | **9** | 1251–1760 | Export: `extractMessages()`, `buildFilename()`, `apiExportChatGPT()`, `buildCapsuleV2()`, `exportCapsuleV2()` |
 | **10** | 1761–1800 | Audio |
-| **11** | 1801–2300 | UI: `renderXxx()` functions, CSS, `render()` |
-| **12** | 2300–2403 | Boot: `safeBoot(() => { ... })`, final IIFE close |
+| **11** | UI | `renderXxx()` functions, CSS, `render()`. All `.innerHTML` sinks route through `_TT()` (Trusted Types policy) — required on Gemini's `require-trusted-types-for 'script'` CSP. |
+| **12** | Boot | Beacon + `_gitlFatal()` fail-loud; transactional `safeBoot(() => { ...phases... })`; panel sentinel; final IIFE close (wrapped in top-level try→`_gitlFatal`). |
+
+*(Line-number ranges above are approximate and drift with edits; use them as a
+reading order, not addresses.)*
+
+---
+
+## Boot Contract (v8.2.0 — transactional)
+
+`safeBoot()` waits for `document.body`, then runs boot as isolated phases:
+
+- **Critical** (`styles → panel → render`): a failure throws → `_gitlFatal()`
+  (beacon `error:boot` + visible banner + `GM_notification`). The panel is the
+  product; if it can't render, fail LOUD, never blank+silent.
+- **Optional** (`continue-observer, heartbeat, tab-lock, bus, panel-sentinel,
+  boot-retry, prior-error-surface`): each caught; a failure pushes to
+  `GHOST._degraded` + Timeline `boot_phase{ok:false}` and is logged, but can
+  never suppress the panel or later phases.
+- The singleton `window.__GITL_V8__` is set to `true` **only after** the
+  critical phases succeed (a failed attempt no longer blocks a same-page retry;
+  an in-flight marker prevents concurrent double-exec).
+
+**Boot beacon** (`<html data-gitl-boot>`): `started` → `ok:<ver>` |
+`no-panel:<ver>` | `error:<stage>` | `remounted:N` | `sentinel-open`. Visible in
+a plain page-save — the primary field diagnostic.
+
+**Panel sentinel** (`startPanelSentinel`): treats the panel as down when
+disconnected OR `display:none`/`visibility:hidden`/zero-size; re-mounts (same
+node, state intact); capped 5/30s with a circuit breaker + visible note.
+Safe because Ghost never hides its own root (collapse hides only `.g-body`).
+
+**GITL_NET.install()** runs at top level (before `safeBoot`, so it beats the
+page's first fetch). Every patch is individually try/caught + the whole method
++ its call site — a hardened page can cost only its own network telemetry,
+never the panel.
+
+## Testing engines
+
+E2e runs in **Chromium and Firefox** (`playwright.config.js` advertises the
+Firefox project when a Firefox build is present; CI installs both). Firefox is
+desktop Gecko — the engine that enforces Trusted Types — not Android GeckoView,
+so passes are Gecko-validated, not Android-certified.
 
 ---
 

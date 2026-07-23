@@ -44,7 +44,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        # Both engines: the v8.1.x Gemini failure went undiagnosed for weeks
+        # because e2e ran Chromium-only while the field failure was Firefox
+        # (Trusted Types). playwright.config.js advertises the Firefox project
+        # only when a Firefox build is present, so installing it here is what
+        # makes CI actually run the Gecko matrix.
+        run: npx playwright install --with-deps chromium firefox
       - name: Run e2e boot tests
         run: npm run test:e2e
       - name: Upload e2e results
