@@ -60,15 +60,14 @@ test.describe('Fail-loud: a boot throw is visible, not silent', () => {
   test('forcing the boot callback to throw shows the #gitl-fatal banner + error beacon', async ({ page }) => {
     await page.addInitScript(GM);
     // Break the first thing the boot callback does — new MutationObserver().observe(document.body,…).
-    // This throws INSIDE safeBoot's callback, exercising _gitlFatal('boot', …).
+    // That is the FIRST .observe() call in the whole script's execution order
+    // (the redetect + panel-sentinel observers run later/on demand), so an
+    // UNCONDITIONAL throw deterministically fails exactly the boot callback,
+    // in every engine. (An earlier timing-armed version raced boot in Firefox.)
     await page.addInitScript(`
       const _RealMO = window.MutationObserver;
-      let _armed = false;
-      // Arm only after a tick so the script's own top-level observers still work;
-      // the boot callback runs at document-idle, after this.
-      setTimeout(() => { _armed = true; }, 0);
       window.MutationObserver = class extends _RealMO {
-        observe(...a) { if (_armed) throw new Error('e2e-forced-boot-throw'); return super.observe(...a); }
+        observe() { throw new Error('e2e-forced-boot-throw'); }
       };
     `);
     await page.addInitScript(RAW);
