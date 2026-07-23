@@ -1,5 +1,56 @@
 # Changelog
 
+## [8.2.0] — RELIABILITY OVERHAUL (post-Gemini hardening)
+
+With the Gemini root cause fixed in 8.1.5 (Trusted Types), this release works
+through the highest-value items from the failure audit — the ones that address
+*confirmed* weaknesses — while deliberately NOT rewriting working code on spec.
+
+### ✅ Tests now run in Firefox, not just Chromium
+The whole Gemini saga went undiagnosed for weeks because every e2e ran in
+Chromium while the field failure was Firefox Android — so Trusted Types
+enforcement was never exercised. Playwright now runs the full suite in **both
+Chromium and Firefox** (Gecko), and CI installs both. The Firefox project uses
+a mobile viewport + Android UA to approximate the reporter's device; it's
+desktop Gecko, not GeckoView, so treat passes as Gecko-validated, not
+Android-certified. Immediate payoff: the v8.1.5 Trusted Types fix is now
+**confirmed in real Gecko**, and Firefox caught a timing-flaky test on day one.
+
+### ✅ Transactional boot — one failing subsystem can't blank the panel
+Boot was a straight-line block: a throw in any step before the panel mounted
+(even an optional subsystem) aborted everything, and `__GITL_V8__` was committed
+before boot even ran, so a failed attempt permanently blocked a retry. Boot now
+runs as isolated phases: **critical** (styles → panel → render) fail loud;
+**optional** (continue-observer, heartbeat, tab-lock, bus, sentinel, boot-retry)
+are each caught and only degrade health (`GHOST._degraded`, Timeline
+`boot_phase`, `console … degraded:`). The singleton commits only after the panel
+is up.
+
+### ✅ Bounded, visibility-aware panel sentinel
+The 8.1.4 remount watchdog only checked *absence* and was unbounded — a page
+that re-hid the panel could drive an infinite append/remove storm. The sentinel
+now also rescues a panel that's been moved into a `display:none`/`hidden`/
+zero-size subtree, **caps** remounts (5 per 30s), and on exceeding the cap
+**opens a circuit breaker** with a visible note instead of thrashing. (Safe
+because Ghost never hides its own root — collapse only hides the inner body.)
+
+### ✅ Independent execution canary (`diagnostics/gitl-canary.user.js`)
+A standalone userscript, separate from core, that answers the one thing Ghost's
+own beacon can't: *did the manager execute a userscript here at all?* Badge but
+no panel → Ghost's fault; neither → manager/injection layer. Shadow-DOM host on
+`<html>`, built with DOM APIs (no innerHTML), so it's safe even on Trusted-Types
+pages. See `diagnostics/README.md`.
+
+### Deliberately deferred (honest scope)
+Two audit phases were **not** done, on purpose: a capability-split Gemini
+adapter rewrite (Phase 4) and a packaging/manager matrix + WXT build (Phase 6).
+Both touch working code or are large process/build efforts with low marginal
+value now that the actual bug is fixed and the adapter already has the
+send-veto + selector-memory hardening from 8.1.1. They're recorded in DEVLOG as
+future work rather than half-implemented.
+
+**303 unit + 52 e2e (26 × Chromium + 26 × Firefox), all green.**
+
 ## [8.1.5] — GEMINI ROOT CAUSE FOUND & FIXED (Trusted Types)
 
 ### 🎯 The actual cause — and the v8.1.4 banner is what caught it

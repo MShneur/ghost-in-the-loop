@@ -40,7 +40,7 @@ test.describe('Boot beacon + panel presence', () => {
 
     const beacon = await page.evaluate(() => document.documentElement.getAttribute('data-gitl-boot'));
     const mounted = await page.evaluate(() => !!document.getElementById('gitl'));
-    expect(beacon).toMatch(/^ok:8\.1\.\d+$/);
+    expect(beacon).toMatch(/^ok:8\.\d+\.\d+$/);
     expect(mounted).toBe(true);
   });
 

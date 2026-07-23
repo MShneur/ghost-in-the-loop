@@ -28,8 +28,22 @@ const chromiumPath = fs.existsSync('/opt/pw-browsers/chromium/chrome-linux/chrom
 
 // Only advertise the Firefox project if a Firefox build is actually present,
 // so the suite still runs on Chromium-only machines without hard-failing.
-const firefoxAvailable = fs.existsSync('/opt/pw-browsers') &&
-  fs.readdirSync('/opt/pw-browsers').some(d => /^firefox-/.test(d));
+// Checks every location a Firefox build can live: the managed-env path
+// (/opt/pw-browsers), an explicit PLAYWRIGHT_BROWSERS_PATH, and Playwright's
+// default cache (~/.cache/ms-playwright — where CI's `playwright install
+// firefox` lands). Without this, CI would install Firefox but never run it.
+const firefoxAvailable = (() => {
+  const os = require('os');
+  const dirs = [
+    process.env.PLAYWRIGHT_BROWSERS_PATH,
+    '/opt/pw-browsers',
+    require('path').join(os.homedir(), '.cache', 'ms-playwright'),
+  ].filter(Boolean);
+  for (const d of dirs) {
+    try { if (fs.existsSync(d) && fs.readdirSync(d).some(x => /^firefox-/.test(x))) return true; } catch (_) {}
+  }
+  return false;
+})();
 
 const projects = [
   {

@@ -11,6 +11,66 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.2.0 — Reliability overhaul (working the failure audit, judiciously)
+
+The user brought a well-built external repair pack (canary, boot-supervisor,
+panel-sentinel, gemini-adapter-v2, hostile-shell tests, a 7-phase Claude-Code
+prompt). After 8.1.5 fixed the actual root cause (Trusted Types), the honest
+call was: do the phases that fix CONFIRMED weaknesses; do NOT rewrite working
+code on spec. Landed 5, 2, 3, 1 as separate reviewable commits; deferred 4, 6.
+
+### Phase 5 (Firefox) — done, and it earned its place immediately
+Added a Firefox project to playwright.config.js (Gecko is what enforces TT).
+Config detects a Firefox build in /opt/pw-browsers, PLAYWRIGHT_BROWSERS_PATH,
+or ~/.cache/ms-playwright, so CI's `playwright install firefox` actually runs
+(the naive /opt-only check would install it and never use it). On the first
+run Firefox caught a timing-armed forced-throw in bootdiag that raced boot in
+Gecko; made it deterministic (the boot observer is the first .observe() in
+execution order, so throw unconditionally). The 8.1.5 TT fix is now Gecko-proven.
+
+### Phase 2 (transactional boot) — done
+`__GITL_V8__` committed before boot + monolithic boot were the two confirmed
+findings. Boot is now phased: critical (styles→panel→render) fatal+loud;
+optional isolated (degrade health, never suppress the panel); singleton
+committed only after critical success; in-flight marker + history-patch guard
+so a retry can't double-wrap. A follow-on subtlety this created: breaking
+MutationObserver no longer fails boot (the continue-observer is optional now),
+so that e2e was repurposed to assert the NEW isolation behavior; critical-
+failure-is-loud stays covered by trustedtypes "policy blocked."
+
+### Phase 3 (bounded sentinel) — done
+Replaced the absence-only, unbounded 8.1.4 watchdog. Now visibility-aware
+(disconnected OR display:none/hidden/zero-size — a host may move #gitl into a
+hidden container), debounced, capped (5/30s), with a circuit breaker + visible
+note instead of an append/remove storm. Verified safe against Ghost's own
+collapsed state: collapse hides only .g-body; the root keeps ≥44px, so the
+sentinel never fights it.
+
+### Phase 1 (canary) — done, under diagnostics/
+Standalone, no core dependency, Shadow-DOM on <html>, DOM-API-built (no
+innerHTML — must survive the very TT CSP that broke Ghost). Guard test locks
+those properties. This is the tool that would have collapsed the original
+diagnosis from weeks to one screenshot.
+
+### Phases 4 & 6 — deferred, with reasons (not laziness)
+Phase 4 (capability-split adapter: findComposer/injectText/findSafeSendControl/
+send/isGenerating/readLastAssistant/diagnose) touches the WORKING send +
+generation-detection path. The adapter already got the send-safety veto +
+semantic gate + selector memory in 8.1.1, which covers the pack's main adapter
+concerns (no bare contenteditable acceptance survives the veto; proximity-first
+send search already exists in _heurSend). A full rewrite now is high regression
+risk for low marginal gain. Phase 6 (Tampermonkey/Violentmonkey/MV3 A-B matrix,
+first-class Firefox extension, WXT) is process/build/release work, largely
+docs + packaging, not a code defect. Both are real future work; neither is
+worth half-doing inside this pass. If the user wants either, they're now
+well-scoped.
+
+### Net
+303 unit + 52 e2e across two engines. The reliability posture is materially
+better: no single subsystem can blank the panel, the panel self-heals within
+bounds, boot failures are loud + retryable, and the exact engine that failed is
+now in the test matrix.
+
 ## v8.1.5 — Gemini root cause: Trusted Types (found via the v8.1.4 banner)
 
 ### The whole thread in one line

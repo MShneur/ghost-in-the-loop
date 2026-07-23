@@ -61,7 +61,7 @@ test.describe('Trusted Types (the Gemini reproduction)', () => {
     const fatal = await page.evaluate(() => !!document.getElementById('gitl-fatal'));
 
     expect(mounted).toBe(true);           // panel is in the DOM despite TT enforcement
-    expect(beacon).toMatch(/^ok:8\.1\.\d+$/);
+    expect(beacon).toMatch(/^ok:8\.\d+\.\d+$/);
     expect(fatal).toBe(false);            // no fail-loud banner — boot completed
     // No uncaught Trusted-Types sink error escaped.
     expect(pageErrors.filter(e => /sink|trusted/i.test(e))).toEqual([]);
