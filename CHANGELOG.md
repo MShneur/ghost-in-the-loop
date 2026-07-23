@@ -92,6 +92,11 @@ completeness honestly, and keeps diagnostic evidence local and redacted.
   escaping regressions.
 - Playwright remains the authoritative boot-timing/browser tier in GitHub
   Actions for Chromium and Firefox.
+- The first PR run correctly exposed two stale v8.1 browser assertions that
+  expected generic pages to auto-authorize Send-looking buttons. The fixtures
+  now lock the v8.3 contract: generic remains manual; an explicit reviewed
+  selector authorizes the real control; popup/copy traps still lose in both
+  engines.
 
 ## [8.2.1] — send-target mislearn fix (issues #4, #5)
 

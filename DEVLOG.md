@@ -105,6 +105,15 @@ userscript syntax, and extension syntax all green. Browser boot timing remains a
 GitHub Actions responsibility because the local runner had no installed
 Playwright browser binary.
 
+**CI correction before merge.** The first Playwright run failed two
+`sendsafety.spec.js` expectations in Chromium and Firefox. The product behaved
+correctly: the fixture was a generic `data:` host, so v8.3 returned no actuator
+even after a Send-looking button appeared. The old test still encoded the v8.1
+heuristic-authority contract. The test now first proves generic remains manual,
+then explicitly marks exact selectors reviewed and verifies the real Send wins
+while model-picker, attachment, and Copy traps remain vetoed. No production
+authority was weakened to satisfy a stale test.
+
 ## v8.2.1 — Send-target mislearn (issues #4, #5)
 
 **What was tried / observed.** Two `probe_fail` reports showed SelectorMemory
