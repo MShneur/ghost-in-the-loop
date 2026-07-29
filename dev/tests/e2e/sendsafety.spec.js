@@ -4,16 +4,17 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * SEND SAFETY E2E (v8.1) — the DeepSeek "Copy" incident, reproduced.
+ * SEND SAFETY E2E (v8.3) — actuator authority and the DeepSeek "Copy"
+ * incident, reproduced.
  *
  * Field report: on chat.deepseek.com the heuristic send tier clicked the
  * reply's "Copy" button (svg icon + proximity beat the old 3.5 threshold)
  * and the user's prompt was copied instead of sent.
  *
- * These tests run the REAL script in a REAL browser against a page that has
- * no configured send button — only message-action traps near the composer —
- * and assert Ghost refuses every trap, then picks the true send button the
- * moment one exists.
+ * These tests run the REAL script in a REAL browser against an unreviewed
+ * generic page. A button that merely looks like Send must remain manual. The
+ * test then installs an explicit reviewed selector and proves the real control
+ * wins while message-action/popup traps still lose.
  */
 
 const RAW = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.js'), 'utf8')
@@ -21,7 +22,14 @@ const RAW = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.j
 // Expose closure locals for assertions. v8.1.4 wrapped the IIFE body in
 // try/catch, so inject INSIDE the try (before the outer catch) where Adapter
 // is in scope; fall back to the old before-`})()` spot for pre-8.1.4 builds.
-const EXPOSE = 'window.__GITL_Adapter = Adapter; window.__GITL_SelMem = SelectorMemory;';
+const EXPOSE = `
+  window.__GITL_Adapter = Adapter;
+  window.__GITL_SelMem = SelectorMemory;
+  window.__GITL_ReviewSend = selectors => {
+    PLAT.reviewed = true;
+    PLAT.send = selectors;
+  };
+`;
 const SCRIPT = /\n\} catch\(__gitlBootErr\)/.test(RAW)
   ? RAW.replace(/\n\} catch\(__gitlBootErr\)/, '\n' + EXPOSE + '\n} catch(__gitlBootErr)')
   : RAW.replace(/(\}\)\(\)\s*;?\s*)$/, EXPOSE + '\n$1');
@@ -64,7 +72,7 @@ test.describe('Send safety — no trap button is ever chosen', () => {
     expect(picked).toBe(null);
   });
 
-  test('a real Send button wins once it exists — and traps still lose', async ({ page }) => {
+  test('a Send-looking button stays manual until its selector is reviewed', async ({ page }) => {
     await page.addInitScript(GM);
     await page.addInitScript(SCRIPT);
     await page.goto(TRAP_PAGE);
@@ -78,7 +86,14 @@ test.describe('Send safety — no trap button is ever chosen', () => {
       document.querySelector('footer').appendChild(b);
     });
 
+    const beforeReview = await page.evaluate(() => {
+      const b = window.__GITL_Adapter.getSendBtn();
+      return b ? b.id : null;
+    });
+    expect(beforeReview).toBe(null);
+
     const picked = await page.evaluate(() => {
+      window.__GITL_ReviewSend(['#true-send']);
       const b = window.__GITL_Adapter.getSendBtn();
       return b ? b.id : null;
     });
@@ -121,7 +136,9 @@ test.describe('Send safety — no trap button is ever chosen', () => {
     expect(picked).toBe(null);          // never a model-picker or "+" menu
     expect(learnedSend).toBe(null);     // and nothing wrong gets persisted
 
-    // Now add the genuine send button in the same form — it must win.
+    // Now add the genuine send button and review the candidate selector list.
+    // Unsafe popup selectors are deliberately first: the veto must skip them
+    // and return the one unique safe actuator.
     await page.evaluate(() => {
       const b = document.createElement('button');
       b.id = 'true-send';
@@ -131,6 +148,11 @@ test.describe('Send safety — no trap button is ever chosen', () => {
       document.getElementById('composer').appendChild(b);
     });
     const real = await page.evaluate(() => {
+      window.__GITL_ReviewSend([
+        '#model-select-trigger',
+        '#composer-plus-btn',
+        '#true-send'
+      ]);
       const b = window.__GITL_Adapter.getSendBtn();
       return b ? b.id : null;
     });
@@ -138,10 +160,9 @@ test.describe('Send safety — no trap button is ever chosen', () => {
   });
 
   test('a ROTTED configured selector (class*="send" on a Copy button) is refused', async ({ page }) => {
-    // The generic profile ships 'button[class*="send" i]'. After a site
-    // redesign that class can land on a message-action control. The veto
-    // must beat the configured tier too — this was the second half of the
-    // DeepSeek incident risk.
+    // A reviewed selector can still rot after a redesign. The veto must beat
+    // that configured tier too — this was the second half of the DeepSeek
+    // incident risk.
     await page.addInitScript(GM);
     await page.addInitScript(SCRIPT);
     await page.goto(TRAP_PAGE);
@@ -156,6 +177,7 @@ test.describe('Send safety — no trap button is ever chosen', () => {
     });
 
     const picked = await page.evaluate(() => {
+      window.__GITL_ReviewSend(['button[class*="send" i]']);
       const b = window.__GITL_Adapter.getSendBtn();
       return b ? (b.getAttribute('aria-label') || b.id) : null;
     });

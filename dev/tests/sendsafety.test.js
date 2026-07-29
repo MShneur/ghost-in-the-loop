@@ -7,8 +7,8 @@
  * Contract under test:
  *  1. SEND_VETO covers message-action verbs (copy/download/share/edit/…).
  *  2. _sendLooksSafe rejects vetoed controls no matter which tier found them.
- *  3. _heurSend requires a POSITIVE semantic signal (send word, type=submit,
- *     or same-form) — svg + proximity alone must never win.
+ *  3. _heurSend requires a POSITIVE semantic signal (send word or
+ *     type=submit) — same-form, svg, and proximity are ranking only.
  */
 /* Symbols arrive on global via tests/setup.js */
 
@@ -63,6 +63,7 @@ describe('_heurSend — semantic gate (svg + proximity alone must never win)', (
     const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
     expect(src).toContain('const sem = SEND_WORDS.test(label)');
     expect(src).toContain('if (!sem) continue;');
+    expect(src).not.toContain("|| (aForm && el.closest && el.closest('form') === aForm);");
   });
   test('is exported and callable', () => {
     expect(typeof _heurSend).toBe('function');

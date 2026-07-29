@@ -1,6 +1,6 @@
 /**
  * CAPSULE V2 TESTS
- * Tests SHA-256 dedup logic and capsule schema.
+ * Tests integrity hashes, faithful turn preservation, and capsule schema.
  */
 
 describe('gitlSha256', () => {
@@ -51,11 +51,11 @@ describe('buildCapsuleV2', () => {
     expect(c.schema).toBe('gitl.capsule.v2');
   });
 
-  test('deduplicates identical messages', async () => {
+  test('preserves legitimate repeated messages', async () => {
     const c = await buildCapsuleV2(msgs);
-    // Input has 5 messages but one duplicate assistant message
-    expect(c.messages.length).toBeLessThan(msgs.length);
-    expect(c.deduplicated).toBeGreaterThan(0);
+    expect(c.messages.length).toBe(msgs.length);
+    expect(c.messages[1].text).toBe(c.messages[2].text);
+    expect(c.deduplicated).toBe(0);
   });
 
   test('messages have id, role, text, sha256, parentId', async () => {
@@ -91,15 +91,15 @@ describe('buildCapsuleV2', () => {
     expect(c.resume.last_id).toBeNull();
   });
 
-  test('filters out empty/short messages', async () => {
+  test('filters empty messages but preserves short legitimate turns', async () => {
     const withEmpty = [
       { role: 'user',      text: '' },
       { role: 'assistant', text: '  ' },
-      { role: 'user',      text: 'Hi' }, // 2 chars — below threshold
+      { role: 'user',      text: 'Hi' },
       { role: 'assistant', text: 'Hello there, how can I help you today?' }
     ];
     const c = await buildCapsuleV2(withEmpty);
-    expect(c.messages.length).toBeLessThan(withEmpty.length);
+    expect(c.messages.map(m => m.text)).toEqual(['Hi', 'Hello there, how can I help you today?']);
   });
 
   test('capsule includes version', async () => {
@@ -111,6 +111,19 @@ describe('buildCapsuleV2', () => {
     const c = await buildCapsuleV2(msgs);
     expect(c).toHaveProperty('timeline_summary');
     expect(c.timeline_summary).toHaveProperty('total_events');
+  });
+
+  test('does not include a full URL or page title', async () => {
+    const c = await buildCapsuleV2(msgs);
+    expect(c).not.toHaveProperty('url');
+    expect(c).not.toHaveProperty('title');
+  });
+
+  test('is explicit that built-in import is not yet supported', async () => {
+    const c = await buildCapsuleV2(msgs);
+    expect(c.experimental).toBe(true);
+    expect(c.import_supported).toBe(false);
+    expect(c.export.status).toBe('partial');
   });
 });
 

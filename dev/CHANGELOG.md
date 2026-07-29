@@ -1,36 +1,133 @@
 # Changelog
 
-## [8.3.0] — Ghost Orb: a tiny tucked launcher (least screen coverage)
+## [8.4.0] — Ghost Orb: a tiny tucked launcher (least screen coverage)
 
-The panel — even collapsed — is a rectangle that eats real estate, and on
-mobile it covers too much. The `bottom-bar` mode also overlaps the site's
-composer. New **`orb`** position mode fixes the "it blocks the site" problem
-directly, as one more choice in the existing position picker (Setup → position
-row) rather than a parallel UI:
+Built on top of the 8.3.0 reliability lineage — none of that work is changed.
+This adds one new **`orb`** entry to the existing position picker (Setup →
+position row), so users get another *working* placement to choose from and can
+fall back if one doesn't suit a site/device.
 
 - **Collapsed = a ~52px circle tucked ~12px past the screen edge.** Only the
   ghost shows; a ring around it **spins while a loop is RUNNING** and sits
   still otherwise (respects `prefers-reduced-motion`).
-- **Tap to open** the full panel as an edge drawer; minimise (`－`) returns it
-  to the orb. Height stays bounded by the existing 52vh body cap, so an open
-  orb never swallows the composer on mobile.
+- **Tap to open** the full panel as an edge drawer; minimise returns it to the
+  orb. Open height stays under the existing body cap, so it never swallows the
+  composer on mobile — the fix for `bottom-bar` overlapping the composer.
 - **Drag to move**: vertical reposition, and dragging across the screen midline
-  **snaps it to the other edge** (left/right). Position is stored as a 0..1
-  ratio + edge, so it survives resize and orientation changes.
+  **snaps it to the other edge**. Stored as edge + a 0..1 ratio, so it survives
+  resize and orientation changes.
 
-Why this and not the fancier ideas explored (composer-injected toolbar button,
-site "+"-menu item, two-mode tabbed composer that overlays the real input):
-those depend on per-site composer DOM across ChatGPT/Claude/Gemini/Perplexity/
-Manus/Kimi and would put Ghost's UI on top of the very input it must type into —
-the exact surface that produced field issues #4/#5. They need live per-site DOM
-captures and real-device validation before they can be trusted on live, so they
-are deliberately **not** shipped here. The orb is site-agnostic, lives inside
-`#gitl` (so `_isOwnUI` already owns it and the skin tokens theme it), and is
-covered by tests in both engines.
+Site-agnostic and lives inside `#gitl`, so `_isOwnUI` already owns it and the
+skin tokens theme it — no Shadow DOM, no innerHTML strings (Trusted-Types safe),
+no change to the send/actuator authority. Geometry is pure (`_orbEdgeFromX`,
+`_orbClampY`) with unit tests; mount/tuck/running-ring/tap-expand/drag-snap are
+covered by `tests/e2e/orb.spec.js` in Chromium + Firefox.
 
-Geometry is factored into pure helpers (`_orbEdgeFromX`, `_orbClampY`) with unit
-tests; mount/tuck/spin/tap/drag-snap are covered by `tests/e2e/orb.spec.js`
-(Chromium + Firefox).
+**Deliberately NOT shipped (needs real-device work first):** the composer-
+integrated concepts explored alongside this — injecting a Ghost button into each
+site's toolbar, adding an item to the site's "+" menu, or a two-mode tabbed
+composer that overlays and disables the real input. Those depend on per-site
+composer DOM across ChatGPT/Claude/Gemini/Perplexity/Manus/Kimi and would put
+Ghost's UI on top of the very input it must type into (the issue #4/#5 surface),
+so they belong behind a flag with live per-site captures, not a blind push.
+
+## [8.3.0] — fail-closed reliability, truthful exports, and private diagnostics
+
+Updated by **MShneur**. Main editor: **Agent CG (ChatGPT)**.
+
+This release implements the system-level reliability audit rather than adding
+another provider-specific patch. The runtime now treats Send as an at-most-once
+transaction, separates observation from actuator authority, reports export
+completeness honestly, and keeps diagnostic evidence local and redacted.
+
+### Send is an explicit transaction
+
+- A prompt moves through `dispatching → committed | uncertain | failed`.
+- Only one unique, visible, enabled control from a reviewed platform adapter may
+  be clicked. Heuristic Send candidates remain diagnostic-only.
+- Send selectors are never learned or persisted. Existing learned Send entries
+  are removed on lookup.
+- One click is attempted. Enter, form-submit, refocus, and blind retry fallbacks
+  were removed.
+- A Send is confirmed only by an assistant transition or correlated evidence
+  (`composer cleared + stop control` or `composer cleared + trusted network
+  pulse`). Weak network activity alone is insufficient.
+- An unconfirmed dispatch pauses as `SEND-002`; the user must reconcile it.
+  Ghost never resends an ambiguous prompt.
+- Crash recovery preserves an in-flight/uncertain journal and performs no
+  automatic replay.
+- A claim/yield/re-read lease closes the empty-lock multi-tab race immediately
+  before the actuator runs.
+
+### One canonical product source
+
+- Removed the divergent `dev/` product and duplicate test tree.
+- `ghost-in-the-loop.user.js` is canonical.
+- `scripts/build-extension.js` deterministically generates
+  `extension/content.js`; `npm run check:generated` and CI reject drift.
+- Jest is scoped to the canonical `tests/` tree. CI no longer double-counts
+  duplicated suites or publishes meaningless zero-coverage output.
+
+### Redacted, useful failure reports
+
+- Stable codes cover boot, composer, Send, export, and sentinel failures.
+- A bounded local incident record keeps stage, platform key, version, state,
+  health, adapter results, and timing metadata.
+- Reports omit prompt/message content, full URLs, query strings, conversation
+  identifiers, task identifiers, and raw network payloads.
+- Users review locally, then copy or download. Opening GitHub sends only a title;
+  report contents are never auto-uploaded.
+- The independent canary now produces privacy-safe codes and a downloadable
+  execution report for the “script never ran” case that core cannot self-report.
+
+### Truthful export contract
+
+- Transcript exports return `complete`, `partial`, `failed`, or `cancelled`.
+- Platform archive exports compare captured and expected supported turns and
+  flag omitted or unsupported parts.
+- DOM exports are always `partial` because rendered/lazy-loaded history cannot
+  prove completeness.
+- Markdown embeds source, counts, status, and validation notes.
+  `gitl.transcript.v1` JSON embeds the same `gitl.export-result.v1` contract.
+- Cancel aborts the live archive request and does not create a file.
+- A failed/empty capture creates local `EXPORT-001` diagnostics instead of
+  claiming success.
+
+### Imports and rendering are transactional
+
+- Config backups use exact `gitl.config.v1`; only bounded settings are accepted.
+  Project/task text, custom sites, community content, and diagnostics remain in
+  their purpose-specific formats.
+- Workshop imports require exact `gitl-workshop/1`, reject unknown fields, and
+  validate the entire bundle before mutation.
+- Config and Workshop persistence roll back on commit failure.
+- Imported/project/queue/diagnostic values are escaped at HTML-rendering sinks,
+  with injection regression coverage.
+
+### Capsule and UI corrections
+
+- Capsule v2 moved to **Export → Advanced** and is labeled experimental.
+- It preserves legitimate repeats and short turns; hashes are integrity hints,
+  not deduplication authority.
+- It omits the full URL, states `import_supported:false`, and makes no resumable
+  claim.
+- **Pause** and **Stop** are always text-labeled. Stop preserves progress; Reset
+  remains a separate Advanced action.
+- Panel drag handlers bind once with Pointer Events instead of accumulating two
+  document listeners on every render.
+
+### Verification
+
+- 28 Jest suites, **371 tests**, including new send-transaction, export-contract,
+  config-import, Workshop rollback, redaction, generated-source, and HTML
+  escaping regressions.
+- Playwright remains the authoritative boot-timing/browser tier in GitHub
+  Actions for Chromium and Firefox.
+- The first PR run correctly exposed two stale v8.1 browser assertions that
+  expected generic pages to auto-authorize Send-looking buttons. The fixtures
+  now lock the v8.3 contract: generic remains manual; an explicit reviewed
+  selector authorizes the real control; popup/copy traps still lose in both
+  engines.
 
 ## [8.2.1] — send-target mislearn fix (issues #4, #5)
 

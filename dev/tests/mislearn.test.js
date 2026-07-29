@@ -17,7 +17,7 @@
  *     #composer-plus-btn read as unsafe even with an innocuous aria-label).
  *  3. _heurSend cannot RETURN either control even when it is the only
  *     same-form candidate near the input.
- *  4. SelectorMemory.lookup('send') forgets a persisted wrong selector.
+ *  4. Send selectors are never learned or read from SelectorMemory.
  */
 /* Symbols arrive on global via tests/setup.js */
 
@@ -105,11 +105,25 @@ describe('_heurSend — a same-form popup-toggle can no longer be RETURNED', () 
   });
 });
 
-describe('SelectorMemory.lookup — a persisted wrong send selector self-heals', () => {
-  test('lookup("send") calls forget() when the stored element is unsafe', () => {
+describe('SelectorMemory — actuators are never learned', () => {
+  test('learn("send") and lookup("send") both forget and return null', () => {
     const fs = require('fs'), path = require('path');
     const s = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
-    expect(s).toContain("if (kind === 'send' && !_sendLooksSafe(el)) { this.forget(kind); return null; }");
+    const learn = s.match(/learn\(kind, el\) \{[\s\S]*?\n  \},/)?.[0] || '';
+    const lookup = s.match(/lookup\(kind\) \{[\s\S]*?\n  \},/)?.[0] || '';
+    expect(learn).toContain("if (kind === 'send')");
+    expect(learn).toContain("this.forget('send');");
+    expect(lookup).toContain("if (kind === 'send')");
+    expect(lookup).toContain("this.forget('send');");
+  });
+
+  test('runtime send actuation uses reviewed selectors, never the heuristic candidate', () => {
+    const fs = require('fs'), path = require('path');
+    const s = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
+    const getSend = s.match(/getSendBtn\(\) \{[\s\S]*?\n  \},/)?.[0] || '';
+    expect(getSend).toContain('return _reviewedSend();');
+    expect(getSend).not.toContain('_heurSend');
+    expect(getSend).not.toContain('SelectorMemory');
   });
 
   test('_sendLooksSafe structurally rejects popup toggles (haspopup + expanded)', () => {

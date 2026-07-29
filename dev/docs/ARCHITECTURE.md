@@ -8,16 +8,18 @@
 ## File Structure
 
 ```
-ghost-in-the-loop.user.js    Main userscript (~4600 lines)
+ghost-in-the-loop.user.js    Canonical userscript source (~5400 lines)
 extension/
   manifest.json              Firefox MV3 manifest
-  content.js                 Built from userscript via sed extraction + GM shim header
+  content.js                 Deterministically generated; never hand-edit
 diagnostics/
   gitl-canary.user.js        Standalone execution canary (NOT core; see its README)
   README.md
+scripts/
+  build-extension.js         Canonical source → Firefox content artifact
 tests/
   setup.js                   VM harness: mocks GM_*, injects export hook into IIFE
-  *.test.js                  Unit tests (~300)
+  *.test.js                  28 Jest suites / 371 tests
   e2e/*.spec.js              Playwright, run in BOTH Chromium and Firefox (Gecko)
 docs/
   ARCHITECTURE.md            This file
@@ -29,24 +31,18 @@ DEVLOG.md                    What was tried, what failed, why — read before re
 
 ## Layer Map (in file order)
 
-| Layer | Lines (approx) | Responsibility |
-|-------|----------------|----------------|
-| **0** | 1–45 | `@UserScript` header, IIFE wrapper, version guard `__GITL_V7__` |
-| **0.3** | 46–165 | Constants: VER, sigils, FUZZY lists |
-| **0.5** | 166–245 | Boot safety: `safeBoot()`, `claimTabLock()`, `releaseTabLock()`, `assertInteractionSafe()`, `GhostBus` init |
-| **0.7** | 246–330 | Network interceptor: `GITL_NET`, fetch/XHR proxy, `AI_ENDPOINTS` |
-| **1** | 331–460 | Platform profiles `PROFILES{}`, `_q()`, `_qAll()`, `SelectorMemory{}` (v8.1 learned locators), `Adapter{}` |
-| **2** | 461–570 | Libraries: `PERSONA_LIBRARY`, `WORKFLOW_LIBRARY` |
-| **3** | 571–700 | State: `GHOST{}`, `DIAG{}`, `platformHealth()`, `Timeline{}` |
-| **4** | 701–870 | Recovery engine: `RecoveryEngine{}` |
-| **5** | 871–935 | Signal engine: `parseProgress()`, `detectSignal()` |
-| **6** | 936–1010 | Payloads, roadmap helpers |
-| **7** | 1011–1090 | Loop engine: `engineSend()`, `engineHalt()`, `enginePause()`, `engineTick()` |
-| **8** | 1091–1250 | Start/stop/queue, SPA route watcher |
-| **9** | 1251–1760 | Export: `extractMessages()`, `buildFilename()`, `apiExportChatGPT()`, `buildCapsuleV2()`, `exportCapsuleV2()` |
-| **10** | 1761–1800 | Audio |
-| **11** | UI | `renderXxx()` functions, CSS, `render()`. All `.innerHTML` sinks route through `_TT()` (Trusted Types policy) — required on Gemini's `require-trusted-types-for 'script'` CSP. |
-| **12** | Boot | Beacon + `_gitlFatal()` fail-loud; transactional `safeBoot(() => { ...phases... })`; panel sentinel; final IIFE close (wrapped in top-level try→`_gitlFatal`). |
+| Layer | Responsibility |
+|-------|----------------|
+| **0** | Header, constants, transactional boot, focus guard, and verified tab lease |
+| **0.7** | Metadata-only network correlation (`GITL_NET`) |
+| **1** | Platform profiles, read-only selector memory, reviewed actuator lookup, and adapter |
+| **2** | Persona/workflow libraries and transactional Workshop import |
+| **3** | State, health, redacted diagnostics, bounded timeline, and incident reporter |
+| **4** | Signal parsing and workflow/roadmap payloads |
+| **5** | At-most-once send transaction, confirmation, reconciliation, and loop engine |
+| **6** | Validated transcript export, experimental Capsule, and transactional config import |
+| **7** | Tokenized UI, basic safety controls, and Advanced surfaces |
+| **8** | Fail-loud beacon, isolated boot phases, sentinel, and final startup |
 
 *(Line-number ranges above are approximate and drift with edits; use them as a
 reading order, not addresses.)*
@@ -91,23 +87,29 @@ so passes are Gecko-validated, not Android-certified.
 
 ---
 
-## Element Lookup Tiers (v8.1)
+## Element Lookup and Authority (v8.3)
 
-Every `Adapter.getInput()` / `getSendBtn()` resolves through four tiers, in order:
+Input and actuator lookup intentionally have different authority:
 
-1. **Configured** — `PLAT.input` / `PLAT.send` selector arrays (per-platform).
-2. **Learned** — `SelectorMemory` per-host selectors, derived (id > data-testid >
-   aria-label > name > placeholder, verified unique) after a heuristic rescue.
-   Persisted in `gitlLearnedSelectors`, 12-host LRU.
-3. **Heuristic** — role/meaning scoring. Send candidates REQUIRE a positive
-   semantic signal (send word / type=submit / same-form); svg + proximity alone
-   can never win (DeepSeek Copy incident, v8.1).
-4. **Veto (cross-cutting)** — `_sendLooksSafe()` rejects message-action verbs
-   (copy/download/share/edit/…) on EVERY tier's result.
+1. **Composer observation** — `Adapter.getInput()` tries reviewed profile
+   selectors, a previously learned unique read/write composer locator, then a
+   role/meaning heuristic. Composer locators may be learned in a 12-host LRU.
+2. **Reviewed Send authority** — `Adapter.getSendBtn()` calls `_reviewedSend()`.
+   The platform must be marked reviewed, and a configured selector must resolve
+   to exactly one visible, enabled, veto-safe element.
+3. **Diagnostic Send candidate** — `_heurSend()` may identify a likely control
+   for the probe/report, but that element is never clicked.
+4. **No actuator memory** — `SelectorMemory.learn('send', …)` and
+   `lookup('send')` delete the entry and return `null`.
+5. **Cross-cutting veto** — `_sendLooksSafe()` rejects popup toggles, structural
+   mismatches, and message-action controls such as Copy/Share/Attach.
 
 `reDetect()` is retrying (12 s MutationObserver + interval) and clears all
 caches including the heuristic tier's; a `visibilitychange` handler silently
 drops caches when the cached composer is found detached.
+
+Generic/custom sites may receive injected text but remain manual-send until an
+adapter is reviewed. Compatibility cannot silently grant actuator authority.
 
 ## Signal Engine Contract
 
@@ -143,13 +145,49 @@ otherwise                        →  none
 
 **Key format:** `gitl:lock:{hostname}:{first 3 pathname segments}`
 
-**Claim:** write `{tabId, ts}` JSON to GM storage. Succeeds if key is empty, expired (>8s), or owned by this tab.
+**Claim:** write `{tabId, ts}` JSON to GM storage. Succeeds if the key is empty,
+expired (>8s), or owned by this tab.
+
+**Pre-actuator verification:** `verifyTabLease()` claims, yields for a short
+jitter, then re-reads the key. If two tabs raced from an empty lock, only the
+last stored owner reaches the button click.
 
 **Heartbeat:** every 5s via `startTabHeartbeat()`. If claim fails during heartbeat, loop is paused.
 
 **Release:** `beforeunload` event. Must clear own entry only — never clear another tab's lock.
 
 **`assertInteractionSafe()`:** called before every `engineSend()`. Returns `{ok, reason}`. Reasons: `ok`, `tab-not-focused`, `tab-lock-held-by-other`.
+
+---
+
+## Send Transaction Contract (v8.3)
+
+`engineSend()` has one authorized dispatch path: inject into the resolved
+composer, verify the tab lease, resolve exactly one reviewed Send control, and
+click once.
+
+The journal state is:
+
+```
+dispatching → committed
+           ↘ uncertain → committed | failed  (human reconciliation only)
+           ↘ failed
+```
+
+- `_beginSendAttempt()` records a command id and pre-dispatch observations.
+- `_confirmSend()` is the only automatic state transition that increments
+  `round` or advances roadmap/workflow state.
+- `_sendEvidence()` accepts an assistant DOM transition, or composer-cleared
+  plus a visible generation control/trusted correlated network pulse.
+- A network pulse alone, a cleared composer alone, or elapsed time never proves
+  delivery.
+- `_markSendUncertain()` pauses, creates `SEND-002`, and does not retry.
+- Crash recovery restores interrupted `dispatching` work as `uncertain`; it
+  never replays the command.
+
+Do not reintroduce Enter, form-submit, refocus, multi-click, or retry fallbacks.
+At-most-once behavior is a product invariant, not a temporary compatibility
+tradeoff.
 
 ---
 
@@ -188,11 +226,17 @@ Custom personas & workflows live in the `Workshop` module, layered on top of the
 
 **Invariants (enforced + unit-tested in `tests/workshop.test.js`):**
 - Built-in ids are immutable. `importBundle`/`addX` seed the "taken" set with built-in keys, so a clashing import is auto-renamed (`researcher` → `researcher_2`), never an overwrite.
-- Import is additive and total: a malformed item is skipped (counted), never aborts the batch.
-- Safety caps in `WORKSHOP_LIMITS`: 512 KB file (checked before `JSON.parse`), 200 items, field truncation (label 40, inject 4000, desc 200, stage 2000, ≤20 stages).
+- Import requires exact schema and field sets. The entire bundle validates before
+  any state changes; one invalid item rejects the batch.
+- Safety caps in `WORKSHOP_LIMITS`: 512 KB file (checked before `JSON.parse`),
+  200 items, label 40, inject 4000, desc 200, stage 2000, and ≤20 stages.
+- Writes are staged. If any persistence step fails, prior memory/storage values
+  are restored.
 - All custom text is rendered through `_esc()` before interpolation into panel `innerHTML`. Imported strings are untrusted — without this they could inject markup into Ghost's own UI.
 
-**Bundle format** (`exportBundle`): `{ schema:'gitl-workshop/1', tool, version, exported, personas:[{id,label,inject}], workflows:[{id,label,desc,stages[]}] }`. Either array may be empty. `importBundle` accepts files with or without `schema` but rejects a present-but-wrong schema.
+**Bundle format** (`exportBundle`):
+`{ schema:'gitl-workshop/1', tool, version, exported, personas:[{id,label,inject}], workflows:[{id,label,desc,stages[]}], skin? }`.
+`schema` is mandatory and unknown top-level/item fields are rejected.
 
 **UI:** create forms + ★-badged custom items with tap-twice delete in Roles (personas) and Flow (workflows); shared `⬆ Import / ⬇ Export / 🌐 Share` row in both; Share deep-links to the `workshop` help section (GitHub Discussions + `workshop`-tagged issue submission).
 
@@ -203,17 +247,14 @@ Custom personas & workflows live in the `Workshop` module, layered on top of the
 `extension/content.js` is built from `ghost-in-the-loop.user.js` via:
 
 ```bash
-# 1. Write GM shim header
-cat GM_SHIM > extension/content.js
-
-# 2. Extract engine body (line 43 to end-1, skipping IIFE wrapper lines)
-sed -n "43,$((total-1))p" ghost-in-the-loop.user.js >> extension/content.js
-
-# 3. Close the _initStore().then() wrapper
-echo '});' >> extension/content.js
+npm run build
+npm run check:generated
 ```
 
-The GM shim maps `GM_getValue`/`GM_setValue` to `browser.storage.local` via an async init + in-memory cache.
+`scripts/build-extension.js` finds the userscript metadata terminator, takes the
+runtime verbatim, and wraps it with the Firefox GM compatibility layer. No line
+number or shell-text extraction is involved. `--check` performs an exact parity
+comparison and exits nonzero on drift.
 
 **Do not hand-edit `extension/content.js`.** It is a build artifact. Changes belong in `ghost-in-the-loop.user.js`.
 
@@ -226,19 +267,23 @@ The GM shim maps `GM_getValue`/`GM_setValue` to `browser.storage.local` via an a
 The userscript is an IIFE — tests can't access its locals directly.
 `tests/setup.js` injects an export hook string into the instrumented source just before the closing `})()`. The hook uses `eval(name)` inside the closure to read locals and writes them to a `__GITL_TEST_SINK__` object passed in from the VM context.
 
-**Run:** `npm test` (135 tests)
+**Run:** `npm test` (28 suites / 371 tests)
 
 **Covers:**
-- Pure-logic functions (signal engine, Timeline, tab lock, capsule, health scoring)
-- Structural/static analysis (module presence, invariants, no-top-level-DOM)
+- Signal engine, Timeline, verified tab lease, send transactions, redaction,
+  export contracts, config/Workshop rollback, Capsule preservation, and health
+  scoring.
+- Structural/static analysis, generated-source parity, schema and injection
+  invariants.
 
 **Cannot catch:** boot-order bugs — jsdom always has `document.body`, so `document-start` timing crashes are invisible here.
 
-### Tier 2: E2E boot-timing (Playwright + chromium) — `tests/e2e/*.spec.js`
+### Tier 2: E2E boot/send safety (Playwright) — `tests/e2e/*.spec.js`
 
 Injects the userscript via `addInitScript` (runs at `document-start`, before HTML parse) against `tests/e2e/mock-chat.html`. This is the ONLY tier that catches the class of bug where top-level DOM mutation crashes because `head`/`body` are null.
 
-**Run:** `npm run test:e2e` (requires `npx playwright install chromium`)
+**Run:** `npm run test:e2e` (requires installed Chromium and Firefox browser
+binaries; GitHub Actions installs both)
 
 **Covers:**
 - Script survives `document-start` injection without throwing
@@ -246,8 +291,11 @@ Injects the userscript via `addInitScript` (runs at `document-start`, before HTM
 - Styles inject without null-head crash
 - Boot writes a timeline event (proves script reached end of `safeBoot`)
 - DOM read of assistant message
+- Trusted Types boot behavior and Send-target safety reproductions
 
-**Why this tier exists:** the v7.0.0-patch2 boot crash (see DEVLOG) shipped because unit tests can't simulate injection timing. Any future boot-order regression is now caught here.
+**Why this tier exists:** the v7.0.0-patch2 boot crash (see DEVLOG) shipped
+because unit tests cannot simulate injection timing. Firefox also exercises the
+Gecko/Trusted Types path that previously escaped Chromium-only validation.
 
 **Naming convention:** unit tests = `.test.js` (jest), e2e tests = `.spec.js` (Playwright). They never collide — jest's `testMatch` is scoped to `.test.js` only.
 
@@ -281,7 +329,7 @@ The interceptor supplements DOM detection — it does NOT replace it. Sending st
 |----------|-------|-----------------|
 | Claude | ProseMirror editor — `innerHTML = ''` destroys it | `injectText` uses execCommand or dispatchEvent |
 | Perplexity | ProseMirror same issue | Same fix |
-| Manus | Virtualized chat — DOM re-renders cause duplicate message extraction | SHA-256 dedup in Capsule v2; harvest scrolls the viewport |
-| ChatGPT | Has native API export endpoint | `apiExportChatGPT()` tries `/backend-api/conversation/{id}` |
-| Gemini | Send button selector drifts with deployments | Multiple selector fallbacks in `PROFILES.gemini.send[]` |
+| Manus | Virtualized chat may omit or repeat rendered turns | Harvest scrolls; DOM export remains `partial`; Capsule preserves repeats instead of deleting them |
+| ChatGPT | Has native API export endpoint | `apiExportChatGPT()` validates supported-turn counts; DOM fallback is visibly `partial` |
+| Gemini | Send button selector drifts with deployments | Reviewed selectors only; no heuristic actuator promotion; real-device failures remain device-testable |
 | Copilot | Uses `/turn/` SSE endpoint | Covered by network interceptor |

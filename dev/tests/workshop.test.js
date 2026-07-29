@@ -60,6 +60,7 @@ describe('Workshop — built-in protection (cannot overwrite)', () => {
     freshWorkshop();
     const original = WORKFLOW_LIBRARY.deep_research.stages.length;
     const res = Workshop.importBundle(JSON.stringify({
+      schema: 'gitl-workshop/1',
       personas: [],
       workflows: [{ id: 'deep_research', label: 'Hijacked', stages: ['only one stage'] }]
     }));
@@ -82,27 +83,42 @@ describe('Workshop — validation rejects malformed input', () => {
 
   test('empty bundle is rejected', () => {
     freshWorkshop();
-    expect(Workshop.importBundle(JSON.stringify({ personas: [], workflows: [] })).ok).toBe(false);
+    expect(Workshop.importBundle(JSON.stringify({ schema:'gitl-workshop/1', personas: [], workflows: [] })).ok).toBe(false);
   });
 
-  test('persona missing inject is skipped, not imported', () => {
+  test('one invalid persona rejects the whole transaction', () => {
     freshWorkshop();
     const res = Workshop.importBundle(JSON.stringify({
+      schema: 'gitl-workshop/1',
       personas: [{ label: 'No Inject' }, { label: 'Good', inject: 'valid framing here' }]
     }));
-    expect(res.ok).toBe(true);
-    expect(res.personas).toBe(1);
-    expect(res.skipped).toBe(1);
+    expect(res.ok).toBe(false);
+    expect(Object.keys(Workshop.personas)).toHaveLength(0);
   });
 
-  test('workflow with empty stages is skipped', () => {
+  test('one invalid workflow rejects the whole transaction', () => {
     freshWorkshop();
     const res = Workshop.importBundle(JSON.stringify({
+      schema: 'gitl-workshop/1',
       workflows: [{ label: 'Empty', stages: [] }, { label: 'Good', stages: ['do a thing'] }]
     }));
-    expect(res.ok).toBe(true);
-    expect(res.workflows).toBe(1);
-    expect(res.skipped).toBe(1);
+    expect(res.ok).toBe(false);
+    expect(Object.keys(Workshop.workflows)).toHaveLength(0);
+  });
+
+  test('missing schema is rejected', () => {
+    freshWorkshop();
+    expect(Workshop.importBundle(JSON.stringify({ personas:[{label:'X',inject:'Y'}] })).ok).toBe(false);
+  });
+
+  test('unknown top-level fields are rejected', () => {
+    freshWorkshop();
+    const res = Workshop.importBundle(JSON.stringify({
+      schema:'gitl-workshop/1',
+      personas:[{label:'X',inject:'Y'}],
+      execute:'surprise'
+    }));
+    expect(res.ok).toBe(false);
   });
 });
 
@@ -116,27 +132,25 @@ describe('Workshop — caps & limits', () => {
   test('too many items rejected', () => {
     freshWorkshop();
     const personas = Array.from({ length: WORKSHOP_LIMITS.maxItems + 1 }, (_, i) => ({ label: 'p' + i, inject: 'framing ' + i }));
-    expect(Workshop.importBundle(JSON.stringify({ personas })).ok).toBe(false);
+    expect(Workshop.importBundle(JSON.stringify({ schema:'gitl-workshop/1', personas })).ok).toBe(false);
   });
 
-  test('long fields are truncated to limits', () => {
+  test('over-limit persona fields reject the transaction instead of truncating silently', () => {
     freshWorkshop();
     const res = Workshop.importBundle(JSON.stringify({
+      schema:'gitl-workshop/1',
       personas: [{ label: 'L'.repeat(500), inject: 'I'.repeat(99999) }]
     }));
-    expect(res.ok).toBe(true);
-    const added = Object.values(Workshop.personas)[0];
-    expect(added.label.length).toBeLessThanOrEqual(WORKSHOP_LIMITS.label);
-    expect(added.inject.length).toBeLessThanOrEqual(WORKSHOP_LIMITS.inject);
+    expect(res.ok).toBe(false);
+    expect(Object.keys(Workshop.personas)).toHaveLength(0);
   });
 
-  test('workflow stage count capped', () => {
+  test('over-limit workflow stage count rejects the transaction', () => {
     freshWorkshop();
     const stages = Array.from({ length: WORKSHOP_LIMITS.stages + 10 }, (_, i) => 'stage ' + i);
-    const res = Workshop.importBundle(JSON.stringify({ workflows: [{ label: 'Big', stages }] }));
-    expect(res.ok).toBe(true);
-    const added = Object.values(Workshop.workflows)[0];
-    expect(added.stages.length).toBeLessThanOrEqual(WORKSHOP_LIMITS.stages);
+    const res = Workshop.importBundle(JSON.stringify({ schema:'gitl-workshop/1', workflows: [{ label: 'Big', stages }] }));
+    expect(res.ok).toBe(false);
+    expect(Object.keys(Workshop.workflows)).toHaveLength(0);
   });
 });
 

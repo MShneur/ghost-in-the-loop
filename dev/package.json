@@ -1,13 +1,16 @@
 {
   "name": "ghost-in-the-loop",
-  "version": "7.0.0",
-  "description": "Ghost in the Loop — test harness",
+  "version": "8.3.0",
+  "description": "Ghost in the Loop — userscript, Firefox extension build, and test harness",
   "scripts": {
-    "test": "jest --coverage",
+    "build": "npm run build:extension",
+    "build:extension": "node scripts/build-extension.js",
+    "check:generated": "node scripts/build-extension.js --check",
+    "test": "npm run check:generated && jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
     "test:all": "jest && playwright test",
-    "lint": "node -e \"require('fs').readFileSync('ghost-in-the-loop.user.js');console.log('Syntax OK');\""
+    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
@@ -16,7 +19,8 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "testMatch": ["**/tests/**/*.test.js"],
+    "roots": ["<rootDir>/tests"],
+    "testMatch": ["**/*.test.js"],
     "setupFiles": ["./tests/setup.js"],
     "coverageReporters": ["text", "lcov"]
   }

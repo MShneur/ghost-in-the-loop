@@ -51,6 +51,19 @@ describe('claimTabLock', () => {
   });
 });
 
+describe('verifyTabLease', () => {
+  test('re-reads and verifies ownership before actuation', async () => {
+    await expect(verifyTabLease()).resolves.toBe(true);
+    const lock = JSON.parse(GM_getValue(_tabLockKey(), '{}'));
+    expect(lock.tabId).toBe(GITL_TAB_ID);
+  });
+
+  test('does not displace another live owner', async () => {
+    GM_setValue(_tabLockKey(), JSON.stringify({ tabId: 'other-tab-id', ts: Date.now() }));
+    await expect(verifyTabLease()).resolves.toBe(false);
+  });
+});
+
 describe('releaseTabLock', () => {
   test('clears our own lock', () => {
     claimTabLock();

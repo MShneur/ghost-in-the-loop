@@ -57,7 +57,9 @@ describe('orb wiring is present in the shipped source', () => {
   test('orb state persists edge + vertical ratio', () => {
     expect(src).toContain("orbEdge: GM_getValue('orbEdge','right')");
     expect(src).toContain("orbY: (v => {");
-    expect(src).toContain("'orbEdge','orbY'"); // in GM_KEYS
+    // Persistence is via direct _save/GM_getValue (no bulk key registry in
+    // this lineage), so the drag handler must write both keys back.
+    expect(src).toContain("_save('orbY', GHOST.ui.orbY); _save('orbEdge', GHOST.ui.orbEdge);");
   });
   test('the collapsed orb spins its ring only while RUNNING', () => {
     expect(src).toContain('#gitl.pos-orb.collapsed[data-run="1"] .g-orb-ring{border-top-color:var(--g-ok)');

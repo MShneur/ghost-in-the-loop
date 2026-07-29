@@ -6,7 +6,7 @@
  *     and only returns a selector that UNIQUELY matches the element.
  *  2. learn()/lookup() persist per-host in GM storage and survive reload.
  *  3. forget() removes a bad entry; storage prunes beyond MAX_HOSTS.
- *  4. Learned SEND selectors still pass the send veto (no learned Copy).
+ *  4. Actuator selectors are never learned; only read-only locators persist.
  */
 /* Symbols arrive on global via tests/setup.js */
 const HOST = 'chatgpt.com';  // the VM context's location.hostname (setup.js)
@@ -91,8 +91,10 @@ describe('Integration — Adapter and reDetect wiring', () => {
   test('Adapter.getInput consults SelectorMemory before heuristics', () => {
     expect(src).toContain("_q('in', PLAT.input) || SelectorMemory.lookup('input')");
   });
-  test('learned send selectors are veto-checked', () => {
-    expect(src).toMatch(/kind === 'send' && !_sendLooksSafe\(el\)/);
+  test('send actuators are excluded from selector memory', () => {
+    expect(src).toContain("if (kind === 'send')");
+    expect(src).toContain("this.forget('send');");
+    expect(src).toContain('return _reviewedSend();');
   });
   test('reDetect clears heuristic caches too', () => {
     expect(src).toContain('function _clearElementCaches()');
