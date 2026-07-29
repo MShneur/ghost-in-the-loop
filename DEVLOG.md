@@ -11,6 +11,47 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.4.0 — Ghost Orb launcher + a branch-divergence handoff
+
+**Handoff note (read before touching UI or promoting):** this release was made
+by **Claude** on a feature branch that had forked from `main`. At the time,
+`main` already carried **Agent CG (ChatGPT)'s** separate v8.3.0 reliability
+restructure (+~1735 lines: fail-closed send authority, transactional
+export/import, private diagnostics, tab-lease verification, net rework). The
+Claude branch was based on the older 8.2.x line. **Rather than promote the stale
+tree (which would have deleted all of CG's 8.3.0 work), CG's `main` was mirrored
+back into the dev folder and the orb was re-applied on top of it.** The orb is
+UI-only and touched none of CG's systems. Lesson for future multi-agent work:
+**always diff your branch against `main` before promoting** — two agents were
+editing in different places (CG on `main` root, Claude in `dev/`), and the flat
+`GM_KEYS` settings array Claude's orb originally registered into no longer
+exists in CG's lineage (settings are now persisted per-key + a Workshop import
+snapshot), so the orb persists via direct `_save`/`GM_getValue` instead.
+
+**What was tried and rejected (the UI exploration behind the orb):**
+- *Floating always-on panel / bigger collapsed bar* — rejected: the complaint
+  was that even the collapsed rectangle covers too much on mobile. A rectangle
+  can't win here; a tucked circle can.
+- *Composer toolbar-button injection* (put a Ghost button in each site's action
+  row) — deferred: per-site DOM, high churn, durability ~7/10.
+- *Inject a Ghost item into the site's "+" menu* — deferred: menus are portalled,
+  rebuilt on open, and differ by account/platform; durability ~4/10.
+- *Two-mode tabbed composer that overlays + `inert`-s the real input* — rejected
+  as a blind-ship: it sits on the exact input the engine must type into (the
+  issue #4/#5 detection surface). One redesign on any of six sites could brick
+  typing. Belongs behind a flag with real-device captures, never a promote.
+- *Shadow DOM / Popover / CSS anchor-positioning for the launcher* (ChatGPT's
+  suggestions) — rejected as unnecessary and, for Shadow DOM, actively harmful:
+  the panel is `#gitl`-scoped CSS + a skin-token engine + the Trusted-Types
+  `_TT()` wrapper; moving it into a shadow tree would break all three. The orb
+  is plain DOM, scoped CSS, no innerHTML.
+
+**What shipped:** `orb` position mode. Pure geometry helpers (`_orbEdgeFromX`,
+`_orbClampY`) unit-tested; e2e (`tests/e2e/orb.spec.js`) covers mount, tuck,
+running-ring colour, tap-expand and drag-snap in Chromium + Firefox.
+
+---
+
 ## v8.3.0 — system reliability restructure (2026-07-23)
 
 **Updated by MShneur. Main editor: Agent CG (ChatGPT).**

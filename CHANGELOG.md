@@ -1,5 +1,36 @@
 # Changelog
 
+## [8.4.0] — Ghost Orb: a tiny tucked launcher (least screen coverage)
+
+Built on top of the 8.3.0 reliability lineage — none of that work is changed.
+This adds one new **`orb`** entry to the existing position picker (Setup →
+position row), so users get another *working* placement to choose from and can
+fall back if one doesn't suit a site/device.
+
+- **Collapsed = a ~52px circle tucked ~12px past the screen edge.** Only the
+  ghost shows; a ring around it **spins while a loop is RUNNING** and sits
+  still otherwise (respects `prefers-reduced-motion`).
+- **Tap to open** the full panel as an edge drawer; minimise returns it to the
+  orb. Open height stays under the existing body cap, so it never swallows the
+  composer on mobile — the fix for `bottom-bar` overlapping the composer.
+- **Drag to move**: vertical reposition, and dragging across the screen midline
+  **snaps it to the other edge**. Stored as edge + a 0..1 ratio, so it survives
+  resize and orientation changes.
+
+Site-agnostic and lives inside `#gitl`, so `_isOwnUI` already owns it and the
+skin tokens theme it — no Shadow DOM, no innerHTML strings (Trusted-Types safe),
+no change to the send/actuator authority. Geometry is pure (`_orbEdgeFromX`,
+`_orbClampY`) with unit tests; mount/tuck/running-ring/tap-expand/drag-snap are
+covered by `tests/e2e/orb.spec.js` in Chromium + Firefox.
+
+**Deliberately NOT shipped (needs real-device work first):** the composer-
+integrated concepts explored alongside this — injecting a Ghost button into each
+site's toolbar, adding an item to the site's "+" menu, or a two-mode tabbed
+composer that overlays and disables the real input. Those depend on per-site
+composer DOM across ChatGPT/Claude/Gemini/Perplexity/Manus/Kimi and would put
+Ghost's UI on top of the very input it must type into (the issue #4/#5 surface),
+so they belong behind a flag with live per-site captures, not a blind push.
+
 ## [8.3.0] — fail-closed reliability, truthful exports, and private diagnostics
 
 Updated by **MShneur**. Main editor: **Agent CG (ChatGPT)**.
