@@ -80,7 +80,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.2.1';
+const VER = '8.3.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop'; // for pre-filled issue URL transport
 const REPORT_WORKER_URL = ''; // set to a relay endpoint to enable silent auto-submit; empty = disabled
@@ -729,6 +729,20 @@ function _visible(el) {
   } catch(_) { return false; }
 }
 
+/* ── Orb launcher geometry (v8.3.0) ──────────────────────────────
+   Pure functions so the drag math is unit-testable without a DOM. The orb
+   snaps to whichever edge the pointer is closest to and stores its vertical
+   position as a clamped 0..1 ratio (never flush to an edge, so it can't hide
+   behind device UI or scroll off). */
+function _orbEdgeFromX(x, viewportWidth) {
+  const vw = viewportWidth > 0 ? viewportWidth : 1;
+  return x < vw / 2 ? 'left' : 'right';
+}
+function _orbClampY(ratio) {
+  if (!Number.isFinite(ratio)) return 0.34;
+  return Math.min(0.92, Math.max(0.04, ratio));
+}
+
 const _heurCache = { input:{el:null,ts:0}, send:{el:null,ts:0} };
 let _heurNoteTs = 0;
 function _heurNote(what) {
@@ -1313,7 +1327,12 @@ const GHOST = {
     runAdv: false,
     showDiag: false,
     showSites: false,
-    firstRun: GM_getValue('firstRun',true)
+    firstRun: GM_getValue('firstRun',true),
+    // Orb launcher (v8.3.0): a tiny tucked circle position mode. Edge = which
+    // side it clings to; orbY = vertical position as a 0..1 ratio so it
+    // survives screen-size and orientation changes (raw px would drift).
+    orbEdge: GM_getValue('orbEdge','right') === 'left' ? 'left' : 'right',
+    orbY: (v => { const n = parseFloat(v); return Number.isFinite(n) ? Math.min(0.92, Math.max(0.04, n)) : 0.34; })(GM_getValue('orbY', 0.34))
   },
   report: null /* v7.1: latest Reporter trouble report, or null */
 };
@@ -2935,7 +2954,7 @@ function applyFilter(msgs) {
   return msgs;
 }
 
-const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows'];
+const GM_KEYS = ['projectName','projectSlug','wfSelected','wfStage','wfAuto','wfPause','persona','personaCommittee','personaPerTask','personaFinalReview','payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop','sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug','panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv','skinTheme','customSkin','accentHue','unattended','firstRun','customSites','rmSteps','rmIndex','rmCaptured','qDraft','customPersonas','customWorkflows','orbEdge','orbY'];
 
 function downloadText(content, filename, mime) {
   const blob = new Blob([content], { type: mime });
@@ -3649,6 +3668,24 @@ function injectStyles() {
 #gitl.pos-dock-left .g-dot{box-shadow:0 0 6px rgba(232,198,106,.6)}
 .g-pos-gold{color:#e8c66a!important}
 .g-pos-gold.act{background:#2a2410!important;border-color:#5a4a1e!important}
+/* ── Orb launcher (v8.3.0) ──────────────────────────────────────
+   Collapsed = a ~52px tucked circle showing only the ghost, with a ring
+   that spins while a loop is RUNNING. Tap (or, in the picker, select orb)
+   to expand into the normal panel as an edge drawer. Everything is scoped
+   under #gitl so the skin tokens still theme it and _isOwnUI still owns it. */
+.g-orb-ring{display:none}
+#gitl.pos-orb.collapsed{width:52px!important;min-width:0!important;height:52px;padding:0;border-radius:50%;overflow:visible;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;transition:transform .12s ease,box-shadow .15s ease}
+#gitl.pos-orb.collapsed:hover,#gitl.pos-orb.collapsed:active{transform:scale(1.06)}
+#gitl.pos-orb.collapsed .g-hdr{margin:0;padding:0;width:100%;height:100%;justify-content:center;cursor:pointer}
+#gitl.pos-orb.collapsed .g-hdr > span:last-child{display:none}
+#gitl.pos-orb.collapsed .g-body,#gitl.pos-orb.collapsed .g-coll-row{display:none}
+#gitl.pos-orb.collapsed .g-logo{font-size:0;letter-spacing:0;gap:0}
+#gitl.pos-orb.collapsed .g-logo .g-dot{display:none}
+#gitl.pos-orb.collapsed .g-ghost{font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+#gitl.pos-orb.collapsed .g-orb-ring{display:block;position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--g-border-2);pointer-events:none;box-sizing:border-box}
+#gitl.pos-orb.collapsed[data-run="1"] .g-orb-ring{border-top-color:var(--g-ok);border-right-color:var(--g-ok);animation:gorbspin 1.1s linear infinite}
+@keyframes gorbspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#gitl.pos-orb.collapsed[data-run="1"] .g-orb-ring{animation:none!important;border-color:var(--g-ok)}}
 .g-diag .ok{color:var(--g-ok)}.g-diag .warn{color:var(--g-err)}
 .g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text);font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
 .g-persona-btn.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:#c7d2fe}
@@ -4134,8 +4171,8 @@ function renderSettingsTab() {
     <div class="g-row"><label>🔔 Sound</label><div class="g-tog${GHOST.ui.soundOn?' on':''}" id="cfg-snd"></div></div>
     <div class="g-row"><label>💬 Notify when done</label><div class="g-tog${GHOST.ui.notifyOn?' on':''}" id="cfg-ntf"></div></div>
     <div class="g-row"><label>📍 Position</label>
-      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left'].map(p=>
-        `<button class="g-pos${GHOST.ui.position===p?' act':''}${p==='dock-left'?' g-pos-gold':''}" data-pos="${p}" title="${p==='dock'?'Dock — slim edge tab, right side':p==='dock-left'?'Gold menu — slim hamburger tab, left side (opposite the site menu)':p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':p==='bottom-bar'?'━':p==='dock-left'?'☰':'▐'}</button>`
+      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left','orb'].map(p=>
+        `<button class="g-pos${GHOST.ui.position===p?' act':''}${p==='dock-left'?' g-pos-gold':''}" data-pos="${p}" title="${p==='dock'?'Dock — slim edge tab, right side':p==='dock-left'?'Gold menu — slim hamburger tab, left side (opposite the site menu)':p==='orb'?'Ghost orb — tiny tucked circle; drag to move, tap to open. Best for mobile / least screen coverage':p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':p==='bottom-bar'?'━':p==='dock-left'?'☰':p==='orb'?'👻':'▐'}</button>`
       ).join('')}</div>
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
@@ -4193,6 +4230,29 @@ function applyPosition(pos) {
   else if(pos==='bottom-bar'){panel.classList.add('pos-bb')}
   else if(pos==='dock'){panel.style.top='30%';panel.style.right='0';panel.style.width=''}
   else if(pos==='dock-left'){panel.style.top='30%';panel.style.left='0';panel.style.width=''}
+  else if(pos==='orb'){_applyOrb()}
+}
+
+/* Position the orb. Collapsed: a tucked circle clinging to the saved edge
+   (~12px off-screen) at the saved vertical ratio. Expanded: a normal-width
+   drawer hugging that same edge, so opening it never jumps across the screen.
+   Height is bounded by the existing .g-body max-height (52vh), so it can't
+   swallow the composer on mobile. */
+function _applyOrb() {
+  const col = GHOST.ui.collapsed;
+  panel.style.top = panel.style.bottom = panel.style.left = panel.style.right = 'auto';
+  const yPct = (_orbClampY(GHOST.ui.orbY) * 100).toFixed(2) + '%';
+  if (col) {
+    panel.style.width = '';
+    panel.style.top = yPct;
+    if (GHOST.ui.orbEdge === 'left') panel.style.left = '-12px';
+    else panel.style.right = '-12px';
+  } else {
+    panel.style.width = '268px';
+    panel.style.top = '14px';
+    if (GHOST.ui.orbEdge === 'left') panel.style.left = '8px';
+    else panel.style.right = '8px';
+  }
 }
 
 function renderReportBadge() {
@@ -4209,7 +4269,7 @@ function render() {
   try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; panel.dataset.explain = GHOST.ui.explain ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
-  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':''].filter(Boolean).join(' ');
+  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':'', GHOST.ui.position==='orb'?('pos-orb'+(GHOST.ui.orbEdge==='left'?' orb-left':'')):''].filter(Boolean).join(' ');
   const qc = statColor();
   const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
@@ -4231,6 +4291,7 @@ function render() {
   })();
   panel.innerHTML = _TT(`
     <div class="g-hdr" id="g-drag">
+      <span class="g-orb-ring" aria-hidden="true"></span>
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${(typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label}</span>
@@ -4284,6 +4345,8 @@ function bindEvents() {
       GHOST.ui.collapsed = false; _save('panelCollapsed', false); render();
     }, { once: true });
   }
+  // Orb + collapsed: drag to reposition (vertical + snap to nearer edge), tap to open.
+  if (GHOST.ui.position==='orb' && GHOST.ui.collapsed) bindOrbDrag();
   $('#g-quick')?.addEventListener('click', primaryAction);
   $('#g-projname')?.addEventListener('change', e => {
     GHOST.project.name = e.target.value.trim();
@@ -4468,7 +4531,13 @@ function bindEvents() {
     this.classList.toggle('on'); GHOST.ui.notifyOn=this.classList.contains('on'); _save('notifyOn',GHOST.ui.notifyOn);
     if (GHOST.ui.notifyOn) { try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission(); } catch(_){} }
   });
-  $$('.g-pos').forEach(b => b.addEventListener('click', () => { GHOST.ui.position=b.dataset.pos; _save('panelPosition',GHOST.ui.position); applyPosition(GHOST.ui.position); render(); }));
+  $$('.g-pos').forEach(b => b.addEventListener('click', () => {
+    GHOST.ui.position=b.dataset.pos; _save('panelPosition',GHOST.ui.position);
+    // Choosing the orb collapses to it immediately so the tuck is visible and
+    // the user learns tap-to-open (their last tab is restored on reopen).
+    if (GHOST.ui.position==='orb') { GHOST.ui.collapsed=true; _save('panelCollapsed',true); }
+    applyPosition(GHOST.ui.position); render();
+  }));
   $('#cfg-diag')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.ui.showDiag=this.classList.contains('on'); render(); });
   $('#g-probe')?.addEventListener('click', () => { DIAG.runProbe(); render(); });
   $('#g-report-now')?.addEventListener('click', () => { DIAG.runProbe(); Reporter.capture('manual', 'User-triggered problem report'); });
@@ -4519,6 +4588,45 @@ function bindEvents() {
   $('#g-onb-done')?.addEventListener('click', () => { GHOST.ui.firstRun=false; _save('firstRun',false); render(); });
 
   bindDrag();
+}
+
+/* Orb drag: vertical reposition + edge snap, tap-to-open. One pointer handler
+   distinguishes a tap (open the panel) from a drag (move + persist) via a small
+   movement threshold, so the two never fight. Falls back to click-to-open where
+   Pointer Events are unavailable. */
+function bindOrbDrag() {
+  if (typeof PointerEvent === 'undefined') {
+    panel.addEventListener('click', () => {
+      GHOST.ui.collapsed = false; _save('panelCollapsed', false); render();
+    }, { once: true });
+    return;
+  }
+  let active = false, moved = false, startX = 0, startY = 0, startRatio = GHOST.ui.orbY;
+  const vh = () => Math.max(1, (typeof innerHeight === 'number' ? innerHeight : 800));
+  const vw = () => Math.max(1, (typeof innerWidth === 'number' ? innerWidth : 1200));
+  panel.addEventListener('pointerdown', e => {
+    if (e.button != null && e.button !== 0) return;
+    active = true; moved = false; startX = e.clientX; startY = e.clientY; startRatio = GHOST.ui.orbY;
+    try { panel.setPointerCapture(e.pointerId); } catch(_){}
+  });
+  panel.addEventListener('pointermove', e => {
+    if (!active) return;
+    if (!moved && Math.hypot(e.clientX - startX, e.clientY - startY) < 6) return;
+    moved = true;
+    GHOST.ui.orbY = _orbClampY(startRatio + (e.clientY - startY) / vh());
+    GHOST.ui.orbEdge = _orbEdgeFromX(e.clientX, vw());
+    panel.classList.toggle('orb-left', GHOST.ui.orbEdge === 'left');
+    _applyOrb();
+  });
+  const end = e => {
+    if (!active) return;
+    active = false;
+    try { panel.releasePointerCapture(e.pointerId); } catch(_){}
+    if (moved) { _save('orbY', GHOST.ui.orbY); _save('orbEdge', GHOST.ui.orbEdge); }
+    else { GHOST.ui.collapsed = false; _save('panelCollapsed', false); render(); }
+  };
+  panel.addEventListener('pointerup', end);
+  panel.addEventListener('pointercancel', end);
 }
 
 function bindDrag() {

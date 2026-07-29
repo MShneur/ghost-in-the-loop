@@ -1,5 +1,37 @@
 # Changelog
 
+## [8.3.0] — Ghost Orb: a tiny tucked launcher (least screen coverage)
+
+The panel — even collapsed — is a rectangle that eats real estate, and on
+mobile it covers too much. The `bottom-bar` mode also overlaps the site's
+composer. New **`orb`** position mode fixes the "it blocks the site" problem
+directly, as one more choice in the existing position picker (Setup → position
+row) rather than a parallel UI:
+
+- **Collapsed = a ~52px circle tucked ~12px past the screen edge.** Only the
+  ghost shows; a ring around it **spins while a loop is RUNNING** and sits
+  still otherwise (respects `prefers-reduced-motion`).
+- **Tap to open** the full panel as an edge drawer; minimise (`－`) returns it
+  to the orb. Height stays bounded by the existing 52vh body cap, so an open
+  orb never swallows the composer on mobile.
+- **Drag to move**: vertical reposition, and dragging across the screen midline
+  **snaps it to the other edge** (left/right). Position is stored as a 0..1
+  ratio + edge, so it survives resize and orientation changes.
+
+Why this and not the fancier ideas explored (composer-injected toolbar button,
+site "+"-menu item, two-mode tabbed composer that overlays the real input):
+those depend on per-site composer DOM across ChatGPT/Claude/Gemini/Perplexity/
+Manus/Kimi and would put Ghost's UI on top of the very input it must type into —
+the exact surface that produced field issues #4/#5. They need live per-site DOM
+captures and real-device validation before they can be trusted on live, so they
+are deliberately **not** shipped here. The orb is site-agnostic, lives inside
+`#gitl` (so `_isOwnUI` already owns it and the skin tokens theme it), and is
+covered by tests in both engines.
+
+Geometry is factored into pure helpers (`_orbEdgeFromX`, `_orbClampY`) with unit
+tests; mount/tuck/spin/tap/drag-snap are covered by `tests/e2e/orb.spec.js`
+(Chromium + Firefox).
+
 ## [8.2.1] — send-target mislearn fix (issues #4, #5)
 
 Two field reports showed the self-healing SelectorMemory learning the **wrong**

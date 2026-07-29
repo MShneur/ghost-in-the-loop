@@ -11,6 +11,44 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.3.0 — Ghost Orb launcher + a UI-direction decision
+
+**Context.** Long design exploration (user + ChatGPT) on making Ghost cover less
+of the site: floating circle → edge launcher → composer-attached control →
+inject into the site's "+" menu → a two-mode tabbed composer that overlays and
+`inert`-s the site's real input.
+
+**Decision — ship the orb, defer the composer-integration tier.** The escalating
+ideas trade reliability for polish. The composer-deck/toolbar-injection variants
+depend on per-site composer DOM across six platforms and put Ghost's UI on top
+of the exact input it must type into — the same surface that produced issues
+#4/#5. Shipping them blind to live violates "if it works" (I can't verify six
+live composers from here). They belong behind a flag with real-device captures,
+not in a promote-to-main change. The orb is the one idea that is site-agnostic,
+testable in both engines, and solves the stated problem ("it blocks the site").
+
+**What was built.** A new `orb` position mode (8th entry in the existing picker,
+not a parallel system):
+- Reuses the existing collapse/expand + skin CSS; lives inside `#gitl`, so
+  `_isOwnUI` already excludes it from adapter selectors (no ownership-registry
+  refactor needed — a claim ChatGPT pushed that this codebase doesn't require).
+- Collapsed = 52px circle tucked -12px past the saved edge at a 0..1 vertical
+  ratio; ring spins only on `[data-run="1"]`; `prefers-reduced-motion` honoured.
+- Drag math is pure (`_orbEdgeFromX`, `_orbClampY`) → unit-tested; the pointer
+  handler separates tap (open) from drag (move+persist) with a 6px threshold.
+
+**Corrections to the ChatGPT analysis worth recording.** It repeatedly
+"discovered" features already shipped (dock/dock-left slim tabs, bottom-bar,
+collapsed play/pause, position persistence). It recommended Shadow DOM / Popover
+/ CSS anchor-positioning — none needed for a launcher, and Shadow DOM would break
+the `#gitl`-scoped skin engine and the Trusted-Types `_TT()` wrapper. Kept it
+simple: DOM-built, scoped CSS, no innerHTML strings (TT-safe).
+
+**Coverage.** `tests/orb.test.js` (unit) + `tests/e2e/orb.spec.js` (mount, tuck,
+running-ring colour, tap-expand, drag-snap) in Chromium + Firefox.
+
+---
+
 ## v8.2.1 — Send-target mislearn (issues #4, #5)
 
 **What was tried / observed.** Two `probe_fail` reports showed SelectorMemory
