@@ -1,5 +1,30 @@
 # Changelog
 
+## [8.4.2] — layered send failsafes (mobile Perplexity fix, ADAPTER-001)
+
+Fixes the field bug where mobile Perplexity (Firefox/Android) sent round 1 then
+paused with `send:false`: its follow-up composer has no uniquely-matching
+reviewed Send button, and send was button-only.
+
+**The fix is a failsafe chain, not a weakening of safety.** Send now escalates
+through: **reviewed button → single Enter keypress → insertParagraph → native
+form submit** — but each method fires **only while the composer still holds the
+unsent text.** The instant the composer clears (or independent evidence
+confirms the send), escalation stops and no further method is dispatched. So:
+
+- **At-most-once is preserved *in effect*** — a second method can never fire
+  after one already sent, so your prompt cannot double-send. This keeps the
+  guarantee of CG's v8.3.0 send-transaction design; it only changes *button-only*
+  into *button-then-buttonless-while-unsent*.
+- **Buttonless failsafes are reviewed-platforms only.** An unreviewed site with
+  no reviewed button still leaves the prompt for manual Send (unchanged).
+- **Commit still requires independent evidence** (`_sendEvidence`: assistant
+  grew, or composer cleared + stop/trusted-network). A dispatch that produced no
+  send can never advance the round. No automatic resend of a completed attempt.
+
+Regression tests: `tests/sendlayered.test.js` (chain + double-send guard) and an
+updated `tests/sendtransaction.test.js` contract.
+
 ## [8.4.1] — one Play/Pause toggle (transport cleanup)
 
 Field feedback: the Run tab showed **Play + Pause + Stop** as three buttons —
