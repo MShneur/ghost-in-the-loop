@@ -1,6 +1,0 @@
-payload format. The DOM completion gate remains an independent fallback. Real-device retesting is still required for any editor-specific follow-up send problem after the completion transition is restored.
-
----
-
-""";d.write_text(x.replace('---\n\n## v8.5.1','---\n\n'+entry+'## v8.5.1'))
-print('v8.5.2 patch applied')

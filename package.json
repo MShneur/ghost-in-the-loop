@@ -1,7 +1,7 @@
 {
   "name": "ghost-in-the-loop",
-  "version": "8.3.0",
-  "description": "Ghost in the Loop — userscript, Firefox extension build, and test harness",
+  "version": "8.5.2",
+  "description": "Ghost in the Loop \u2014 userscript, Firefox extension build, and test harness",
   "scripts": {
     "build": "npm run build:extension",
     "build:extension": "node scripts/build-extension.js",
@@ -19,9 +19,18 @@
   },
   "jest": {
     "testEnvironment": "jsdom",
-    "roots": ["<rootDir>/tests"],
-    "testMatch": ["**/*.test.js"],
-    "setupFiles": ["./tests/setup.js"],
-    "coverageReporters": ["text", "lcov"]
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/*.test.js"
+    ],
+    "setupFiles": [
+      "./tests/setup.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov"
+    ]
   }
 }

@@ -11,6 +11,20 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.5.2 — visible state machine and Perplexity heartbeat root cause
+
+**Field evidence:** the saved Perplexity page showed Ghost booted and a completed response containing `[[GITL::PROCEED]]`, while Ghost still reported reading/waiting.
+
+**Root cause:** v8.5.1 treated every frame on Perplexity's persistent Socket.IO connection as trusted generation traffic, including ping/pong and control frames. `engineTick()` therefore returned before reading the already-finished DOM response. A second contributor was treating a mounted-but-hidden Stop button as active.
+
+**Earlier attempts that were real but insufficient:** disabling mobile visual effects fixed jank; layered Send fallbacks fixed a separate dispatch failure. Neither can repair a transition that never reaches signal reading or sending. Do not diagnose future cases as lag or send-selector failure until the visible stage pipeline identifies the failing transition.
+
+**Chosen fix:** filter non-content WebSocket frames; require visible Stop evidence; and accept a terminal marker only when the response advanced beyond the pre-send baseline, remained stable across two ticks, and has no visible Stop control. Network is advisory and cannot veto those three independent DOM catches.
+
+**Residual risk:** Perplexity can change its Socket.IO payload format. The DOM completion gate remains an independent fallback. Real-device retesting is still required for any editor-specific follow-up send problem after the completion transition is restored.
+
+---
+
 ## v8.5.1 — mobile field fixes (and a testing lesson)
 
 Perplexity-mobile field reports exposed four bugs the desktop-mock e2e missed:

@@ -1,55 +1,53 @@
 /**
- * ISSUE FIXES (v8.1.2) — regression tests for two field-reported bugs.
- *
- * #1 [auto] probe_fail on Perplexity: sent fine, Deep Research thinks
- *    silently for a while with zero assistant DOM nodes yet, loop paused
- *    with "No output detected" ~12s later even though the model was
- *    demonstrably still working (net traffic active). The later no-signal
- *    branch already got an isGenerating() witness in d7; the earlier
- *    "no text at all" branch never did.
- *
- * #2 [auto] manual on Grok: send_ok, then ONE SECOND later "Route changed
- *    — paused" — the platform assigning a "/c/<uuid>" URL to a brand-new
- *    conversation was mistaken for real navigation.
+ * FIELD REGRESSIONS — long-thinking Perplexity and route assignment.
+ * v8.5.2 replaces the old network-only no-output rule with a multi-witness
+ * completion observer, so these tests verify the behavior contract rather
+ * than the former source formatting.
  */
 const fs = require('fs'), path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
-describe('Issue #1 — Perplexity: no-output branch respects isGenerating()', () => {
-  const block = src.slice(src.indexOf('const text = Adapter.getLastText();'), src.indexOf('const text = Adapter.getLastText();') + 900);
+function body(name, nextName) {
+  const start = src.indexOf(`function ${name}`);
+  const end = src.indexOf(`function ${nextName}`, start + 1);
+  return start < 0 ? '' : src.slice(start, end < 0 ? undefined : end);
+}
 
-  test('the !text branch checks isGenerating() before counting a stale tick', () => {
-    expect(block).toContain('if (!text) {');
-    expect(block).toContain('Adapter.isGenerating()');
+describe('Issue #1 — Perplexity completion observation', () => {
+  const tick = body('engineTick', 'startLoop');
+
+  test('visible DOM output is read before network generation can veto it', () => {
+    const read = tick.indexOf('const text = Adapter.getLastText();');
+    const networkGate = tick.indexOf('Adapter.isGenerating()&&!terminalReady');
+    expect(read).toBeGreaterThan(-1);
+    expect(networkGate).toBeGreaterThan(read);
   });
 
-  test('the !text branch uses the per-platform stale budget, not a bare 5', () => {
-    expect(block).toContain('(PLAT && PLAT.staleTicks) || 5');
+  test('active generation resets stale ticks', () => {
+    expect(tick).toContain('L.staleTicks=0');
   });
 
-  test('staleTicks resets to 0 while generating instead of accumulating', () => {
-    expect(block).toMatch(/isGenerating\(\)\) \{ L\.staleTicks = 0;/);
+  test('idle no-output still uses the per-platform stale budget', () => {
+    expect(tick).toContain('(PLAT&&PLAT.staleTicks)||5');
+  });
+
+  test('terminal override requires reply advancement, stability, and no visible Stop', () => {
+    const gate = body('_terminalReplyReady', '_sleepCountdown');
+    expect(gate).toContain('_replyAdvancedBeyondBaseline(text)');
+    expect(gate).toContain('obs.stableTicks>=1');
+    expect(gate).toContain('!stopVisible');
   });
 });
 
-describe('Issue #2 — Grok: conversation-id URL assignment does not pause a running loop', () => {
-  test('route watcher checks same-host before pausing', () => {
+describe('Issue #2 — Grok conversation-id URL assignment', () => {
+  test('same-host post-send route assignment is recorded instead of paused', () => {
     expect(src).toContain('new URL(prevHref).hostname === location.hostname');
-  });
-
-  test('route watcher checks for a recent send before pausing', () => {
     expect(src).toContain('GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000)');
-  });
-
-  test('a same-host post-send route change is recorded, not treated as a pause trigger', () => {
     expect(src).toContain("Timeline.record('route_id_assigned'");
   });
 
-  test('a genuine cross-host route change still pauses a running loop', () => {
+  test('genuine route changes still pause and clear cached elements', () => {
     expect(src).toContain("enginePause('Route changed — paused')");
-  });
-
-  test('element caches are still cleared on every route change regardless of outcome', () => {
     const m = src.match(/window\.addEventListener\('gitl:route', \(\) => \{[\s\S]*?\n\}\);/);
     expect(m).not.toBeNull();
     expect(m[0]).toContain('_clearElementCaches();');
