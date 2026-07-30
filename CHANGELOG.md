@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.5.2] — completion observer, visible run stages, Ghost-only reboot
+
+- Fixed Perplexity remaining in reading/waiting forever: Socket.IO heartbeat and control frames no longer count as generation output.
+- Added three independent completion catches: a reply newer than the send baseline, a stable tail across two ticks, and no visible Stop control. Stable visible PROCEED/HALT can override stale network telemetry.
+- Run status now shows Output → Marker check → Next command/HALT, including the real pre-send countdown. Drift guard is a separate right-hand section.
+- Header ↻ now reloads Ghost only (timers, observers, caches, panel, tab lock, bus, selector detection) without reloading the long chat or sending a reground prompt. Selector-only re-detect remains in Diagnostics.
+- Composer Rail now follows composer replacement and geometry with ResizeObserver, MutationObserver and a low-frequency check, still without a page-scroll listener or host-editor injection.
+
 ## [8.5.1] — mobile field fixes (orb, rail jump, lag, picker overflow)
 
 Field reports from Perplexity on mobile:
