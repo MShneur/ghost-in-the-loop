@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.5.0
+// @version      8.5.1
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.5.0';
+const VER = '8.5.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -4094,7 +4094,7 @@ let _stylesInjected = false;
 function injectStyles() {
   if (_stylesInjected) return;
   _stylesInjected = true;
-  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n#gitl[data-explain="1"] #g-explain-tog{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}\n#gitl[data-explain="1"] .g-body{cursor:help}\n.g-xtip{position:absolute;left:8px;right:8px;top:54px;z-index:9;background:var(--g-surface-3);border:1px solid var(--g-accent-deep);border-radius:7px;padding:6px 22px 7px 8px;font-size:9.5px;line-height:1.45;color:var(--g-text);box-shadow:var(--g-shadow)}\n.g-xtip b{color:var(--g-accent-text)}\n.g-xtip .x{position:absolute;top:4px;right:7px;cursor:pointer;color:var(--g-muted);font-size:10px}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+  const css = `\n#gitl{--g-bg:#111214;--g-bg-deep:#0c0d10;--g-surface:#18191c;--g-surface-2:#16171b;--g-surface-3:#1c1d22;--g-hover:#222329;--g-border:#27282e;--g-border-2:#2e2f35;--g-text:#c9cad0;--g-text-mid:#888;--g-text-dim:#555;--g-muted:#6b7280;--g-accent:#818cf8;--g-accent-text:#a5b4fc;--g-accent-deep:#3730a3;--g-accent-bg:#1a1b2e;--g-ok:#34d399;--g-ok-deep:#064e3b;--g-ok-bg:#052e1c;--g-warn:#fbbf24;--g-err:#f87171;--g-radius:12px;--g-shadow:0 10px 32px rgba(0,0,0,.65);--g-font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Mono',monospace;--g-text-hot:#fff;--g-text-low:#666;--g-text-faint:#444;--g-text-ghost:#333;--g-blur:0px;--g-aur1:transparent;--g-aur2:transparent;--g-aur3:transparent}\n#gitl{backdrop-filter:blur(var(--g-blur));-webkit-backdrop-filter:blur(var(--g-blur))}\n#gitl[data-fx-border="aurora"]::before,#gitl[data-fx-border="glow"]::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;pointer-events:none}\n#gitl[data-fx-border="aurora"],#gitl[data-fx-border="glow"]{border-color:transparent}\n#gitl[data-fx-border="aurora"]::before{background:linear-gradient(120deg,var(--g-aur1),var(--g-aur2),var(--g-aur3),var(--g-aur1));background-size:300% 100%;animation:gaur 14s linear infinite;opacity:.6}\n#gitl[data-run="1"][data-fx-border="aurora"]::before{animation-duration:5s;opacity:1}\n#gitl[data-fx-border="glow"]::before{background:linear-gradient(120deg,transparent 35%,var(--g-accent) 50%,transparent 65%);background-size:280% 100%;animation:gbreath 7s ease-in-out infinite;opacity:.5}\n#gitl[data-run="1"][data-fx-border="glow"]::before{animation:gaur 4.5s linear infinite;opacity:.95}\n#gitl .g-ghost{display:inline-block}\n#gitl[data-fx-ghost="float"] .g-ghost{animation:gfloat 3.2s ease-in-out infinite}\n#gitl[data-fx-ghost="flicker"] .g-ghost{animation:gflick 5s linear infinite}\n#gitl[data-run="1"][data-fx-ghost="flicker"] .g-ghost{animation-duration:2.4s}\n#gitl[data-fx-ghost="halo"] .g-ghost{animation:ghalo 4.5s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-ghost="halo"] .g-ghost{animation-duration:2s}\n#gitl[data-fx-ghost="glow"] .g-ghost{filter:drop-shadow(0 0 5px var(--g-accent))}\n#gitl[data-run="1"][data-fx-ghost="glow"] .g-ghost{animation:ghalo 2.2s ease-in-out infinite}\n#gitl[data-fx-tabs="underline"] .g-tab{background:transparent;border-color:transparent;border-radius:0;position:relative}\n#gitl[data-fx-tabs="underline"] .g-tab:hover{background:var(--g-hover)}\n#gitl[data-fx-tabs="underline"] .g-tab.act{background:transparent;border-color:transparent;color:var(--g-accent-text)}\n#gitl[data-fx-tabs="underline"] .g-tab.act::after{content:"";position:absolute;left:14%;right:14%;bottom:-2px;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--g-accent),transparent)}\n#gitl[data-fx-tabs="pill"] .g-tab{border-radius:999px}\n#gitl[data-fx-progress="shimmer"] .g-fill{background:linear-gradient(90deg,var(--g-accent-deep),var(--g-accent),var(--g-accent-deep));background-size:220% 100%;animation:gaur 3.5s linear infinite}\n#gitl[data-run="1"][data-fx-progress="shimmer"] .g-fill{animation-duration:1.8s}\n#gitl[data-fx-progress="ekg"] .g-trk{position:relative;overflow:hidden}\n#gitl[data-fx-progress="ekg"] .g-trk::after{content:"";position:absolute;top:0;bottom:0;left:0;width:16%;background:linear-gradient(90deg,transparent,var(--g-accent),transparent);opacity:.45;animation:gekg 2.6s ease-in-out infinite}\n#gitl[data-run="1"][data-fx-progress="ekg"] .g-trk::after{opacity:.9;animation-duration:1.2s}\n#gitl[data-fx-surface="sheen"]::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.05) 50%,transparent 58%);background-size:280% 100%;animation:gsheen 11s linear infinite;opacity:.7}\n#gitl[data-run="1"][data-fx-surface="sheen"]::after{animation-duration:5s;opacity:1}\n@keyframes gaur{0%{background-position:0% 50%}100%{background-position:300% 50%}}\n@keyframes gbreath{0%,100%{opacity:.3}50%{opacity:.75}}\n@keyframes gflick{0%,88%,92%,100%{opacity:1}90%{opacity:.35}95%{opacity:.7}}\n@keyframes ghalo{0%,100%{filter:drop-shadow(0 0 2px var(--g-accent))}50%{filter:drop-shadow(0 0 8px var(--g-accent))}}\n@keyframes gekg{0%{transform:translateX(-110%)}100%{transform:translateX(740%)}}\n@keyframes gsheen{0%{background-position:130% 0}100%{background-position:-50% 0}}\n#gitl[data-explain="1"] #g-explain-tog{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}\n#gitl[data-explain="1"] .g-body{cursor:help}\n.g-xtip{position:absolute;left:8px;right:8px;top:54px;z-index:9;background:var(--g-surface-3);border:1px solid var(--g-accent-deep);border-radius:7px;padding:6px 22px 7px 8px;font-size:9.5px;line-height:1.45;color:var(--g-text);box-shadow:var(--g-shadow)}\n.g-xtip b{color:var(--g-accent-text)}\n.g-xtip .x{position:absolute;top:4px;right:7px;cursor:pointer;color:var(--g-muted);font-size:10px}\n@media (prefers-reduced-motion:reduce){#gitl,#gitl *,#gitl::before,#gitl::after{animation:none!important}}\n@media (pointer:coarse){#gitl{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}\n#gitl::before,#gitl::after{animation:none!important}\n#gitl .g-ghost,#gitl .g-fill,#gitl .g-trk::after{animation:none!important}}\n@keyframes gfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
 @keyframes gin{from{opacity:0;transform:translateY(5px) scale(.985)}}
 #gitl.g-enter{animation:gin .18s ease-out}
 #gitl{position:fixed;z-index:2147483647;width:268px;max-width:calc(100vw - 16px);background:var(--g-bg);border:1px solid var(--g-border);
@@ -4207,7 +4207,7 @@ function injectStyles() {
 .g-tog.on{background:var(--g-ok-deep)}
 .g-tog::after{content:'';width:10px;height:10px;background:var(--g-text-low);border-radius:50%;position:absolute;top:2px;left:2px;transition:left .2s,background .2s}
 .g-tog.on::after{left:16px;background:var(--g-ok)}
-.g-pos-row{display:flex;gap:3px}
+.g-pos-row{display:flex;flex-wrap:wrap;gap:3px}
 .g-pos{background:var(--g-surface);border:1px solid var(--g-border-2);color:#777;font-size:11px;width:22px;height:20px;cursor:pointer;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s}
 .g-pos:hover{background:var(--g-border);color:var(--g-text-hot)}.g-pos.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-exp-btn{width:100%;padding:8px;background:var(--g-ok-bg);border:1px solid var(--g-ok-deep);border-radius:7px;color:var(--g-ok);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px;text-align:center;transition:all .15s}
@@ -4310,11 +4310,16 @@ function injectStyles() {
    to expand into the normal panel as an edge drawer. Everything is scoped
    under #gitl so the skin tokens still theme it and _isOwnUI still owns it. */
 .g-orb-ring{display:none}
-#gitl.pos-orb.collapsed{width:52px!important;min-width:0!important;height:52px;padding:0;border-radius:50%;overflow:visible;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;transition:transform .12s ease,box-shadow .15s ease}
+#gitl.pos-orb.collapsed{width:52px!important;min-width:0!important;max-width:52px!important;height:52px;padding:0;border-radius:50%;overflow:visible;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;transition:transform .12s ease,box-shadow .15s ease}
 #gitl.pos-orb.collapsed:hover,#gitl.pos-orb.collapsed:active{transform:scale(1.06)}
 #gitl.pos-orb.collapsed .g-hdr{margin:0;padding:0;width:100%;height:100%;justify-content:center;cursor:pointer}
-#gitl.pos-orb.collapsed .g-hdr > span:last-child{display:none}
-#gitl.pos-orb.collapsed .g-body,#gitl.pos-orb.collapsed .g-coll-row{display:none}
+/* The button span carries an inline display:flex, so the hide MUST be
+   !important or the ghost + platform badge + buttons spill outside the circle
+   (field-reported on Perplexity mobile). Belt-and-suspenders: also hide the
+   individual leaked pieces. */
+#gitl.pos-orb.collapsed .g-hdr > span:last-child{display:none!important}
+#gitl.pos-orb.collapsed .g-plat,#gitl.pos-orb.collapsed .g-minbtn,#gitl.pos-orb.collapsed .g-dot{display:none!important}
+#gitl.pos-orb.collapsed .g-body,#gitl.pos-orb.collapsed .g-coll-row{display:none!important}
 #gitl.pos-orb.collapsed .g-logo{font-size:0;letter-spacing:0;gap:0}
 #gitl.pos-orb.collapsed .g-logo .g-dot{display:none}
 #gitl.pos-orb.collapsed .g-ghost{font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
@@ -4928,7 +4933,11 @@ function _applyRail() {
   try { rect = input && input.getBoundingClientRect ? input.getBoundingClientRect() : null; } catch(_) {}
   const vw = Math.max(1, (typeof innerWidth === 'number' ? innerWidth : 1200));
   const vh = Math.max(1, (typeof innerHeight === 'number' ? innerHeight : 800));
-  const box = _railBox(rect, vw, vh, { gap: 8, h: col ? 40 : 44 });
+  // Only dock to a composer that is actually in the lower portion of the screen
+  // (a real chat box). Guards against latching onto a stray input near the top
+  // and flying the panel around on scroll (field-reported jumping on Perplexity).
+  const dockable = rect && rect.width > 0 && rect.top > vh * 0.45;
+  const box = _railBox(dockable ? rect : null, vw, vh, { gap: 8, h: col ? 40 : 44 });
   panel.style.top = panel.style.bottom = panel.style.left = panel.style.right = 'auto';
   if (!box.docked) {
     // Fallback: a bottom strip above device UI / keyboard (visualViewport-safe).
@@ -4969,11 +4978,13 @@ function startRailTracker() {
   if (_railTracking) return;
   _railTracking = true;
   try {
-    window.addEventListener('scroll', _railReposition, { passive: true, capture: true });
+    // v8.5.1: do NOT reposition on page scroll — that made the panel jump around
+    // as the user scrolled (field-reported). Chat composers are fixed/sticky, so
+    // the rail only needs to follow viewport CHANGES: orientation (window resize)
+    // and the mobile keyboard (visualViewport resize). No scroll listeners.
     window.addEventListener('resize', _railReposition, { passive: true });
     if (window.visualViewport) {
       window.visualViewport.addEventListener('resize', _railReposition, { passive: true });
-      window.visualViewport.addEventListener('scroll', _railReposition, { passive: true });
     }
   } catch(_) {}
 }
@@ -4981,11 +4992,9 @@ function stopRailTracker() {
   if (!_railTracking) return;
   _railTracking = false;
   try {
-    window.removeEventListener('scroll', _railReposition, { capture: true });
     window.removeEventListener('resize', _railReposition);
     if (window.visualViewport) {
       window.visualViewport.removeEventListener('resize', _railReposition);
-      window.visualViewport.removeEventListener('scroll', _railReposition);
     }
   } catch(_) {}
 }

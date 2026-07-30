@@ -49,6 +49,17 @@ test.describe('Orb launcher', () => {
         vw: window.innerWidth,
         ringShown: !!el.querySelector('.g-orb-ring') &&
           getComputedStyle(el.querySelector('.g-orb-ring')).display !== 'none',
+        // v8.5.1 spill regression guard: the platform badge + header buttons
+        // must be display:none, or they leak outside the circle (Perplexity
+        // mobile field report). getComputedStyle reports the element's own
+        // value, so check the button-span PARENT that carries inline flex.
+        platHidden: (() => { const p = el.querySelector('.g-plat'); return !p || getComputedStyle(p).display === 'none'; })(),
+        btnSpanHidden: (() => {
+          const b = el.querySelector('#g-col'); if (!b) return true;
+          // walk to the direct child span of .g-hdr
+          let n = b; while (n && n.parentElement && !n.parentElement.classList.contains('g-hdr')) n = n.parentElement;
+          return n ? getComputedStyle(n).display === 'none' : true;
+        })(),
       };
     });
 
@@ -60,6 +71,8 @@ test.describe('Orb launcher', () => {
     expect(info.h).toBeGreaterThanOrEqual(46);
     expect(info.right).toBeGreaterThan(info.vw - 2); // tucked at/past the right edge
     expect(info.ringShown).toBe(true);
+    expect(info.platHidden).toBe(true);          // no platform badge spilling out
+    expect(info.btnSpanHidden).toBe(true);       // no header buttons spilling out
   });
 
   test('the ring turns the running colour when a loop is RUNNING', async ({ page }) => {

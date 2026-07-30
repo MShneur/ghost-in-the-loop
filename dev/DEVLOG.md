@@ -11,6 +11,31 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.5.1 — mobile field fixes (and a testing lesson)
+
+Perplexity-mobile field reports exposed four bugs the desktop-mock e2e missed:
+- **Orb spill:** the collapsed orb's button span has an inline `display:flex`, so
+  the `display:none` hide lost to it — ghost+badge+buttons spilled outside the
+  circle. Fix: `!important`. LESSON: the orb e2e checked width but not that the
+  badge was hidden; it now asserts `.g-plat`/button-span are `display:none`.
+- **Picker overflow:** 9 position options overflowed 268px and clipped the rail
+  (⊟) button. Fix: `flex-wrap`.
+- **Rail jumped on scroll:** it repositioned on every scroll event and could
+  latch onto a stray top input. Fix: track only viewport CHANGES (resize/
+  visualViewport), never scroll; dock only to a composer in the lower 55%.
+- **Animation lag:** `backdrop-filter: blur` (skin-enabled) re-composited the
+  whole page behind the panel every frame → the entire page janked on mobile,
+  and likely starved the detection tick. Fix: disable blur + heavy gradient
+  animations on `pointer: coarse`.
+
+**Open, not closed:** field report that the loop "doesn't capture it stopped /
+never continues" on mobile Perplexity. Leading hypothesis: the lag above starved
+the tick (fixed here). If it persists it's the mobile composer's send path
+(Enter not submitting in that editor) — needs the real mobile send selector,
+which can't be captured from CI. Flagged for retest.
+
+---
+
 ## v8.5.0 — Composer Rail (the safe "part of the composer" interface)
 
 **Ask:** "we want new interface sections now" → build the composer-integrated UI,
