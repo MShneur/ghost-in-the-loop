@@ -2,9 +2,12 @@ name: Ghost in the Loop — CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'agent/**'
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
