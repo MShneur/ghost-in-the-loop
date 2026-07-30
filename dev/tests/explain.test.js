@@ -17,7 +17,8 @@ describe('EXPLAIN — registry integrity', () => {
 
   test('covers the core transport and both export lifelines', () => {
     const sels = EXPLAIN.map(e => e.sel);
-    for (const must of ['#g-play', '#g-pause', '#g-reground', '#g-handoff', '#g-rescue', '.g-pst'])
+    // #g-play is the single state-driven Play/Pause toggle (v8.4.1 consolidation).
+    for (const must of ['#g-play', '#g-reground', '#g-handoff', '#g-rescue', '.g-pst'])
       expect(sels).toContain(must);
   });
 });
