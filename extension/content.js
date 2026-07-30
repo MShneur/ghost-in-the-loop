@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.4.0';
+const VER = '8.4.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -4346,8 +4346,7 @@ let _panelMounted = false;
 /* ── EXPLAIN MODE (d9) — tap ⓘ, then tap any control for a one-breath answer.
    Registry-driven; capture-phase intercept swallows the click so nothing fires. */
 const EXPLAIN = [
-  { sel:'#g-play',        name:'▶ Start / Resume',  desc:'Begins (or resumes) the auto-continue loop using the current Strategy and Thinking posture.' },
-  { sel:'#g-pause',       name:'⏸ Pause',           desc:'Stops auto-continuing. The chat is untouched — press ▶ to pick up where you left off.' },
+  { sel:'#g-play',        name:'▶ Start · ⏸ Pause',  desc:'One toggle: ▶ starts (or resumes) the auto-continue loop; while running it becomes ⏸ Pause. The chat is untouched when paused — tap again to pick up where you left off.' },
   { sel:'#g-reground',    name:'⊕ Reground',        desc:'Re-anchors the AI to the ORIGINAL task. Use it the moment answers drift off-topic.' },
   { sel:'#g-stop',        name:'✕ End & reset',     desc:'Ends the run and resets rounds, roadmap position and workflow stage.' },
   { sel:'#g-strategy',    name:'Strategy',          desc:'Step by step = one nudge per reply. Plan first = the AI batches a plan, then executes. Autopilot = the AI writes a roadmap and Ghost runs every step.' },
@@ -4463,8 +4462,7 @@ function renderRunTab() {
     <div class="g-mod g-mod-transport">
       <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${_esc(statLabel())}</span></div>
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="Start / Resume (Alt+P)">▶ ${L.state==='PAUSED'?'Resume':'Start'}</button>
-      <button class="g-btn${idle?' g-dim':''}" id="g-pause" title="Pause auto-continue (Alt+P)">⏸ Pause</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='RUNNING'?'Pause auto-continue':'Start / Resume'} (Alt+P)">${L.state==='RUNNING'?'⏸ Pause':L.state==='LIMIT'?'▶ Continue':L.state==='PAUSED'?'▶ Resume':'▶ Start'}</button>
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
@@ -4983,7 +4981,6 @@ function bindEvents() {
     GHOST.loop.detail = '↻ Drift guard reset';
     render();
   });
-  $('#g-pause')?.addEventListener('click', pauseLoop);
   $('#g-stop')?.addEventListener('click', stopLoop);
   $('#g-reset')?.addEventListener('click', resetLoop);
   $('#g-send-seen')?.addEventListener('click', () => reconcileUncertainSend(true));

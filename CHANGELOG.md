@@ -1,5 +1,32 @@
 # Changelog
 
+## [8.4.1] — one Play/Pause toggle (transport cleanup)
+
+Field feedback: the Run tab showed **Play + Pause + Stop** as three buttons —
+"why do we have play, pause, resume AND stop?" The primary button was already
+wired to the state-aware `primaryAction` toggle, so the separate Pause button
+was redundant. Consolidated to a **single state-driven button** that reads live
+state, plus a separate Stop:
+
+- IDLE / COMPLETE → **▶ Start**
+- RUNNING → **⏸ Pause**
+- PAUSED → **▶ Resume**
+- LIMIT (drift checkpoint) → **▶ Continue**
+
+So the button always reflects whether the loop is running — no more guessing
+between Start / Resume / Pause.
+
+### Known, diagnosed, NOT yet fixed here — mobile Perplexity send (ADAPTER-001)
+A field report (Firefox/Android on Perplexity) shows the loop sending round 1
+then pausing with `send:false`. Root cause: the v8.3.0 reviewed-send authority
+sends only through a **uniquely-matching reviewed button**, and Perplexity's
+mobile follow-up composer relabels/duplicates that button so `_reviewedSend()`
+returns null — and `engineSend` deliberately has **no** keyboard/form fallback
+(the "at-most-once send" contract, guarding against double-sends). Fixing this
+means either capturing the real mobile selector or adding a *single* evidence-
+gated composer-submit fallback — a change to that safety contract, so it's held
+for an explicit decision rather than shipped silently.
+
 ## [8.4.0] — Ghost Orb: a tiny tucked launcher (least screen coverage)
 
 Built on top of the 8.3.0 reliability lineage — none of that work is changed.
