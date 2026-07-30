@@ -37,11 +37,18 @@ describe('send transaction', () => {
   const send = body('engineSend', '_confirmSend');
   const confirm = body('_confirmSend', '_markSendUncertain');
 
-  test('engineSend clicks exactly once and has no keyboard/form fallback', () => {
+  test('engineSend is at-most-once IN EFFECT: button clicks once; buttonless failsafes escalate only while the composer still holds the unsent text', () => {
+    // v8.4.2: the reviewed button still clicks exactly once.
     expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
-    expect(send).not.toContain('pressEnter');
-    expect(send).not.toContain('requestSubmit');
-    expect(send).not.toContain('dispatchEvent(new KeyboardEvent');
+    // Buttonless failsafes (Enter → paragraph → form-submit) exist but ONLY on
+    // reviewed platforms (unreviewed sites stay manual-send).
+    expect(send).toContain('if (PLAT?.reviewed) {');
+    // The double-send guard: escalation stops the instant the composer clears
+    // (or independent evidence confirms), so a second method is NEVER dispatched
+    // after one already sent — at-most-once is preserved in effect.
+    expect(send).toContain('_composerText(input).length < 4) || _sendEvidence().confirmed) break;');
+    // The multi-signal pressEnter helper is NOT used — each tier is one mechanism.
+    expect(send).not.toContain('Adapter.pressEnter');
   });
 
   test('engineSend waits for the transaction promise instead of reporting success', () => {

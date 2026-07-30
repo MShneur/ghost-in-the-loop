@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.4.1
+// @version      8.4.2
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.4.1';
+const VER = '8.4.2';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -2203,18 +2203,55 @@ async function engineSend(text, skipDelay) {
     }
     await sleep(500);
     const btn = Adapter.getSendBtn();
-    if (!btn) {
-      Reporter.capture('SEND-001', PLAT?.reviewed
-        ? 'No unique reviewed Send control was available.'
-        : 'This site has no reviewed automation adapter; use manual Send.');
+    // v8.4.2 — LAYERED, AT-MOST-ONCE-IN-EFFECT dispatch (field bug ADAPTER-001:
+    // Perplexity's mobile follow-up composer has no uniquely-matching reviewed
+    // Send button, so button-only send stalled). The failsafe chain is: reviewed
+    // button → single Enter keypress → insertParagraph → native form submit. It
+    // preserves CG's at-most-once guarantee because each method fires ONLY while
+    // the composer still holds the unsent text; the moment it clears, something
+    // submitted it and we STOP — a second method is never dispatched, so the
+    // prompt cannot double-send. Buttonless failsafes are reviewed-platforms only
+    // (an unreviewed site with no reviewed button still leaves it for manual Send).
+    // Final commit still requires independent evidence (_sendEvidence): a dispatch
+    // that produced no send can never advance the round.
+    const hadText = _composerText(input).length > 0;
+    const tiers = [];
+    if (btn) tiers.push({ path: 'reviewed-button', run: () => btn.click() });
+    if (PLAT?.reviewed) {
+      tiers.push({ path: 'reviewed-enter', run: () => {
+        ['keydown','keypress','keyup'].forEach(t => input.dispatchEvent(
+          new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true })));
+      }});
+      tiers.push({ path: 'reviewed-paragraph', run: () => input.dispatchEvent(
+        new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })) });
+      tiers.push({ path: 'reviewed-form', run: () => {
+        const f = input.closest && input.closest('form');
+        if (f && typeof f.requestSubmit === 'function') f.requestSubmit();
+      }});
+    }
+    if (!tiers.length) {
+      Reporter.capture('SEND-001', 'This site has no reviewed automation adapter; use manual Send.');
       pauseWithProbe('No safe Send control — prompt left for manual review');
       return false;
     }
-    DIAG.sendPath = 'reviewed-button';
+    DIAG.sendPath = tiers[0].path;
     const completion = _beginSendAttempt(DIAG.sendPath, input);
-    try {
-      btn.click();
-    } catch(_) {
+    let anyDispatched = false;
+    for (let i = 0; i < tiers.length; i++) {
+      try {
+        tiers[i].run();
+        anyDispatched = true;
+        DIAG.sendPath = tiers[i].path;
+        if (L.sendTxn) L.sendTxn.path = tiers[i].path;
+      } catch(_) { Timeline.record('send_tier_error', { tier: tiers[i].path }); continue; }
+      await sleep(900);
+      if (L.state !== 'RUNNING') break;
+      // Did it submit? Composer cleared is the earliest, safest signal; full
+      // evidence (stop/network/assistant) also counts. Either → do NOT escalate.
+      if ((hadText && _composerText(input).length < 4) || _sendEvidence().confirmed) break;
+      if (i < tiers.length - 1) Timeline.record('send_escalate', { from: tiers[i].path, to: tiers[i+1].path });
+    }
+    if (!anyDispatched) {
       L.sendPending = false;
       L.sendDeadline = 0;
       if (L.sendTxn) L.sendTxn.state = 'failed';

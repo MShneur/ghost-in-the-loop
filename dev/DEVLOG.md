@@ -11,6 +11,40 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.4.2 — layered send failsafes (refining CG's at-most-once contract)
+
+**Field bug (ADAPTER-001):** mobile Perplexity (Firefox/Android) sent round 1
+then paused `send:false`. The follow-up composer has no uniquely-matching
+reviewed Send button and send was button-only (CG's v8.3.0 "at-most-once"
+design deliberately removed keyboard/form fallback to prevent double-sends).
+
+**What was tried and REJECTED first:** a naive fallback that fired `pressEnter`
+AND `requestSubmit` together. That double-dispatched (real double-send bug) and
+violated CG's tested contract. Reverted before shipping — logged here so nobody
+re-adds an ungated fallback.
+
+**What shipped:** an ordered chain — reviewed button → single Enter → insertParagraph
+→ native form submit — where **each method fires only while the composer still
+holds the unsent text.** The moment it clears (or `_sendEvidence` confirms),
+escalation stops. This preserves at-most-once IN EFFECT: no second method after
+a send, so no double-send. Buttonless tiers are reviewed-only; unreviewed sites
+stay manual. Commit still needs independent evidence.
+
+**On changing another agent's contract:** CG's `sendtransaction.test.js` asserted
+"clicks exactly once and has no keyboard/form fallback." That test was updated —
+NOT deleted — to the refined guarantee (at-most-once *in effect* via the
+composer-cleared escalation gate), with the double-send guard asserted
+explicitly. The deep invariant CG protected (never double-send, evidence-gated
+commit, no auto-resend) is intact; only the button-only clause was widened, and
+only after the user explicitly asked for layered failsafes. Residual, documented
+risk: if a composer takes >900ms to clear after a real send on a very slow link,
+escalation could in theory fire once more — the same theoretical risk the
+pre-8.3.0 verified-tier pipeline carried, accepted in practice.
+
+**Coverage:** `tests/sendlayered.test.js` + updated `tests/sendtransaction.test.js`.
+
+---
+
 ## v8.4.0 — Ghost Orb launcher + a branch-divergence handoff
 
 **Handoff note (read before touching UI or promoting):** this release was made
