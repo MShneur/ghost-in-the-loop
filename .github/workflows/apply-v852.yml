@@ -25,6 +25,7 @@ jobs:
           cat scripts/apply_v852.part* > /tmp/apply_v852.py
           python -m py_compile /tmp/apply_v852.py
           python /tmp/apply_v852.py
+          python scripts/fix_v852_tests.py
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -56,6 +57,7 @@ jobs:
       - name: Remove one-time patch bootstrap
         run: |
           rm -f scripts/apply_v852.part*
+          rm -f scripts/fix_v852_tests.py
           rm -f .github/workflows/apply-v852.yml
 
       - name: Commit validated changes
