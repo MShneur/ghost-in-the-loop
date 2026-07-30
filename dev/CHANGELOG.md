@@ -1,5 +1,34 @@
 # Changelog
 
+## [8.5.0] — Composer Rail: Ghost docks to the chat box
+
+A new **`rail`** position mode (Setup → position row, the ⊟ icon). It's the
+first "part of the composer" interface — done the safe way:
+
+- **Collapsed = a slim bar** (ghost + Play/Pause + status) that **docks just
+  above the site's chat box**, positioned by geometry from the composer Ghost
+  already finds. **It never covers the input** — it hugs the composer's top edge
+  (and flips below only if the composer is at the very top).
+- **Tap to open** the full panel, which pins *above* the composer and grows
+  upward, so the input stays clear. The expand button (＋) opens it; the play
+  button still plays.
+- **Follows the composer** on scroll, resize, and the mobile keyboard
+  (VisualViewport-aware) — the tracker is rAF-coalesced and only runs in rail
+  mode (no idle loop, no permanent listeners).
+- **No site injection.** The rail is Ghost's own panel repositioned by geometry;
+  it never inserts a node into the page, never touches the editor, and stays
+  inside `#gitl` (so own-UI isolation and skins apply). If no composer is found
+  it degrades to a bottom strip above the safe area.
+
+This is opt-in — your current position is untouched until you pick **rail**, and
+one tap switches back to the orb or any other mode. It's the safe realization of
+"Ghost as part of the chat bubble"; the deeper *inject-into-the-site-composer*
+variants still go through the flagged, per-site research track.
+
+Geometry is a pure helper (`_railBox`) with unit tests; mount/dock/expand/
+no-overlap and the no-composer fallback are covered by `tests/e2e/rail.spec.js`
+in Chromium + Firefox.
+
 ## [8.4.2] — layered send failsafes (mobile Perplexity fix, ADAPTER-001)
 
 Fixes the field bug where mobile Perplexity (Firefox/Android) sent round 1 then
