@@ -1,5 +1,30 @@
 # Changelog
 
+## [8.5.1] — mobile field fixes (orb, rail jump, lag, picker overflow)
+
+Field reports from Perplexity on mobile:
+
+- **Orb showed a broken blob, not a clean circle.** The collapsed orb's button
+  span carries an inline `display:flex`, so the hide rule lost to it and the
+  ghost + platform badge + buttons spilled outside the circle. Now hidden with
+  `!important` (+ the pieces individually), and the orb is width-capped.
+- **The new rail (⊟) button was unreachable.** The position picker overflowed at
+  9 options and clipped the last one. The row now wraps.
+- **The panel jumped around while scrolling.** The rail repositioned on every
+  scroll event. Chat composers are fixed/sticky, so the rail now follows only
+  viewport CHANGES (resize / mobile keyboard), never page scroll — and only
+  docks to a composer in the lower part of the screen (so it can't latch onto a
+  stray input near the top and fly around).
+- **Animations lagged the whole page while running.** Heavy GPU effects —
+  `backdrop-filter: blur` above all, plus animated gradient borders/sheen — are
+  now disabled on touch devices (`pointer: coarse`). The panel stays fully
+  functional, just static, and the page stops janking.
+
+Known, still under investigation: on mobile Perplexity the loop may still not
+auto-continue. Leading cause was the page lag above (a starved detection tick);
+if it persists after this release it's the mobile composer's send path (Enter
+not submitting in that editor), which needs the real mobile selector.
+
 ## [8.5.0] — Composer Rail: Ghost docks to the chat box
 
 A new **`rail`** position mode (Setup → position row, the ⊟ icon). It's the
