@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.4.2
+// @version      8.5.0
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.4.2';
+const VER = '8.5.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -4322,6 +4322,18 @@ function injectStyles() {
 #gitl.pos-orb.collapsed[data-run="1"] .g-orb-ring{border-top-color:var(--g-ok);border-right-color:var(--g-ok);animation:gorbspin 1.1s linear infinite}
 @keyframes gorbspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){#gitl.pos-orb.collapsed[data-run="1"] .g-orb-ring{animation:none!important;border-color:var(--g-ok)}}
+/* ── Composer rail (v8.5.0) ─────────────────────────────────────
+   Collapsed = a slim horizontal bar (ghost + expand + play/pause + status)
+   that docks just above the site's composer (positioned by _applyRail). Tap
+   the bar to open the full panel, which pins above the composer so it never
+   covers the input. Scoped under #gitl so skins theme it and _isOwnUI owns it. */
+#gitl.pos-rail.collapsed{padding:5px 9px;border-radius:11px;display:flex;align-items:center;gap:9px;flex-wrap:nowrap;cursor:pointer;box-shadow:var(--g-shadow)}
+#gitl.pos-rail.collapsed .g-hdr{margin:0;padding:0;flex:0 0 auto;order:1;gap:6px}
+#gitl.pos-rail.collapsed .g-hdr .g-minbtn:not(#g-col){display:none}
+#gitl.pos-rail.collapsed .g-logo{font-size:10px}
+#gitl.pos-rail.collapsed .g-coll-row{display:flex;margin:0;flex:1 1 auto;order:2;min-width:0}
+#gitl.pos-rail.collapsed .g-qstat{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gitl.pos-rail.collapsed .g-body{display:none}
 .g-diag .ok{color:var(--g-ok)}.g-diag .warn{color:var(--g-err)}
 .g-persona-btn{width:100%;text-align:left;padding:5px 7px;margin-bottom:3px;border:1px solid var(--g-border);border-radius:6px;background:var(--g-surface);color:var(--g-text);font-family:inherit;font-size:10px;cursor:pointer;transition:all .15s}
 .g-persona-btn.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:#c7d2fe}
@@ -4820,8 +4832,8 @@ function renderSettingsTab() {
     <div class="g-row"><label>🔔 Sound</label><div class="g-tog${GHOST.ui.soundOn?' on':''}" id="cfg-snd"></div></div>
     <div class="g-row"><label>💬 Notify when done</label><div class="g-tog${GHOST.ui.notifyOn?' on':''}" id="cfg-ntf"></div></div>
     <div class="g-row"><label>📍 Position</label>
-      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left','orb'].map(p=>
-        `<button class="g-pos${GHOST.ui.position===p?' act':''}${p==='dock-left'?' g-pos-gold':''}" data-pos="${p}" title="${p==='dock'?'Dock — slim edge tab, right side':p==='dock-left'?'Gold menu — slim hamburger tab, left side (opposite the site menu)':p==='orb'?'Ghost orb — tiny tucked circle; drag to move, tap to open. Best for mobile / least screen coverage':p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':p==='bottom-bar'?'━':p==='dock-left'?'☰':p==='orb'?'👻':'▐'}</button>`
+      <div class="g-pos-row">${['top-left','top-right','bot-left','bot-right','bottom-bar','dock','dock-left','orb','rail'].map(p=>
+        `<button class="g-pos${GHOST.ui.position===p?' act':''}${p==='dock-left'?' g-pos-gold':''}" data-pos="${p}" title="${p==='dock'?'Dock — slim edge tab, right side':p==='dock-left'?'Gold menu — slim hamburger tab, left side (opposite the site menu)':p==='orb'?'Ghost orb — tiny tucked circle; drag to move, tap to open. Best for mobile / least screen coverage':p==='rail'?'Composer rail — a slim bar that docks just above the chat box; tap to open the full panel. Never covers the input':p}">${p==='top-left'?'↖':p==='top-right'?'↗':p==='bot-left'?'↙':p==='bot-right'?'↘':p==='bottom-bar'?'━':p==='dock-left'?'☰':p==='orb'?'👻':p==='rail'?'⊟':'▐'}</button>`
       ).join('')}</div>
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
@@ -4880,6 +4892,102 @@ function applyPosition(pos) {
   else if(pos==='dock'){panel.style.top='30%';panel.style.right='0';panel.style.width=''}
   else if(pos==='dock-left'){panel.style.top='30%';panel.style.left='0';panel.style.width=''}
   else if(pos==='orb'){_applyOrb()}
+  else if(pos==='rail'){_applyRail()}
+  if (pos==='rail') startRailTracker(); else stopRailTracker();
+}
+
+/* Pure geometry for the composer rail (v8.5.0). Given the composer's rect and
+   the viewport, return where the slim rail sits: hugging the composer's TOP edge
+   (so it never covers the input or the messages), clamped on-screen, flipping
+   below only if there's no room above. No composer → a bottom-pinned fallback
+   strip. Kept pure so the placement math is unit-testable without a DOM. */
+function _railBox(rect, vw, vh, opts) {
+  const gap = (opts && opts.gap) || 8;
+  const h = (opts && opts.h) || 40;
+  const m = 6;
+  if (!rect || !(rect.width > 0) || !(rect.height >= 0)) {
+    return { docked: false, left: m, right: m };
+  }
+  const width = Math.max(180, Math.min(rect.width, vw - m * 2));
+  const left = Math.min(Math.max(m, rect.left), Math.max(m, vw - width - m));
+  let top = rect.top - gap - h;
+  if (top < m) top = Math.min(rect.bottom + gap, vh - h - m);   // no room above → below
+  return { docked: true, left, top, width };
+}
+
+/* Dock the panel to the site's composer. Collapsed: a slim bar hugging the
+   composer's top edge. Expanded: the full panel pinned so its BOTTOM sits just
+   above the composer, growing upward — it can never cover the input. Uses the
+   composer position Ghost already finds (Adapter.peekInput, non-mutating); if
+   none is found it falls back to a bottom-pinned strip above the safe area.
+   Own-UI (inside #gitl) and injects nothing into the page. */
+function _applyRail() {
+  const col = GHOST.ui.collapsed;
+  const input = (typeof Adapter !== 'undefined' && Adapter.peekInput) ? Adapter.peekInput() : null;
+  let rect = null;
+  try { rect = input && input.getBoundingClientRect ? input.getBoundingClientRect() : null; } catch(_) {}
+  const vw = Math.max(1, (typeof innerWidth === 'number' ? innerWidth : 1200));
+  const vh = Math.max(1, (typeof innerHeight === 'number' ? innerHeight : 800));
+  const box = _railBox(rect, vw, vh, { gap: 8, h: col ? 40 : 44 });
+  panel.style.top = panel.style.bottom = panel.style.left = panel.style.right = 'auto';
+  if (!box.docked) {
+    // Fallback: a bottom strip above device UI / keyboard (visualViewport-safe).
+    panel.style.left = box.left + 'px';
+    panel.style.right = box.right + 'px';
+    panel.style.bottom = 'calc(10px + env(safe-area-inset-bottom, 0px))';
+    panel.style.width = '';
+    return;
+  }
+  if (col) {
+    panel.style.left = box.left + 'px';
+    panel.style.top = box.top + 'px';
+    panel.style.width = box.width + 'px';
+  } else {
+    // Expanded: pin the panel's bottom just above the composer so it grows up,
+    // never covering the input. Height is still capped by the .g-body max-height.
+    const w = Math.min(300, vw - 12);
+    panel.style.width = w + 'px';
+    panel.style.left = Math.min(Math.max(6, rect.left), Math.max(6, vw - w - 6)) + 'px';
+    panel.style.bottom = Math.max(6, vh - rect.top + 8) + 'px';
+  }
+}
+
+/* Reposition the rail as the page scrolls or the viewport changes (mobile
+   keyboard, orientation). rAF-coalesced, and only while rail mode is active —
+   no idle loop, no permanent listeners. */
+let _railTracking = false;
+function _railReposition() {
+  if (_railReposition.pending) return;
+  _railReposition.pending = true;
+  const raf = (typeof requestAnimationFrame === 'function') ? requestAnimationFrame : (fn) => setTimeout(fn, 16);
+  raf(() => {
+    _railReposition.pending = false;
+    if (GHOST.ui.position === 'rail' && panel && panel.isConnected) { try { _applyRail(); } catch(_) {} }
+  });
+}
+function startRailTracker() {
+  if (_railTracking) return;
+  _railTracking = true;
+  try {
+    window.addEventListener('scroll', _railReposition, { passive: true, capture: true });
+    window.addEventListener('resize', _railReposition, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', _railReposition, { passive: true });
+      window.visualViewport.addEventListener('scroll', _railReposition, { passive: true });
+    }
+  } catch(_) {}
+}
+function stopRailTracker() {
+  if (!_railTracking) return;
+  _railTracking = false;
+  try {
+    window.removeEventListener('scroll', _railReposition, { capture: true });
+    window.removeEventListener('resize', _railReposition);
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', _railReposition);
+      window.visualViewport.removeEventListener('scroll', _railReposition);
+    }
+  } catch(_) {}
 }
 
 /* Position the orb. Collapsed: a tucked circle clinging to the saved edge
@@ -4918,7 +5026,7 @@ function render() {
   try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; panel.dataset.explain = GHOST.ui.explain ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
-  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':'', GHOST.ui.position==='orb'?('pos-orb'+(GHOST.ui.orbEdge==='left'?' orb-left':'')):''].filter(Boolean).join(' ');
+  panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':'', GHOST.ui.position==='orb'?('pos-orb'+(GHOST.ui.orbEdge==='left'?' orb-left':'')):'', GHOST.ui.position==='rail'?'pos-rail':''].filter(Boolean).join(' ');
   const qc = statColor();
   const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
@@ -4996,6 +5104,13 @@ function bindEvents() {
   }
   // Orb + collapsed: drag to reposition (vertical + snap to nearer edge), tap to open.
   if (GHOST.ui.position==='orb' && GHOST.ui.collapsed) bindOrbDrag();
+  // Rail + collapsed: the whole slim bar is the expand target (play button stays play).
+  if (GHOST.ui.position==='rail' && GHOST.ui.collapsed) {
+    panel.addEventListener('click', e => {
+      if (e.target.closest('#g-quick') || e.target.closest('#g-col')) return;
+      GHOST.ui.collapsed = false; _save('panelCollapsed', false); render();
+    }, { once: true });
+  }
   $('#g-quick')?.addEventListener('click', primaryAction);
   $('#g-projname')?.addEventListener('change', e => {
     GHOST.project.name = e.target.value.trim();

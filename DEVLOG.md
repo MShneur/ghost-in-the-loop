@@ -11,6 +11,32 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.5.0 — Composer Rail (the safe "part of the composer" interface)
+
+**Ask:** "we want new interface sections now" → build the composer-integrated UI,
+ship live, pick "what works now."
+
+**What shipped:** a `rail` position mode — Ghost's panel docked to the site's
+composer by GEOMETRY (`Adapter.peekInput().getBoundingClientRect()`), collapsed
+to a slim bar above the chat box, expanding upward so it never covers the input.
+A rAF-coalesced tracker repositions on scroll/resize/VisualViewport, active only
+in rail mode. Pure placement helper `_railBox` (unit-tested); e2e covers
+dock/expand/no-overlap/fallback in both engines.
+
+**Why THIS and not composer injection:** the rail gets the "part of the chat
+bubble" feel WITHOUT the per-site DOM risk — it injects nothing into the page,
+never touches the editor, stays inside `#gitl` (own-UI + skins apply), and is
+opt-in (one tap back to the orb). The deeper inject-a-button-into-the-site's-
+action-row / tabbed-composer variants remain on the flagged, per-site research
+track (they sit on the input the engine must type into — the #4/#5 surface).
+
+**Testing note for whoever tunes this on a real phone:** the mobile keyboard
+moves the composer; the rail follows via VisualViewport, but real-device feel
+(does it sit right above the keyboard? does it jitter on scroll-momentum?) needs
+eyes on hardware — the e2e only proves geometry + no-overlap in desktop Gecko.
+
+---
+
 ## v8.4.2 — layered send failsafes (refining CG's at-most-once contract)
 
 **Field bug (ADAPTER-001):** mobile Perplexity (Firefox/Android) sent round 1
