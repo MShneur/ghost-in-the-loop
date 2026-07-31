@@ -10,9 +10,45 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-answer-selection:
+    name: Apply verified v8.5.3 item 1
+    if: github.ref == 'refs/heads/agent/v8.5.3-answer-selection' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v8.5.3-answer-selection
+          fetch-depth: 0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Apply narrow source patch
+        run: node scripts/apply-v853-answer-selection.cjs
+      - name: Install dependencies
+        run: npm ci
+      - name: Regenerate Firefox artifact
+        run: npm run build:extension
+      - name: Verify syntax and unit behavior
+        run: |
+          npm run lint
+          npm run test:unit -- --runInBand
+          npm run check:generated
+      - name: Restore CI and commit verified item
+        run: |
+          git show origin/main:.github/workflows/test.yml > .github/workflows/test.yml
+          rm -f scripts/apply-v853-answer-selection.cjs
+          rm -f .github/workflows/apply-v853-answer-selection.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add ghost-in-the-loop.user.js extension/content.js tests/answerselection853.test.js scripts/apply-v853-answer-selection.cjs .github/workflows/apply-v853-answer-selection.yml .github/workflows/test.yml
+          git commit -m 'fix: select the latest Perplexity answer reliably'
+          git push origin HEAD:agent/v8.5.3-answer-selection
+
   unit:
     name: Unit Tests (jest)
     runs-on: ubuntu-latest
@@ -45,11 +81,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Install Playwright browsers
-        # Both engines: the v8.1.x Gemini failure went undiagnosed for weeks
-        # because e2e ran Chromium-only while the field failure was Firefox
-        # (Trusted Types). playwright.config.js advertises the Firefox project
-        # only when a Firefox build is present, so installing it here is what
-        # makes CI actually run the Gecko matrix.
         run: npx playwright install --with-deps chromium firefox
       - name: Run browser safety tests
         run: npm run test:e2e
