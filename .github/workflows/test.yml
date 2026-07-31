@@ -46,7 +46,7 @@ jobs:
           rm -f tests/answerselection853.test.js
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add ghost-in-the-loop.user.js extension/content.js tests/perplexity-answer-selection.test.js tests/answerselection853.test.js scripts/apply-v853-answer-selection.cjs .github/workflows/apply-v853-answer-selection.yml .github/workflows/test.yml
+          git add -A
           git commit -m 'fix: select the latest Perplexity answer reliably'
           git push origin HEAD:agent/v8.5.3-answer-selection
 
