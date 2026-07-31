@@ -550,7 +550,8 @@ const PROFILES = {
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
     stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
     staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
-    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
+    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]'],
+    assistantFallback: ['.pb-md > div'],
     continueLabels: [],
     useCE: true, useNS: false
   },
@@ -974,50 +975,87 @@ function _reviewedSend() {
   return null;
 }
 
-/* Choose the actual latest assistant answer, not merely the last item
-   returned by selector-group iteration. Perplexity can leave hidden/virtualized
-   duplicates and can append follow-up UI after the answer. We globally restore
-   DOM order, discard non-rendered/UI-only candidates, and prefer an exact
-   terminal marker only inside the bounded tail of the conversation. */
-function _selectAssistantAnswer(elements) {
-  const all = [...new Set(Array.from(elements || []).filter(Boolean))];
-  const textOf = (el) => {
-    try { return String(el.innerText || el.textContent || '').replace(/\u00a0/g, ' ').trim(); }
-    catch(_) { return ''; }
-  };
-  const rendered = (el) => {
-    try {
-      if (!el || !el.isConnected || _isOwnUI(el) || el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
-      if (el.closest('button,[role="button"],[data-testid*="followup" i],[data-testid*="suggestion" i]')) return false;
-      const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
-      if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) return false;
-      const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
-      return !r || r.width > 0 || r.height > 0;
-    } catch(_) { return false; }
-  };
-  const ordered = all.filter(rendered).sort((a, b) => {
-    if (a === b || !a.compareDocumentPosition) return 0;
+/* ── Answer selection (v8.5.3 item 1) ────────────────────────
+   _qAll() groups matches by selector instead of document order. Perplexity
+   can also leave hidden duplicates and append follow-up UI after an answer.
+   Keep broad selectors fallback-only, bound the scan, restore DOM order, and
+   resolve nested nodes only inside the newest answer cluster. Read-only: this
+   code cannot click, inject, submit, retry, or alter actuator authority. */
+const ANSWER_SCAN_LIMIT = 48;
+function _answerText(el) {
+  try { return String((el && (el.innerText || el.textContent)) || '').replace(/\u200b/g, '').trim(); }
+  catch(_) { return ''; }
+}
+function _answerTerminalAtTail(text) {
+  const s = String(text || '').replace(/\u200b/g, '').trim();
+  return s.endsWith(SIGIL_PROCEED) || s.endsWith(SIGIL_HALT);
+}
+function _answerNodeUsable(el) {
+  if (!el || !el.isConnected || _isOwnUI(el)) return false;
+  try {
+    if (el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+    if (el.closest && el.closest('[hidden],[aria-hidden="true"]')) return false;
+    const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) return false;
+  } catch(_) {}
+  return true;
+}
+function _answerLooksLikeContent(el, text, tier) {
+  if (!text) return false;
+  try {
+    if (el.matches && el.matches('button,a,[role="button"]')) return false;
+    if (el.closest && el.closest('form,nav,aside,[role="navigation"],[role="toolbar"]')) return false;
+    const meta = [el.id, el.className, el.getAttribute('role'), el.getAttribute('data-testid'), el.getAttribute('aria-label')]
+      .map(v => String(v || '')).join(' ');
+    if (/follow.?up|related|suggest(?:ion|ed)?/i.test(meta)) return false;
+    if (tier === 'fallback' && /citation|source|reference|toolbar|action|composer/i.test(meta)) return false;
+  } catch(_) {}
+  if (text.includes(SIGIL_PROCEED) || text.includes(SIGIL_HALT)) return true;
+  return text.length >= 20;
+}
+function _answerDomOrder(a, b) {
+  if (a === b) return 0;
+  try {
     const pos = a.compareDocumentPosition(b);
-    if (pos & 4) return -1;
-    if (pos & 2) return 1;
-    return 0;
-  });
-  const records = ordered.map((element, ordinal) => ({ element, ordinal, text: textOf(element) }))
-    .filter(x => x.text.length > 0);
-  const tail = records.slice(-8);
-  const hasTerminal = (x) => x.text.includes(SIGIL_HALT) || x.text.includes(SIGIL_PROCEED);
-  const chosen = [...tail].reverse().find(hasTerminal)
-    || [...tail].reverse().find(x => x.text.length >= 20)
-    || tail[tail.length - 1]
-    || null;
-  return {
-    element: chosen?.element || null,
-    text: chosen?.text || '',
-    candidateCount: all.length,
-    renderedCount: records.length,
-    ordinal: chosen?.ordinal ?? -1,
-    terminal: chosen ? (chosen.text.includes(SIGIL_HALT) ? 'halt' : chosen.text.includes(SIGIL_PROCEED) ? 'proceed' : 'none') : 'none'
-  };
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+  } catch(_) {}
+  return 0;
+}
+function _collectAnswerCandidates(selectors, tier) {
+  const byElement = new Map();
+  for (const [selectorIndex, sel] of (selectors || []).entries()) {
+    let matches = [];
+    try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+    const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+    for (let i = start; i < matches.length; i++) {
+      const el = matches[i];
+      if (!_answerNodeUsable(el)) continue;
+      const text = _answerText(el);
+      if (!_answerLooksLikeContent(el, text, tier)) continue;
+      const prior = byElement.get(el);
+      if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+    }
+  }
+  return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
+}
+function _selectAnswerCandidate() {
+  let candidates = _collectAnswerCandidates(PLAT.assistant, 'primary');
+  if (!candidates.length) candidates = _collectAnswerCandidates(PLAT.assistantFallback || [], 'fallback');
+  if (!candidates.length) return null;
+
+  // Anchor on the newest answer first. An older HALT/PROCEED can never beat a
+  // newer unfinished answer. Terminal preference is limited to nested nodes
+  // representing that same newest answer.
+  const anchor = candidates[candidates.length - 1];
+  const cluster = candidates.filter(c =>
+    c.el === anchor.el || c.el.contains(anchor.el) || anchor.el.contains(c.el));
+  const terminalTail = cluster.filter(c => _answerTerminalAtTail(c.text));
+  let selected = anchor;
+  if (terminalTail.length) {
+    selected = terminalTail.reduce((best, c) => c.text.length > best.text.length ? c : best, terminalTail[0]);
+  }
+  return { ...selected, candidateCount: candidates.length, ordinal: candidates.indexOf(selected) };
 }
 
 // Adapter — all DOM reads/writes
@@ -1038,16 +1076,16 @@ const Adapter = {
   },
   stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
   isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
-  hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
+  hasMessages()   { return !!_selectAnswerCandidate(); },
   getLastAnswer() {
     // Gemini only: virtual scroll — nudge infinite-scroller to bottom
     if (PLAT && PLAT.key === 'gemini') {
       try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
     }
-    return _selectAssistantAnswer(_qAll(PLAT.assistant));
+    return _selectAnswerCandidate();
   },
   getLastText() {
-    return this.getLastAnswer().text;
+    return this.getLastAnswer()?.text || '';
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;

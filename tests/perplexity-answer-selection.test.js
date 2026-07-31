@@ -1,75 +1,74 @@
 const fs = require('fs');
 const path = require('path');
+
 const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
+const start = src.indexOf('const ANSWER_SCAN_LIMIT');
+const end = src.indexOf('// Adapter — all DOM reads/writes', start);
+if (start < 0 || end < 0) throw new Error('answer-selection helpers not found');
+const helperSource = src.slice(start, end);
 
-function extractFunction(name) {
-  const start = src.indexOf(`function ${name}`);
-  if (start < 0) throw new Error(`${name} not found`);
-  const brace = src.indexOf('{', start);
-  let depth = 0;
-  for (let i = brace; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) return src.slice(start, i + 1);
-  }
-  throw new Error(`${name} was not closed`);
+function selectorFor(plat) {
+  const factory = Function(
+    'document', 'Node', 'getComputedStyle', '_isOwnUI', 'PLAT',
+    'SIGIL_PROCEED', 'SIGIL_HALT',
+    helperSource + '; return { _selectAnswerCandidate, _collectAnswerCandidates };'
+  );
+  return factory(document, Node, getComputedStyle, () => false, plat,
+    '[[GITL::PROCEED]]', '[[GITL::HALT]]');
 }
 
-const selectAnswer = new Function(
-  '_isOwnUI', 'SIGIL_HALT', 'SIGIL_PROCEED',
-  `${extractFunction('_selectAssistantAnswer')}; return _selectAssistantAnswer;`
-)(() => false, '[[GITL::HALT]]', '[[GITL::PROCEED]]');
+const perplexity = {
+  assistant: ['div[class*="prose"]', 'div[dir="auto"][class*="break-words"]'],
+  assistantFallback: ['.pb-md > div']
+};
 
-function rendered(el, width = 500, height = 100) {
-  el.getBoundingClientRect = () => ({ left: 0, top: 0, right: width, bottom: height, width, height });
-  return el;
-}
+describe('v8.5.3 deterministic Perplexity answer selection', () => {
+  beforeEach(() => { document.body.innerHTML = ''; });
 
-beforeEach(() => { document.body.innerHTML = ''; });
-
-describe('v8.5.3 assistant answer selection', () => {
-  test('restores global DOM order and selects the visible terminal answer over a later follow-up', () => {
-    document.body.innerHTML = `
-      <main>
-        <div id="old" class="prose">Older completed answer [[GITL::PROCEED]]</div>
-        <section><div id="answer" dir="auto" class="break-words">Current final answer with enough detail [[GITL::HALT]]</div></section>
-        <div id="follow" class="prose">A suggested follow-up question that is not the answer</div>
-      </main>`;
-    const old = rendered(document.getElementById('old'));
-    const answer = rendered(document.getElementById('answer'));
-    const follow = rendered(document.getElementById('follow'));
-    const result = selectAnswer([old, follow, answer]);
-    expect(result.text).toContain('Current final answer');
-    expect(result.terminal).toBe('halt');
+  test('reads the current HALT answer instead of a later fallback follow-up', () => {
+    document.body.innerHTML = '<div class="prose">Older answer [[GITL::PROCEED]]</div>' +
+      '<div class="prose" id="current">Current complete answer with enough material. [[GITL::HALT]]</div>' +
+      '<div class="pb-md"><div class="follow-up-card">Suggested follow-up question with lots of text</div></div>';
+    const picked = selectorFor(perplexity)._selectAnswerCandidate();
+    expect(picked.el.id).toBe('current');
+    expect(picked.text).toContain('[[GITL::HALT]]');
+    expect(picked.tier).toBe('primary');
   });
 
-  test('ignores hidden virtualized duplicates', () => {
-    document.body.innerHTML = `
-      <div id="visible">Visible current answer [[GITL::PROCEED]]</div>
-      <div id="hidden" aria-hidden="true">Hidden stale answer [[GITL::HALT]]</div>`;
-    const result = selectAnswer([
-      rendered(document.getElementById('visible')),
-      rendered(document.getElementById('hidden'))
-    ]);
-    expect(result.terminal).toBe('proceed');
+  test('rejects a later primary-selector follow-up card', () => {
+    document.body.innerHTML = '<div class="prose" id="current">Current complete answer. [[GITL::HALT]]</div>' +
+      '<div class="prose follow-up-card">A suggested next question with enough text to look substantial</div>';
+    expect(selectorFor(perplexity)._selectAnswerCandidate().el.id).toBe('current');
   });
 
-  test('prefers the inner answer-bearing node over a wrapper containing trailing UI', () => {
-    document.body.innerHTML = `
-      <article id="wrapper"><div id="answer">Substantive answer [[GITL::HALT]]</div><div>Follow-ups and citations</div></article>`;
-    const wrapper = rendered(document.getElementById('wrapper'));
-    const answer = rendered(document.getElementById('answer'));
-    const result = selectAnswer([wrapper, answer]);
-    expect(result.element).toBe(answer);
-    expect(result.text).toBe('Substantive answer [[GITL::HALT]]');
+  test('never lets an older terminal marker beat a newer unfinished answer', () => {
+    document.body.innerHTML = '<div class="prose" id="old">Old completed answer. [[GITL::HALT]]</div>' +
+      '<div class="prose" id="new">Newest answer is still being written and has no marker yet.</div>';
+    const picked = selectorFor(perplexity)._selectAnswerCandidate();
+    expect(picked.el.id).toBe('new');
+    expect(picked.text).not.toContain('[[GITL::HALT]]');
   });
 
-  test('falls back to the latest substantial streaming answer when no marker exists yet', () => {
-    document.body.innerHTML = `<div id="old">An older substantial answer</div><div id="new">The newest answer is still streaming and has no marker yet</div>`;
-    const result = selectAnswer([
-      rendered(document.getElementById('new')),
-      rendered(document.getElementById('old'))
-    ]);
-    expect(result.text).toContain('newest answer');
-    expect(result.terminal).toBe('none');
+  test('filters hidden and empty primary nodes', () => {
+    document.body.innerHTML = '<div class="prose" id="current">Visible complete response. [[GITL::HALT]]</div>' +
+      '<div class="prose" aria-hidden="true">Hidden duplicate [[GITL::PROCEED]]</div>' +
+      '<div class="prose">   </div>';
+    expect(selectorFor(perplexity)._selectAnswerCandidate().el.id).toBe('current');
+  });
+
+  test('uses the broad fallback only when no primary answer exists', () => {
+    document.body.innerHTML = '<div class="pb-md"><div id="fallback">Fallback answer content is available. [[GITL::HALT]]</div></div>';
+    const picked = selectorFor(perplexity)._selectAnswerCandidate();
+    expect(picked.el.id).toBe('fallback');
+    expect(picked.tier).toBe('fallback');
+  });
+
+  test('keeps the complete nested answer rather than only its marker child', () => {
+    document.body.innerHTML = '<div class="prose" id="outer">Full answer body with roadmap content.' +
+      '<div class="prose" id="marker">[[GITL::HALT]]</div></div>';
+    const picked = selectorFor(perplexity)._selectAnswerCandidate();
+    expect(picked.el.id).toBe('outer');
+    expect(picked.text).toContain('Full answer body');
+    expect(picked.text.trim().endsWith('[[GITL::HALT]]')).toBe(true);
   });
 });
