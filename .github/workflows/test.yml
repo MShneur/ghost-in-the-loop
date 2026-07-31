@@ -15,7 +15,7 @@ permissions:
 jobs:
   apply-answer-selection:
     name: Apply verified v8.5.3 item 1
-    if: (github.event_name == 'pull_request' && github.head_ref == 'agent/v8.5.3-answer-selection') || (github.ref == 'refs/heads/agent/v8.5.3-answer-selection' && github.actor != 'github-actions[bot]')
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/v8.5.3-answer-selection'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
