@@ -953,6 +953,52 @@ function _reviewedSend() {
   return null;
 }
 
+/* Choose the actual latest assistant answer, not merely the last item
+   returned by selector-group iteration. Perplexity can leave hidden/virtualized
+   duplicates and can append follow-up UI after the answer. We globally restore
+   DOM order, discard non-rendered/UI-only candidates, and prefer an exact
+   terminal marker only inside the bounded tail of the conversation. */
+function _selectAssistantAnswer(elements) {
+  const all = [...new Set(Array.from(elements || []).filter(Boolean))];
+  const textOf = (el) => {
+    try { return String(el.innerText || el.textContent || '').replace(/\u00a0/g, ' ').trim(); }
+    catch(_) { return ''; }
+  };
+  const rendered = (el) => {
+    try {
+      if (!el || !el.isConnected || _isOwnUI(el) || el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+      if (el.closest('button,[role="button"],[data-testid*="followup" i],[data-testid*="suggestion" i]')) return false;
+      const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+      if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) return false;
+      const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      return !r || r.width > 0 || r.height > 0;
+    } catch(_) { return false; }
+  };
+  const ordered = all.filter(rendered).sort((a, b) => {
+    if (a === b || !a.compareDocumentPosition) return 0;
+    const pos = a.compareDocumentPosition(b);
+    if (pos & 4) return -1;
+    if (pos & 2) return 1;
+    return 0;
+  });
+  const records = ordered.map((element, ordinal) => ({ element, ordinal, text: textOf(element) }))
+    .filter(x => x.text.length > 0);
+  const tail = records.slice(-8);
+  const hasTerminal = (x) => x.text.includes(SIGIL_HALT) || x.text.includes(SIGIL_PROCEED);
+  const chosen = [...tail].reverse().find(hasTerminal)
+    || [...tail].reverse().find(x => x.text.length >= 20)
+    || tail[tail.length - 1]
+    || null;
+  return {
+    element: chosen?.element || null,
+    text: chosen?.text || '',
+    candidateCount: all.length,
+    renderedCount: records.length,
+    ordinal: chosen?.ordinal ?? -1,
+    terminal: chosen ? (chosen.text.includes(SIGIL_HALT) ? 'halt' : chosen.text.includes(SIGIL_PROCEED) ? 'proceed' : 'none') : 'none'
+  };
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
   peekInput() {
@@ -972,13 +1018,15 @@ const Adapter = {
   stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
   isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
   hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
-  getLastText() {
+  getLastAnswer() {
     // Gemini only: virtual scroll — nudge infinite-scroller to bottom
     if (PLAT && PLAT.key === 'gemini') {
       try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
     }
-    const els = _qAll(PLAT.assistant);
-    return els.length ? (els[els.length-1].innerText || '').trim() : '';
+    return _selectAssistantAnswer(_qAll(PLAT.assistant));
+  },
+  getLastText() {
+    return this.getLastAnswer().text;
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
