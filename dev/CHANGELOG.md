@@ -1,5 +1,30 @@
 # Changelog
 
+## [8.7.0] — Evidence-gated Send mechanism ladder
+
+Send mechanism selection is now a strict pre-journal ladder: unique reviewed
+adapter button → explicitly reviewed Enter → explicitly reviewed unique
+wrapping form → human-taught control. The composer must contain the normalized
+exact prompt before any tier can be selected.
+
+The form tier is initially opt-in only for `PROFILES.claude`. It requires an
+explicit `submitForm` selector and a connected, visible-context, same-origin,
+self-targeting, non-dialog form that directly wraps a uniquely reviewed
+composer and implements `requestSubmit()`.
+
+Teach Mode remains autonomous authority on unreviewed hosts, but loses the
+tie-break to centrally reviewed adapter mechanisms when both are available.
+Taught selectors now fail closed if DOM drift makes them ambiguous.
+
+Once `_beginSendAttempt()` opens, the selected actuator fires exactly once.
+A throw or missing confirmation becomes uncertain; no lower tier is tried.
+Heuristic and remembered selectors cannot become actuator candidates.
+
+Coverage includes all 16 B/E/F/T availability combinations crossed with prompt
+evidence present/absent and actuator throw/no-throw (64 truth-table cases), plus
+form safety, staging equality, pre-journal ordering, and post-journal
+single-dispatch source contracts. See `docs/CURSOR_EVAL_TRACK_F.md`.
+
 ## [8.6.2] — Exact pre-dispatch send evidence
 
 - Before opening the at-most-once send journal, Ghost now proves that the live,

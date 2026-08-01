@@ -11,6 +11,47 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.7.0 — evidence-gated pre-journal Send ladder
+
+**Constraint recovered from history:** v8.4.2 tried button → Enter → paragraph
+→ form after the journal opened. Even with composer-clear checks, a delayed
+clear left a real double-send window. v8.5.3 correctly removed escalation.
+Track F therefore adds mechanisms only as pre-journal alternatives; it does not
+restore a dispatch chain.
+
+**Implementation:** `_selectSendMechanism()` receives already-authorized
+candidates and exact prompt-staging evidence, then returns at most one in this
+order: unique reviewed adapter button, explicit reviewed Enter, explicit
+reviewed form, unique human-taught control. `_beginSendAttempt()` is called
+only after selection. The selected `run()` occurs once. A synchronous throw
+immediately marks the transaction uncertain, with no re-selection.
+
+**Evidence and authority:** `_composerHoldsPrompt()` requires normalized exact
+text before selection. Enter/form require `_reviewedComposer()` and therefore
+cannot target a composer obtained only from selector memory or heuristics.
+`_reviewedSend()` now aggregates adapter matches and rejects ambiguity.
+Taught controls remain valid on unreviewed hosts, are re-vetoed, and now also
+lose authority if their captured selector resolves to multiple visible nodes.
+
+**Form boundary:** `requestSubmit()` is not inferred from any nearby form.
+An adapter must declare `submitForm`; the resolver requires exactly one
+declared form that directly wraps the reviewed composer, is connected and
+non-hidden, targets the current page/origin, is not a dialog form, and exposes
+`requestSubmit`. Only `PROFILES.claude` is initially opted in.
+
+**Ordering tension resolved:** Teach Mode used to precede the reviewed-platform
+gate so it could work everywhere. It still works everywhere, but is now tier
+four. A maintained adapter declaration is narrower and centrally revocable,
+whereas a per-host taught selector can become stale. Adapter authority wins a
+tie; taught authority wins whenever reviewed tiers are unavailable.
+
+**Tests:** `sendlayered.test.js` runs 64 cases: every 4-bit mechanism
+availability combination × evidence/no-evidence × throw/no-throw. Every row
+asserts dispatch count `<= 1`, selected-tier priority, and zero lower-tier
+dispatch after a throw. Transaction, Teach Mode, exact staging, reviewed-form,
+and no-heuristic/no-memory contracts are also covered. Full rationale and the
+16-row table are in `docs/CURSOR_EVAL_TRACK_F.md`.
+
 ## v8.6.2 — Mobile send pre-dispatch evidence
 
 **Hypothesis checked:** ChatGPT- and Perplexity-shaped contenteditable fixtures

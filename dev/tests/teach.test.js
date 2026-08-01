@@ -40,12 +40,14 @@ describe('wiring — taught controls are consulted (source contract)', () => {
   const fs = require('fs'), path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
-  test('_reviewedSend consults a taught send BEFORE the reviewed-platform gate', () => {
-    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 400);
-    const taughtAt = fn.indexOf("TeachStore.matchEl('send')");
-    const gateAt = fn.indexOf('if (!PLAT?.reviewed) return null;');
-    expect(taughtAt).toBeGreaterThan(-1);
-    expect(gateAt).toBeGreaterThan(taughtAt);
+  test('taught Send remains authority on any host, but is tiered after adapter mechanisms', () => {
+    const adapterFn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedComposer('));
+    const taughtFn = src.slice(src.indexOf('function _reviewedTaughtSend()'), src.indexOf('function _reviewedTaughtSend()') + 350);
+    expect(adapterFn).not.toContain("TeachStore.matchEl('send')");
+    expect(taughtFn).toContain("TeachStore.matchEl('send')");
+    expect(Array.from(SEND_MECHANISM_ORDER, pair => Array.from(pair)).at(-1)).toEqual(
+      ['taughtControl', 'taught-control']
+    );
   });
 
   test('peekInput consults a taught input', () => {
@@ -53,7 +55,8 @@ describe('wiring — taught controls are consulted (source contract)', () => {
   });
 
   test('matchEl re-applies the send veto and requires a text box for input', () => {
-    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 600);
+    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 900);
+    expect(fn).toContain('if (matches.length !== 1) return null;');
     expect(fn).toContain("if (kind === 'send' && !_sendLooksSafe(el)) return null;");
     expect(fn).toContain("el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true'");
   });

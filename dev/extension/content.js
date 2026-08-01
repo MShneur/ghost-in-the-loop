@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.2';
+const VER = '8.7.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -586,6 +586,7 @@ const PROFILES = {
     label: 'Claude',
     input: ['div[contenteditable="true"].ProseMirror','div[contenteditable="true"][aria-label*="message"]','div.ProseMirror','div[contenteditable="true"]'],
     send: ['button[aria-label="Send Message"]','button[type="submit"]','button[aria-label*="Send"]'],
+    submitForm: ['form'], // explicitly reviewed requestSubmit tier; resolver still requires the one safe form that directly wraps the reviewed composer
     stop: ['button[aria-label="Stop Response"]'],
     assistant: ['div[data-is-streaming]','div.font-claude-message','.claude-message'],
     continueLabels: [],
@@ -973,46 +974,98 @@ const TeachStore = {
     const sel = this.get(kind);
     if (!sel) return null;
     try {
-      for (const el of document.querySelectorAll(sel)) {
-        if (el && !_isOwnUI(el) && _visible(el)) {
-          if (kind === 'send' && !_sendLooksSafe(el)) return null; // veto still applies
-          if (kind === 'input') {
-            const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
-            if (!ok) return null;
-          }
-          return el;
-        }
+      const matches = [...document.querySelectorAll(sel)].filter(el =>
+        el && !_isOwnUI(el) && _visible(el));
+      // A taught selector was unique when captured. If DOM drift makes it
+      // ambiguous, it loses authority instead of choosing the first match.
+      if (matches.length !== 1) return null;
+      const el = matches[0];
+      if (kind === 'send' && !_sendLooksSafe(el)) return null; // veto still applies
+      if (kind === 'input') {
+        const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
+        if (!ok) return null;
       }
+      return el;
     } catch(_) {}
     return null;
   }
 };
 
-/* Only reviewed profile selectors — or a HUMAN-TAUGHT control (TeachStore) —
-   can authorize a send. A heuristic result is diagnostic information, never an
-   actuator. Each selector tier must resolve to exactly one enabled, visible,
-   veto-safe element. */
+/* Reviewed adapter selectors are the highest-authority Send source. Heuristic,
+   learned, imported, and taught selectors are deliberately absent here. Every
+   safe match across the reviewed selector set must identify the same one
+   enabled, visible, veto-safe element. */
 function _reviewedSend() {
-  // A human-taught send control is a reviewed actuator (the user pointed at it),
-  // valid on any host — but it is re-veto'd on every resolve by matchEl.
-  const taught = TeachStore.matchEl('send');
-  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
   if (!PLAT?.reviewed) return null;
+  const matches = new Set();
   for (const sel of PLAT.send || []) {
-    let matches = [];
     try {
-      matches = [...document.querySelectorAll(sel)].filter(el =>
+      [...document.querySelectorAll(sel)].filter(el =>
         !_isOwnUI(el)
         && !el.disabled
         && el.getAttribute('aria-disabled') !== 'true'
         && _visible(el)
-        && _sendLooksSafe(el));
-    } catch(_) {
-      matches = [];
-    }
-    if (matches.length === 1) return matches[0];
+        && _sendLooksSafe(el)).forEach(el => matches.add(el));
+    } catch(_) {}
+  }
+  return matches.size === 1 ? [...matches][0] : null;
+}
+
+/* Enter and requestSubmit write through the composer, so their target must be
+   uniquely identified by an adapter-owned reviewed selector. A composer found
+   by selector memory or a heuristic may be used for detection/injection, but
+   can never acquire keyboard/form actuation authority. */
+function _reviewedComposer(input) {
+  if (!input || !PLAT?.reviewed) return null;
+  for (const sel of PLAT.input || []) {
+    try {
+      const matches = [...document.querySelectorAll(sel)].filter(el =>
+        !_isOwnUI(el)
+        && !el.disabled
+        && el.getAttribute('aria-disabled') !== 'true'
+        && _visible(el));
+      if (matches.length === 1 && matches[0] === input) return input;
+    } catch(_) {}
   }
   return null;
+}
+
+function _submitFormLooksSafe(form, input) {
+  if (!form || !input || form.tagName !== 'FORM' || _isOwnUI(form)) return false;
+  try {
+    if (typeof form.requestSubmit !== 'function') return false;
+    if (input.closest('form') !== form || !form.contains(input)) return false;
+    if (!form.isConnected || form.hidden || form.getAttribute('aria-hidden') === 'true') return false;
+    if ((form.getAttribute('method') || '').toLowerCase() === 'dialog') return false;
+    const target = (form.getAttribute('target') || '').toLowerCase();
+    if (target && target !== '_self') return false;
+    const action = form.getAttribute('action');
+    if (action && new URL(action, location.href).origin !== location.origin) return false;
+    return true;
+  } catch(_) { return false; }
+}
+
+/* requestSubmit is available only through an explicit adapter submitForm list.
+   It must resolve to exactly one safe form, and that form must be the direct
+   wrapper of the uniquely reviewed composer. */
+function _reviewedSubmitForm(input) {
+  const composer = _reviewedComposer(input);
+  if (!composer || !Array.isArray(PLAT.submitForm) || !PLAT.submitForm.length) return null;
+  const forms = new Set();
+  for (const sel of PLAT.submitForm) {
+    try {
+      [...document.querySelectorAll(sel)]
+        .filter(form => _submitFormLooksSafe(form, composer))
+        .forEach(form => forms.add(form));
+    } catch(_) {}
+  }
+  return forms.size === 1 ? [...forms][0] : null;
+}
+
+function _reviewedTaughtSend() {
+  const taught = TeachStore.matchEl('send');
+  if (!taught || taught.disabled || taught.getAttribute('aria-disabled') === 'true') return null;
+  return taught;
 }
 
 /* ── Answer selection (v8.5.3 item 1) ────────────────────────
@@ -1727,7 +1780,14 @@ const DIAG = {
       }
       out.push(n ? `✓ ${k}: ${win} (${n})` : `✗ ${k}: NO MATCH`);
     }
-    // Fallback tiers (v8.1): learned per-host selectors, then role/meaning heuristics.
+    // Detection-only fallback visibility: taught, memory, then heuristics.
+    // Only reviewed/taught authority can enter the separate actuation ladder.
+    try {
+      const ti = TeachStore.matchEl('input'), ts = _reviewedTaughtSend();
+      out.push(ti || ts
+        ? `✓ taught: input=${ti?'yes':'no'} · send=${ts?'yes':'no'}`
+        : '— taught: none for this host');
+    } catch(_) {}
     try {
       const lm = (typeof SelectorMemory !== 'undefined') ? SelectorMemory._load()[location.hostname] : null;
       out.push(lm ? `✓ learned: ${Object.entries(lm).map(([k,v]) => k + '=' + v.sel).join(' · ')}` : '— learned: none for this host');
@@ -1748,7 +1808,11 @@ const DIAG = {
    ═══════════════════════════════════════════════════════════════ */
 function platformHealth() {
   const input = Adapter.peekInput();
-  const send  = Adapter.getSendBtn();
+  const reviewedInput = _reviewedComposer(input);
+  const send  = Adapter.getSendBtn()
+    || (reviewedInput && PLAT.dispatchFallback === 'enter' ? reviewedInput : null)
+    || (reviewedInput ? _reviewedSubmitForm(reviewedInput) : null)
+    || _reviewedTaughtSend();
   const stop  = _q('gen', PLAT.stop);
   const msgs  = _qAll(PLAT.assistant);
   const canRead   = msgs.length > 0;
@@ -2403,12 +2467,50 @@ function _preDispatchEvidence(input, text, strategy) {
       && strategy.actuator.isConnected
       && current === strategy.actuator;
   } else if (composerExact && strategy?.path === 'reviewed-enter') {
-    actuatorReady = !!PLAT?.reviewed
-      && PLAT.dispatchFallback === 'enter'
+    actuatorReady = PLAT?.dispatchFallback === 'enter'
       && strategy.actuator === input
-      && Adapter.peekInput() === input;
+      && _reviewedComposer(input) === input;
+  } else if (composerExact && strategy?.path === 'reviewed-form') {
+    actuatorReady = !!strategy.actuator
+      && strategy.actuator.isConnected
+      && _reviewedSubmitForm(input) === strategy.actuator;
+  } else if (composerExact && strategy?.path === 'taught-control') {
+    actuatorReady = !!strategy.actuator
+      && strategy.actuator.isConnected
+      && _reviewedTaughtSend() === strategy.actuator;
   }
   return { ok: composerExact && actuatorReady, composerExact, actuatorReady };
+}
+
+function _composerHoldsPrompt(el, text) {
+  if (!el) return false;
+  try {
+    const normalize = value => String(value == null ? '' : value)
+      .replace(/\r\n?/g, '\n');
+    const expected = normalize(text);
+    return expected.length > 0 && normalize(_composerRawText(el)) === expected;
+  } catch(_) { return false; }
+}
+
+const SEND_MECHANISM_ORDER = [
+  ['reviewedButton', 'reviewed-button'],
+  ['reviewedEnter', 'reviewed-enter'],
+  ['reviewedForm', 'reviewed-form'],
+  ['taughtControl', 'taught-control']
+];
+
+/* Pure pre-journal selector. `staged` is independent composer evidence; the
+   candidate objects have already passed their tier-specific authority gates.
+   Selection has no side effects and returns at most one actuator. */
+function _selectSendMechanism(staged, candidates) {
+  if (!staged || !candidates) return null;
+  for (const [key, path] of SEND_MECHANISM_ORDER) {
+    const candidate = candidates[key];
+    if (candidate && candidate.path === path && typeof candidate.run === 'function') {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function _settleSendPromise(ok) {
@@ -2501,24 +2603,47 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     await sleep(500);
+    const staged = _composerHoldsPrompt(input, text);
     const btn = Adapter.getSendBtn();
-    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
-    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
-    // is no fallback or escalation: the selected mechanism fires once, then
-    // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      actuator: btn,
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      actuator: input,
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
+    const reviewedComposer = _reviewedComposer(input);
+    const form = reviewedComposer ? _reviewedSubmitForm(reviewedComposer) : null;
+    const taught = _reviewedTaughtSend();
+    // v8.7.0 — evidence-gated tier selection happens completely BEFORE the
+    // at-most-once journal opens: adapter button → explicit adapter Enter →
+    // explicit unique wrapping form → human-taught control. Heuristic and
+    // learned selectors are not candidates. After `_beginSendAttempt()` there
+    // is one `strategy.run()` call and no fallback or escalation.
+    const strategy = _selectSendMechanism(staged, {
+      reviewedButton: btn ? {
+        path: 'reviewed-button',
+        actuator: btn,
+        run: () => btn.click()
+      } : null,
+      reviewedEnter: reviewedComposer && PLAT.dispatchFallback === 'enter' ? {
+        path: 'reviewed-enter',
+        actuator: reviewedComposer,
+        run: () => reviewedComposer.dispatchEvent(new KeyboardEvent('keydown', {
+          key:'Enter', code:'Enter', keyCode:13, which:13,
+          bubbles:true, cancelable:true, composed:true
+        }))
+      } : null,
+      reviewedForm: form ? {
+        path: 'reviewed-form',
+        actuator: form,
+        run: () => form.requestSubmit()
+      } : null,
+      taughtControl: taught ? {
+        path: 'taught-control',
+        actuator: taught,
+        run: () => taught.click()
+      } : null
+    });
     if (!strategy) {
+      if (!staged) {
+        Reporter.capture('COMPOSER-001', 'The composer did not contain the exact prompt after injection; nothing was dispatched.');
+        pauseWithProbe('Prompt staging could not be verified — nothing sent');
+        return false;
+      }
       Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
       pauseWithProbe('No safe Send mechanism — prompt left for manual review');
       return false;
@@ -3165,7 +3290,11 @@ function reDetect() {
   if (matched) PLAT = matched;
   // Force fresh element lookups now.
   const input = Adapter.getInput();
-  const send  = Adapter.getSendBtn();
+  const reviewedInput = _reviewedComposer(input);
+  const send  = Adapter.getSendBtn()
+    || (reviewedInput && PLAT.dispatchFallback === 'enter' ? reviewedInput : null)
+    || (reviewedInput ? _reviewedSubmitForm(reviewedInput) : null)
+    || _reviewedTaughtSend();
   try { DIAG.runProbe(); } catch(_){}
   Timeline.record('redetect', { found_input: !!input, found_send: !!send, platform: PLAT?.label });
   if (input) {

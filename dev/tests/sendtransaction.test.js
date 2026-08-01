@@ -16,10 +16,10 @@ function body(name, nextName) {
 }
 
 describe('dispatch authority', () => {
-  test('only reviewed platform selectors may return a button actuator', () => {
+  test('only one reviewed adapter button may return from the top authority tier', () => {
     expect(src).toContain('function _reviewedSend()');
     expect(src).toContain('if (!PLAT?.reviewed) return null;');
-    expect(src).toContain('if (matches.length === 1) return matches[0];');
+    expect(src).toContain('return matches.size === 1 ? [...matches][0] : null;');
   });
 
   test('generic and imported custom adapters are not reviewed actuators', () => {
@@ -38,18 +38,20 @@ describe('send transaction', () => {
   const confirm = body('_confirmSend', '_markSendUncertain');
 
   test('one transaction authorizes exactly one dispatch invocation', () => {
-    expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
-    expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
-    expect(send).not.toContain('send_escalate');
-    expect(send).not.toContain('reviewed-paragraph');
-    expect(send).not.toContain('reviewed-form');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const afterBegin = send.slice(begin);
+    expect((afterBegin.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    expect(afterBegin).not.toContain('.click()');
+    expect(afterBegin).not.toContain('requestSubmit()');
+    expect(afterBegin).not.toContain('send_escalate');
+    expect(afterBegin).not.toContain('reviewed-paragraph');
   });
 
   test('strategy selection is complete before transaction creation', () => {
-    const strategy = send.indexOf('const strategy = btn ?');
+    const strategy = send.indexOf('const strategy = _selectSendMechanism(staged');
     const evidence = send.indexOf('const preDispatch = _preDispatchEvidence(input, text, strategy)');
     const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
-    const dispatch = send.indexOf('strategy.run()');
+    const dispatch = send.indexOf('strategy.run();', begin);
     expect(strategy).toBeGreaterThan(-1);
     expect(evidence).toBeGreaterThan(strategy);
     expect(begin).toBeGreaterThan(evidence);

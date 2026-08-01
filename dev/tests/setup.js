@@ -76,13 +76,14 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'FUZZY_PROCEED','FUZZY_HALT','WORKFLOW_LIBRARY','PERSONA_LIBRARY',
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
-    'Adapter','_heurSend','_heurInput','_reviewedSend','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW','_orbEdgeFromX','_orbClampY','_railBox','TeachStore','Teach','_reviewedSend','platformHealth',
+    'Adapter','_heurSend','_heurInput','_reviewedSend','_reviewedComposer','_submitFormLooksSafe','_reviewedSubmitForm','_reviewedTaughtSend','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW','_orbEdgeFromX','_orbClampY','_railBox','TeachStore','Teach','platformHealth',
     'EXPLAIN','_explainLookup',
     'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resetLoop','resolvePersonaInject',
     'PERSONA_LIBRARY','PAYLOADS','POSTURES',
     'Ticker','unattendedOn','isTabSafeToAct','assertInteractionSafe',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause',
+    '_composerHoldsPrompt','SEND_MECHANISM_ORDER','_selectSendMechanism',
     '_beginSendAttempt','_sendEvidence','_confirmSend','_markSendUncertain','reconcileUncertainSend'
   ].forEach(name => {
     try { if (typeof eval(name) !== 'undefined') _exp[name] = eval(name); } catch(_) {}
