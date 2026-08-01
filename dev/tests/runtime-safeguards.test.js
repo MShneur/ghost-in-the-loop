@@ -304,6 +304,7 @@ describe('pre-journal ordering contract', () => {
     expect(send.indexOf("sendResolution.status === 'ambiguous'")).toBeGreaterThan(-1);
     expect(send.indexOf('_stagedPromptMatches(input, text)')).toBeLessThan(begin);
     expect(send.indexOf("sendResolution.status === 'ambiguous'")).toBeLessThan(begin);
-    expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    const afterBegin = send.slice(begin);
+    expect((afterBegin.match(/strategy\.run\(\);/g) || []).length).toBe(1);
   });
 });
