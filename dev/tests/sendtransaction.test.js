@@ -19,7 +19,10 @@ describe('dispatch authority', () => {
   test('only reviewed platform selectors may return a button actuator', () => {
     expect(src).toContain('function _reviewedSend()');
     expect(src).toContain('if (!PLAT?.reviewed) return null;');
-    expect(src).toContain('if (matches.length === 1) return matches[0];');
+    // Uniqueness is enforced across the whole reviewed selector set (v8.7.0
+    // ambiguity guard) — exactly one distinct live candidate, or no actuator.
+    expect(src).toContain('if (found.size === 1) return [...found][0];');
+    expect(src).toContain('if (found.size > 1) _lastSendAmbiguity = found.size;');
   });
 
   test('generic and imported custom adapters are not reviewed actuators', () => {

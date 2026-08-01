@@ -14,7 +14,7 @@ const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js')
 
 describe('Transport UI — one Play/Pause toggle + Stop', () => {
   const runTab = src.slice(src.indexOf('function renderRunTab()'),
-                          src.indexOf('function renderRunTab()') + 2600);
+                          src.indexOf('function renderRunTab()') + 3600);
 
   test('the separate #g-pause button and its binding are gone', () => {
     expect(runTab).not.toContain('id="g-pause"');

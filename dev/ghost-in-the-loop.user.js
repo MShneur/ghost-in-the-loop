@@ -286,9 +286,34 @@ function isTabSafeToAct() {
   return claimTabLock();   // multi-tab collision guard is NEVER relaxed
 }
 
+/* ── SAFETY SWITCHES (v8.7.0 — Track D) ──────────────────────────
+   Kill switch (global) and per-site disable are checked before ANY
+   actuation. Both fail LOUD: a blocked send says why, a running loop
+   pauses with a reason. */
+function _siteOffMap() {
+  const s = GHOST.safety;
+  if (!s._siteOff) {
+    try { s._siteOff = JSON.parse(GM_getValue('gitlSiteOff', '{}')) || {}; } catch(_) { s._siteOff = {}; }
+  }
+  return s._siteOff;
+}
+function siteDisabled() { return !!_siteOffMap()[location.hostname]; }
+function setSiteDisabled(off) {
+  const m = _siteOffMap();
+  if (off) m[location.hostname] = true; else delete m[location.hostname];
+  try { GM_setValue('gitlSiteOff', JSON.stringify(m)); } catch(_) {}
+}
+function killSwitchOn() { return !!(typeof GHOST !== 'undefined' && GHOST.safety && GHOST.safety.killSwitch); }
+
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
+  if (killSwitchOn()) {
+    return { ok: false, reason: 'kill-switch-on' };
+  }
+  if (siteDisabled()) {
+    return { ok: false, reason: 'automation-disabled-on-this-site' };
+  }
   if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
@@ -1013,27 +1038,53 @@ const TeachStore = {
    can authorize a send. A heuristic result is diagnostic information, never an
    actuator. Each selector tier must resolve to exactly one enabled, visible,
    veto-safe element. */
+let _lastSendAmbiguity = 0;
+function _sendAmbiguity() { return _lastSendAmbiguity; }
 function _reviewedSend() {
+  _lastSendAmbiguity = 0;
   // A human-taught send control is a reviewed actuator (the user pointed at it),
-  // valid on any host — but it is re-veto'd on every resolve by matchEl.
+  // valid on any host — but it is re-veto'd on every resolve by matchEl. It is
+  // also the human's disambiguation: when it exists it always wins.
   const taught = TeachStore.matchEl('send');
   if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
   if (!PLAT?.reviewed) return null;
+  /* Ambiguity guard (v8.7.0 — Track D): uniqueness must hold across the WHOLE
+     reviewed selector set, not per selector. Two live, enabled, veto-safe Send
+     candidates (e.g. main composer + a stray follow-up control) used to resolve
+     silently to whichever selector listed first — a guess. Now: >1 distinct
+     candidate → no actuator, and engineSend pauses loud (SEND-004). */
+  const found = new Set();
   for (const sel of PLAT.send || []) {
-    let matches = [];
     try {
-      matches = [...document.querySelectorAll(sel)].filter(el =>
-        !_isOwnUI(el)
-        && !el.disabled
-        && el.getAttribute('aria-disabled') !== 'true'
-        && _visible(el)
-        && _sendLooksSafe(el));
-    } catch(_) {
-      matches = [];
-    }
-    if (matches.length === 1) return matches[0];
+      for (const el of document.querySelectorAll(sel)) {
+        if (!_isOwnUI(el)
+            && !el.disabled
+            && el.getAttribute('aria-disabled') !== 'true'
+            && _visible(el)
+            && _sendLooksSafe(el)) found.add(el);
+      }
+    } catch(_) {}
   }
+  if (found.size === 1) return [...found][0];
+  if (found.size > 1) _lastSendAmbiguity = found.size;
   return null;
+}
+
+/* Composer-side ambiguity (Track D): two visible composer elements means
+   Ghost would be typing into a guess. Reviewed platforms only — generic
+   selector sets are broad by design and stay manual. A human-taught input is
+   the disambiguation and skips this guard (checked at the call site). */
+function _ambiguousComposerCount() {
+  if (!PLAT?.reviewed) return 0;
+  const found = new Set();
+  for (const sel of PLAT.input || []) {
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        if (!_isOwnUI(el) && _visible(el)) found.add(el);
+      }
+    } catch(_) {}
+  }
+  return found.size;
 }
 
 /* ── Answer selection (v8.5.3 item 1) ────────────────────────
@@ -1685,6 +1736,11 @@ const GHOST = {
     thinking: GM_getValue('expThinking',true),
     customSlug: GM_getValue('expSlug',''),
     lastResult: null
+  },
+  safety: {
+    killSwitch: GM_getValue('killSwitch',false),
+    dryRun: GM_getValue('dryRun',false),
+    _siteOff: null        // lazy-parsed per-host disable map (gitlSiteOff)
   },
   ui: {
     collapsed: GM_getValue('panelCollapsed',false),
@@ -2554,6 +2610,18 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('No safe chat composer found');
       return false;
     }
+    /* Composer ambiguity guard (Track D): two visible composers means typing
+       into either is a guess. A human-taught input is the disambiguation. */
+    let taughtInput = null;
+    try { taughtInput = TeachStore.matchEl('input'); } catch(_) {}
+    if (!(taughtInput && taughtInput === input)) {
+      const nComposer = _ambiguousComposerCount();
+      if (nComposer > 1) {
+        Reporter.capture('COMPOSER-003', `${nComposer} plausible composers are live; refusing to guess which to type into. Teach Input pins the right one.`);
+        pauseWithProbe('Multiple plausible chat inputs — Teach Input pins the right one');
+        return false;
+      }
+    }
     if (!Adapter.injectText(input, text)) {
       Reporter.capture('COMPOSER-001', 'The reviewed composer rejected text injection.');
       pauseWithProbe('Chat composer rejected the prompt');
@@ -2579,6 +2647,15 @@ async function engineSend(text, skipDelay) {
     // once, then Ghost only observes evidence or enters `uncertain`.
     const strategy = _selectSendStrategy(btn, input);
     if (!strategy) {
+      /* Send ambiguity (Track D) beats every other null-strategy reason: the
+         reviewed set found >1 live candidate, so any click would be a guess.
+         A human-taught Send is the disambiguation (and already won inside
+         _reviewedSend when present — reaching here means none was taught). */
+      if (_sendAmbiguity() > 1) {
+        Reporter.capture('SEND-004', `${_sendAmbiguity()} plausible Send controls are live; refusing to guess. Teach Send pins the right one.`);
+        pauseWithProbe('Multiple plausible Send controls — Teach Send pins the right one');
+        return false;
+      }
       // A visible-but-disabled reviewed Send control is a distinct, more
       // actionable failure than "no mechanism at all": the composer took our
       // text but the site never enabled its own Send (mobile-web class).
@@ -2595,6 +2672,15 @@ async function engineSend(text, skipDelay) {
       DIAG.push('Reviewed Send control stayed disabled post-staging — using ' + strategy.path);
     }
     DIAG.sendPath = strategy.path;
+    /* Dry-run mode (Track D): everything above is real — gates, staging, the
+       staging-evidence check, tier selection. Only the actuation is withheld:
+       no journal opens, nothing is dispatched, the staged prompt stays in the
+       composer for review, and the loop pauses LOUD with the would-be path. */
+    if (GHOST.safety.dryRun) {
+      Timeline.record('dry_run_dispatch', { path: strategy.path, chars: text.length, round: L.round + 1 });
+      enginePause(`DRY RUN — staged ${text.length} chars; would dispatch via ${strategy.path}. Nothing was sent.`);
+      return false;
+    }
     const completion = _beginSendAttempt(strategy.path, input);
     try {
       strategy.run();
@@ -2788,6 +2874,13 @@ Then continue the task. End with ████ [Step X of Y] and [[GITL::PROCEED]
 function engineTick() {
   const L = GHOST.loop;
   if (L.state !== 'RUNNING') return;
+
+  // Safety switches (Track D): a switch flipped mid-run stops the loop LOUD,
+  // at the next tick, before any read/actuation below.
+  if (killSwitchOn() || siteDisabled()) {
+    enginePause(killSwitchOn() ? 'Kill switch ON — automation stopped' : 'Ghost automation is disabled on this site');
+    return;
+  }
 
   // ── At-most-once send observation ─────────────────────────────
   if (L.sendPending) {
@@ -2995,6 +3088,8 @@ function startWorkflow() {
 function startLoop() {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (killSwitchOn()) { L.detail = '⛔ Kill switch is ON — Ghost will not act. Turn it off in ⚙ Settings.'; render(); return; }
+  if (siteDisabled()) { L.detail = '⛔ Ghost automation is disabled on this site. Re-enable in ⚙ Settings.'; render(); return; }
   if (L.sendTxn?.state === 'uncertain') {
     L.detail = 'Choose “I see it in chat” or “Leave for manual Send” first.';
     render();
@@ -3051,6 +3146,8 @@ function startLoop() {
 function startQueue(rawLines) {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (killSwitchOn()) { L.detail = '⛔ Kill switch is ON — Ghost will not act. Turn it off in ⚙ Settings.'; render(); return; }
+  if (siteDisabled()) { L.detail = '⛔ Ghost automation is disabled on this site. Re-enable in ⚙ Settings.'; render(); return; }
   const steps = rawLines.split('\n').map(s => s.replace(/^\s*(?:\d+[.)]\s+|[-*]\s+)?/,'').trim()).filter(s => s.length > 2).slice(0, 30);
   if (!steps.length) { L.detail = 'Queue is empty'; render(); return; }
   L.payloadMode = 'roadmap'; _save('payloadMode','roadmap');
@@ -3724,12 +3821,12 @@ const CONFIG_KEYS = [
   'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
   'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
   'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
-  'skinTheme','accentHue','unattended','firstRun'
+  'skinTheme','accentHue','unattended','firstRun','killSwitch','dryRun'
 ];
 const CONFIG_BOOL_KEYS = new Set([
   'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
   'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
-  'cfgAdv','expAdv','unattended','firstRun'
+  'cfgAdv','expAdv','unattended','firstRun','killSwitch','dryRun'
 ]);
 const CONFIG_DEFAULTS = Object.freeze({
   wfAuto:true, wfPause:false,
@@ -3739,7 +3836,7 @@ const CONFIG_DEFAULTS = Object.freeze({
   expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
   panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
   cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
-  unattended:false, firstRun:true
+  unattended:false, firstRun:true, killSwitch:false, dryRun:false
 });
 
 function _validConfigValue(key, value) {
@@ -4900,6 +4997,9 @@ function renderRunTab() {
   const pLabel = activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'';
   return `
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
+    ${GHOST.safety.killSwitch ? `<div class="g-hint" style="border-left-color:#ef4444"><b>⛔ Kill switch ON</b> — Ghost will not stage or send anything, anywhere. Turn it off in ⚙ Settings.</div>` : ''}
+    ${!GHOST.safety.killSwitch && siteDisabled() ? `<div class="g-hint" style="border-left-color:#ef4444"><b>🚫 Automation disabled on ${_esc(location.hostname)}</b> — re-enable in ⚙ Settings.</div>` : ''}
+    ${GHOST.safety.dryRun && !GHOST.safety.killSwitch ? `<div class="g-hint" style="border-left-color:#f59e0b"><b>🧪 Dry run ON</b> — Ghost stages and reports what it would send, but never dispatches.</div>` : ''}
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-mod g-mod-transport">
@@ -5203,6 +5303,10 @@ function renderExportTab() {
 function renderSettingsTab() {
   const adv = GHOST.ui.cfgAdv;
   return `
+    <div class="g-row"><label>⛔ Kill switch</label><div class="g-tog${GHOST.safety.killSwitch?' on':''}" id="cfg-kill" title="Stop ALL Ghost automation everywhere. Nothing is staged or sent while this is on."></div></div>
+    <div class="g-row"><label>🚫 Disable here</label><div class="g-tog${siteDisabled()?' on':''}" id="cfg-siteoff" title="Disable Ghost automation on ${_esc(location.hostname)} only — other sites are unaffected."></div></div>
+    <div class="g-row"><label>🧪 Dry run</label><div class="g-tog${GHOST.safety.dryRun?' on':''}" id="cfg-dryrun" title="Simulate: run every gate and stage the prompt, then pause and report what WOULD be sent. Never dispatches."></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Safety: kill switch stops everything everywhere; disable-here spares other sites; dry run shows what Ghost <b>would</b> send without sending.</div>
     <div class="g-row"><label>Max rounds</label><input type="number" id="cfg-max" min="1" max="999" value="${GHOST.loop.maxRounds}"></div>
     <div class="g-row"><label>🔔 Sound</label><div class="g-tog${GHOST.ui.soundOn?' on':''}" id="cfg-snd"></div></div>
     <div class="g-row"><label>💬 Notify when done</label><div class="g-tog${GHOST.ui.notifyOn?' on':''}" id="cfg-ntf"></div></div>
@@ -5660,6 +5764,9 @@ function bindEvents() {
   $('#rm-clear')?.addEventListener('click', () => { resetRoadmap(); render(); });
 
   // Settings tab
+  $('#cfg-kill')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.safety.killSwitch=this.classList.contains('on'); _save('killSwitch',GHOST.safety.killSwitch); Timeline.record('kill_switch', { on: GHOST.safety.killSwitch }); render(); });
+  $('#cfg-siteoff')?.addEventListener('click', function(){ this.classList.toggle('on'); setSiteDisabled(this.classList.contains('on')); Timeline.record('site_disabled', { on: this.classList.contains('on') }); render(); });
+  $('#cfg-dryrun')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.safety.dryRun=this.classList.contains('on'); _save('dryRun',GHOST.safety.dryRun); Timeline.record('dry_run_toggled', { on: GHOST.safety.dryRun }); render(); });
   $('#cfg-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v);} });
   $('#cfg-win')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>=200&&v<=1200){GHOST.signals.windowSize=v; _save('sigWindow',v);} });
   $('#cfg-cp')?.addEventListener('change', e => { GHOST.signals.customProceed=e.target.value; _save('customProceed',e.target.value); });

@@ -41,7 +41,7 @@ describe('wiring — taught controls are consulted (source contract)', () => {
   const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
   test('_reviewedSend consults a taught send BEFORE the reviewed-platform gate', () => {
-    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 400);
+    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 900);
     const taughtAt = fn.indexOf("TeachStore.matchEl('send')");
     const gateAt = fn.indexOf('if (!PLAT?.reviewed) return null;');
     expect(taughtAt).toBeGreaterThan(-1);

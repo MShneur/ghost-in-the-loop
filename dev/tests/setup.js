@@ -85,7 +85,8 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'startTabHeartbeat','engineSend','engineHalt','enginePause',
     '_beginSendAttempt','_sendEvidence','_confirmSend','_markSendUncertain','reconcileUncertainSend',
     '_composerText','_promptStagedInComposer','_normStagedText',
-    '_selectSendStrategy','_uniqueComposerForm','_disabledReviewedSendCount'
+    '_selectSendStrategy','_uniqueComposerForm','_disabledReviewedSendCount',
+    'siteDisabled','setSiteDisabled','killSwitchOn','_ambiguousComposerCount','_sendAmbiguity'
   ].forEach(name => {
     try { if (typeof eval(name) !== 'undefined') _exp[name] = eval(name); } catch(_) {}
   });
