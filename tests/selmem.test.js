@@ -89,7 +89,8 @@ describe('Integration — Adapter and reDetect wiring', () => {
   const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
   test('Adapter.getInput consults SelectorMemory before heuristics', () => {
-    expect(src).toContain("_q('in', PLAT.input) || SelectorMemory.lookup('input')");
+    // v8.6.0: a taught input is consulted between the platform selector and memory.
+    expect(src).toContain("_q('in', PLAT.input) || TeachStore.matchEl('input') || SelectorMemory.lookup('input')");
   });
   test('send actuators are excluded from selector memory', () => {
     expect(src).toContain("if (kind === 'send')");
