@@ -56,6 +56,24 @@ describe('ChatGPT SSE parser', () => {
     expect(() => _sseChatGptFeed(st, 'data: {broken json\n')).not.toThrow();
     expect(st.text).toBeUndefined();
   });
+
+  test('JSON-patch ops on /message/content/parts accumulate (current ChatGPT format)', () => {
+    const st = {};
+    _sseChatGptFeed(st, `data: ${JSON.stringify({ v: [
+      { p: '/message/content/parts/0', o: 'append', v: 'The ans' },
+      { p: '/message/status', o: 'replace', v: 'streaming' },
+    ] })}\n`);
+    _sseChatGptFeed(st, `data: ${JSON.stringify({ v: [
+      { p: '/message/content/parts/0', o: 'append', v: 'wer is 4.' },
+    ] })}\n`);
+    expect(st.text).toBe('The answer is 4.');
+  });
+
+  test('current ChatGPT /f/ endpoint is a trusted chat endpoint (regression fence)', () => {
+    expect(GITL_NET._isChat('https://chatgpt.com/backend-api/f/conversation')).toBe(true);
+    expect(GITL_NET._isChat('/backend-api/f/conversation')).toBe(true);
+    expect(GITL_NET._isChat('https://chat.deepseek.com/api/v0/chat/completion')).toBe(true);
+  });
 });
 
 describe('read-only / opt-in contracts', () => {

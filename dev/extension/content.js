@@ -340,10 +340,21 @@ function _sseChatGptFeed(state, chunk) {
     if (!payload.startsWith('{')) continue;
     try {
       const j = JSON.parse(payload);
+      // Full-message snapshots: message.content.parts[] hold the text so far.
       const parts = j && j.message && j.message.content && j.message.content.parts;
       if (Array.isArray(parts)) {
         const txt = parts.filter(p => typeof p === 'string').join('');
         if (txt && txt.length >= String(state.text || '').length) state.text = txt;
+      }
+      // JSON-patch streams (current ChatGPT): ops append text fragments onto
+      // /message/content/parts/N — accumulate them in arrival order.
+      const ops = Array.isArray(j && j.v) ? j.v : (j && j.o && j.p ? [j] : null);
+      if (ops) {
+        for (const op of ops) {
+          if (op && typeof op.v === 'string' && /\/message\/content\/parts\/\d+/.test(String(op.p || ''))) {
+            state.text = String(state.text || '') + op.v;
+          }
+        }
       }
     } catch(_) { /* malformed frame — advisory channel, never fatal */ }
   }
@@ -386,10 +397,12 @@ const GITL_NET = {
   },
 
   AI_ENDPOINTS: [
-    '/backend-api/conversation',   // ChatGPT
+    '/backend-api/conversation',   // ChatGPT (legacy path)
+    '/backend-api/f/conversation', // ChatGPT (current path — v8.7.0 audit: the /f/ segment meant trusted pulses never fired on live ChatGPT)
     '/api/organizations',          // Claude
     '/socket.io/',                 // Perplexity
     '/api/v1/chat/completions',    // DeepSeek / OpenAI-compat
+    '/api/v0/chat/completion',     // DeepSeek (current)
     '/chat/conversation',          // HuggingChat
     '/api/chat',                   // Generic
     '/bard',                       // Gemini (legacy)
