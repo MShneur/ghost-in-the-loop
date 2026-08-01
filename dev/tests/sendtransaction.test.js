@@ -38,15 +38,20 @@ describe('send transaction', () => {
   const confirm = body('_confirmSend', '_markSendUncertain');
 
   test('one transaction authorizes exactly one dispatch invocation', () => {
-    expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
+    // The click lives in the tier ladder (v8.7.0) — across engineSend AND the
+    // ladder there is still exactly one button-click site and one run site.
+    const ladder = body('_selectSendStrategy', '_beginSendAttempt');
+    expect((ladder.match(/\.click\(\)/g) || []).length).toBe(1);
+    expect(send).not.toContain('.click()');
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
     expect(send).not.toContain('send_escalate');
     expect(send).not.toContain('reviewed-paragraph');
     expect(send).not.toContain('reviewed-form');
+    expect(send).not.toContain('requestSubmit');
   });
 
   test('strategy selection is complete before transaction creation', () => {
-    const strategy = send.indexOf('const strategy = btn ?');
+    const strategy = send.indexOf('const strategy = _selectSendStrategy(btn, input)');
     const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const dispatch = send.indexOf('strategy.run()');
     expect(strategy).toBeGreaterThan(-1);

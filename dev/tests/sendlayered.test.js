@@ -33,7 +33,7 @@ describe('single reviewed dispatch selection', () => {
   });
 
   test('selects the mechanism before opening the transaction journal', () => {
-    const selectAt = send.indexOf('const strategy = btn ?');
+    const selectAt = send.indexOf('const strategy = _selectSendStrategy(btn, input)');
     const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
@@ -42,12 +42,15 @@ describe('single reviewed dispatch selection', () => {
   });
 
   test('button wins; Enter is used only when the reviewed adapter opts in', () => {
-    expect(send).toContain("path: 'reviewed-button'");
-    expect(send).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
-    expect(send).toContain("path: 'reviewed-enter'");
-    expect(send).toContain("new KeyboardEvent('keydown'");
-    expect(send).not.toContain("new KeyboardEvent('keypress'");
-    expect(send).not.toContain("new KeyboardEvent('keyup'");
+    // Tier mechanics live in the ladder helper (v8.7.0); engineSend only
+    // consumes the single selected strategy.
+    const ladder = body('_selectSendStrategy', '_beginSendAttempt');
+    expect(ladder).toContain("'reviewed-button'");
+    expect(ladder).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
+    expect(ladder).toContain("path: 'reviewed-enter'");
+    expect(ladder).toContain("new KeyboardEvent('keydown'");
+    expect(ladder).not.toContain("new KeyboardEvent('keypress'");
+    expect(ladder).not.toContain("new KeyboardEvent('keyup'");
   });
 
   test('contains no post-begin fallback or actuator escalation', () => {

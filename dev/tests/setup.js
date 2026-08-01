@@ -84,7 +84,8 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause',
     '_beginSendAttempt','_sendEvidence','_confirmSend','_markSendUncertain','reconcileUncertainSend',
-    '_composerText','_promptStagedInComposer','_normStagedText'
+    '_composerText','_promptStagedInComposer','_normStagedText',
+    '_selectSendStrategy','_uniqueComposerForm','_disabledReviewedSendCount'
   ].forEach(name => {
     try { if (typeof eval(name) !== 'undefined') _exp[name] = eval(name); } catch(_) {}
   });
@@ -122,6 +123,9 @@ const ctx = vm.createContext({
   Event:                global.Event,
   CustomEvent:          global.CustomEvent,
   EventTarget:          global.EventTarget,
+  KeyboardEvent:        global.KeyboardEvent,
+  InputEvent:           global.InputEvent,
+  MouseEvent:           global.MouseEvent,
   MutationObserver:     global.MutationObserver || class { observe(){} disconnect(){} },
   XMLHttpRequest:       global.XMLHttpRequest   || class { open(){} send(){} addEventListener(){} },
   crypto:               global.crypto,

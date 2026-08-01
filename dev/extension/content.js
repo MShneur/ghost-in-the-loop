@@ -2390,6 +2390,73 @@ function _settleSendPromise(ok) {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   SEND TIER LADDER (v8.7.0 — Track F)
+   Exactly ONE reviewed dispatch mechanism is selected here, always BEFORE
+   the at-most-once journal opens. Tiers, highest first:
+     1. Human-taught control (TeachStore) — the user pointed at it; re-veto'd
+        on every resolve inside _reviewedSend / matchEl.
+     2. Unique reviewed Send button (reviewed platform selectors).
+     3. Reviewed Enter fallback — the adapter declares the Enter fallback.
+     4. Reviewed form submit — the adapter declares the form fallback AND a
+        single veto-safe <form> uniquely wraps the composer.
+   There is no tier 5: anything else leaves the prompt for manual Send.
+   "Backup" means SELECTION (pick the best available mechanism up front) —
+   never ESCALATION (firing a second actuator after the first). After the
+   journal opens, Ghost only observes evidence or goes uncertain.
+   ═══════════════════════════════════════════════════════════════════ */
+function _uniqueComposerForm(input) {
+  try {
+    if (!input || !input.closest) return null;
+    const form = input.closest('form');
+    if (!form || _isOwnUI(form)) return null;
+    if (form.getAttribute('aria-haspopup')) return null;
+    const meta = [form.id, form.className, form.getAttribute('aria-label'),
+                  form.getAttribute('data-testid'), form.getAttribute('action')]
+      .map(v => String(v || '')).join(' ').slice(0, 200);
+    if (SEND_VETO.test(meta)) return null;
+    return form;
+  } catch(_) { return null; }
+}
+
+/* Witness for the "injectText didn't enable the site's Send button" failure
+   class (mobile web especially): counts distinct reviewed-selector matches
+   that are visible + veto-safe but DISABLED. Diagnostic only. */
+function _disabledReviewedSendCount() {
+  if (!PLAT?.reviewed) return 0;
+  const found = new Set();
+  for (const sel of PLAT.send || []) {
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        if (_isOwnUI(el) || !_visible(el) || !_sendLooksSafe(el)) continue;
+        if (el.disabled || el.getAttribute('aria-disabled') === 'true') found.add(el);
+      }
+    } catch(_) {}
+  }
+  return found.size;
+}
+
+function _selectSendStrategy(btn, input) {
+  if (btn) {
+    let taught = null;
+    try { taught = TeachStore.matchEl('send'); } catch(_) {}
+    return { path: (taught && taught === btn) ? 'taught-send' : 'reviewed-button',
+             run: () => btn.click() };
+  }
+  if (PLAT?.reviewed && PLAT.dispatchFallback === 'enter') {
+    return { path: 'reviewed-enter',
+             run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+               key:'Enter', code:'Enter', keyCode:13, which:13,
+               bubbles:true, cancelable:true, composed:true
+             })) };
+  }
+  if (PLAT?.reviewed && PLAT.dispatchFallback === 'form') {
+    const form = _uniqueComposerForm(input);
+    if (form) return { path: 'reviewed-form', run: () => form.requestSubmit() };
+  }
+  return null;
+}
+
 function _beginSendAttempt(path, input) {
   const L = GHOST.loop;
   const lastText = Adapter.getLastText() || '';
@@ -2485,24 +2552,26 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     const btn = Adapter.getSendBtn();
-    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
-    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
-    // is no fallback or escalation: the selected mechanism fires once, then
-    // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
+    // Choose exactly one reviewed dispatch mechanism from the tier ladder
+    // BEFORE opening the at-most-once journal. Once `_beginSendAttempt()`
+    // runs there is no fallback or escalation: the selected mechanism fires
+    // once, then Ghost only observes evidence or enters `uncertain`.
+    const strategy = _selectSendStrategy(btn, input);
     if (!strategy) {
+      // A visible-but-disabled reviewed Send control is a distinct, more
+      // actionable failure than "no mechanism at all": the composer took our
+      // text but the site never enabled its own Send (mobile-web class).
+      if (_disabledReviewedSendCount() > 0) {
+        Reporter.capture('SEND-003', 'A reviewed Send control is present but stayed disabled after staging; use Teach Send or manual Send.');
+        pauseWithProbe('Send button present but disabled — Teach Send can pin the working control');
+        return false;
+      }
       Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
       pauseWithProbe('No safe Send mechanism — prompt left for manual review');
       return false;
+    }
+    if (!btn && _disabledReviewedSendCount() > 0) {
+      DIAG.push('Reviewed Send control stayed disabled post-staging — using ' + strategy.path);
     }
     DIAG.sendPath = strategy.path;
     const completion = _beginSendAttempt(strategy.path, input);
