@@ -2365,6 +2365,23 @@ function _composerText(el) {
   return String((el && (el.value || el.textContent)) || '').trim();
 }
 
+/* Pre-dispatch staging evidence (v8.7.0, Track A). Whitespace-insensitive:
+   ProseMirror/Quill concatenate <p> nodes without separators in textContent,
+   so paragraph boundaries must not matter when comparing staged text. */
+function _normStagedText(s) {
+  return String(s || '').replace(/​/g, '').replace(/\s+/g, '');
+}
+function _promptStagedInComposer(input, text) {
+  const want = _normStagedText(text);
+  if (!want) return false;
+  const got = _normStagedText(_composerText(input));
+  if (!got) return false;
+  if (want.length <= 48) return got.includes(want);
+  // Long prompts: a head+tail signature is enough to prove the staged content
+  // is ours without demanding byte-identical editor round-tripping.
+  return got.includes(want.slice(0, 32)) && got.includes(want.slice(-32));
+}
+
 function _settleSendPromise(ok) {
   const resolve = _pendingSendResolve;
   _pendingSendResolve = null;
@@ -2455,6 +2472,18 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     await sleep(500);
+    /* Pre-dispatch evidence gate (v8.7.0): the journal must never open unless
+       the composer verifiably holds the prompt we just staged. injectText can
+       report success while a strict editor silently dropped the text — and
+       worse, the composer may hold PRE-EXISTING user text that a dispatch
+       would send as-is. Both cases now fail loud BEFORE any mechanism is
+       chosen, so no transaction is ever opened against unstaged content. */
+    if (!_promptStagedInComposer(input, text)) {
+      Timeline.record('send_blocked', { reason: 'prompt-not-staged' });
+      Reporter.capture('COMPOSER-002', 'The composer did not hold the injected prompt after staging; nothing was sent.');
+      pauseWithProbe('Prompt not staged in composer — nothing was sent');
+      return false;
+    }
     const btn = Adapter.getSendBtn();
     // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
     // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
