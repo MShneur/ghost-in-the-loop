@@ -1,7 +1,10 @@
 # Ghost in the Loop — Cursor evaluation (v8.7.0)
 
+**Recommendation-ID:** `GITL-EVAL-20260801-cac16205`
+
 Review package for Personal Forge / CTRL-FORGE.  
 **Source branch:** `cursor/gitl-eval-integrator-2995` on `MShneur/ghost-in-the-loop`  
+**Forge parent issue:** https://github.com/MShneur/ctrl-forge/issues/2  
 **Not live.** Do not treat as promoted `main`.
 
 ## What this is
