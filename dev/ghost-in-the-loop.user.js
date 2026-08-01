@@ -323,6 +323,162 @@ if (typeof window !== 'undefined') {
    is the page's real window (Firefox MV3 port: inject in world:"MAIN"). */
 const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
 
+/* Experimental ChatGPT SSE reader. This parser deliberately emits metadata
+   only: it transiently decodes one bounded SSE event, ignores non-assistant
+   messages, and never returns or persists response text. Its output is for
+   diagnostics/evaluation only and is not consumed by the loop or Send paths. */
+const NET_READ_FLAGS = Object.freeze({
+  chatgptSse: (() => {
+    try { return GM_getValue('netReadChatgptSse', false) === true; }
+    catch(_) { return false; }
+  })()
+});
+const CHATGPT_SSE_MAX_EVENT_CHARS = 65536;
+const CHATGPT_SSE_MAX_COUNT = 1000000;
+
+function _createChatGPTSSEReadProbe(onUpdate, options) {
+  const configuredMax = Number(options && options.maxEventChars);
+  const maxEventChars = Number.isFinite(configuredMax)
+    ? Math.max(32, Math.min(CHATGPT_SSE_MAX_EVENT_CHARS, Math.floor(configuredMax)))
+    : CHATGPT_SSE_MAX_EVENT_CHARS;
+  const state = {
+    complete: false,
+    completion: 'none',
+    assistantEvents: 0,
+    assistantChars: 0,
+    marker: 'none',
+    malformedEvents: 0,
+    oversizedEvents: 0
+  };
+  let line = '';
+  let dataLines = [];
+  let eventChars = 0;
+  let droppingLine = false;
+  let droppingEvent = false;
+
+  const boundedInc = (value) => Math.min(CHATGPT_SSE_MAX_COUNT, value + 1);
+  const snapshot = () => ({
+    complete: !!state.complete,
+    completion: state.completion,
+    assistantEvents: state.assistantEvents,
+    assistantChars: state.assistantChars,
+    marker: state.marker,
+    malformedEvents: state.malformedEvents,
+    oversizedEvents: state.oversizedEvents
+  });
+  const publish = () => {
+    const out = snapshot();
+    try { if (typeof onUpdate === 'function') onUpdate(out); } catch(_) {}
+    return out;
+  };
+  const resetEvent = () => {
+    dataLines = [];
+    eventChars = 0;
+    droppingEvent = false;
+  };
+  const processEvent = () => {
+    if (droppingEvent) {
+      state.oversizedEvents = boundedInc(state.oversizedEvents);
+      resetEvent();
+      return publish();
+    }
+    const payload = dataLines.join('\n');
+    resetEvent();
+    if (!payload) return snapshot();
+    if (payload.trim() === '[DONE]') {
+      if (state.assistantEvents > 0) {
+        state.complete = true;
+        state.completion = 'done';
+      }
+      return publish();
+    }
+    let event;
+    try { event = JSON.parse(payload); }
+    catch(_) {
+      state.malformedEvents = boundedInc(state.malformedEvents);
+      return publish();
+    }
+    const message = event && event.message;
+    if (!message || !message.author || message.author.role !== 'assistant') return snapshot();
+    const parts = message.content && Array.isArray(message.content.parts)
+      ? message.content.parts : [];
+    let chars = 0;
+    let marker = 'none';
+    for (const part of parts) {
+      if (typeof part !== 'string') continue;
+      chars = Math.min(CHATGPT_SSE_MAX_COUNT, chars + part.length);
+      if (part.includes(SIGIL_HALT)) marker = 'halt';
+      else if (marker !== 'halt' && part.includes(SIGIL_PROCEED)) marker = 'proceed';
+    }
+    state.assistantEvents = boundedInc(state.assistantEvents);
+    state.assistantChars = chars;
+    state.marker = marker;
+    const status = String(message.status || '');
+    if (message.end_turn === true || status === 'finished_successfully' || status === 'finished') {
+      state.complete = true;
+      state.completion = 'message';
+    }
+    return publish();
+  };
+  const processLine = (rawLine) => {
+    const current = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine;
+    if (!current) return processEvent();
+    if (!current.startsWith('data:')) return snapshot();
+    const value = current.slice(5).replace(/^ /, '');
+    eventChars += value.length;
+    if (eventChars > maxEventChars) {
+      dataLines = [];
+      droppingEvent = true;
+      return snapshot();
+    }
+    dataLines.push(value);
+    return snapshot();
+  };
+
+  return {
+    feed(chunk) {
+      let rest = String(chunk == null ? '' : chunk);
+      while (rest) {
+        if (droppingLine) {
+          const end = rest.indexOf('\n');
+          if (end < 0) return snapshot();
+          rest = rest.slice(end + 1);
+          droppingLine = false;
+          droppingEvent = true;
+          continue;
+        }
+        const end = rest.indexOf('\n');
+        const segment = end < 0 ? rest : rest.slice(0, end);
+        if (line.length + segment.length > maxEventChars) {
+          line = '';
+          droppingEvent = true;
+          if (end < 0) droppingLine = true;
+        } else {
+          line += segment;
+          if (end >= 0) {
+            processLine(line);
+            line = '';
+          }
+        }
+        rest = end < 0 ? '' : rest.slice(end + 1);
+      }
+      return snapshot();
+    },
+    finish() {
+      if (droppingLine) {
+        droppingLine = false;
+        droppingEvent = true;
+      } else if (line) {
+        processLine(line);
+      }
+      line = '';
+      if (dataLines.length || droppingEvent) processEvent();
+      return snapshot();
+    },
+    snapshot
+  };
+}
+
 const GITL_NET = {
   bus: new EventTarget(),
   capturedAt: 0,
@@ -334,6 +490,20 @@ const GITL_NET = {
   lastWsPulseT: 0,      // meaningful WS payload only; heartbeat/control frames excluded
   _open: 0,             // streams currently open
   expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
+  readProbe: {
+    enabled: NET_READ_FLAGS.chatgptSse,
+    transport: 'chatgpt-sse',
+    streams: 0,
+    openStreams: 0,
+    complete: false,
+    completion: 'none',
+    assistantEvents: 0,
+    assistantChars: 0,
+    marker: 'none',
+    malformedEvents: 0,
+    oversizedEvents: 0,
+    lastAt: 0
+  },
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -388,6 +558,68 @@ const GITL_NET = {
   _pulseWs(data) {
     if (!this._wsFrameIsMeaningful(data)) return false;
     this.lastWsPulseT = Date.now(); this._pulse(true); return true;
+  },
+
+  _readProbeEligible(url, init, response) {
+    if (!this.readProbe.enabled) return false;
+    try {
+      const s = typeof url === 'string' ? url : (url && url.url) || String(url || '');
+      const method = String((init && init.method) || (url && url.method) || 'GET').toUpperCase();
+      const contentType = String(response && response.headers && response.headers.get
+        ? response.headers.get('content-type') || '' : '');
+      return method === 'POST'
+        && /\/backend-api\/conversation(?:[?#]|$)/.test(s)
+        && /text\/event-stream/i.test(contentType);
+    } catch(_) { return false; }
+  },
+  _recordReadProbe(next) {
+    if (!next || typeof next !== 'object') return;
+    const bounded = (value) => Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(value) || 0));
+    this.readProbe.complete = !!next.complete;
+    this.readProbe.completion = ['none','message','done'].includes(next.completion) ? next.completion : 'none';
+    this.readProbe.assistantEvents = bounded(next.assistantEvents);
+    this.readProbe.assistantChars = bounded(next.assistantChars);
+    this.readProbe.marker = ['none','proceed','halt'].includes(next.marker) ? next.marker : 'none';
+    this.readProbe.malformedEvents = bounded(next.malformedEvents);
+    this.readProbe.oversizedEvents = bounded(next.oversizedEvents);
+    this.readProbe.lastAt = Date.now();
+  },
+  _startReadProbe(url, init, response) {
+    if (!this._readProbeEligible(url, init, response)) return null;
+    const r = this.readProbe;
+    r.streams = Math.min(CHATGPT_SSE_MAX_COUNT, r.streams + 1);
+    r.openStreams = Math.min(CHATGPT_SSE_MAX_COUNT, r.openStreams + 1);
+    Object.assign(r, {
+      complete: false,
+      completion: 'none',
+      assistantEvents: 0,
+      assistantChars: 0,
+      marker: 'none',
+      malformedEvents: 0,
+      oversizedEvents: 0,
+      lastAt: Date.now()
+    });
+    return _createChatGPTSSEReadProbe((next) => this._recordReadProbe(next));
+  },
+  _endReadProbe() {
+    this.readProbe.openStreams = Math.max(0, this.readProbe.openStreams - 1);
+    this.readProbe.lastAt = Date.now();
+  },
+  readProbeSnapshot() {
+    const r = this.readProbe;
+    return {
+      enabled: !!r.enabled,
+      transport: r.transport,
+      streams: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.streams) || 0)),
+      openStreams: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.openStreams) || 0)),
+      complete: !!r.complete,
+      completion: ['none','message','done'].includes(r.completion) ? r.completion : 'none',
+      assistantEvents: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.assistantEvents) || 0)),
+      assistantChars: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.assistantChars) || 0)),
+      marker: ['none','proceed','halt'].includes(r.marker) ? r.marker : 'none',
+      malformedEvents: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.malformedEvents) || 0)),
+      oversizedEvents: Math.max(0, Math.min(CHATGPT_SSE_MAX_COUNT, Number(r.oversizedEvents) || 0))
+    };
   },
 
   /* True while generation traffic is plausibly flowing.
@@ -461,14 +693,30 @@ const GITL_NET = {
               const cloned = response.clone();
               if (cloned.body) {
                 const reader = cloned.body.getReader();
+                const readProbe = typeof TextDecoder === 'function'
+                  ? self._startReadProbe(args[0], args[1], response) : null;
+                const decoder = readProbe ? new TextDecoder() : null;
                 (async () => {
                   try {
                     while (true) {
                       const { done, value } = await reader.read();
                       if (done) { self._emit(0, true); break; }
                       self._emit(value?.byteLength || value?.length || 0, false);
+                      if (readProbe && decoder) {
+                        try { readProbe.feed(decoder.decode(value, { stream: true })); } catch(_) {}
+                      }
                     }
                   } catch(_) { /* stream aborted — normal on navigation */ }
+                  finally {
+                    if (readProbe) {
+                      try {
+                        const tail = decoder ? decoder.decode() : '';
+                        if (tail) readProbe.feed(tail);
+                        readProbe.finish();
+                      } catch(_) {}
+                      self._endReadProbe();
+                    }
+                  }
             })();
           }
         } catch(err) {
@@ -2263,7 +2511,8 @@ const Reporter = {
         observerInstalled: !!h.netActive,
         streaming: !!h.netStreaming,
         trustedPulseAge: _ageBucket(GITL_NET.lastPulseT),
-        streamOpen: GITL_NET._open > 0
+        streamOpen: GITL_NET._open > 0,
+        readProbe: GITL_NET.readProbeSnapshot()
       },
       environment: {
         ..._browserSummary(),
@@ -5679,8 +5928,10 @@ function renderSettingsTab() {
 function renderDiag() {
   const L = GHOST.loop;
   const h = typeof platformHealth === 'function' ? platformHealth() : null;
+  const nr = GITL_NET.readProbeSnapshot();
   const lines = [
     h ? `<span class="ok">Health:</span> ${h.badge} ${h.score}/100 (in:${h.input?'✓':'✗'} send:${h.send?'✓':'✗'} read:${h.assistantCount} net:${h.netActive?'✓':'✗'})` : '',
+    `<span>Net read experiment:</span> ${nr.enabled ? `${_esc(nr.transport)} · streams:${nr.streams} open:${nr.openStreams} complete:${nr.complete?'yes':'no'} marker:${_esc(nr.marker)} chars:${nr.assistantChars}` : 'off (default)'}`,
     `<span class="ok">Adapter:</span> ${_esc(DIAG.adapter)}`,
     `<span class="ok">Platform:</span> ${_esc(PLAT.label)}`,
     `<span>Selector:</span> ${_esc(DIAG.selector || '—')}`,

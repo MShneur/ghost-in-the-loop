@@ -48,6 +48,29 @@ single-dispatch source contracts. See `docs/CURSOR_EVAL_TRACK_F.md`.
   All new safeguard failures happen before `_beginSendAttempt()`, report loudly,
   and never retry or escalate actuation.
 
+### Experimental redacted SSE read probe
+
+Added one off-by-default, read-only network-reading prototype for ChatGPT SSE
+conversation responses. The existing `GITL_NET` fetch clone can replay the
+stream through a bounded parser when `netReadChatgptSse` is explicitly set to
+boolean `true`.
+
+The parser retains metadata only: assistant event/character counts, completion
+enum, protocol-marker enum, and malformed/oversized counters. Raw user or
+assistant text, URLs, request bodies, conversation identifiers, and payloads
+are never persisted or included in diagnostics. One SSE event is capped at
+65,536 characters and fixed counters are capped.
+
+This is evaluation telemetry only. It does not feed generation detection,
+completion decisions, Send confirmation, or any actuator. The flag defaults
+off, and the existing DOM and send-authority paths are unchanged.
+
+Tests replay synthetic streams across arbitrary chunk boundaries, malformed
+JSON, user-role events, terminal records, `[DONE]`, and oversized-event
+recovery. See `docs/CURSOR_EVAL_TRACK_C.md` for the comparison with Socket.IO,
+`batchexecute`, other SSE, `aria-live`, and Stop→Send signals, plus enablement
+and residual risks.
+
 ## [8.6.2] — Exact pre-dispatch send evidence
 
 - Before opening the at-most-once send journal, Ghost now proves that the live,

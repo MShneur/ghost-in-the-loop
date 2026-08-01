@@ -68,6 +68,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
   const _exp = __GITL_TEST_SINK__;
   [ 'VER','SIGIL_PROCEED','SIGIL_HALT','LEGACY_PROCEED','LEGACY_HALT',
     'MIN_RESPONSE_LEN','GHOST','DIAG','Timeline','GITL_NET','Reporter','ERROR_CATALOG',
+    'NET_READ_FLAGS','CHATGPT_SSE_MAX_EVENT_CHARS','_createChatGPTSSEReadProbe',
     'detectSignal','parseProgress','parseRoadmap','randomDelay','sleep',
     'platformHealth','assertInteractionSafe','claimTabLock','verifyTabLease','releaseTabLock',
     '_tabLockKey','GITL_TAB_ID','GhostBus',

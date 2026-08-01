@@ -95,6 +95,44 @@ sites are also deferred. See `docs/CURSOR_EVAL_TRACK_D.md`.
 **Tests:** `tests/runtime-safeguards.test.js`, expanded route browser tests in
 both engines, and updated transaction/config/Teach source contracts.
 
+### Redacted network-read experiment
+
+**What was investigated:** stronger read-only completion/text witnesses through
+the existing `GITL_NET`: ChatGPT and Claude SSE, Perplexity Socket.IO, Gemini
+`batchexecute`, `aria-live` regions, and Stop→Send control transitions.
+
+**Why exactly one prototype was chosen:** ChatGPT SSE has deterministic framing,
+an exact POST endpoint that can be distinguished from archive reads, and an
+existing `fetch` clone. That makes arbitrary chunk-boundary replay possible
+without claiming access to an authenticated live site. Other network formats
+need separate event/RPC decoders; `aria-live` and Stop→Send remain useful
+presentation hints but are not authoritative text transports.
+
+**What shipped:** `_createChatGPTSSEReadProbe`, gated by the boolean
+`netReadChatgptSse` flag (default `false`). It parses only assistant-role SSE
+records and `[DONE]`, then retains a fixed metadata snapshot: event/character
+counts, completion/marker enums, and malformed/oversized counts. One event is
+capped at 65,536 characters; counters are capped at 1,000,000. Raw text is
+transient during parse and is never returned, persisted, added to Timeline, or
+included in diagnostics.
+
+**Safety boundary:** the snapshot is visible only in Diagnostics/evaluation.
+It is not read by `Adapter.isGenerating`, reply completion, Send evidence,
+Send confirmation, or actuator selection. Enabling the experiment cannot
+authorize, confirm, trigger, retry, or delay a Send. Existing DOM catches and
+network pulse behavior are unchanged.
+
+**Tests:** `tests/net-read-chatgpt.test.js` replays synthetic CRLF/LF streams
+split at hostile boundaries, ignored user-role content, malformed records,
+HALT priority, message and `[DONE]` completion, and oversized-event recovery.
+It also locks endpoint/method/content-type gates, default-off behavior,
+diagnostic redaction, and the no-completion/no-actuation source boundary.
+
+**Honest limit:** this validates parser behavior against representative
+fixtures, not the current private live schema. Schema drift safely reduces the
+experiment to malformed/oversized metadata while the normal DOM path remains.
+See `docs/CURSOR_EVAL_TRACK_C.md` for the full comparison and enablement.
+
 ## v8.6.2 — Mobile send pre-dispatch evidence
 
 **Hypothesis checked:** ChatGPT- and Perplexity-shaped contenteditable fixtures
