@@ -1,0 +1,30 @@
+{
+  "recommendationId": "REC-GITL-8.7.0-BC-C01E892A-7F27",
+  "type": "gitl-eval-upgrade",
+  "status": "ready-for-review",
+  "createdAt": "2026-08-01T12:10:00Z",
+  "source": {
+    "repository": "MShneur/ghost-in-the-loop",
+    "branch": "personal-forge/rec-gitl-8.7.0-bc-c01e892a-7f27",
+    "baseBranch": "claude/skin-system-redesign-dh04go",
+    "cloudAgentRun": "bc-c01e892a-8ace-4a3a-968e-40bc91e97f27",
+    "cloudAgentUrl": "https://cursor.com/agents/bc-c01e892a-8ace-4a3a-968e-40bc91e97f27"
+  },
+  "artifact": {
+    "version": "8.7.0",
+    "userscript": "dev/ghost-in-the-loop.user.js",
+    "report": "dev/docs/CURSOR_EVAL_REPORT.md",
+    "handoff": "dev/docs/HANDOFF_CURSOR_EVAL.md"
+  },
+  "install": {
+    "rawUserscript": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/personal-forge/rec-gitl-8.7.0-bc-c01e892a-7f27/dev/ghost-in-the-loop.user.js",
+    "branchCompare": "https://github.com/MShneur/ghost-in-the-loop/compare/claude/skin-system-redesign-dh04go...personal-forge/rec-gitl-8.7.0-bc-c01e892a-7f27"
+  },
+  "verification": {
+    "jest": "39 suites, 442 tests passed",
+    "playwright": "76 tests passed (chromium + firefox + mobile-chrome)",
+    "extensionParity": "build-extension.js --check current"
+  },
+  "promoteToMain": false,
+  "notes": "Recommendation only — do not merge to ghost-in-the-loop main without field retest."
+}

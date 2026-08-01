@@ -1,6 +1,7 @@
 # Ghost in the Loop — Cursor Eval Report (v8.7.0)
 
-**Branch:** `cursor/eval-upgrade-7f27` (off `claude/skin-system-redesign-dh04go`)  
+**Branch:** `personal-forge/rec-gitl-8.7.0-bc-c01e892a-7f27` (off `claude/skin-system-redesign-dh04go`)  
+**Recommendation ID:** `REC-GITL-8.7.0-BC-C01E892A-7F27`  
 **Status:** Ready for review on Personal Forge — **not promoted to main**  
 **Version:** 8.7.0
 
@@ -165,7 +166,7 @@ node scripts/build-extension.js --check
 
 ```bash
 # Install from branch raw URL (after push):
-# https://raw.githubusercontent.com/<org>/personal-forge/cursor/eval-upgrade-7f27/dev/ghost-in-the-loop.user.js
+# https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/personal-forge/rec-gitl-8.7.0-bc-c01e892a-7f27/dev/ghost-in-the-loop.user.js
 
 # Optional flags (Tampermonkey console / GM storage):
 GM_setValue('dryRun', true)          # simulate sends
