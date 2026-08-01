@@ -1,0 +1,14 @@
+name: ghost-in-the-loop-eval
+title: Ghost in the Loop — Cursor evaluation
+status: review
+version: "8.7.0"
+branch: cursor/gitl-eval-integrator-2995
+base_branch: claude/skin-system-redesign-dh04go
+source_repo: https://github.com/MShneur/ghost-in-the-loop
+forge_push: denied-403
+promote_to_main: false
+tests:
+  jest: "456 passed"
+  playwright: "86 passed"
+  extension_parity: current
+updated: "2026-08-01"

@@ -56,14 +56,28 @@ async function boot(page) {
 test.describe('Mobile send — buttonless Enter path', () => {
   test('selects reviewed-enter when Send is hidden/disabled', async ({ page }) => {
     await boot(page);
-    const pathName = await page.evaluate(async () => {
+    const info = await page.evaluate(async () => {
       const input = window.__GITL_Adapter.getInput();
+      const btn = document.querySelector('[data-testid="send-button"]');
+      // Keep the mobile class: Send stays hidden/disabled (no trusted input).
+      btn.hidden = true;
+      btn.disabled = true;
+      btn.setAttribute('hidden', '');
       window.__GITL_Adapter.injectText(input, 'Continue from mobile');
       await new Promise(r => setTimeout(r, 100));
+      btn.hidden = true;
+      btn.disabled = true;
+      const reviewed = window.__GITL_Adapter.getSendBtn();
       const strategy = window.__GITL_selectSendStrategy(input);
-      return strategy && strategy.path;
+      return {
+        path: strategy && strategy.path,
+        reviewed: reviewed ? (reviewed.id || reviewed.getAttribute('aria-label')) : null,
+        btnHidden: !!btn.hidden,
+        btnDisabled: !!btn.disabled,
+      };
     });
-    expect(pathName).toBe('reviewed-enter');
+    expect(info.reviewed).toBe(null);
+    expect(info.path).toBe('reviewed-enter');
   });
 
   test('Enter single-dispatch submits once — no second actuator', async ({ page }) => {
@@ -92,11 +106,16 @@ test.describe('Mobile send — buttonless Enter path', () => {
     expect(['reviewed-enter', 'reviewed-button', 'reviewed-form']).toContain(runs);
   });
 
-  test('device descriptor project exposes touch', async ({ page }, testInfo) => {
-    // Soft signal that a mobile project is active when this file runs under it.
-    const touch = await page.evaluate(() => navigator.maxTouchPoints || 0);
+  test('device descriptor project uses a mobile viewport', async ({ page }, testInfo) => {
+    const viewport = page.viewportSize();
     if (/mobile/i.test(testInfo.project.name)) {
-      expect(touch).toBeGreaterThan(0);
+      expect(viewport).toBeTruthy();
+      expect(viewport.width).toBeLessThanOrEqual(500);
+      // Chromium mobile projects expose touch points; Firefox Playwright may not.
+      const touch = await page.evaluate(() => navigator.maxTouchPoints || 0);
+      if (testInfo.project.name.startsWith('chromium')) {
+        expect(touch).toBeGreaterThan(0);
+      }
     }
   });
 });

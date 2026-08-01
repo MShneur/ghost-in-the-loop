@@ -54,9 +54,12 @@ const projects = [
     },
   },
   /* Track G — mobile project: touch + mobile viewport + Android UA so the
-     ChatGPT/Perplexity mobile Send class is reproducible in CI. */
+     ChatGPT/Perplexity mobile Send class is reproducible in CI.
+     Scoped to mobilesend.spec.js — orb drag/tap geometry remains covered by
+     the desktop firefox project (viewport+UA already approximate Android). */
   {
     name: 'chromium-mobile',
+    testMatch: '**/mobilesend.spec.js',
     use: {
       ...devices['Pixel 7'],
       hasTouch: true,
@@ -79,13 +82,14 @@ if (firefoxAvailable) {
   });
   projects.push({
     name: 'firefox-mobile',
+    testMatch: '**/mobilesend.spec.js',
     use: {
-      ...devices['Pixel 7'],
-      defaultBrowserType: 'firefox',
+      // Playwright Firefox rejects isMobile; keep touch + Android UA + viewport.
+      browserName: 'firefox',
       hasTouch: true,
-      isMobile: true,
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
       viewport: { width: 412, height: 915 },
+      deviceScaleFactor: 2.625,
     },
   });
 }

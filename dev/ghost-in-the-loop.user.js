@@ -906,6 +906,8 @@ function _sendLooksSafe(el) {
 
 function _visible(el) {
   try {
+    if (!el || el.hidden || el.getAttribute('hidden') != null) return false;
+    if (el.getAttribute('aria-hidden') === 'true') return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
   } catch(_) { return false; }
