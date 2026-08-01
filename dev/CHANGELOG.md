@@ -1,5 +1,26 @@
 # Changelog
 
+## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
+
+**Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt
+but paused every round with `SEND-001 — No safe Send mechanism`. On ChatGPT's
+mobile web composer the Send button isn't a uniquely resolvable reviewed
+control (it's hidden behind a dictation button until a native keystroke), so
+`getSendBtn()` returned null and — because ChatGPT declared no fallback — the
+transaction dead-ended.
+
+**Fix:** ChatGPT now declares `dispatchFallback: 'enter'`, the same reviewed
+single-dispatch mechanism Perplexity already uses. Its ProseMirror composer
+submits on Enter, so when no unique reviewed button resolves Ghost fires exactly
+**one** Enter `keydown` on the composer — chosen before the at-most-once journal
+opens, with no escalation. Desktop is unchanged: the reviewed button still wins
+and the Enter path is never reached there.
+
+If a user has turned off ChatGPT's default "Enter sends message" setting, the
+Enter fallback becomes a no-op — the send is then marked *uncertain* (composer
+not cleared), never double-sent and never falsely confirmed. Teach Send remains
+available for any composer this still can't drive.
+
 ## [8.6.0] — Teach Mode: user-taught Send / input controls
 
 When a site (or a mobile DOM) hides the Send button or chat input behind
