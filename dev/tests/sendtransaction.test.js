@@ -47,11 +47,22 @@ describe('send transaction', () => {
 
   test('strategy selection is complete before transaction creation', () => {
     const strategy = send.indexOf('const strategy = btn ?');
+    const evidence = send.indexOf('const preDispatch = _preDispatchEvidence(input, text, strategy)');
     const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const dispatch = send.indexOf('strategy.run()');
     expect(strategy).toBeGreaterThan(-1);
-    expect(begin).toBeGreaterThan(strategy);
+    expect(evidence).toBeGreaterThan(strategy);
+    expect(begin).toBeGreaterThan(evidence);
     expect(dispatch).toBeGreaterThan(begin);
+  });
+
+  test('prompt and actuator evidence gate fails before any transaction or dispatch', () => {
+    const gate = send.indexOf('if (!preDispatch.ok)');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(begin);
+    expect(send.slice(gate, begin)).toContain('return false;');
+    expect(send.slice(gate, begin)).not.toContain('strategy.run()');
   });
 
   test('engineSend waits for the transaction promise instead of reporting success', () => {

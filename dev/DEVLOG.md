@@ -11,6 +11,39 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.6.2 — Mobile send pre-dispatch evidence
+
+**Hypothesis checked:** ChatGPT- and Perplexity-shaped contenteditable fixtures
+start with a disabled reviewed Send button and enable it only after receiving an
+`input` event with the exact expected prompt. In mobile-size Chromium and
+desktop Gecko with an Android UA/viewport, `Adapter.injectText()` staged the
+complete multiline prompt and fired the event needed to enable and resolve the
+reviewed button on both fixtures. This validates the event path internally; it
+does not prove that current authenticated site builds update framework state the
+same way on a real phone.
+
+**Safety gap found:** `engineSend()` trusted `injectText()` returning true. After
+the 500 ms settle delay it selected a mechanism and opened the transaction
+without re-reading the composer. A framework rewrite, editor normalization, or
+DOM replacement could therefore leave different text staged before the one
+allowed dispatch.
+
+**Fix:** `_preDispatchEvidence()` runs after mechanism selection and before
+`_beginSendAttempt()`. It requires the same live, visible, enabled composer to
+hold the full intended prompt (with only CRLF canonicalized), then re-resolves
+the reviewed actuator. A button must still be the same authorized control;
+Enter must still be explicitly declared by the reviewed adapter and target the
+same composer. Failure reports and pauses before the journal opens. There is no
+replacement mechanism and no post-dispatch escalation.
+
+**Browser coverage:** host-routed ChatGPT and Perplexity fixtures exercise the
+real userscript at a 390×844 mobile viewport and Android UA in Chromium and
+Firefox projects. For each platform they prove button enabling after injection,
+single buttonless Enter dispatch with exact prompt staging, independent
+composer+Stop confirmation, and pre-journal refusal after fixture tampering.
+Playwright Firefox is desktop Gecko and exposes no touch points; neither project
+is a real Android-device result.
+
 ## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
 
 **What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,

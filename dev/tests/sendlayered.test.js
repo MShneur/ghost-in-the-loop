@@ -34,10 +34,12 @@ describe('single reviewed dispatch selection', () => {
 
   test('selects the mechanism before opening the transaction journal', () => {
     const selectAt = send.indexOf('const strategy = btn ?');
+    const evidenceAt = send.indexOf('const preDispatch = _preDispatchEvidence(input, text, strategy)');
     const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
-    expect(beginAt).toBeGreaterThan(selectAt);
+    expect(evidenceAt).toBeGreaterThan(selectAt);
+    expect(beginAt).toBeGreaterThan(evidenceAt);
     expect(runAt).toBeGreaterThan(beginAt);
   });
 
@@ -77,5 +79,24 @@ describe('single reviewed dispatch selection', () => {
     expect(beginAt).toBeGreaterThan(-1);
     expect(noStrategyAt).toBeLessThan(beginAt);
     expect(send).toContain('No safe Send mechanism — prompt left for manual review');
+  });
+
+  test('pre-dispatch evidence proves exact staging and re-resolves the chosen actuator', () => {
+    const evidence = body('_preDispatchEvidence', '_settleSendPromise');
+    expect(evidence).toContain('_composerRawText(input) === intended');
+    expect(evidence).toContain('current === strategy.actuator');
+    expect(evidence).toContain("PLAT.dispatchFallback === 'enter'");
+    expect(evidence).toContain('Adapter.peekInput() === input');
+    expect(evidence).toContain('return { ok: composerExact && actuatorReady, composerExact, actuatorReady }');
+  });
+
+  test('failed evidence pauses before journal creation and cannot dispatch', () => {
+    const gateAt = send.indexOf('if (!preDispatch.ok)');
+    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(gateAt).toBeLessThan(beginAt);
+    expect(send.slice(gateAt, beginAt)).toContain('pauseWithProbe(');
+    expect(send.slice(gateAt, beginAt)).toContain('return false;');
+    expect(send.slice(gateAt, beginAt)).not.toContain('strategy.run()');
   });
 });

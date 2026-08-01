@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.1';
+const VER = '8.6.2';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -2361,8 +2361,54 @@ async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.no
 
 let _pendingSendResolve = null;
 
+function _composerRawText(el) {
+  if (!el) return '';
+  try {
+    const value = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+      ? el.value
+      : (typeof el.innerText === 'string' ? el.innerText : el.textContent);
+    return String(value == null ? '' : value).replace(/\r\n?/g, '\n');
+  } catch(_) {
+    return '';
+  }
+}
+
 function _composerText(el) {
-  return String((el && (el.value || el.textContent)) || '').trim();
+  return _composerRawText(el).trim();
+}
+
+/* Evidence is collected before the at-most-once journal opens. The composer
+   must still be the live, enabled adapter input and must contain the complete
+   staged prompt. The selected actuator is then re-resolved through reviewed
+   authority; failure pauses without dispatching or selecting a replacement. */
+function _preDispatchEvidence(input, text, strategy) {
+  let composerReady = false;
+  try {
+    composerReady = !!input
+      && input.isConnected
+      && !_isOwnUI(input)
+      && !input.disabled
+      && !input.readOnly
+      && input.getAttribute('aria-disabled') !== 'true'
+      && _visible(input);
+  } catch(_) {
+    composerReady = false;
+  }
+  const intended = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
+  const composerExact = composerReady && _composerRawText(input) === intended;
+  let actuatorReady = false;
+  if (composerExact && strategy?.path === 'reviewed-button') {
+    const current = Adapter.getSendBtn();
+    actuatorReady = !!strategy.actuator
+      && strategy.actuator.isConnected
+      && current === strategy.actuator;
+  } else if (composerExact && strategy?.path === 'reviewed-enter') {
+    actuatorReady = !!PLAT?.reviewed
+      && PLAT.dispatchFallback === 'enter'
+      && strategy.actuator === input
+      && Adapter.peekInput() === input;
+  }
+  return { ok: composerExact && actuatorReady, composerExact, actuatorReady };
 }
 
 function _settleSendPromise(ok) {
@@ -2462,9 +2508,11 @@ async function engineSend(text, skipDelay) {
     // Ghost only observes confirmation evidence or enters `uncertain`.
     const strategy = btn ? {
       path: 'reviewed-button',
+      actuator: btn,
       run: () => btn.click()
     } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
       path: 'reviewed-enter',
+      actuator: input,
       run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
         key:'Enter', code:'Enter', keyCode:13, which:13,
         bubbles:true, cancelable:true, composed:true
@@ -2473,6 +2521,21 @@ async function engineSend(text, skipDelay) {
     if (!strategy) {
       Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
       pauseWithProbe('No safe Send mechanism — prompt left for manual review');
+      return false;
+    }
+    const preDispatch = _preDispatchEvidence(input, text, strategy);
+    if (!preDispatch.ok) {
+      const reason = preDispatch.composerExact ? 'actuator-invalid' : 'prompt-not-staged';
+      Timeline.record('send_blocked', { reason, path: strategy.path });
+      Reporter.capture(
+        preDispatch.composerExact ? 'SEND-001' : 'COMPOSER-001',
+        preDispatch.composerExact
+          ? 'The selected reviewed Send actuator was no longer valid before dispatch.'
+          : 'The composer did not contain the exact staged prompt before dispatch.'
+      );
+      pauseWithProbe(preDispatch.composerExact
+        ? 'Reviewed Send control changed — prompt left for manual review'
+        : 'Staged prompt changed before Send — review the composer');
       return false;
     }
     DIAG.sendPath = strategy.path;

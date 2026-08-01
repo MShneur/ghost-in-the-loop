@@ -1,5 +1,20 @@
 # Changelog
 
+## [8.6.2] — Exact pre-dispatch send evidence
+
+- Before opening the at-most-once send journal, Ghost now proves that the live,
+  enabled composer contains the complete staged prompt and re-resolves the
+  selected reviewed actuator. A reviewed button must still be the same unique,
+  visible, enabled, veto-safe control; reviewed Enter must still target the same
+  live composer on an explicitly opted-in platform.
+- Failed evidence pauses loudly before any click or keydown. It does not create
+  a send transaction, choose a replacement actuator, or escalate after dispatch.
+- Mobile-size real-browser fixtures for ChatGPT and Perplexity verify that
+  `injectText` input events can enable their reviewed Send controls, and that
+  the buttonless reviewed Enter path stages the exact prompt, dispatches one
+  keydown, and confirms only from independent composer-clear + Stop evidence.
+  These are browser-emulated fixtures, not real-device certification.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

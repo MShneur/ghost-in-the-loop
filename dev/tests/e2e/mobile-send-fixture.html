@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mobile composer send fixture</title>
+  <style>
+    body { margin: 0; font: 16px sans-serif; }
+    main { min-height: 100vh; display: flex; flex-direction: column; }
+    .conversation { flex: 1; padding: 16px; }
+    form { display: flex; gap: 8px; padding: 12px; }
+    [contenteditable="true"] {
+      flex: 1;
+      min-height: 44px;
+      padding: 8px;
+      border: 1px solid #888;
+      white-space: pre-wrap;
+    }
+    button { min-width: 44px; min-height: 44px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="conversation"></div>
+</main>
+<script>
+(() => {
+  const perplexity = location.hostname.includes('perplexity.ai');
+  const conversation = document.querySelector('.conversation');
+  const assistant = document.createElement('div');
+  assistant.textContent = 'A completed assistant response already in the conversation.';
+  if (perplexity) assistant.className = 'prose';
+  else assistant.setAttribute('data-message-author-role', 'assistant');
+  conversation.appendChild(assistant);
+
+  const form = document.createElement('form');
+  form.setAttribute('aria-label', perplexity ? 'Ask follow-up' : 'Message composer');
+  form.addEventListener('submit', event => event.preventDefault());
+
+  const composer = document.createElement('div');
+  composer.contentEditable = 'true';
+  composer.setAttribute('role', 'textbox');
+  composer.className = 'ProseMirror';
+  if (perplexity) composer.setAttribute('data-testid', 'composer');
+  else {
+    composer.id = 'prompt-textarea';
+    composer.setAttribute('data-placeholder', 'Message ChatGPT');
+  }
+
+  const voice = document.createElement('button');
+  voice.type = 'button';
+  voice.id = 'voice-control';
+  voice.setAttribute('aria-label', 'Start voice mode');
+  voice.textContent = 'Voice';
+
+  const send = document.createElement('button');
+  send.type = 'button';
+  send.id = 'fixture-send';
+  send.disabled = true;
+  send.setAttribute('aria-label', perplexity ? 'Submit' : 'Send prompt');
+  if (!perplexity) send.setAttribute('data-testid', 'send-button');
+  send.textContent = 'Send';
+
+  form.append(composer, voice, send);
+  document.querySelector('main').appendChild(form);
+
+  const stats = {
+    inputEvents: 0,
+    enterKeydowns: 0,
+    buttonClicks: 0,
+    submittedPrompt: '',
+    tampered: false
+  };
+  let mode = 'enable-after-input';
+  let expected = '';
+
+  const readComposer = () => {
+    const value = typeof composer.innerText === 'string'
+      ? composer.innerText
+      : composer.textContent;
+    return String(value || '').replace(/\r\n?/g, '\n');
+  };
+  const clearComposer = () => {
+    composer.replaceChildren();
+    composer.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      composed: true,
+      inputType: 'deleteContentBackward'
+    }));
+  };
+  const showStop = () => {
+    if (document.getElementById('fixture-stop')) return;
+    const stop = document.createElement('button');
+    stop.type = 'button';
+    stop.id = 'fixture-stop';
+    stop.setAttribute('aria-label', 'Stop');
+    stop.setAttribute('data-testid', 'stop-button');
+    stop.textContent = 'Stop';
+    form.appendChild(stop);
+  };
+  const submitIfExact = () => {
+    stats.submittedPrompt = readComposer();
+    if (stats.submittedPrompt !== expected) return;
+    clearComposer();
+    showStop();
+  };
+
+  composer.addEventListener('input', () => {
+    stats.inputEvents++;
+    const staged = readComposer();
+    if (mode === 'enable-after-input' && staged === expected) send.disabled = false;
+    if (mode === 'tamper' && !stats.tampered) {
+      stats.tampered = true;
+      composer.textContent = staged + ' [fixture changed]';
+    }
+  });
+  composer.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    stats.enterKeydowns++;
+    event.preventDefault();
+    submitIfExact();
+  });
+  send.addEventListener('click', () => {
+    stats.buttonClicks++;
+    submitIfExact();
+  });
+
+  window.__mobileSendFixture = {
+    composer,
+    send,
+    stats,
+    platform: perplexity ? 'perplexity' : 'chatgpt',
+    setMode(nextMode, prompt) {
+      mode = nextMode;
+      expected = String(prompt);
+      stats.inputEvents = 0;
+      stats.enterKeydowns = 0;
+      stats.buttonClicks = 0;
+      stats.submittedPrompt = '';
+      stats.tampered = false;
+      composer.replaceChildren();
+      document.getElementById('fixture-stop')?.remove();
+      if (mode === 'enable-after-input') {
+        if (!send.isConnected) form.appendChild(send);
+        send.disabled = true;
+      } else {
+        send.remove();
+      }
+    },
+    readComposer
+  };
+})();
+</script>
+</body>
+</html>
