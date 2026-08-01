@@ -16,11 +16,14 @@ describe('_validateConfigBundle', () => {
     const r = _validateConfigBundle(bundle({
       maxRounds: 40,
       driftEnabled: true,
+      automationEnabled: false,
+      dryRun: true,
       payloadMode: 'roadmap',
       panelPosition: 'dock-left'
     }));
     expect(r.ok).toBe(true);
     expect(r.config.maxRounds).toBe(40);
+    expect(r.config.automationEnabled).toBe(false);
   });
 
   test('rejects missing/wrong schemas and unknown top-level fields', () => {
@@ -35,13 +38,15 @@ describe('_validateConfigBundle', () => {
     expect(_validateConfigBundle(bundle({ customPersonas:'{}' })).ok).toBe(false);
     expect(_validateConfigBundle(bundle({ maxRounds:0 })).ok).toBe(false);
     expect(_validateConfigBundle(bundle({ unattended:'yes' })).ok).toBe(false);
+    expect(_validateConfigBundle(bundle({ dryRun:'yes' })).ok).toBe(false);
     expect(_validateConfigBundle(bundle({ panelPosition:'somewhere' })).ok).toBe(false);
   });
 
   test('config format excludes project, task, theme payload, adapter, and diagnostics data', () => {
     for (const key of [
       'projectName','projectSlug','rmSteps','qDraft','customPersonas',
-      'customWorkflows','customSkin','customSites','lastDiagnostic'
+      'customWorkflows','customSkin','customSites','lastDiagnostic',
+      'gitlSiteEnabled:chatgpt.com'
     ]) {
       expect(CONFIG_KEYS).not.toContain(key);
     }

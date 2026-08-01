@@ -77,6 +77,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'Workshop','WORKSHOP_LIMITS','allPersonas','allWorkflows',
     'SKIN','SKIN_TOKENS','SKIN_FX','SKIN_PRESETS',
     'Adapter','_heurSend','_heurInput','_reviewedSend','_reviewedComposer','_submitFormLooksSafe','_reviewedSubmitForm','_reviewedTaughtSend','SEND_WORDS','SEND_VETO','_sendLooksSafe','SelectorMemory','reDetect','UW','_orbEdgeFromX','_orbClampY','_railBox','TeachStore','Teach','platformHealth',
+    'SafetyPolicy','_stagedPromptMatches','_conversationIdentity','_captureSendContext','_sendContextUnchanged',
     'EXPLAIN','_explainLookup',
     'render','runDirectives','hasPendingDirectives','startLoop','stopLoop','resetLoop','resolvePersonaInject',
     'PERSONA_LIBRARY','PAYLOADS','POSTURES',

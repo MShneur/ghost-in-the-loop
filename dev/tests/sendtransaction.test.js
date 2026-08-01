@@ -19,7 +19,8 @@ describe('dispatch authority', () => {
   test('only one reviewed adapter button may return from the top authority tier', () => {
     expect(src).toContain('function _reviewedSend()');
     expect(src).toContain('if (!PLAT?.reviewed) return null;');
-    expect(src).toContain('return matches.size === 1 ? [...matches][0] : null;');
+    expect(src).toContain('if (candidates.size === 1)');
+    expect(src).toContain("status: candidates.size > 1 ? 'ambiguous' : 'unresolved'");
   });
 
   test('generic and imported custom adapters are not reviewed actuators', () => {

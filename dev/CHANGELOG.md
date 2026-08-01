@@ -1,6 +1,6 @@
 # Changelog
 
-## [8.7.0] — Evidence-gated Send mechanism ladder
+## [8.7.0] — Evidence-gated Send ladder and runtime safeguards
 
 Send mechanism selection is now a strict pre-journal ladder: unique reviewed
 adapter button → explicitly reviewed Enter → explicitly reviewed unique
@@ -24,6 +24,29 @@ Coverage includes all 16 B/E/F/T availability combinations crossed with prompt
 evidence present/absent and actuator throw/no-throw (64 truth-table cases), plus
 form safety, staging equality, pre-journal ordering, and post-journal
 single-dispatch source contracts. See `docs/CURSOR_EVAL_TRACK_F.md`.
+
+### Runtime safeguards
+
+- Added an exact pre-send staging gate: the live composer must contain the full
+  intended command after injection and immediately before the transaction
+  journal opens.
+- Composer resolution now pauses on ambiguity at the active selector tier,
+  including open shadow roots. Taught and learned selectors must remain unique;
+  tied heuristic candidates are refused.
+- Reviewed Send candidates are deduplicated across all reviewed selectors.
+  Multiple plausible controls pause with `SEND-003` and cannot fall through to
+  another mechanism.
+- Added command-bound navigation and conversation checks. A new conversation
+  may consume one same-host route assignment; a bound conversation pauses on a
+  route change even immediately after a send and requires session reset before
+  more automation.
+- Added Setup controls for a global automation kill switch, per-host enable,
+  and dry run. Generic/custom adapters default per-host authority off. Dry run
+  previews the exact next command inside Ghost without touching the site
+  composer or opening a send transaction.
+- The single-tab lease is re-verified immediately before mechanism selection.
+  All new safeguard failures happen before `_beginSendAttempt()`, report loudly,
+  and never retry or escalate actuation.
 
 ## [8.6.2] — Exact pre-dispatch send evidence
 

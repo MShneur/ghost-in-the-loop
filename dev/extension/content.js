@@ -268,6 +268,12 @@ function isTabSafeToAct() {
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
+  if (!SafetyPolicy.globalEnabled()) {
+    return { ok: false, reason: 'automation-disabled' };
+  }
+  if (!SafetyPolicy.siteEnabled()) {
+    return { ok: false, reason: 'site-not-enabled' };
+  }
   if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
@@ -663,9 +669,47 @@ try {
   }
 } catch(_){}
 
+/* ── ACTUATION POLICY (v8.7.0) ────────────────────────────────
+   The global switch is an immediate kill switch. Site policy is stored per
+   hostname; reviewed adapters retain their existing default, while generic or
+   custom adapters fail closed until the user explicitly enables that site.
+   Dry-run is handled separately because it never touches the host composer. */
+const SafetyPolicy = {
+  _siteKey(host) {
+    return `gitlSiteEnabled:${String(host || location.hostname).toLowerCase()}`;
+  },
+  globalEnabled() {
+    try {
+      if (typeof GHOST !== 'undefined' && GHOST.ui) return GHOST.ui.automationEnabled !== false;
+    } catch(_) {}
+    return GM_getValue('automationEnabled', true) !== false;
+  },
+  siteEnabled(reviewed) {
+    const defaultEnabled = typeof reviewed === 'boolean' ? reviewed : !!PLAT?.reviewed;
+    try {
+      const stored = GM_getValue(this._siteKey(), null);
+      return typeof stored === 'boolean' ? stored : defaultEnabled;
+    } catch(_) {
+      return false;
+    }
+  },
+  setGlobalEnabled(enabled) {
+    const next = !!enabled;
+    try { GHOST.ui.automationEnabled = next; } catch(_) {}
+    try { GM_setValue('automationEnabled', next); } catch(_) {}
+    return next;
+  },
+  setSiteEnabled(enabled) {
+    const next = !!enabled;
+    try { GM_setValue(this._siteKey(), next); } catch(_) { return false; }
+    return next;
+  }
+};
+
 // Selector cache with route-change invalidation
 const _cache = new Map();
 let _lastHref = location.href;
+let _navigationEpoch = 0;
 
 const _deepLast = new Map(); // throttle shadow walks per key
 function _shadowQS(sel) {
@@ -680,6 +724,30 @@ function _shadowQS(sel) {
     return null;
   };
   try { return walk(document, 0); } catch(_) { return null; }
+}
+
+/* Safety-sensitive resolution needs every open-shadow match, not the first
+   one. Bound the walk so a hostile page cannot make pre-send resolution
+   unbounded; reaching the cap is itself treated as ambiguity. */
+function _shadowQAll(sel, limit) {
+  const max = Number.isInteger(limit) ? limit : 16;
+  const out = [];
+  const walk = (root, depth) => {
+    if (!root || depth > 4 || out.length >= max) return;
+    for (const host of root.querySelectorAll('*')) {
+      if (!host.shadowRoot) continue;
+      try {
+        for (const el of host.shadowRoot.querySelectorAll(sel)) {
+          if (!out.includes(el)) out.push(el);
+          if (out.length >= max) return;
+        }
+      } catch(_) {}
+      walk(host.shadowRoot, depth + 1);
+      if (out.length >= max) return;
+    }
+  };
+  try { walk(document, 0); } catch(_) {}
+  return out;
 }
 
 function _isOwnUI(el) {
@@ -790,10 +858,10 @@ function _heurNote(what) {
   DIAG.push('Heuristic ' + what + ' engaged — configured selectors failed');
 }
 
-function _heurInput() {
+function _heurInput(fresh) {
   const c = _heurCache.input;
-  if (c.el && c.el.isConnected && Date.now() - c.ts < 4000) return c.el;
-  let best = null, bestScore = 3;
+  if (!fresh && c.el && c.el.isConnected && Date.now() - c.ts < 4000) return c.el;
+  let best = null, bestScore = 3, bestCount = 0;
   for (const el of _qAll(['textarea:not([disabled])','div[contenteditable="true"]'])) {
     if (!_visible(el)) continue;
     let s = 0;
@@ -802,8 +870,12 @@ function _heurInput() {
     if (r.top > innerHeight * 0.4) s += 2;
     s += Math.min(2, (r.width * r.height) / 50000);
     if (/ProseMirror|ql-editor/.test(String(el.className || ''))) s += 2;
-    if (s > bestScore) { bestScore = s; best = el; }
+    if (s > bestScore) { bestScore = s; best = el; bestCount = 1; }
+    else if (s === bestScore && best) { bestCount++; }
   }
+  // Equal best candidates are indistinguishable. Injection is a page write,
+  // so ambiguity must pause rather than become an arbitrary DOM-order choice.
+  if (bestCount > 1) return null;
   if (best) { _heurNote('input finder'); _heurCache.input.el = best; _heurCache.input.ts = Date.now(); }
   return best;
 }
@@ -916,11 +988,12 @@ const SelectorMemory = {
     const rec = this._load()[location.hostname]?.[kind];
     if (!rec || !rec.sel) return null;
     try {
-      for (const el of document.querySelectorAll(rec.sel)) {
-        if (el && !_isOwnUI(el) && _visible(el)) {
-          return el;
-        }
-      }
+      const matches = [...document.querySelectorAll(rec.sel)]
+        .filter(el => el && !_isOwnUI(el) && _visible(el));
+      // Learning was authorized only while the selector was unique. If later
+      // DOM drift makes it ambiguous, forget it rather than choosing first.
+      if (matches.length === 1) return matches[0];
+      if (matches.length > 1) this.forget(kind);
     } catch(_) { this.forget(kind); }
     return null;
   },
@@ -974,18 +1047,21 @@ const TeachStore = {
     const sel = this.get(kind);
     if (!sel) return null;
     try {
-      const matches = [...document.querySelectorAll(sel)].filter(el =>
-        el && !_isOwnUI(el) && _visible(el));
-      // A taught selector was unique when captured. If DOM drift makes it
-      // ambiguous, it loses authority instead of choosing the first match.
-      if (matches.length !== 1) return null;
-      const el = matches[0];
-      if (kind === 'send' && !_sendLooksSafe(el)) return null; // veto still applies
-      if (kind === 'input') {
-        const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
-        if (!ok) return null;
-      }
-      return el;
+      const matches = [...document.querySelectorAll(sel)].filter(el => {
+        if (!el || _isOwnUI(el) || !_visible(el)) return false;
+        if (kind === 'send') {
+          return !el.disabled && el.getAttribute('aria-disabled') !== 'true' && _sendLooksSafe(el);
+        }
+        if (kind === 'input') {
+          return !el.disabled && el.getAttribute('aria-disabled') !== 'true'
+            && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'
+              || el.getAttribute('contenteditable') === 'true');
+        }
+        return false;
+      });
+      // A selector that drifted from one element to many has lost its human
+      // review context. Never pick the first match.
+      return matches.length === 1 ? matches[0] : null;
     } catch(_) {}
     return null;
   }
@@ -995,9 +1071,11 @@ const TeachStore = {
    learned, imported, and taught selectors are deliberately absent here. Every
    safe match across the reviewed selector set must identify the same one
    enabled, visible, veto-safe element. */
+let _sendResolution = { status: 'unresolved', count: 0, source: 'none' };
 function _reviewedSend() {
+  _sendResolution = { status: 'unresolved', count: 0, source: 'none' };
   if (!PLAT?.reviewed) return null;
-  const matches = new Set();
+  const candidates = new Set();
   for (const sel of PLAT.send || []) {
     try {
       [...document.querySelectorAll(sel)].filter(el =>
@@ -1005,27 +1083,46 @@ function _reviewedSend() {
         && !el.disabled
         && el.getAttribute('aria-disabled') !== 'true'
         && _visible(el)
-        && _sendLooksSafe(el)).forEach(el => matches.add(el));
+        && _sendLooksSafe(el)).forEach(el => candidates.add(el));
     } catch(_) {}
   }
-  return matches.size === 1 ? [...matches][0] : null;
+  if (candidates.size === 1) {
+    _sendResolution = { status: 'unique', count: 1, source: 'profile' };
+    return [...candidates][0];
+  }
+  _sendResolution = {
+    status: candidates.size > 1 ? 'ambiguous' : 'unresolved',
+    count: candidates.size,
+    source: 'profile'
+  };
+  return null;
 }
 
 /* Enter and requestSubmit write through the composer, so their target must be
-   uniquely identified by an adapter-owned reviewed selector. A composer found
-   by selector memory or a heuristic may be used for detection/injection, but
-   can never acquire keyboard/form actuation authority. */
+   uniquely identified by the first matching adapter-owned selector tier. A
+   composer found only by teaching, selector memory, or heuristics may be used
+   for injection, but can never acquire keyboard/form actuation authority. */
 function _reviewedComposer(input) {
   if (!input || !PLAT?.reviewed) return null;
   for (const sel of PLAT.input || []) {
+    let matches = [];
     try {
-      const matches = [...document.querySelectorAll(sel)].filter(el =>
+      const candidates = new Set([
+        ...document.querySelectorAll(sel),
+        ..._shadowQAll(sel)
+      ]);
+      matches = [...candidates].filter(el =>
         !_isOwnUI(el)
         && !el.disabled
         && el.getAttribute('aria-disabled') !== 'true'
-        && _visible(el));
-      if (matches.length === 1 && matches[0] === input) return input;
-    } catch(_) {}
+        && _visible(el)
+        && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'
+          || el.getAttribute('contenteditable') === 'true' || PLAT.useCE));
+    } catch(_) {
+      matches = [];
+    }
+    if (matches.length > 1) return null;
+    if (matches.length === 1) return matches[0] === input ? input : null;
   }
   return null;
 }
@@ -1161,8 +1258,63 @@ const Adapter = {
     if (!el) { el = _heurInput(); if (el) SelectorMemory.learn('input', el); }
     return el;
   },
+  /* Pre-send composer resolution is stricter than read-only detection. The
+     first configured selector tier with usable matches must resolve uniquely;
+     ambiguity does not fall through to a broader selector or heuristic. */
+  getInputForSend() {
+    this._inputResolution = { status: 'unresolved', count: 0, source: 'none' };
+    for (const sel of PLAT.input || []) {
+      let matches = [];
+      try {
+        const candidates = new Set([
+          ...document.querySelectorAll(sel),
+          ..._shadowQAll(sel)
+        ]);
+        matches = [...candidates].filter(el =>
+          !_isOwnUI(el)
+          && !el.disabled
+          && el.getAttribute('aria-disabled') !== 'true'
+          && _visible(el)
+          && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'
+            || el.getAttribute('contenteditable') === 'true' || PLAT.useCE));
+      } catch(_) {
+        matches = [];
+      }
+      if (matches.length > 1) {
+        this._inputResolution = { status: 'ambiguous', count: matches.length, source: 'profile' };
+        return null;
+      }
+      if (matches.length === 1) {
+        this._inputResolution = { status: 'unique', count: 1, source: 'profile' };
+        return matches[0];
+      }
+    }
+    const taught = TeachStore.matchEl('input');
+    if (taught) {
+      this._inputResolution = { status: 'unique', count: 1, source: 'taught' };
+      return taught;
+    }
+    const learned = SelectorMemory.lookup('input');
+    if (learned) {
+      this._inputResolution = { status: 'unique', count: 1, source: 'learned' };
+      return learned;
+    }
+    const heuristic = _heurInput(true);
+    if (heuristic) {
+      SelectorMemory.learn('input', heuristic);
+      this._inputResolution = { status: 'unique', count: 1, source: 'heuristic' };
+      return heuristic;
+    }
+    return null;
+  },
+  inputResolution() {
+    return this._inputResolution || { status: 'unresolved', count: 0, source: 'none' };
+  },
   getSendBtn() {
     return _reviewedSend();
+  },
+  sendResolution() {
+    return { ..._sendResolution };
   },
   getSendCandidate() {
     return _heurSend(this.peekInput() || null);
@@ -1703,6 +1855,9 @@ const GHOST = {
     sendPending: false,
     sendDeadline: 0,
     sendTxn: null,
+    dryRunPreview: '',
+    conversationBound: false,
+    conversationReviewRequired: false,
     originalTask: ''         // first task text of the run, for the reground gate
   },
   signals: {
@@ -1726,6 +1881,8 @@ const GHOST = {
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
     unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
+    automationEnabled: GM_getValue('automationEnabled',true) !== false,
+    dryRun: GM_getValue('dryRun',false) === true,
     explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     teaching: null, // runtime-only: 'send' | 'input' while capturing a control
     teachMsg: '',   // runtime-only: last teach result/hint
@@ -1939,9 +2096,17 @@ const ERROR_CATALOG = Object.freeze({
     summary: 'No unique, usable chat composer was available.',
     guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
   },
+  'COMPOSER-002': {
+    summary: 'The composer was ambiguous, changed, or did not contain the exact intended command.',
+    guidance: 'Do not send the staged text. Review the composer and selector probe before trying again.'
+  },
   'SEND-001': {
     summary: 'No unique reviewed Send control could be safely activated.',
     guidance: 'Review the inserted prompt and use the site Send button manually.'
+  },
+  'SEND-003': {
+    summary: 'More than one reviewed Send control was plausible.',
+    guidance: 'Do not choose one by position. Review the page and selector probe, then report the ambiguity.'
   },
   'SEND-002': {
     summary: 'A Send attempt occurred but delivery could not be confirmed.',
@@ -1954,6 +2119,14 @@ const ERROR_CATALOG = Object.freeze({
   'EXPORT-001': {
     summary: 'Export could not produce a validated transcript file.',
     guidance: 'Keep the chat open, try once more, then download this diagnostic if it still fails.'
+  },
+  'SAFETY-001': {
+    summary: 'Automation policy blocked actuation on this site.',
+    guidance: 'Review the global and per-site switches. Enable only the intended conversation.'
+  },
+  'SAFETY-003': {
+    summary: 'The page or conversation changed while a command was being prepared.',
+    guidance: 'Review the current conversation and reset the session before authorizing automation there.'
   },
   'MANUAL-001': {
     summary: 'A diagnostic was requested manually.',
@@ -2048,6 +2221,9 @@ const Reporter = {
           attemptedAge: _ageBucket(send.attemptedAt)
         } : null,
         unattended: !!unattendedOn(),
+        automationEnabled: SafetyPolicy.globalEnabled(),
+        siteEnabled: SafetyPolicy.siteEnabled(),
+        dryRun: !!GHOST?.ui?.dryRun,
         ticker: String(Ticker.mode || 'unknown'),
         degradedPhases: Array.isArray(GHOST?._degraded)
           ? GHOST._degraded.filter(x => /^[a-z0-9-]{1,32}$/i.test(String(x))).slice(0, 12) : []
@@ -2460,22 +2636,33 @@ function _preDispatchEvidence(input, text, strategy) {
   }
   const intended = String(text == null ? '' : text).replace(/\r\n?/g, '\n');
   const composerExact = composerReady && _composerRawText(input) === intended;
+  const currentButton = composerExact ? Adapter.getSendBtn() : null;
+  const buttonStatus = Adapter.sendResolution().status;
   let actuatorReady = false;
   if (composerExact && strategy?.path === 'reviewed-button') {
-    const current = Adapter.getSendBtn();
     actuatorReady = !!strategy.actuator
       && strategy.actuator.isConnected
-      && current === strategy.actuator;
+      && currentButton === strategy.actuator;
   } else if (composerExact && strategy?.path === 'reviewed-enter') {
-    actuatorReady = PLAT?.dispatchFallback === 'enter'
+    actuatorReady = !currentButton
+      && buttonStatus === 'unresolved'
+      && PLAT?.dispatchFallback === 'enter'
       && strategy.actuator === input
       && _reviewedComposer(input) === input;
   } else if (composerExact && strategy?.path === 'reviewed-form') {
-    actuatorReady = !!strategy.actuator
+    actuatorReady = !currentButton
+      && buttonStatus === 'unresolved'
+      && PLAT?.dispatchFallback !== 'enter'
+      && !!strategy.actuator
       && strategy.actuator.isConnected
       && _reviewedSubmitForm(input) === strategy.actuator;
   } else if (composerExact && strategy?.path === 'taught-control') {
-    actuatorReady = !!strategy.actuator
+    const reviewedComposer = _reviewedComposer(input);
+    actuatorReady = !currentButton
+      && buttonStatus === 'unresolved'
+      && !(reviewedComposer && PLAT?.dispatchFallback === 'enter')
+      && !(_reviewedSubmitForm(input))
+      && !!strategy.actuator
       && strategy.actuator.isConnected
       && _reviewedTaughtSend() === strategy.actuator;
   }
@@ -2511,6 +2698,52 @@ function _selectSendMechanism(staged, candidates) {
     }
   }
   return null;
+}
+
+/* Exact staging verification intentionally performs no trimming, newline
+   normalization, prefix matching, or case folding. A visually similar command
+   is not the command that was authorized. */
+function _stagedPromptMatches(el, expected) {
+  if (!el || !el.isConnected || _isOwnUI(el)) return false;
+  const intended = String(expected == null ? '' : expected);
+  try {
+    const editable = el.getAttribute && el.getAttribute('contenteditable') === 'true';
+    if (!editable && 'value' in el) return String(el.value == null ? '' : el.value) === intended;
+    const observed = [];
+    if (typeof el.innerText === 'string') observed.push(el.innerText);
+    if (typeof el.textContent === 'string') observed.push(el.textContent);
+    return observed.some(value => value === intended);
+  } catch(_) {
+    return false;
+  }
+}
+
+/* Command-bound conversation identity is runtime-only and never enters a
+   report or storage. Both exact route identity and the lock namespace must be
+   unchanged from preparation through transaction creation. */
+function _conversationIdentity() {
+  try { return String(location.href || ''); } catch(_) { return ''; }
+}
+function _captureSendContext() {
+  return {
+    navigationEpoch: _navigationEpoch,
+    conversation: _conversationIdentity(),
+    lockKey: _tabLockKey()
+  };
+}
+function _sendContextUnchanged(context) {
+  if (!context) return false;
+  return context.navigationEpoch === _navigationEpoch
+    && context.conversation === _conversationIdentity()
+    && context.lockKey === _tabLockKey();
+}
+
+function _pauseForSafety(code, reason, probe) {
+  Timeline.record('safety_pause', { code, reason });
+  Reporter.capture(code);
+  if (probe) pauseWithProbe(reason);
+  else enginePause(reason);
+  return false;
 }
 
 function _settleSendPromise(ok) {
@@ -2572,12 +2805,36 @@ function _sendEvidence() {
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
+  if (GHOST.ui.dryRun) {
+    L.dryRunPreview = String(text == null ? '' : text);
+    L.needsPayload = true;
+    Timeline.record('dry_run_preview', { chars: L.dryRunPreview.length, platform: PLAT?.key || 'generic' });
+    enginePause('Dry run — preview ready; nothing was injected or sent');
+    return false;
+  }
+  if (L.conversationReviewRequired) {
+    return _pauseForSafety('SAFETY-003', 'Conversation changed — reset the session before automating here', false);
+  }
   const safe = assertInteractionSafe();
-  if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
+  if (!safe.ok) {
+    DIAG.push(`Send blocked — ${safe.reason}`);
+    if (safe.reason === 'automation-disabled') {
+      return _pauseForSafety('SAFETY-001', 'Global kill switch is OFF — nothing was sent', false);
+    }
+    if (safe.reason === 'site-not-enabled') {
+      return _pauseForSafety('SAFETY-001', 'Automation is not enabled for this site — nothing was sent', false);
+    }
+    L.detail = `⚠ ${safe.reason}`; render(); return false;
+  }
+  const sendContext = _captureSendContext();
+  L.dryRunPreview = '';
   L.isSending = true;
   try {
     if (!skipDelay) await _sleepCountdown(randomDelay(L.round));
     if (L.state !== 'RUNNING') return false;
+    if (!_sendContextUnchanged(sendContext)) {
+      return _pauseForSafety('SAFETY-003', 'Conversation changed while preparing Send — paused', false);
+    }
     if (!await verifyTabLease()) {
       L.detail = '⚠ Another tab owns this conversation';
       Timeline.record('send_blocked', { reason: 'tab-lease-lost' });
@@ -2591,20 +2848,59 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     _setLoopPhase('dispatching', 'Preparing next command…'); render();
-    const input = Adapter.getInput();
+    const input = Adapter.getInputForSend();
     if (!input) {
-      Reporter.capture('COMPOSER-001', 'No uniquely identifiable chat composer was available.');
-      pauseWithProbe('No safe chat composer found');
+      if (Adapter.inputResolution().status === 'ambiguous') {
+        Reporter.capture('COMPOSER-002');
+        pauseWithProbe('More than one chat composer matched — paused without choosing');
+      } else {
+        Reporter.capture('COMPOSER-001');
+        pauseWithProbe('No safe chat composer found');
+      }
       return false;
     }
     if (!Adapter.injectText(input, text)) {
-      Reporter.capture('COMPOSER-001', 'The reviewed composer rejected text injection.');
+      Reporter.capture('COMPOSER-001');
       pauseWithProbe('Chat composer rejected the prompt');
       return false;
     }
     await sleep(500);
+    if (L.state !== 'RUNNING') return false;
+    if (!_sendContextUnchanged(sendContext)) {
+      return _pauseForSafety('SAFETY-003', 'Conversation changed after staging — paused without Send', false);
+    }
+    if (!_stagedPromptMatches(input, text)) {
+      Reporter.capture('COMPOSER-002');
+      pauseWithProbe('Composer does not contain the exact intended command — paused without Send');
+      return false;
+    }
+    // Re-verify the non-atomic lease immediately before mechanism selection.
+    // Injection and the button-enable wait happen before this final authority
+    // check; no journal or actuator exists yet.
+    if (!await verifyTabLease()) {
+      Timeline.record('send_blocked', { reason: 'tab-lease-lost-before-dispatch' });
+      enginePause('Another tab owns this conversation');
+      return false;
+    }
+    const finalSafe = assertInteractionSafe();
+    if (!finalSafe.ok) {
+      if (finalSafe.reason === 'automation-disabled' || finalSafe.reason === 'site-not-enabled') {
+        return _pauseForSafety('SAFETY-001', 'Automation policy changed before Send — paused', false);
+      }
+      enginePause(`Send blocked — ${finalSafe.reason}`);
+      return false;
+    }
+    if (!_sendContextUnchanged(sendContext) || !_stagedPromptMatches(input, text)) {
+      return _pauseForSafety('SAFETY-003', 'Composer or conversation changed before Send — paused', false);
+    }
     const staged = _composerHoldsPrompt(input, text);
     const btn = Adapter.getSendBtn();
+    const sendResolution = Adapter.sendResolution();
+    if (sendResolution.status === 'ambiguous') {
+      Reporter.capture('SEND-003');
+      pauseWithProbe('More than one reviewed Send control matched — paused without choosing');
+      return false;
+    }
     const reviewedComposer = _reviewedComposer(input);
     const form = reviewedComposer ? _reviewedSubmitForm(reviewedComposer) : null;
     const taught = _reviewedTaughtSend();
@@ -2702,9 +2998,11 @@ function _confirmSend(evidence) {
   L.sendDeadline = 0;
   L.round++;
   L.lastActivity = Date.now();
+  L.lastDispatchConfirmedAt = Date.now();
+  L.conversationBound = true;
   L.staleTicks = 0;
   L.replyBaseline = { assistantCount:txn.assistantCount, assistantTextLength:txn.assistantTextLength, assistantTail:txn.assistantTail||'' };
-  L.replyKey=''; L.replyStableTicks=0; L.lastDispatchConfirmedAt=Date.now();
+  L.replyKey=''; L.replyStableTicks=0;
   _setLoopPhase('generating','Waiting for AI output…');
   try { GM_setValue('sendTier:' + location.hostname, txn.path); } catch(_) {}
   Timeline.record('send_confirmed', {
@@ -2758,6 +3056,8 @@ function reconcileUncertainSend(delivered) {
   txn.committedAt = Date.now();
   L.round++;
   L.lastActivity = Date.now();
+  L.lastDispatchConfirmedAt = Date.now();
+  L.conversationBound = true;
   L.staleTicks = 0;
   L.state = 'RUNNING';
   L.detail = '✓ Delivery confirmed by you';
@@ -2839,6 +3139,12 @@ function extendLimit() {
    (or correct course) before proceeding. Extends the cap so it can run on. */
 function regroundLoop() {
   const L = GHOST.loop;
+  if (L.conversationReviewRequired) {
+    L.detail = 'Conversation changed — Reset session before regrounding here.';
+    Reporter.capture('SAFETY-003');
+    render();
+    return;
+  }
   const task = (L.originalTask || '').trim();
   const anchor = task
     ? `\n\nThe ORIGINAL task you were given was:\n"""\n${task}\n"""\n`
@@ -2857,6 +3163,14 @@ Then continue the task. End with ████ [Step X of Y] and [[GITL::PROCEED]
 function engineTick() {
   const L = GHOST.loop;
   if (L.state !== 'RUNNING') return;
+  if (L.conversationReviewRequired) {
+    _pauseForSafety('SAFETY-003', 'Conversation changed — reset the session before automating here', false);
+    return;
+  }
+  if (!SafetyPolicy.globalEnabled() || !SafetyPolicy.siteEnabled()) {
+    _pauseForSafety('SAFETY-001', 'Automation policy no longer authorizes this site — paused', false);
+    return;
+  }
 
   // ── At-most-once send observation ─────────────────────────────
   if (L.sendPending) {
@@ -3064,6 +3378,12 @@ function startWorkflow() {
 function startLoop() {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (L.conversationReviewRequired) {
+    L.detail = 'Conversation changed — review it, then Reset session before starting here.';
+    Reporter.capture('SAFETY-003');
+    render();
+    return;
+  }
   if (L.sendTxn?.state === 'uncertain') {
     L.detail = 'Choose “I see it in chat” or “Leave for manual Send” first.';
     render();
@@ -3088,6 +3408,8 @@ function startLoop() {
   // Case 2: new prompt
   if (typed) {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
+    L.lastDispatchConfirmedAt = 0;
+    L.conversationBound = Adapter.hasMessages();
     L.originalTask = typed.slice(0, 2000); // remembered for the reground gate
     L.state = 'RUNNING'; L.lastActivity = Date.now();
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
@@ -3103,6 +3425,7 @@ function startLoop() {
   // Case 3: empty input, existing conversation → resume
   if (Adapter.hasMessages()) {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
+    L.lastDispatchConfirmedAt = 0; L.conversationBound = true;
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = 'Resuming…';
     GHOST.workflow.active = GHOST.workflow.selected !== 'none';
     // Resume carries persona + posture (+ strategy, unless roadmap owns its own flow).
@@ -3120,12 +3443,19 @@ function startLoop() {
 function startQueue(rawLines) {
   const L = GHOST.loop;
   if (L.state === 'RUNNING') return;
+  if (L.conversationReviewRequired) {
+    L.detail = 'Conversation changed — Reset session before starting a queue here.';
+    Reporter.capture('SAFETY-003');
+    render();
+    return;
+  }
   const steps = rawLines.split('\n').map(s => s.replace(/^\s*(?:\d+[.)]\s+|[-*]\s+)?/,'').trim()).filter(s => s.length > 2).slice(0, 30);
   if (!steps.length) { L.detail = 'Queue is empty'; render(); return; }
   L.payloadMode = 'roadmap'; _save('payloadMode','roadmap');
   GHOST.roadmap = { steps, index: 0, captured: true, synthSent: false };
   _save('rmSteps', JSON.stringify(steps)); _save('rmIndex', 0); _save('rmCaptured', true);
   L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
+  L.lastDispatchConfirmedAt = 0; L.conversationBound = Adapter.hasMessages();
   L.state = 'RUNNING'; L.lastActivity = Date.now();
   GHOST.workflow.active = false;
   if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
@@ -3156,6 +3486,7 @@ function resetLoop() {
   _settleSendPromise(false);
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
   L.phase='idle';L.countdownUntil=0;L.replyKey='';L.replyStableTicks=0;L.replyBaseline=null;
+  L.lastDispatchConfirmedAt=0;L.conversationBound=false;L.conversationReviewRequired=false;L.dryRunPreview='';
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendDeadline = 0; L.sendTxn = null;
@@ -3185,6 +3516,7 @@ window.addEventListener('gitl:route', () => {
   if (location.href !== _lastHref) {
     const prevHref = _lastHref;
     _lastHref = location.href;
+    _navigationEpoch++;
     _clearElementCaches();
     if (GHOST.loop.state === 'RUNNING') {
       /* v8.1.2 field report (Grok): almost every platform assigns a fresh
@@ -3195,15 +3527,25 @@ window.addEventListener('gitl:route', () => {
          changed, or when nothing was sent recently to explain the URL move. */
       let sameHost = false;
       try { sameHost = new URL(prevHref).hostname === location.hostname; } catch(_) {}
-      const justSent = GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000);
-      if (sameHost && justSent) {
+      const justSent = GHOST.loop.sendPending
+        || (Date.now() - (GHOST.loop.lastDispatchConfirmedAt || 0) < 15000);
+      /* One same-host route assignment is allowed only while a brand-new
+         conversation is still unbound. Once any delivery is confirmed (or
+         one assignment is consumed), a new route is a different conversation
+         and must pause even if it occurs soon after a send. */
+      if (sameHost && justSent && !GHOST.loop.conversationBound) {
+        GHOST.loop.conversationBound = true;
         Timeline.record('route_id_assigned', {
           from: _safeRouteClass(prevHref),
           to: _safeRouteClass(location.href)
         });
         return;
       }
-      enginePause('Route changed — paused');
+      GHOST.loop.conversationBound = true;
+      GHOST.loop.conversationReviewRequired = true;
+      GHOST.loop.needsPayload = true;
+      Reporter.capture('SAFETY-003');
+      enginePause('Route changed — paused; reset session before automating this conversation');
     }
   }
 });
@@ -3797,12 +4139,12 @@ const CONFIG_KEYS = [
   'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
   'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
   'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
-  'skinTheme','accentHue','unattended','firstRun'
+  'skinTheme','accentHue','unattended','automationEnabled','dryRun','firstRun'
 ];
 const CONFIG_BOOL_KEYS = new Set([
   'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
   'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
-  'cfgAdv','expAdv','unattended','firstRun'
+  'cfgAdv','expAdv','unattended','automationEnabled','dryRun','firstRun'
 ]);
 const CONFIG_DEFAULTS = Object.freeze({
   wfAuto:true, wfPause:false,
@@ -3812,7 +4154,7 @@ const CONFIG_DEFAULTS = Object.freeze({
   expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
   panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
   cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
-  unattended:false, firstRun:true
+  unattended:false, automationEnabled:true, dryRun:false, firstRun:true
 });
 
 function _validConfigValue(key, value) {
@@ -4850,6 +5192,9 @@ const EXPLAIN = [
   { sel:'#g-rescue',      name:'🧷 Backup Handoff',   desc:'Handoff\u2019s calmer, lighter sibling — for when the chat is DEAD and can\u2019t write its own briefing. A state snapshot + the last 10 messages verbatim, enough to resume elsewhere. Smaller than a full export on purpose.' },
   { sel:'#exp-think',     name:'💭 Thinking logs',  desc:'Include the model\u2019s visible reasoning/thinking sections in the export, on platforms that expose them.' },
   { sel:'#exp-fmt',       name:'Export format',     desc:'Markdown for humans, JSON for tools.' },
+  { sel:'#cfg-automation',name:'Automation kill switch',desc:'Global authority for automatic actuation. Turning it off pauses the current run and blocks every Send.' },
+  { sel:'#cfg-site-enabled',name:'Enable this site',desc:'Per-host authority. Generic and custom adapters start disabled until you explicitly enable this site.' },
+  { sel:'#cfg-dry-run',   name:'Dry run',           desc:'Shows the exact next command inside Ghost, then pauses without changing the site composer or sending.' },
   { sel:'#cfg-unattended',name:'🌙 Unattended',      desc:'Normally Ghost pauses when you switch tabs, so it can\u2019t burn tokens unwatched. Turn this on to keep running in a background tab \u2014 it also switches to a Worker-based timer that browsers don\u2019t throttle. The tab must stay OPEN; this does not run on a server.' },
   { sel:'#cfg-skin',      name:'🎨 Skin',           desc:'Visual theme. Skins are pure style tokens — they can never add, remove, or change features.' },
   { sel:'#cfg-skin-imp',  name:'⬆ Import skin',     desc:'Load a .gitl.json skin file. Anything a skin isn\u2019t allowed to do is silently dropped.' },
@@ -4982,6 +5327,7 @@ function renderRunTab() {
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
+    ${L.dryRunPreview ? `<div class="g-mod"><div class="g-mod-h"><span class="g-mod-i">🧪</span>Dry-run preview<span class="g-mod-x">nothing sent</span></div><div class="g-hint">Exact next command:</div><textarea readonly spellcheck="false" class="g-sites" rows="6">${_esc(L.dryRunPreview)}</textarea></div>` : ''}
     ${renderTeach()}
     <div class="g-mod g-mod-prog">
       <div class="g-mod-h"><span class="g-mod-i">📊</span>Run status<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
@@ -5131,7 +5477,7 @@ const HELP_SECTIONS = {
     <b>🧷 Backup Handoff</b> — the chat is full, stuck, or won't respond, so it can't write its own briefing (that's what Handoff normally does). Ghost writes a smaller one instead: state + last 10 messages verbatim + resumption instructions. Deliberately lighter than a full export — just enough to resume elsewhere.<br><br>
     <i>Working chat → Handoff. Dead chat → Backup Handoff. Archive → validated Export. Experimental Capsule v2 is under Advanced for external tools; Ghost does not import it yet.</i>` },
   setup: { label: 'Setup', html: `
-    <b>The Setup tab:</b><br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
+    <b>The Setup tab:</b><br>· <b>Automation</b> — global kill switch; OFF pauses and blocks every Send<br>· <b>Enable this site</b> — per-host authority (generic/custom sites start OFF)<br>· <b>Dry run</b> — previews the exact next command without touching the composer<br>· <b>Max rounds</b> — drift-guard cap on auto-continues<br>· <b>Notify</b> — desktop alert when done (great with ☕)<br>· <b>Position</b> — corners, bottom bar, ▐ <b>Dock</b> (slim right-edge tab that never covers the chat), or ☰ <b>Gold menu</b> (the same slim tab on the left edge, opposite most sites' own menu, styled gold)<br>· <b>Unattended</b> — by default Ghost stops sending the moment the tab loses focus (a guard against burning tokens unwatched). Turn it on to keep a run going in a background tab; it also moves the loop onto a Web Worker timer, because browsers throttle background <code>setInterval</code> to about once a minute. The tab must remain open — closing the browser still ends the run. Drift guard and round limits still apply.<br>
 · <b>Skin</b> — 13 presets (Classic, Aurora, Glass, Metal, Neon, Clay, Liquid, OLED, Paper, HUD, Nova, Ion, Flow) or Custom. Swatches or the slider tint the accent family on any of them. (import a .gitl.json skin file). Skins are pure style tokens: they can never add, remove, or change buttons and features, and old skins keep working on new GITL versions<br>· <b>Accent</b> — hue slider to tint the interface any color you want<br><br>
     <b>🔄 Re-detect (top of panel):</b> if Ghost says it can't find the chat box — common after switching between the browser and the app, or between tabs — tap 🔄. It re-finds the input without reloading the page, so you don't have to hop between chats to wake it up.<br><br>
     <b>Advanced ▾</b> hides the power tools: custom signal words, per-site selector overrides (Custom sites), and <b>Diagnostics → Probe</b>, which live-tests Ghost's connection to the page — your first stop when a platform misbehaves.` },
@@ -5286,6 +5632,10 @@ function renderSettingsTab() {
     </div>
     <div class="g-row"><label>❓ Quick start</label><button class="g-btn-sm" id="cfg-qs" style="margin-top:0">Show</button></div>
     <div class="g-div"></div>
+    <div class="g-row"><label>⛔ Automation</label><div class="g-tog${SafetyPolicy.globalEnabled()?' on':''}" id="cfg-automation"></div></div>
+    <div class="g-row"><label>🌐 Enable this site</label><div class="g-tog${SafetyPolicy.siteEnabled()?' on':''}" id="cfg-site-enabled"></div></div>
+    <div class="g-row"><label>🧪 Dry run</label><div class="g-tog${GHOST.ui.dryRun?' on':''}" id="cfg-dry-run"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">The global switch is the kill switch. Site authority is stored only for <b>${_esc(location.hostname)}</b>. Dry run previews the exact next command inside Ghost and never touches the chat box.</div>
     <div class="g-row"><label>🌙 Unattended</label><div class="g-tog${GHOST.ui.unattended?' on':''}" id="cfg-unattended"></div></div>
     <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Keeps running when the tab is in the background. The tab must stay <b>open</b> — this does not move the run to a server. Off by default: it sends prompts while you're not looking.</div>
     <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
@@ -5760,6 +6110,36 @@ function bindEvents() {
     catch(err) { if(st) st.textContent='⚠ Invalid JSON — not saved.'; }
   });
   $('#cfg-qs')?.addEventListener('click', () => { GHOST.ui.firstRun=true; _save('firstRun',true); GHOST.ui.tab='run'; render(); });
+  $('#cfg-automation')?.addEventListener('click', function(){
+    const enabled = SafetyPolicy.setGlobalEnabled(!SafetyPolicy.globalEnabled());
+    if (!enabled && GHOST.loop.state === 'RUNNING') {
+      enginePause('Global kill switch turned OFF — automation stopped');
+      return;
+    }
+    GHOST.loop.detail = enabled ? 'Automation enabled globally' : 'Global kill switch is OFF';
+    render();
+  });
+  $('#cfg-site-enabled')?.addEventListener('click', function(){
+    const enabled = SafetyPolicy.setSiteEnabled(!SafetyPolicy.siteEnabled());
+    if (!enabled && GHOST.loop.state === 'RUNNING') {
+      enginePause('Automation disabled for this site — stopped');
+      return;
+    }
+    GHOST.loop.detail = enabled ? 'Automation enabled for this site' : 'Automation disabled for this site';
+    render();
+  });
+  $('#cfg-dry-run')?.addEventListener('click', function(){
+    GHOST.ui.dryRun = !GHOST.ui.dryRun;
+    _save('dryRun', GHOST.ui.dryRun);
+    if (GHOST.ui.dryRun && GHOST.loop.state === 'RUNNING') {
+      enginePause('Dry run enabled — current automation paused');
+      return;
+    }
+    GHOST.loop.detail = GHOST.ui.dryRun
+      ? 'Dry run ON — next command will be previewed, not sent'
+      : 'Dry run OFF — normal safeguards remain active';
+    render();
+  });
   $('#cfg-unattended')?.addEventListener('click', function(){
     this.classList.toggle('on');
     GHOST.ui.unattended = this.classList.contains('on');

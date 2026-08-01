@@ -42,12 +42,14 @@ describe('Issue #1 — Perplexity completion observation', () => {
 describe('Issue #2 — Grok conversation-id URL assignment', () => {
   test('same-host post-send route assignment is recorded instead of paused', () => {
     expect(src).toContain('new URL(prevHref).hostname === location.hostname');
-    expect(src).toContain('GHOST.loop.sendPending || (Date.now() - (GHOST.loop.lastActivity || 0) < 15000)');
+    expect(src).toContain('(Date.now() - (GHOST.loop.lastDispatchConfirmedAt || 0) < 15000)');
+    expect(src).toContain('&& !GHOST.loop.conversationBound');
     expect(src).toContain("Timeline.record('route_id_assigned'");
   });
 
   test('genuine route changes still pause and clear cached elements', () => {
-    expect(src).toContain("enginePause('Route changed — paused')");
+    expect(src).toContain("enginePause('Route changed — paused; reset session before automating this conversation')");
+    expect(src).toContain('GHOST.loop.conversationReviewRequired = true;');
     const m = src.match(/window\.addEventListener\('gitl:route', \(\) => \{[\s\S]*?\n\}\);/);
     expect(m).not.toBeNull();
     expect(m[0]).toContain('_clearElementCaches();');

@@ -11,7 +11,9 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
-## v8.7.0 — evidence-gated pre-journal Send ladder
+## v8.7.0 — evidence-gated Send ladder and runtime safeguards
+
+### Evidence-gated pre-journal Send ladder
 
 **Constraint recovered from history:** v8.4.2 tried button → Enter → paragraph
 → form after the journal opened. Even with composer-clear checks, a delayed
@@ -51,6 +53,47 @@ asserts dispatch count `<= 1`, selected-tier priority, and zero lower-tier
 dispatch after a throw. Transaction, Teach Mode, exact staging, reviewed-form,
 and no-heuristic/no-memory contracts are also covered. Full rationale and the
 16-row table are in `docs/CURSOR_EVAL_TRACK_F.md`.
+
+### Runtime safeguards (fail closed before the journal)
+
+**Audit findings:** composer lookup picked the first DOM match; Send uniqueness
+was checked per selector instead of across the reviewed selector set; an
+ambiguous null Send result could therefore fall through to reviewed Enter.
+Injection returned success without proving the live editor contained the exact
+command. Route assignment used general loop activity, which generation traffic
+continually refreshes, as a proxy for a recent send.
+
+**Chosen fix:** one pre-dispatch safety envelope. The active configured composer
+tier (including open shadow roots) must be unique. Taught and learned selectors
+must remain unique, and heuristic score ties now fail closed. Reviewed Send
+matches are deduplicated across every profile selector and must resolve to one
+control; ambiguity is distinct from absence and can never select another tier.
+The live composer must equal the intended command after injection and again
+immediately before `_beginSendAttempt()`.
+
+Command preparation is now bound to an in-memory navigation epoch, exact route,
+and tab-lock key. One same-host route assignment is allowed only for a new,
+unbound conversation; a bound conversation pauses on any route change, even
+inside the post-send window, and requires session reset before more actuation.
+The tab lease is re-verified immediately before mechanism selection.
+
+**User controls:** Setup now has a global automation kill switch, per-host
+enable, and dry run. Generic/custom adapters default per-host authority off;
+reviewed adapters preserve their prior default. Dry run shows the exact next
+command inside Ghost, pauses, and never resolves or changes the page composer.
+
+**Invariant check:** all new failure paths occur before the transaction journal
+opens. They report and pause; none retries, escalates, learns a Send selector,
+relaxes the tab lock, or advances the round.
+
+**Deferred:** no hard rolling/per-run dispatch quota was invented. Existing
+delay, watchdog, round checkpoint, and two-nudge cap were audited, but choosing
+a non-bypassable threshold and persistence/reset semantics is a product
+decision. A semantic conversation ID and a default-off migration for reviewed
+sites are also deferred. See `docs/CURSOR_EVAL_TRACK_D.md`.
+
+**Tests:** `tests/runtime-safeguards.test.js`, expanded route browser tests in
+both engines, and updated transaction/config/Teach source contracts.
 
 ## v8.6.2 — Mobile send pre-dispatch evidence
 

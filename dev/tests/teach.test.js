@@ -54,11 +54,11 @@ describe('wiring — taught controls are consulted (source contract)', () => {
     expect(src).toContain("_q('in', PLAT.input) || TeachStore.matchEl('input') || SelectorMemory.lookup('input')");
   });
 
-  test('matchEl re-applies the send veto and requires a text box for input', () => {
-    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 900);
-    expect(fn).toContain('if (matches.length !== 1) return null;');
-    expect(fn).toContain("if (kind === 'send' && !_sendLooksSafe(el)) return null;");
-    expect(fn).toContain("el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true'");
+  test('matchEl re-applies the veto, validates input type, and requires uniqueness', () => {
+    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 1000);
+    expect(fn).toContain("&& _sendLooksSafe(el)");
+    expect(fn).toContain("el.tagName === 'TEXTAREA' || el.tagName === 'INPUT'");
+    expect(fn).toContain('return matches.length === 1 ? matches[0] : null;');
   });
 
   test('the Teach capture never triggers the page control (preventDefault + stopPropagation)', () => {

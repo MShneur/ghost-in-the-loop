@@ -156,7 +156,8 @@ describe('ladder authority and transaction wiring', () => {
   test('pre-dispatch evidence proves exact staging and re-resolves the chosen actuator', () => {
     const evidence = body('_preDispatchEvidence', '_settleSendPromise');
     expect(evidence).toContain('_composerRawText(input) === intended');
-    expect(evidence).toContain('current === strategy.actuator');
+    expect(evidence).toContain('currentButton === strategy.actuator');
+    expect(evidence).toContain("buttonStatus === 'unresolved'");
     expect(evidence).toContain("PLAT?.dispatchFallback === 'enter'");
     expect(evidence).toContain('_reviewedComposer(input) === input');
     expect(evidence).toContain('_reviewedSubmitForm(input) === strategy.actuator');
