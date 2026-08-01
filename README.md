@@ -193,12 +193,12 @@ For people who want to know what's actually happening under the hood:
 | **Boot safety** | Transactional boot isolates optional subsystems, mounts a fail-loud banner for critical failures, and records stable local error codes. An independent canary distinguishes “Ghost failed” from “the userscript manager never injected it.” |
 | **Signal detection** | Weighted scoring: custom sigils `[[GITL::PROCEED]]` / `[[GITL::HALT]]` (+4), legacy keywords (+3), fuzzy matches (+2). HALT always wins ties. |
 | **Private diagnostics** | Network telemetry stores timing and byte counts only. Reports omit prompts, message text, full URLs, query strings, and conversation identifiers; users review locally before copying or downloading. |
-| **At-most-once send** | A two-phase tab lease gates one reviewed button click. State advances only after an assistant transition or correlated composer-plus-generation evidence. Ambiguity pauses for human reconciliation; there is no blind retry, Enter fallback, or learned Send actuator. |
+| **At-most-once send** | A two-phase tab lease gates one preselected reviewed actuator: a unique button, or an adapter-approved single Enter fallback when no button exists. Ghost first verifies that the complete intended prompt is present. State advances only after independent delivery evidence; ambiguity pauses for human reconciliation and is never retried. |
 | **Anti-automation delay** | Randomized 8–15s between sends (2s on the first round). |
 | **Truthful export** | Platform API capture is checked against expected counts and unsupported parts. DOM capture is always labeled partial. Capsule hashes are integrity hints, never a reason to delete legitimate repeated turns. |
 | **Transactional import** | Config and Workshop bundles require exact schemas, validate every field before mutation, and roll back if persistence fails. |
 | **Own-UI isolation** | All DOM selectors exclude `#gitl` descendants. Ghost cannot accidentally type into its own panel. This needed to be a feature. |
-| **CI tested** | 371 unit tests (jest) plus Playwright boot-timing and send-safety tests in Chromium and Firefox. Runs on every push and pull request. |
+| **CI tested** | Jest contract tests plus Playwright boot, mobile staging, and send-safety tests in Chromium and Firefox when those engines are available. Runs on configured `main`/`agent/**` pushes and pull requests. |
 
 ---
 

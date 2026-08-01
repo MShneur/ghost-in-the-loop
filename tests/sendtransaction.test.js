@@ -46,9 +46,12 @@ describe('send transaction', () => {
   });
 
   test('strategy selection is complete before transaction creation', () => {
+    const evidence = send.indexOf('if (!_promptStagedInComposer(input, text))');
     const strategy = send.indexOf('const strategy = btn ?');
     const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const dispatch = send.indexOf('strategy.run()');
+    expect(evidence).toBeGreaterThan(-1);
+    expect(strategy).toBeGreaterThan(evidence);
     expect(strategy).toBeGreaterThan(-1);
     expect(begin).toBeGreaterThan(strategy);
     expect(dispatch).toBeGreaterThan(begin);

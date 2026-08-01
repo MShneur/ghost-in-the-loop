@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.1';
+const VER = '8.7.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -1875,6 +1875,10 @@ const ERROR_CATALOG = Object.freeze({
     summary: 'No unique, usable chat composer was available.',
     guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
   },
+  'COMPOSER-002': {
+    summary: 'The intended prompt could not be verified in the chat composer.',
+    guidance: 'Review the composer text, use Re-detect, and send manually only if it is complete.'
+  },
   'SEND-001': {
     summary: 'No unique reviewed Send control could be safely activated.',
     guidance: 'Review the inserted prompt and use the site Send button manually.'
@@ -2362,7 +2366,28 @@ async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.no
 let _pendingSendResolve = null;
 
 function _composerText(el) {
-  return String((el && (el.value || el.textContent)) || '').trim();
+  if (!el) return '';
+  const tag = String(el.tagName || '').toUpperCase();
+  const text = tag === 'TEXTAREA' || tag === 'INPUT' ? el.value : el.textContent;
+  return String(text || '').trim();
+}
+
+/* Compare what Ghost intended to stage with what the host editor actually
+   retained. Whitespace is canonicalized because rich editors represent line
+   breaks differently, but every non-whitespace character must still match.
+   This is an observation gate only; it never grants actuator authority. */
+function _normalizeStagedText(text) {
+  return String(text || '')
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _promptStagedInComposer(input, expectedText) {
+  if (!input || input.isConnected === false) return false;
+  const expected = _normalizeStagedText(expectedText);
+  if (!expected) return false;
+  return _normalizeStagedText(_composerText(input)) === expected;
 }
 
 function _settleSendPromise(ok) {
@@ -2455,6 +2480,12 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     await sleep(500);
+    if (!_promptStagedInComposer(input, text)) {
+      Timeline.record('composer_unverified', { code: 'COMPOSER-002', stage: 'pre-dispatch' });
+      Reporter.capture('COMPOSER-002', 'The host editor did not retain the complete staged prompt.');
+      pauseWithProbe('Prompt could not be verified — nothing was sent');
+      return false;
+    }
     const btn = Adapter.getSendBtn();
     // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
     // opening the at-most-once journal. Once `_beginSendAttempt()` runs there

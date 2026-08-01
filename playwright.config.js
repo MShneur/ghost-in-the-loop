@@ -21,7 +21,10 @@ const fs = require('fs');
 // Managed env pre-installs Chromium at a fixed path; prefer it over a
 // version-pinned download. Firefox is resolved by Playwright from
 // PLAYWRIGHT_BROWSERS_PATH automatically, so it needs no explicit path.
-const chromiumPath = fs.existsSync('/opt/pw-browsers/chromium/chrome-linux/chrome')
+const configuredChromiumPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const chromiumPath = configuredChromiumPath && fs.existsSync(configuredChromiumPath)
+  ? configuredChromiumPath
+  : fs.existsSync('/opt/pw-browsers/chromium/chrome-linux/chrome')
   ? '/opt/pw-browsers/chromium/chrome-linux/chrome'
   : (fs.existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
     ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : undefined);
@@ -50,6 +53,14 @@ const projects = [
     name: 'chromium',
     use: {
       ...devices['Desktop Chrome'],
+      launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+    },
+  },
+  {
+    name: 'chromium-mobile',
+    testMatch: '**/send-evidence.spec.js',
+    use: {
+      ...devices['Pixel 7'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
     },
   },

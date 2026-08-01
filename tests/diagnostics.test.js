@@ -7,7 +7,7 @@ const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js')
 
 describe('stable error catalog', () => {
   test('core boot, composer, send, and adapter failures have stable codes', () => {
-    for (const code of ['BOOT-001','BOOT-002','COMPOSER-001','SEND-001','SEND-002','ADAPTER-001']) {
+    for (const code of ['BOOT-001','BOOT-002','COMPOSER-001','COMPOSER-002','SEND-001','SEND-002','ADAPTER-001']) {
       expect(ERROR_CATALOG[code]).toBeDefined();
       expect(ERROR_CATALOG[code].summary).toBeTruthy();
       expect(ERROR_CATALOG[code].guidance).toBeTruthy();

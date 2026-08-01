@@ -83,6 +83,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
     'Ticker','unattendedOn','isTabSafeToAct','assertInteractionSafe',
     'POSTURES','POSTURE_CEILING','PAYLOADS',
     'startTabHeartbeat','engineSend','engineHalt','enginePause',
+    '_composerText','_normalizeStagedText','_promptStagedInComposer',
     '_beginSendAttempt','_sendEvidence','_confirmSend','_markSendUncertain','reconcileUncertainSend'
   ].forEach(name => {
     try { if (typeof eval(name) !== 'undefined') _exp[name] = eval(name); } catch(_) {}

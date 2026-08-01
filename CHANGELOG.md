@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.7.0] — verified composer staging and portable mobile test gate
+
+Ghost now observes the complete normalized prompt in the live composer before
+opening the at-most-once Send journal. A framework-controlled editor that drops,
+truncates, or replaces injected text produces `COMPOSER-002`, pauses loudly,
+and never reaches a Send actuator. The check treats rich-editor whitespace as
+representation detail but requires every non-whitespace character to match.
+
+The Playwright harness accepts an explicit browser executable and includes a
+Pixel 7 mobile project for the staging/dispatch contract. Package, lockfile,
+userscript, manifest, and changelog versions are now guarded by one consistency
+test so release metadata cannot silently remain on an older version.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

@@ -19,7 +19,7 @@ scripts/
   build-extension.js         Canonical source → Firefox content artifact
 tests/
   setup.js                   VM harness: mocks GM_*, injects export hook into IIFE
-  *.test.js                  28 Jest suites / 371 tests
+  *.test.js                  Jest unit and contract suites
   e2e/*.spec.js              Playwright, run in BOTH Chromium and Firefox (Gecko)
 docs/
   ARCHITECTURE.md            This file
@@ -160,11 +160,14 @@ last stored owner reaches the button click.
 
 ---
 
-## Send Transaction Contract (v8.3)
+## Send Transaction Contract (v8.7)
 
-`engineSend()` has one authorized dispatch path: inject into the resolved
-composer, verify the tab lease, resolve exactly one reviewed Send control, and
-click once.
+`engineSend()` injects into the resolved composer, verifies that the complete
+normalized prompt was actually retained, verifies the tab lease, and selects
+exactly one reviewed strategy before the journal opens. A unique reviewed
+button wins. An adapter may explicitly opt into one Enter `keydown` only when
+no reviewed button resolves. After `_beginSendAttempt()`, no fallback selection
+or second actuator is allowed.
 
 The journal state is:
 
@@ -174,6 +177,8 @@ dispatching → committed
            ↘ failed
 ```
 
+- `_promptStagedInComposer()` compares the intended and observed composer text;
+  a mismatch produces `COMPOSER-002` before any journal or actuator exists.
 - `_beginSendAttempt()` records a command id and pre-dispatch observations.
 - `_confirmSend()` is the only automatic state transition that increments
   `round` or advances roadmap/workflow state.
@@ -185,9 +190,10 @@ dispatching → committed
 - Crash recovery restores interrupted `dispatching` work as `uncertain`; it
   never replays the command.
 
-Do not reintroduce Enter, form-submit, refocus, multi-click, or retry fallbacks.
-At-most-once behavior is a product invariant, not a temporary compatibility
-tradeoff.
+Do not introduce universal Enter, form-submit, refocus, multi-click, or retry
+fallbacks. Adapter-approved Enter is a pre-journal strategy, never a recovery
+step. At-most-once behavior is a product invariant, not a temporary
+compatibility tradeoff.
 
 ---
 
@@ -203,7 +209,9 @@ Each platform entry in `PROFILES{}` must have:
   send:  ['selector1', 'sel2'],
   stop:  ['selector1', 'sel2'],
   assistant: ['selector1'],       // message elements
-  inject: 'contenteditable'|'value'|'textarea',
+  useCE: true|false,              // contenteditable injection path
+  useNS: true|false,              // native textarea setter path
+  dispatchFallback: 'enter',      // optional, reviewed adapter only
   // optional:
   apiExport: async () => {},       // platform-native export if available
 }
@@ -267,7 +275,7 @@ comparison and exits nonzero on drift.
 The userscript is an IIFE — tests can't access its locals directly.
 `tests/setup.js` injects an export hook string into the instrumented source just before the closing `})()`. The hook uses `eval(name)` inside the closure to read locals and writes them to a `__GITL_TEST_SINK__` object passed in from the VM context.
 
-**Run:** `npm test` (28 suites / 371 tests)
+**Run:** `npm test`
 
 **Covers:**
 - Signal engine, Timeline, verified tab lease, send transactions, redaction,
@@ -282,8 +290,10 @@ The userscript is an IIFE — tests can't access its locals directly.
 
 Injects the userscript via `addInitScript` (runs at `document-start`, before HTML parse) against `tests/e2e/mock-chat.html`. This is the ONLY tier that catches the class of bug where top-level DOM mutation crashes because `head`/`body` are null.
 
-**Run:** `npm run test:e2e` (requires installed Chromium and Firefox browser
-binaries; GitHub Actions installs both)
+**Run:** `npm run test:e2e` (requires an installed browser binary; GitHub
+Actions installs Chromium and Firefox). Managed terminals may set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/absolute/path/to/chromium`. The mobile
+staging contract also runs with Playwright's Pixel 7 device profile.
 
 **Covers:**
 - Script survives `document-start` injection without throwing
