@@ -20,13 +20,23 @@ if (markerIndex < 0) {
 const runtime = userscript.slice(markerIndex + headerEnd.length).trim();
 const wrapper = `/* GENERATED FILE — edit ghost-in-the-loop.user.js, then run npm run build.
    Firefox MV3 wrapper: GM_* compatibility over browser.storage.local. */
-const _store = typeof browser !== 'undefined' ? browser.storage.local : chrome.storage.local;
+const _storage = typeof browser !== 'undefined' ? browser.storage : chrome.storage;
+const _store = _storage.local;
 const _cache = {};
 async function _initStore() {
   try { const d = await _store.get(null); Object.assign(_cache, d); } catch(_){}
 }
 function GM_getValue(k, d) { return _cache[k] !== undefined ? _cache[k] : d; }
 function GM_setValue(k, v) { _cache[k] = v; _store.set({ [k]: v }).catch(()=>{}); }
+try {
+  _storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    for (const [key, change] of Object.entries(changes || {})) {
+      if (Object.prototype.hasOwnProperty.call(change, 'newValue')) _cache[key] = change.newValue;
+      else delete _cache[key];
+    }
+  });
+} catch(_){}
 function GM_addStyle(css) {
   const s = document.createElement('style');
   s.textContent = css;

@@ -87,6 +87,19 @@ and residual risks.
 - Corrected the repository workflow to run the canonical `dev/` Jest,
   Playwright, syntax, and generated-extension parity gates.
 
+### Gap-audit safety corrections
+
+- Continue controls now require one exact, visible, enabled host match, exclude
+  Ghost's own UI, and pass the interaction safety gate before a click.
+- Visibility checks now reject hidden, aria-hidden, CSS-hidden, collapsed, and
+  fully transparent controls.
+- The attended-mode gate now rejects a hidden document even if the browser
+  still reports focus.
+- Generated extension tabs now observe peer `storage.local` changes so the
+  in-memory tab-lock cache does not remain stale.
+- Version tests now require the userscript, manifest, package, and lockfile
+  metadata to agree.
+
 ## [8.6.2] — Exact pre-dispatch send evidence
 
 - Before opening the at-most-once send journal, Ghost now proves that the live,

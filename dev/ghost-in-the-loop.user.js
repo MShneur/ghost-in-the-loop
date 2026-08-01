@@ -295,7 +295,8 @@ function assertInteractionSafe() {
   if (!SafetyPolicy.siteEnabled()) {
     return { ok: false, reason: 'site-not-enabled' };
   }
-  if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
+  if (!unattendedOn() && (!document.hasFocus() || document.hidden)
+    && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
   if (!claimTabLock()) {
@@ -1138,6 +1139,10 @@ function _sendLooksSafe(el) {
 
 function _visible(el) {
   try {
+    if (el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+    const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden'
+      || cs.visibility === 'collapse' || Number.parseFloat(cs.opacity) === 0)) return false;
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
   } catch(_) { return false; }
@@ -1641,10 +1646,16 @@ const Adapter = {
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
+    if (!assertInteractionSafe().ok) return false;
+    const matches = [];
     for (const btn of document.querySelectorAll('button')) {
-      if (PLAT.continueLabels.some(l => btn.textContent.includes(l))) { btn.click(); return true; }
+      const label = String(btn.textContent || '').trim();
+      if (!_isOwnUI(btn) && !btn.disabled && btn.getAttribute('aria-disabled') !== 'true'
+        && _visible(btn) && PLAT.continueLabels.includes(label)) matches.push(btn);
     }
-    return false;
+    if (matches.length !== 1) return false;
+    matches[0].click();
+    return true;
   },
   injectText(el, text) {
     if (!el) return false;
@@ -6627,7 +6638,9 @@ safeBoot(() => {
       if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
       if (!_continueMutationRelevant(records)) return;
       clearTimeout(_mutDebounce);
-      _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
+      _mutDebounce = setTimeout(() => {
+        if (Adapter.clickContinue()) GHOST.loop.lastActivity = Date.now();
+      }, 300);
     }).observe(document.body, {
       childList: true, subtree: true, attributes: true,
       attributeFilter: ['style', 'class', 'hidden', 'disabled', 'aria-hidden']

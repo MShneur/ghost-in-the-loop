@@ -177,6 +177,23 @@ not the canonical `dev/` tree named in the handoff. Its working directory and
 cache/artifact paths now target `dev/`, so the current browser matrix and
 generated-extension parity gate actually run.
 
+### Gap-audit safety corrections
+
+The read-through found four cheap, fail-closed corrections worth integrating.
+Continue actuation had used substring matching and the first DOM result; it now
+requires one exact, visible, enabled host control, excludes `#gitl`, and passes
+the normal interaction-safety gate. Watchdog activity advances only after an
+actual click. General visibility now rejects hidden, aria-hidden, CSS-hidden,
+collapsed, and fully transparent controls, and attended mode treats a hidden
+document as unsafe even if `hasFocus()` remains true.
+
+The generated extension's synchronous GM-compatible cache previously missed
+writes from peer extension tabs, which could leave tab-lock reads stale.
+`storage.onChanged` now mirrors local changes and deletions into that cache.
+Package and lockfile versions are also part of the version-consistency gate.
+Behavior tests cover Continue ambiguity/own-UI isolation, hidden documents,
+peer-tab cache updates, and metadata parity.
+
 ## v8.6.2 — Mobile send pre-dispatch evidence
 
 **Hypothesis checked:** ChatGPT- and Perplexity-shaped contenteditable fixtures

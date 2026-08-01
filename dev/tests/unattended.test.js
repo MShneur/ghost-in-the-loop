@@ -35,6 +35,19 @@ describe('focus guard — default (unattended OFF)', () => {
     expect(r.ok).toBe(false);
     expect(r.reason).toBe('tab-not-focused');
   });
+
+  test('a hidden document is blocked even if hasFocus reports true', () => {
+    const prior = Object.getOwnPropertyDescriptor(document, 'hidden');
+    document.hasFocus = () => true;
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    GHOST.loop.state = 'RUNNING';
+    try {
+      expect(assertInteractionSafe()).toEqual({ ok: false, reason: 'tab-not-focused' });
+    } finally {
+      if (prior) Object.defineProperty(document, 'hidden', prior);
+      else delete document.hidden;
+    }
+  });
 });
 
 describe('focus guard — unattended ON', () => {

@@ -9,6 +9,8 @@ const path = require('path');
 const ROOT        = path.join(__dirname, '..');
 const script      = fs.readFileSync(path.join(ROOT, 'ghost-in-the-loop.user.js'), 'utf8');
 const manifest    = JSON.parse(fs.readFileSync(path.join(ROOT, 'extension/manifest.json'), 'utf8'));
+const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+const packageLock = JSON.parse(fs.readFileSync(path.join(ROOT, 'package-lock.json'), 'utf8'));
 const changelog   = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
 
 const headerMatch = script.match(/\/\/ @version\s+(\S+)/);
@@ -30,6 +32,12 @@ describe('Version consistency', () => {
 
   test('@version matches manifest.json version', () => {
     expect(headerMatch[1]).toBe(manifest.version);
+  });
+
+  test('@version matches package metadata and lockfile root', () => {
+    expect(headerMatch[1]).toBe(packageJson.version);
+    expect(headerMatch[1]).toBe(packageLock.version);
+    expect(headerMatch[1]).toBe(packageLock.packages[''].version);
   });
 
   test('CHANGELOG has entry for current version', () => {
