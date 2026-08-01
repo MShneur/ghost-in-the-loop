@@ -53,6 +53,17 @@ const projects = [
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
     },
   },
+  /* Track G — mobile project: touch + mobile viewport + Android UA so the
+     ChatGPT/Perplexity mobile Send class is reproducible in CI. */
+  {
+    name: 'chromium-mobile',
+    use: {
+      ...devices['Pixel 7'],
+      hasTouch: true,
+      isMobile: true,
+      launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+    },
+  },
 ];
 
 if (firefoxAvailable) {
@@ -64,6 +75,17 @@ if (firefoxAvailable) {
       // while keeping the real Gecko engine that enforces Trusted Types.
       viewport: { width: 412, height: 915 },
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
+    },
+  });
+  projects.push({
+    name: 'firefox-mobile',
+    use: {
+      ...devices['Pixel 7'],
+      defaultBrowserType: 'firefox',
+      hasTouch: true,
+      isMobile: true,
+      userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
+      viewport: { width: 412, height: 915 },
     },
   });
 }

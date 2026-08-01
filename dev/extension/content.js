@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.1';
+const VER = '8.7.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -265,9 +265,33 @@ function isTabSafeToAct() {
   return claimTabLock();   // multi-tab collision guard is NEVER relaxed
 }
 
+/* Global kill-switch + per-host enable (Track D). Fail closed when disabled. */
+function killSwitchOn() {
+  try { return !!GM_getValue('gitlKillSwitch', false); } catch(_) { return false; }
+}
+function hostAutomationAllowed() {
+  try {
+    if (killSwitchOn()) return false;
+    const raw = GM_getValue('gitlEnabledHosts', '');
+    if (!raw) return true; // empty = all matched hosts allowed
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list) || !list.length) return true;
+    const h = String(location.hostname || '').toLowerCase();
+    return list.some(x => h === String(x || '').toLowerCase() || h.endsWith('.' + String(x || '').toLowerCase()));
+  } catch(_) { return true; }
+}
+function dryRunOn() {
+  try {
+    if (typeof GHOST !== 'undefined' && GHOST.loop && GHOST.loop.dryRun) return true;
+    return !!GM_getValue('gitlDryRun', false);
+  } catch(_) { return false; }
+}
+
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
+  if (killSwitchOn()) return { ok: false, reason: 'kill-switch' };
+  if (!hostAutomationAllowed()) return { ok: false, reason: 'host-disabled' };
   if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
@@ -305,8 +329,15 @@ const GITL_NET = {
   lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
   lastPulseH: 0,        // last traffic on a heuristic same-origin stream
   lastWsPulseT: 0,      // meaningful WS payload only; heartbeat/control frames excluded
+  lastDoneT: 0,         // Track C: stream terminal marker observed (read-only)
+  lastReplyTail: '',    // Track C: trailing chars from parsed stream (never an actuator)
   _open: 0,             // streams currently open
   expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
+  /* Feature flag: parse chat stream bodies for completion/text (OFF by default).
+     Read-only — never influences send/click authority. Enable via GM gitlNetRead. */
+  readEnabled() {
+    try { return !!GM_getValue('gitlNetRead', false); } catch(_) { return false; }
+  },
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -380,9 +411,42 @@ const GITL_NET = {
     this.bytesSeen += bytes;
     this.capturedAt = Date.now();
     this._pulse(true);
+    if (isDone) this.lastDoneT = Date.now();
     this.bus.dispatchEvent(new CustomEvent('gitl:net', {
       detail: { bytes, isDone: !!isDone, ts: Date.now() }
     }));
+  },
+
+  /* Track C — ChatGPT-style SSE terminal/text witness. Privacy-preserving:
+     keeps only a short tail + timestamps. Never used for actuation. */
+  _ingestSseChunk(chunk) {
+    if (!this.readEnabled() || chunk == null) return;
+    try {
+      const s = typeof chunk === 'string' ? chunk
+        : (typeof TextDecoder !== 'undefined' ? new TextDecoder().decode(chunk) : '');
+      if (!s) return;
+      if (/(?:^|\n)data:\s*\[DONE\]/i.test(s) || /"message_stop"/i.test(s)) {
+        this.lastDoneT = Date.now();
+        this._emit(s.length, true);
+      }
+      const parts = s.split(/\n/).filter(l => /^data:\s*/i.test(l));
+      for (const line of parts) {
+        const payload = line.replace(/^data:\s*/i, '').trim();
+        if (!payload || payload === '[DONE]') continue;
+        try {
+          const j = JSON.parse(payload);
+          const piece = j?.message?.content?.parts?.join?.('')
+            || j?.delta?.content
+            || j?.choices?.[0]?.delta?.content
+            || j?.completion
+            || '';
+          if (piece) {
+            const prev = this.lastReplyTail || '';
+            this.lastReplyTail = (prev + String(piece)).slice(-400);
+          }
+        } catch(_) { /* non-JSON SSE comment/event — ignore */ }
+      }
+    } catch(_) {}
   },
 
   install() {
@@ -440,6 +504,7 @@ const GITL_NET = {
                       const { done, value } = await reader.read();
                       if (done) { self._emit(0, true); break; }
                       self._emit(value?.byteLength || value?.length || 0, false);
+                      if (self.readEnabled()) self._ingestSseChunk(value);
                     }
                   } catch(_) { /* stream aborted — normal on navigation */ }
             })();
@@ -520,7 +585,7 @@ const PROFILES = {
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
     dispatchFallback: 'enter', // mobile web hides the send button until a native keystroke; Enter submits the ProseMirror composer. Selected before transaction start, only when no unique reviewed button resolves.
-    useCE: false, useNS: true
+    useCE: true, useNS: true
   },
   perplexity: {
     key: 'perplexity', reviewed: true,
@@ -726,6 +791,8 @@ function _qAll(sels) {
    the Playwright-style aria/text-first strategy. Engaged only when the
    selector arrays come up empty, so normal operation is unchanged. */
 const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|senden|invia|отправ|إرسال|gönder/i;
+/* Continue-label false positives (Track E / claude-auto-continue prior art). */
+const CONTINUE_EXCLUDE = /continue with|continue to|sign.?in|log\s?in|cancel|delete|logout|log out|google|microsoft|apple|github/i;
 /* v8.1: veto list expanded after the DeepSeek incident — the heuristic tier
    clicked the reply's "Copy" button (svg icon + proximity alone scored past
    the old threshold) and the user's prompt got copied instead of sent.
@@ -737,6 +804,64 @@ const SEND_WORDS = /send|submit|发送|傳送|送信|보내기|enviar|envoyer|se
    vetoed too, and a structural popup-toggle check (below) catches the general
    case regardless of wording. */
 const SEND_VETO  = /stop|voice|mic|dictat|attach|upload|search|new chat|settings|menu|close|copy|download|share|edit|delete|regenerat|retry|rewrite|like|dislike|thumb|feedback|read.?aloud|speaker|volume|translat|pin\b|bookmark|history|sidebar|scroll|expand|collapse|fullscreen|deep.?think|research|model|plus\b|tool|option|picker|dropdown|emoji|format/i;
+
+/* Track E — miniature Playwright-style role + accessible-name helpers.
+   Dependency-free subset of AccName; used for detection/diagnostics scoring.
+   Never widens actuator authority by itself. */
+function _roleOf(el) {
+  if (!el || !el.getAttribute) return '';
+  try {
+    const explicit = (el.getAttribute('role') || '').trim().toLowerCase();
+    if (explicit) return explicit;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'button') return 'button';
+    if (tag === 'textarea') return 'textbox';
+    if (tag === 'a' && el.hasAttribute('href')) return 'link';
+    if (tag === 'input') {
+      const t = (el.getAttribute('type') || 'text').toLowerCase();
+      if (t === 'submit' || t === 'button' || t === 'reset' || t === 'image') return 'button';
+      if (t === 'search') return 'searchbox';
+      return 'textbox';
+    }
+    if (el.getAttribute('contenteditable') === 'true') return 'textbox';
+  } catch(_) {}
+  return '';
+}
+function _accName(el) {
+  if (!el || !el.getAttribute) return '';
+  try {
+    const by = el.getAttribute('aria-labelledby');
+    if (by) {
+      const parts = by.split(/\s+/).map(id => {
+        try { return document.getElementById(id)?.textContent || ''; } catch(_) { return ''; }
+      });
+      const joined = parts.join(' ').replace(/\s+/g, ' ').trim();
+      if (joined) return joined.slice(0, 160);
+    }
+    const al = (el.getAttribute('aria-label') || '').trim();
+    if (al) return al.slice(0, 160);
+    if (el.id) {
+      try {
+        const lab = document.querySelector(`label[for="${CSS && CSS.escape ? CSS.escape(el.id) : el.id}"]`);
+        const t = (lab && lab.textContent || '').replace(/\s+/g, ' ').trim();
+        if (t) return t.slice(0, 160);
+      } catch(_) {}
+    }
+    try {
+      const wrap = el.closest && el.closest('label');
+      const t = (wrap && wrap.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) return t.slice(0, 160);
+    } catch(_) {}
+    const ph = (el.getAttribute('placeholder') || el.getAttribute('data-placeholder') || el.getAttribute('title') || '').trim();
+    if (ph) return ph.slice(0, 160);
+    try {
+      const svgTitle = el.querySelector && el.querySelector('svg title');
+      const st = (svgTitle && svgTitle.textContent || '').replace(/\s+/g, ' ').trim();
+      if (st) return st.slice(0, 160);
+    } catch(_) {}
+    return String(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  } catch(_) { return ''; }
+}
 
 /* A candidate send control must clear the veto no matter which tier found
    it — configured selectors can rot into matching the wrong control after
@@ -753,9 +878,7 @@ function _sendLooksSafe(el) {
     if (el.getAttribute('aria-expanded') != null) return false;
     /* id is telltale on both field mislearns ("model-select", "plus-btn") yet
        was never inspected before — fold it into the veto surface. */
-    const label = [el.getAttribute('id'), el.getAttribute('aria-label'),
-                   el.getAttribute('title'), el.getAttribute('data-testid'),
-                   el.textContent].join(' ').slice(0, 160);
+    const label = [el.getAttribute('id'), el.getAttribute('data-testid'), _accName(el)].join(' ').slice(0, 160);
     return !SEND_VETO.test(label);
   } catch(_) { return false; }
 }
@@ -765,6 +888,21 @@ function _visible(el) {
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight;
   } catch(_) { return false; }
+}
+
+function _composerText(el) {
+  return String((el && (el.value || el.textContent)) || '').trim();
+}
+
+/* Track A — pre-dispatch evidence: composer must actually hold our prompt. */
+function _composerHoldsPrompt(input, text) {
+  const got = _composerText(input);
+  const want = String(text || '');
+  if (!want) return got.length > 0;
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim();
+  const g = norm(got), w = norm(want);
+  if (!w) return g.length > 0;
+  return g === w || g.includes(w);
 }
 
 /* ── Orb launcher geometry (v8.4.0) ──────────────────────────────
@@ -813,10 +951,11 @@ function _heurSend(anchor) {
   let best = null, bestScore = 3.5;
   const ar = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : null;
   const aForm = anchor && anchor.closest ? anchor.closest('form') : null;
-  for (const el of _qAll(['button','[role="button"]'])) {
+  for (const el of _qAll(['button','[role="button"]','input[type="submit"]','input[type="button"]'])) {
     if (!_visible(el) || el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
-    const label = [el.getAttribute('aria-label'), el.getAttribute('title'),
-                   el.getAttribute('data-testid'), el.textContent].join(' ').slice(0, 120);
+    const role = _roleOf(el);
+    if (role && role !== 'button') continue;
+    const label = [el.getAttribute('data-testid'), _accName(el)].join(' ').slice(0, 120);
     // Single veto gate (v8.2.1): _sendLooksSafe now also inspects id and rejects
     // popup-toggles (aria-haspopup/aria-expanded), so a wrong click (mic, attach,
     // model-picker, "+") is filtered here too — worse than no click at all.
@@ -968,35 +1107,33 @@ const TeachStore = {
   },
   forgetHost() { const d = this._load(), h = location.hostname; if (d[h]) { delete d[h]; this._persist(); } },
   hasAny() { const rec = this._load()[location.hostname]; return !!(rec && Object.keys(rec).length); },
-  /* Resolve the stored selector to a live element, re-validating every time. */
+  /* Resolve the stored selector to a live element, re-validating every time.
+     Uniqueness required (GAP-B11): same contract as _platformReviewedSend. */
   matchEl(kind) {
     const sel = this.get(kind);
     if (!sel) return null;
     try {
+      const matches = [];
       for (const el of document.querySelectorAll(sel)) {
-        if (el && !_isOwnUI(el) && _visible(el)) {
-          if (kind === 'send' && !_sendLooksSafe(el)) return null; // veto still applies
-          if (kind === 'input') {
-            const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
-            if (!ok) return null;
-          }
-          return el;
+        if (!el || _isOwnUI(el) || !_visible(el)) continue;
+        if (kind === 'send') {
+          if (!_sendLooksSafe(el)) continue;
+          if (el.disabled || el.getAttribute('aria-disabled') === 'true') continue;
         }
+        if (kind === 'input') {
+          const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
+          if (!ok) continue;
+        }
+        matches.push(el);
       }
+      return matches.length === 1 ? matches[0] : null;
     } catch(_) {}
     return null;
   }
 };
 
-/* Only reviewed profile selectors — or a HUMAN-TAUGHT control (TeachStore) —
-   can authorize a send. A heuristic result is diagnostic information, never an
-   actuator. Each selector tier must resolve to exactly one enabled, visible,
-   veto-safe element. */
-function _reviewedSend() {
-  // A human-taught send control is a reviewed actuator (the user pointed at it),
-  // valid on any host — but it is re-veto'd on every resolve by matchEl.
-  const taught = TeachStore.matchEl('send');
-  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
+/* Platform-reviewed Send only (no Teach). Unique, visible, enabled, veto-safe. */
+function _platformReviewedSend() {
   if (!PLAT?.reviewed) return null;
   for (const sel of PLAT.send || []) {
     let matches = [];
@@ -1013,6 +1150,75 @@ function _reviewedSend() {
     if (matches.length === 1) return matches[0];
   }
   return null;
+}
+
+/* Diagnostic / health resolve: platform button OR unique taught control. */
+function _reviewedSend() {
+  return _platformReviewedSend() || TeachStore.matchEl('send');
+}
+
+/* Track F — evidence-gated selection tier ladder. Exactly one mechanism is
+   chosen BEFORE `_beginSendAttempt()`. Order:
+     1. unique platform-reviewed Send button
+     2. reviewed dispatchFallback: 'enter'
+     3. uniquely-wrapping form.requestSubmit() (reviewed hosts only)
+     4. human-taught Send control
+   Never escalate after the chosen mechanism fires. */
+function _uniqueComposerForm(input) {
+  if (!input || !input.closest) return null;
+  try {
+    const form = input.closest('form');
+    if (!form || _isOwnUI(form)) return null;
+    const forms = [...document.querySelectorAll('form')].filter(f =>
+      f && !_isOwnUI(f) && f.contains(input) && typeof f.requestSubmit === 'function');
+    if (forms.length !== 1 || forms[0] !== form) return null;
+    return form;
+  } catch(_) { return null; }
+}
+
+function _selectSendStrategy(input) {
+  const platformBtn = _platformReviewedSend();
+  if (platformBtn) {
+    return { path: 'reviewed-button', run: () => platformBtn.click() };
+  }
+  if (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' && input) {
+    return {
+      path: 'reviewed-enter',
+      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+        bubbles: true, cancelable: true, composed: true
+      }))
+    };
+  }
+  if (PLAT?.reviewed && input) {
+    const form = _uniqueComposerForm(input);
+    if (form) {
+      return { path: 'reviewed-form', run: () => form.requestSubmit() };
+    }
+  }
+  const taught = TeachStore.matchEl('send');
+  if (taught) {
+    return { path: 'taught-button', run: () => taught.click() };
+  }
+  return null;
+}
+
+/* Track D — composer ambiguity: >1 visible peer composers → fail closed. */
+function _visibleComposerPeers() {
+  const sels = (PLAT && PLAT.input) || ['textarea','div[contenteditable="true"]'];
+  const seen = new Set(), out = [];
+  for (const s of sels) {
+    try {
+      for (const el of document.querySelectorAll(s)) {
+        if (!el || seen.has(el) || _isOwnUI(el) || !_visible(el)) continue;
+        const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true' || _roleOf(el) === 'textbox';
+        if (!ok) continue;
+        seen.add(el);
+        out.push(el);
+      }
+    } catch(_) {}
+  }
+  return out;
 }
 
 /* ── Answer selection (v8.5.3 item 1) ────────────────────────
@@ -1130,7 +1336,13 @@ const Adapter = {
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
     for (const btn of document.querySelectorAll('button')) {
-      if (PLAT.continueLabels.some(l => btn.textContent.includes(l))) { btn.click(); return true; }
+      if (_isOwnUI(btn) || !_visible(btn) || btn.disabled) continue;
+      const name = _accName(btn) || String(btn.textContent || '');
+      if (CONTINUE_EXCLUDE.test(name)) continue;
+      if (PLAT.continueLabels.some(l => name.includes(l) || (btn.textContent || '').includes(l))) {
+        btn.click();
+        return true;
+      }
     }
     return false;
   },
@@ -1162,24 +1374,30 @@ const Adapter = {
       }
       el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
       if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = 'contenteditable';
-      return true;
+      return _composerHoldsPrompt(el, text);
     }
     // Path 2: native React setter
     if (PLAT.useNS && el.tagName === 'TEXTAREA') {
       const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-      if (setter) { setter.call(el, text); el.dispatchEvent(new Event('input', { bubbles: true })); DIAG.sendPath = 'native-setter'; return true; }
+      if (setter) {
+        setter.call(el, text);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        DIAG.sendPath = 'native-setter';
+        return _composerHoldsPrompt(el, text);
+      }
     }
     // Path 3: direct value
     el.value = text;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
     DIAG.sendPath = 'direct-value';
-    return true;
+    return _composerHoldsPrompt(el, text);
   },
+  /* Legacy multi-event Enter helper — NOT used by engineSend (single-dispatch
+     uses one keydown via reviewed-enter). Kept for diagnostics only; do not
+     wire as a second fire after another actuator. */
   pressEnter(el) {
-    // Stage A: insertParagraph beforeinput — ProseMirror/Lexical native submit signal
     try { el.dispatchEvent(new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })); } catch(_){}
-    // Stage B: keyboard Enter with composed:true — crosses Shadow DOM boundaries
     ['keydown','keypress','keyup'].forEach(t => {
       el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
     });
@@ -1635,6 +1853,7 @@ const GHOST = {
     round: 0,
     maxRounds: GM_getValue('maxRounds',20),
     limitStep: GM_getValue('maxRounds',20), // how many more rounds each "Continue" grants
+    dryRun: !!GM_getValue('gitlDryRun', false),
     needsPayload: true,
     isSending: false,
     timer: null,
@@ -1753,7 +1972,10 @@ function platformHealth() {
   const msgs  = _qAll(PLAT.assistant);
   const canRead   = msgs.length > 0;
   const canInject  = !!input;
-  const canSend    = !!send;
+  /* Diagnostics only: Enter-capable reviewed adapters count as send-ready when
+     a composer is present even if the button is absent (mobile). */
+  const enterReady = !!(PLAT?.reviewed && PLAT.dispatchFallback === 'enter' && input);
+  const canSend    = !!send || enterReady;
   const canExport  = canRead;
   const score = (canRead ? 25 : 0) + (canInject ? 30 : 0) + (canSend ? 30 : 0) + (canExport ? 15 : 0);
   return {
@@ -1761,8 +1983,10 @@ function platformHealth() {
     input: canInject, send: canSend, stop: !!stop,
     assistantCount: msgs.length, ready: canInject && canSend,
     badge: score >= 80 ? '🟢' : score >= 40 ? '🟡' : '🔴',
+    dispatchFallback: PLAT?.dispatchFallback || null,
     netActive: GITL_NET.active,
     netStreaming: GITL_NET.streaming(),
+    netRead: !!(GITL_NET.readEnabled && GITL_NET.readEnabled()),
     netAge: GITL_NET.capturedAt ? Date.now() - GITL_NET.capturedAt : -1
   };
 }
@@ -1873,19 +2097,31 @@ const ERROR_CATALOG = Object.freeze({
   },
   'COMPOSER-001': {
     summary: 'No unique, usable chat composer was available.',
-    guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
+    guidance: 'Tap inside the site composer, use Teach Input if needed, then Re-detect. Report the diagnostic if it persists.'
+  },
+  'COMPOSER-002': {
+    summary: 'The prompt did not land in the composer (inject verification failed).',
+    guidance: 'Tap the site composer, try Teach Input, then retry. Ghost did not open a Send transaction.'
+  },
+  'COMPOSER-003': {
+    summary: 'Multiple plausible chat composers were visible — Ghost refused to guess.',
+    guidance: 'Focus the intended composer or Teach Input, then retry.'
   },
   'SEND-001': {
     summary: 'No unique reviewed Send control could be safely activated.',
-    guidance: 'Review the inserted prompt and use the site Send button manually.'
+    guidance: 'Use Teach Send once on the real Send control, or send manually. If this site uses Enter-to-send, confirm that setting is on.'
   },
   'SEND-002': {
     summary: 'A Send attempt occurred but delivery could not be confirmed.',
-    guidance: 'Check the conversation before doing anything else. Ghost did not resend.'
+    guidance: 'Check the conversation before doing anything else. Ghost did not resend. If Enter was used, confirm “Enter sends” is enabled or Teach Send.'
   },
   'ADAPTER-001': {
     summary: 'The site adapter could not identify a required capability.',
-    guidance: 'Run Re-detect, download the diagnostic, and report the affected site.'
+    guidance: 'Run Re-detect, try Teach Send / Teach Input, download the diagnostic, and report the affected site.'
+  },
+  'SAFEGUARD-001': {
+    summary: 'Automation is disabled by kill-switch or host allow-list.',
+    guidance: 'Clear gitlKillSwitch or add this host to gitlEnabledHosts, then reload.'
   },
   'EXPORT-001': {
     summary: 'Export could not produce a validated transcript file.',
@@ -2355,15 +2591,23 @@ function randomDelay(round) {
 function _setLoopPhase(phase, detail) { const L=GHOST.loop, changed=L.phase!==phase||(detail!==undefined&&L.detail!==detail); L.phase=phase; if(detail!==undefined)L.detail=detail; return changed; }
 function _replyFingerprint(text) { const s=String(text||''); return `${s.length}:${s.slice(-180)}`; }
 function _observeReplyText(text) { const L=GHOST.loop,key=_replyFingerprint(text); if(key&&key===L.replyKey)L.replyStableTicks++; else{L.replyKey=key;L.replyStableTicks=0;} return {key,stableTicks:L.replyStableTicks}; }
-function _replyAdvancedBeyondBaseline(text) { const b=GHOST.loop.replyBaseline;if(!b)return true;const count=_qAll(PLAT.assistant).length,s=String(text||'');return count>b.assistantCount||s.length>b.assistantTextLength+4||(s.slice(-180)&&s.slice(-180)!==b.assistantTail); }
-function _terminalReplyReady(text,result,obs,stopVisible) { return !!text&&!!result&&['proceed','halt'].includes(result.signal)&&!stopVisible&&_replyAdvancedBeyondBaseline(text)&&obs.stableTicks>=1; }
+function _replyAdvancedBeyondBaseline(text) {
+  const b = GHOST.loop.replyBaseline;
+  /* Missing baseline must not treat a stale on-page PROCEED as “advanced”
+     (GAP-B08). Require a baseline once the loop is actively running. */
+  if (!b) return GHOST.loop.state !== 'RUNNING';
+  const count = _qAll(PLAT.assistant).length, s = String(text || '');
+  return count > b.assistantCount
+    || s.length > b.assistantTextLength + 4
+    || (s.slice(-180) && s.slice(-180) !== b.assistantTail);
+}
+function _terminalReplyReady(text, result, obs, stopVisible) {
+  return !!text && !!result && ['proceed', 'halt'].includes(result.signal)
+    && !stopVisible && _replyAdvancedBeyondBaseline(text) && obs.stableTicks >= 2;
+}
 async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.now()+Math.max(0,ms);let shown=-1;while(L.state==='RUNNING'){const left=Math.max(0,L.countdownUntil-Date.now()),sec=Math.ceil(left/1000);if(sec!==shown){shown=sec;_setLoopPhase('countdown',`Next command in ${sec}s…`);render();}if(left<=0)break;await sleep(Math.min(250,left));}L.countdownUntil=0; }
 
 let _pendingSendResolve = null;
-
-function _composerText(el) {
-  return String((el && (el.value || el.textContent)) || '').trim();
-}
 
 function _settleSendPromise(ok) {
   const resolve = _pendingSendResolve;
@@ -2425,7 +2669,17 @@ async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
   const safe = assertInteractionSafe();
-  if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
+  if (!safe.ok) {
+    DIAG.push(`Send blocked — ${safe.reason}`);
+    L.detail = `⚠ ${safe.reason}`;
+    if (safe.reason === 'kill-switch' || safe.reason === 'host-disabled') {
+      Reporter.capture('SAFEGUARD-001', `Automation blocked: ${safe.reason}`);
+      pauseWithProbe(`Automation disabled (${safe.reason})`);
+    } else {
+      render();
+    }
+    return false;
+  }
   L.isSending = true;
   try {
     if (!skipDelay) await _sleepCountdown(randomDelay(L.round));
@@ -2443,6 +2697,12 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     _setLoopPhase('dispatching', 'Preparing next command…'); render();
+    const peers = _visibleComposerPeers();
+    if (peers.length > 1) {
+      Reporter.capture('COMPOSER-003', `Ambiguous composers: ${peers.length} visible candidates.`);
+      pauseWithProbe('Multiple chat composers visible — refusing to guess');
+      return false;
+    }
     const input = Adapter.getInput();
     if (!input) {
       Reporter.capture('COMPOSER-001', 'No uniquely identifiable chat composer was available.');
@@ -2450,29 +2710,36 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     if (!Adapter.injectText(input, text)) {
-      Reporter.capture('COMPOSER-001', 'The reviewed composer rejected text injection.');
+      Reporter.capture('COMPOSER-002', 'The reviewed composer rejected text injection or the prompt did not land.');
       pauseWithProbe('Chat composer rejected the prompt');
       return false;
     }
     await sleep(500);
-    const btn = Adapter.getSendBtn();
-    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
-    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
-    // is no fallback or escalation: the selected mechanism fires once, then
-    // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
+    /* Track A — pre-dispatch evidence gate: composer must hold our exact prompt
+       before any journal opens. If a reviewed button exists it must still be
+       enabled (already enforced by _platformReviewedSend). */
+    if (!_composerHoldsPrompt(input, text)) {
+      Reporter.capture('COMPOSER-002', 'Post-inject verification failed — composer does not hold the staged prompt.');
+      pauseWithProbe('Injected prompt missing from composer — nothing was sent');
+      return false;
+    }
+    // Track F — choose exactly one reviewed dispatch mechanism BEFORE opening
+    // the at-most-once journal. Once `_beginSendAttempt()` runs there is no
+    // fallback or escalation: the selected mechanism fires once, then Ghost
+    // only observes confirmation evidence or enters `uncertain`.
+    const strategy = _selectSendStrategy(input);
     if (!strategy) {
-      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
+      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use Teach Send or manual Send.');
       pauseWithProbe('No safe Send mechanism — prompt left for manual review');
+      return false;
+    }
+    /* Track D — dry-run: stage + announce, never dispatch. */
+    if (dryRunOn()) {
+      DIAG.sendPath = 'dry-run:' + strategy.path;
+      Timeline.record('send_dry_run', { path: strategy.path, chars: String(text || '').length });
+      L.detail = `🧪 Dry-run: would send via ${strategy.path} (${String(text || '').length} chars) — nothing dispatched`;
+      _setLoopPhase('idle', L.detail);
+      render();
       return false;
     }
     DIAG.sendPath = strategy.path;
@@ -2551,6 +2818,22 @@ function _markSendUncertain() {
   return true;
 }
 
+/* Track D — navigation during dispatch → uncertain (never resend). */
+if (typeof window !== 'undefined') {
+  const _navAbort = () => {
+    try {
+      const L = typeof GHOST !== 'undefined' ? GHOST.loop : null;
+      if (L && L.sendPending && L.sendTxn && L.sendTxn.state === 'dispatching') {
+        Timeline.record('send_nav_abort', { path: L.sendTxn.path });
+        _markSendUncertain();
+      }
+    } catch(_) {}
+  };
+  window.addEventListener('pagehide', _navAbort);
+  window.addEventListener('popstate', _navAbort);
+  window.addEventListener('hashchange', _navAbort);
+}
+
 /* Human reconciliation is the only way out of an ambiguous dispatch.
    This never re-clicks Send. */
 function reconcileUncertainSend(delivered) {
@@ -2571,8 +2854,20 @@ function reconcileUncertainSend(delivered) {
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
+  /* GAP-B09 — mirror _confirmSend baseline so a stale PROCEED cannot
+     immediately auto-Continue after human confirmation. */
+  const lastText = Adapter.getLastText() || '';
+  L.replyBaseline = {
+    assistantCount: _qAll(PLAT.assistant).length,
+    assistantTextLength: lastText.length,
+    assistantTail: lastText.slice(-180)
+  };
+  L.replyKey = '';
+  L.replyStableTicks = 0;
+  L.lastDispatchConfirmedAt = Date.now();
   L.state = 'RUNNING';
   L.detail = '✓ Delivery confirmed by you';
+  _setLoopPhase('generating', 'Waiting for AI output…');
   Timeline.record('send_reconciled', {
     command: txn.id.slice(0, 8),
     delivered: true,
@@ -5741,7 +6036,21 @@ safeBoot(() => {
   _phase('continue-observer', false, () => {
     // Fast-path: a Continue button revealed via CSS (not just freshly inserted)
     // also triggers the auto-click. The loop tick remains the primary driver.
-    new MutationObserver(() => {
+    // Track G: also invalidate selector caches on structural DOM change so a
+    // replaced composer/send control is re-resolved (no scroll listeners).
+    let _cacheMutPending = false;
+    new MutationObserver((muts) => {
+      let structural = false;
+      for (const m of muts) {
+        if (m.type === 'childList' && (m.addedNodes?.length || m.removedNodes?.length)) { structural = true; break; }
+        if (m.type === 'attributes' && (m.attributeName === 'disabled' || m.attributeName === 'hidden' || m.attributeName === 'aria-hidden')) {
+          structural = true; break;
+        }
+      }
+      if (structural && !_cacheMutPending) {
+        _cacheMutPending = true;
+        setTimeout(() => { _cacheMutPending = false; try { _clearElementCaches(); } catch(_){} }, 50);
+      }
       if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
       clearTimeout(_mutDebounce);
       _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);

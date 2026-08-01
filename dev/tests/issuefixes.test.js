@@ -34,7 +34,7 @@ describe('Issue #1 — Perplexity completion observation', () => {
   test('terminal override requires reply advancement, stability, and no visible Stop', () => {
     const gate = body('_terminalReplyReady', '_sleepCountdown');
     expect(gate).toContain('_replyAdvancedBeyondBaseline(text)');
-    expect(gate).toContain('obs.stableTicks>=1');
+    expect(gate).toContain('obs.stableTicks >= 2');
     expect(gate).toContain('!stopVisible');
   });
 });

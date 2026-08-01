@@ -11,6 +11,40 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.7.0 — Cursor multi-agent evaluation (integrator)
+
+**What was tried:** Parallel evaluation tracks from `docs/HANDOFF_CURSOR_EVAL.md`
+(A send last-mile, B gap audit, C network reading, D safeguards, E prior art,
+F send ladder, G mobile CI). Goal: improve mechanisms with internal tests, not
+blind patches; keep §1 invariants.
+
+**What shipped (integrated):**
+- Pre-dispatch composer evidence gate + honest `injectText` (GAP-B01/B02).
+- Selection tier ladder as *pre-journal* choice including unique
+  `form.requestSubmit()` — never post-dispatch escalation (the 8.4.2 double-send
+  lesson stands).
+- TeachStore uniqueness; reconcile baseline; stableTicks≥2; kill-switch /
+  host allow-list / dry-run / nav abort / composer ambiguity.
+- `GITL_NET` SSE read prototype flagged off (`gitlNetRead`).
+- AccName/role helpers + continue exclude list (from OSS prior art, no deps).
+- Mobile Playwright projects + buttonless fixture.
+
+**What failed / was rejected:**
+- Could not push to Personal Forge (`MShneur/ctrl-forge`) — `cursor[bot]` 403.
+  Deliverable stays on review branch `cursor/gitl-eval-integrator-2995` plus a
+  forge-format package under `forge-handoff/` for manual copy.
+- Did **not** blanket-enable Enter on Claude/Gemini without device evidence
+  (GAP-B19) — Teach + form tier cover the gap safely.
+- Did **not** make network reading an actuation source.
+- Did **not** reintroduce multi-event `pressEnter` as a second fire.
+
+**Open for real device:** ChatGPT/Perplexity Android “Enter sends” disabled
+users; Claude/Gemini mobile buttonless DOMs; whether synthetic keydown alone
+enables ChatGPT’s Send (evidence gate + Teach remain the fail-closed path).
+
+**Tests:** `sendladder`, `safeguards`, `netread`, `accname`, mobile e2e;
+updated sendtransaction/sendlayered/teach/loopobserver contracts.
+
 ## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
 
 **What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,

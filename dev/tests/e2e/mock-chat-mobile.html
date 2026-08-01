@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock AI Chat — mobile Send harness</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .composer { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; padding: 12px; background: #111; }
+    #prompt-textarea { flex: 1; min-height: 44px; padding: 10px; background: #222; color: #eee; border: 0; border-radius: 8px; }
+    /* Mobile class: dictation occupies the slot until a native-ish input lands. */
+    #dictation { width: 44px; height: 44px; border: 0; border-radius: 22px; }
+    #send-button[hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="conversation">
+      <div class="message assistant" data-message-author-role="assistant">Mobile mock ready.[[GITL::PROCEED]]</div>
+    </div>
+    <form id="chat-form" class="composer">
+      <div
+        id="prompt-textarea"
+        class="ProseMirror"
+        contenteditable="true"
+        data-placeholder="Message..."
+        role="textbox"></div>
+      <button type="button" id="dictation" aria-label="Dictate">🎙</button>
+      <button type="submit" id="send-button" data-testid="send-button" aria-label="Send prompt" hidden disabled>Send</button>
+    </form>
+  </main>
+  <script>
+    const input = document.getElementById('prompt-textarea');
+    const send = document.getElementById('send-button');
+    const dictation = document.getElementById('dictation');
+    const form = document.getElementById('chat-form');
+    let sent = 0;
+    function refreshSend() {
+      const text = (input.textContent || '').trim();
+      const ready = text.length > 0;
+      /* Only reveal Send after a trusted InputEvent from the page — mimics
+         ChatGPT mobile requiring a native keystroke before the button appears. */
+      if (ready && input.dataset.native === '1') {
+        send.hidden = false;
+        send.disabled = false;
+        dictation.hidden = true;
+      } else {
+        send.hidden = true;
+        send.disabled = true;
+        dictation.hidden = false;
+      }
+    }
+    input.addEventListener('input', (e) => {
+      if (e.isTrusted) input.dataset.native = '1';
+      refreshSend();
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const text = (input.textContent || '').trim();
+      if (!text || send.disabled || send.hidden) return;
+      const msg = document.createElement('div');
+      msg.className = 'message assistant';
+      msg.setAttribute('data-message-author-role', 'assistant');
+      msg.textContent = 'Echo: ' + text + '\n[[GITL::PROCEED]]';
+      document.querySelector('.conversation').appendChild(msg);
+      input.textContent = '';
+      input.dataset.native = '';
+      sent += 1;
+      window.__MOBILE_SENT__ = sent;
+      refreshSend();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if ((input.textContent || '').trim()) form.requestSubmit();
+      }
+    });
+    window.__MOBILE_SENT__ = 0;
+    refreshSend();
+  </script>
+</body>
+</html>

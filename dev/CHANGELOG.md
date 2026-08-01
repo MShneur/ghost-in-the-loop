@@ -1,5 +1,47 @@
 # Changelog
 
+## [8.7.0] — Cursor eval: send ladder, evidence gate, safeguards, mobile CI
+
+Evaluation upgrade across send reliability, safeguards, chat-reading, and CI.
+**Not promoted to live `main`** — review branch only.
+
+### Send / detection (Tracks A + F)
+- Pre-dispatch **evidence gate**: after inject, the composer must hold the staged
+  prompt or Ghost pauses with `COMPOSER-002` — no journal, no click.
+- `injectText` now returns verification success/failure (no more blind `true`).
+- Evidence-gated **selection tier ladder** (chosen before `_beginSendAttempt`):
+  platform reviewed button → reviewed Enter → unique wrapping `form.requestSubmit()`
+  → Teach Mode. Truth-table tests prove no path can fire twice.
+- ChatGPT `useCE:true` so mobile ProseMirror inject is first-class.
+
+### Safeguards (Track D)
+- Kill-switch (`gitlKillSwitch`) + optional host allow-list (`gitlEnabledHosts`).
+- Dry-run mode (`gitlDryRun`) stages the prompt and announces the path without dispatch.
+- Composer ambiguity guard (`COMPOSER-003`) when multiple visible composers exist.
+- Navigation abort during dispatch → uncertain (never resend).
+- Human reconcile now sets `replyBaseline` (prevents stale-sigil auto-Continue).
+- Terminal readiness requires two stable ticks; missing baseline no longer counts
+  as “advanced” while RUNNING.
+
+### Chat reading prototype (Track C)
+- Optional `GITL_NET` SSE ingest behind `gitlNetRead` (off by default): records
+  `[DONE]` / `message_stop` + a short reply tail. **Read-only — never actuation.**
+
+### Prior art folded in (Track E)
+- Miniature Playwright-style `_roleOf` / `_accName` helpers for detection scoring.
+- Continue-button exclude list (`Continue with Google`, login/cancel/delete…).
+
+### Mobile CI + perf (Track G)
+- Playwright `chromium-mobile` / `firefox-mobile` projects (Pixel 7 + touch +
+  Android UA) and a buttonless mobile Send fixture/spec.
+- Selector cache invalidation on structural DOM mutations (no scroll listeners).
+
+### Diagnostics
+- `platformHealth.send` treats reviewed Enter + composer as send-ready (display only).
+- Error catalog mentions Teach Mode / Enter-sends; new `COMPOSER-002/003`, `SAFEGUARD-001`.
+
+See `docs/CURSOR_EVAL_REPORT.md` for the full multi-track report.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

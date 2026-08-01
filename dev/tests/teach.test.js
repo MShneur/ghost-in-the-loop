@@ -40,21 +40,22 @@ describe('wiring — taught controls are consulted (source contract)', () => {
   const fs = require('fs'), path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
-  test('_reviewedSend consults a taught send BEFORE the reviewed-platform gate', () => {
-    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 400);
-    const taughtAt = fn.indexOf("TeachStore.matchEl('send')");
-    const gateAt = fn.indexOf('if (!PLAT?.reviewed) return null;');
-    expect(taughtAt).toBeGreaterThan(-1);
-    expect(gateAt).toBeGreaterThan(taughtAt);
+  test('_reviewedSend and the send ladder both honour a unique taught send', () => {
+    expect(src).toContain("return _platformReviewedSend() || TeachStore.matchEl('send')");
+    const select = src.slice(src.indexOf('function _selectSendStrategy'), src.indexOf('function _visibleComposerPeers'));
+    expect(select).toContain("path: 'taught-button'");
+    expect(select.indexOf("path: 'taught-button'")).toBeGreaterThan(select.indexOf("path: 'reviewed-form'"));
   });
 
   test('peekInput consults a taught input', () => {
     expect(src).toContain("_q('in', PLAT.input) || TeachStore.matchEl('input') || SelectorMemory.lookup('input')");
   });
 
-  test('matchEl re-applies the send veto and requires a text box for input', () => {
-    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 600);
-    expect(fn).toContain("if (kind === 'send' && !_sendLooksSafe(el)) return null;");
+  test('matchEl re-applies the send veto, requires uniqueness, and a text box for input', () => {
+    const fn = src.slice(src.indexOf('matchEl(kind) {'), src.indexOf('matchEl(kind) {') + 900);
+    expect(fn).toContain("if (kind === 'send')");
+    expect(fn).toContain('!_sendLooksSafe(el)');
+    expect(fn).toContain('matches.length === 1');
     expect(fn).toContain("el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true'");
   });
 

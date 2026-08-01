@@ -1,5 +1,5 @@
 /**
- * SINGLE-DISPATCH SELECTION (v8.5.3 item 2)
+ * SINGLE-DISPATCH SELECTION (v8.5.3 item 2 → v8.7.0 Track F ladder)
  *
  * A transaction selects one reviewed dispatch mechanism before the journal
  * opens. Once dispatch begins, Ghost may observe, confirm, or pause uncertain;
@@ -17,6 +17,7 @@ function body(name, nextName) {
 
 describe('single reviewed dispatch selection', () => {
   const send = body('engineSend', '_confirmSend');
+  const select = body('_selectSendStrategy', '_visibleComposerPeers');
 
   test('the buttonless reviewed Enter fallback is opt-in per adapter (Perplexity + ChatGPT)', () => {
     const perpStart = src.indexOf("perplexity: {");
@@ -29,11 +30,13 @@ describe('single reviewed dispatch selection', () => {
 
     // Still explicit opt-in — declared only by adapters that submit on Enter,
     // never a universal default. (Both composers are Enter-to-send.)
-    expect((src.match(/dispatchFallback:\s*'enter'/g) || []).length).toBe(2);
+    // Adapter declarations only (ignore comment mentions elsewhere).
+    const adapterEnters = [...src.matchAll(/^\s*dispatchFallback:\s*'enter'/gm)];
+    expect(adapterEnters.length).toBe(2);
   });
 
   test('selects the mechanism before opening the transaction journal', () => {
-    const selectAt = send.indexOf('const strategy = btn ?');
+    const selectAt = send.indexOf('const strategy = _selectSendStrategy(input)');
     const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
@@ -42,21 +45,20 @@ describe('single reviewed dispatch selection', () => {
   });
 
   test('button wins; Enter is used only when the reviewed adapter opts in', () => {
-    expect(send).toContain("path: 'reviewed-button'");
-    expect(send).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
-    expect(send).toContain("path: 'reviewed-enter'");
-    expect(send).toContain("new KeyboardEvent('keydown'");
-    expect(send).not.toContain("new KeyboardEvent('keypress'");
-    expect(send).not.toContain("new KeyboardEvent('keyup'");
+    expect(select).toContain("path: 'reviewed-button'");
+    expect(select).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
+    expect(select).toContain("path: 'reviewed-enter'");
+    expect(select).toContain("new KeyboardEvent('keydown'");
+    expect(select).not.toContain("new KeyboardEvent('keypress'");
+    expect(select).not.toContain("new KeyboardEvent('keyup'");
   });
 
   test('contains no post-begin fallback or actuator escalation', () => {
-    expect(send).not.toContain('reviewed-paragraph');
-    expect(send).not.toContain('reviewed-form');
     expect(send).not.toContain('send_escalate');
-    expect(send).not.toContain('requestSubmit');
     expect(send).not.toMatch(/for\s*\([^)]*tiers/);
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    const beginAt = send.indexOf('_beginSendAttempt');
+    expect(send.slice(beginAt)).not.toContain('requestSubmit(');
   });
 
   test('a dispatch exception becomes uncertain and never selects another mechanism', () => {
@@ -66,12 +68,11 @@ describe('single reviewed dispatch selection', () => {
     expect(catchAt).toBeGreaterThan(runAt);
     expect(uncertainAt).toBeGreaterThan(catchAt);
     expect(send.slice(catchAt, uncertainAt + 22)).not.toContain('Adapter.getSendBtn');
+    expect(send.slice(catchAt, uncertainAt + 22)).not.toContain('_selectSendStrategy');
   });
 
   test('no strategy leaves the injected prompt for manual review before a transaction starts', () => {
     const noStrategyAt = send.indexOf('if (!strategy)');
-    // Target the actual CALL, not the earlier explanatory comment that also
-    // mentions _beginSendAttempt() (the loose search matched the comment).
     const beginAt = send.indexOf('const completion = _beginSendAttempt(');
     expect(noStrategyAt).toBeGreaterThan(-1);
     expect(beginAt).toBeGreaterThan(-1);
