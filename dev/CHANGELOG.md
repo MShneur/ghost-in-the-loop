@@ -1,5 +1,37 @@
 # Changelog
 
+## [8.7.0] — Cursor eval upgrade (send evidence gate + tier ladder + safeguards)
+
+Multi-track evaluation handoff integrated on branch
+`cursor/eval-upgrade-tracks-a1a5`. Recommendation ID:
+`REC-GITL-EVAL-20260801-A1A5`.
+
+### Send / detection (Track A + F)
+- **Pre-dispatch evidence gate** — before any actuator fires, Ghost verifies the
+  composer actually holds the intended prompt (`COMPOSER-002`) and that a reviewed
+  button tier is enabled/visible (`SEND-004`). Multiple reviewed Send matches pause
+  loud (`SEND-003`) instead of guessing.
+- **Evidence-gated tier ladder** — pre-journal selection order: reviewed button →
+  reviewed Enter → unique `form.requestSubmit()` → taught control. Still
+  at-most-once: one `strategy.run()`, no post-journal escalation.
+- **Mobile injection hardening** — extra `beforeinput` event after contenteditable
+  injection for editors that gate Send on native input signals.
+
+### Safeguards (Track D)
+- **Dry run** — stages prompts and reports which tier would fire; never opens the
+  send journal.
+- **Kill switch** — hard-stops automated sends.
+- **Per-site disable** — `siteDisabled` hostname map checked before send.
+
+### Reading prototype (Track C)
+- **`GITL_NET_READ`** — read-only ChatGPT SSE text accumulator behind
+  `netReadEnabled` (default off). Never actuates.
+
+### CI / perf (Track G)
+- **Playwright `chromium-mobile` project** (Pixel 5 + touch) and
+  `mobilesend.spec.js` reproducing the buttonless mobile Send class.
+- **Selector cache invalidation** via debounced `MutationObserver`.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

@@ -38,7 +38,6 @@ describe('send transaction', () => {
   const confirm = body('_confirmSend', '_markSendUncertain');
 
   test('one transaction authorizes exactly one dispatch invocation', () => {
-    expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
     expect(send).not.toContain('send_escalate');
     expect(send).not.toContain('reviewed-paragraph');
@@ -46,7 +45,7 @@ describe('send transaction', () => {
   });
 
   test('strategy selection is complete before transaction creation', () => {
-    const strategy = send.indexOf('const strategy = btn ?');
+    const strategy = send.indexOf('const strategy = _selectSendStrategy(input)');
     const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const dispatch = send.indexOf('strategy.run()');
     expect(strategy).toBeGreaterThan(-1);

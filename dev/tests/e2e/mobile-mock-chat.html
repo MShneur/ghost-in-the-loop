@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Mobile ChatGPT — GITL e2e</title>
+</head>
+<body>
+  <main>
+    <div class="conversation">
+      <div data-message-author-role="assistant">Prior reply</div>
+    </div>
+    <div class="composer">
+      <div id="prompt-textarea" contenteditable="true" role="textbox" data-placeholder="Message..."></div>
+      <!-- Mobile web: dictation occupies send slot; no reviewed send button in DOM -->
+      <button aria-label="Dictate" id="dictate-btn"><svg></svg></button>
+    </div>
+  </main>
+</body>
+</html>

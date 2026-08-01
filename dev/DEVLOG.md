@@ -11,6 +11,28 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.7.0 — Cursor eval upgrade (recommendation REC-GITL-EVAL-20260801-A1A5)
+
+**What shipped:** integrated Tracks A, D, F, C (prototype), and G from the
+`HANDOFF_CURSOR_EVAL.md` brief on branch `cursor/eval-upgrade-tracks-a1a5`.
+
+**Send:** `_selectSendStrategy` tier ladder (button → enter → form → taught) with
+`_preDispatchEvidenceGate` verifying staged text + enabled controls before
+`_beginSendAttempt`. Ambiguous Send matches pause with `SEND-003`.
+
+**Safeguards:** dry-run mode, kill switch, per-site disable map, existing route
+abort unchanged.
+
+**Read prototype:** `GITL_NET_READ` SSE parser for ChatGPT, off by default.
+
+**CI:** `chromium-mobile` Playwright project + `mobilesend.spec.js`.
+
+**Tests:** `sendtier.test.js`, `sendevidence.test.js`, `safeguards.test.js`,
+`netread.test.js`; updated `sendlayered` / `sendtransaction`.
+
+**Deferred to human/device:** real Android Firefox confirmation; Personal Forge
+push (no write access to `ctrl-forge` / `personal-forge` from this agent token).
+
 ## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
 
 **What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,

@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.1';
+const VER = '8.7.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -439,7 +439,9 @@ const GITL_NET = {
                     while (true) {
                       const { done, value } = await reader.read();
                       if (done) { self._emit(0, true); break; }
-                      self._emit(value?.byteLength || value?.length || 0, false);
+                      const nbytes = value?.byteLength || value?.length || 0;
+                      try { GITL_NET_READ._ingestSseBytes(value); } catch(_) {}
+                      self._emit(nbytes, false);
                     }
                   } catch(_) { /* stream aborted — normal on navigation */ }
             })();
@@ -504,6 +506,50 @@ const GITL_NET = {
    this runs before safeBoot() and used to be able to take the whole script
    down with it (see the v8.1.3 note inside install()). */
 try { GITL_NET.install(); } catch(err) { console.error('[GITL] GITL_NET.install() threw at top level — continuing boot anyway:', err); }
+
+/* Read-only network reply reader (v8.7 prototype, OFF by default).
+   Parses authoritative stream text for completion hints — never actuates. */
+const GITL_NET_READ = {
+  lastText: '',
+  turnComplete: false,
+  lastDoneAt: 0,
+  _enabled() {
+    try { return !!GM_getValue('netReadEnabled', false); } catch(_) { return false; }
+  },
+  reset() {
+    this.lastText = '';
+    this.turnComplete = false;
+    this.lastDoneAt = 0;
+  },
+  _ingestSseBytes(value) {
+    if (!this._enabled() || !value) return;
+    try {
+      const chunk = typeof value === 'string' ? value : new TextDecoder().decode(value);
+      for (const line of chunk.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === '[DONE]') {
+          if (payload === '[DONE]') { this.turnComplete = true; this.lastDoneAt = Date.now(); }
+          continue;
+        }
+        try {
+          const obj = JSON.parse(payload);
+          const piece = obj?.message?.content?.parts?.[0]
+            || obj?.v?.message?.content?.parts?.[0]
+            || obj?.p || obj?.delta || '';
+          if (typeof piece === 'string' && piece) this.lastText += piece;
+        } catch(_) {}
+      }
+    } catch(_) {}
+  },
+  readLastText() {
+    return this._enabled() ? this.lastText : '';
+  },
+  isTurnComplete() {
+    return this._enabled() && this.turnComplete && (Date.now() - this.lastDoneAt < 30000);
+  }
+};
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 1 — PLATFORM ADAPTERS (all DOM access lives here)
@@ -665,6 +711,24 @@ try {
 // Selector cache with route-change invalidation
 const _cache = new Map();
 let _lastHref = location.href;
+let _cacheObserver = null;
+
+function _ensureSelectorCacheObserver() {
+  if (_cacheObserver || typeof MutationObserver === 'undefined' || !document.documentElement) return;
+  let pending = 0;
+  _cacheObserver = new MutationObserver(() => {
+    clearTimeout(pending);
+    pending = setTimeout(() => { _cache.clear(); }, 150);
+  });
+  try {
+    _cacheObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['disabled', 'aria-disabled', 'class', 'style', 'hidden']
+    });
+  } catch(_) { _cacheObserver = null; }
+}
 
 const _deepLast = new Map(); // throttle shadow walks per key
 function _shadowQS(sel) {
@@ -1161,6 +1225,9 @@ const Adapter = {
         } catch(_) {}
       }
       el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
+      try {
+        el.dispatchEvent(new InputEvent('beforeinput', { bubbles:true, cancelable:true, inputType:'insertText', data:text, composed:true }));
+      } catch(_) {}
       if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = 'contenteditable';
       return true;
     }
@@ -1673,6 +1740,9 @@ const GHOST = {
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
     unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
+    dryRun: GM_getValue('dryRun', false),
+    killSwitch: GM_getValue('killSwitch', false),
+    netReadEnabled: GM_getValue('netReadEnabled', false),
     explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     teaching: null, // runtime-only: 'send' | 'input' while capturing a control
     teachMsg: '',   // runtime-only: last teach result/hint
@@ -1875,9 +1945,21 @@ const ERROR_CATALOG = Object.freeze({
     summary: 'No unique, usable chat composer was available.',
     guidance: 'Tap inside the site composer, use Re-detect, and report the diagnostic if it persists.'
   },
+  'COMPOSER-002': {
+    summary: 'The composer did not hold the intended prompt after injection.',
+    guidance: 'On mobile editors, try a native keystroke or Teach Mode for the input. Ghost left the prompt for manual review.'
+  },
   'SEND-001': {
     summary: 'No unique reviewed Send control could be safely activated.',
     guidance: 'Review the inserted prompt and use the site Send button manually.'
+  },
+  'SEND-003': {
+    summary: 'Multiple plausible Send controls were visible — Ghost refused to guess.',
+    guidance: 'Use Teach Mode to capture the correct Send button, or send manually this round.'
+  },
+  'SEND-004': {
+    summary: 'A reviewed Send control exists but is disabled or hidden.',
+    guidance: 'Try a native keystroke in the composer to enable Send, or use Teach Mode / manual send.'
   },
   'SEND-002': {
     summary: 'A Send attempt occurred but delivery could not be confirmed.',
@@ -2365,6 +2447,102 @@ function _composerText(el) {
   return String((el && (el.value || el.textContent)) || '').trim();
 }
 
+/* Pre-dispatch evidence: the composer must actually hold our prompt before any
+   actuator fires. Mobile React/ProseMirror builds often accept insertText but
+   leave Send disabled until a native keystroke — firing Enter on an empty or
+   partial composer is a no-op at best and uncertain at worst. */
+function _composerHoldsPrompt(el, text) {
+  const got = _composerText(el);
+  const want = String(text || '').trim();
+  if (!want) return got.length > 0;
+  if (got === want) return true;
+  const head = want.slice(0, Math.min(48, want.length));
+  return head.length >= 8 && got.includes(head);
+}
+
+function _reviewedPlatformSendMatches() {
+  if (!PLAT?.reviewed) return [];
+  const all = [];
+  for (const sel of PLAT.send || []) {
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        if (!_isOwnUI(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && _visible(el) && _sendLooksSafe(el)) {
+          all.push(el);
+        }
+      }
+    } catch(_) {}
+  }
+  return all;
+}
+
+function _uniqueReviewedForm(input) {
+  if (!PLAT?.reviewed || !input?.closest) return null;
+  try {
+    const forms = [...document.querySelectorAll('form')].filter(f => !_isOwnUI(f) && f.contains(input));
+    if (forms.length !== 1) return null;
+    const form = forms[0];
+    if (typeof form.requestSubmit !== 'function') return null;
+    return form;
+  } catch(_) { return null; }
+}
+
+/* Evidence-gated send tier ladder — chosen entirely BEFORE the journal opens.
+   Order: reviewed button → reviewed Enter → unique form.requestSubmit → taught.
+   Taught is last so platform-reviewed paths stay authoritative on known sites. */
+function _selectSendStrategy(input) {
+  const buttons = _reviewedPlatformSendMatches();
+  if (buttons.length > 1) return { path: 'ambiguous', ambiguous: true, run: null };
+  if (buttons.length === 1) {
+    const btn = buttons[0];
+    return { path: 'reviewed-button', run: () => btn.click() };
+  }
+  if (PLAT?.reviewed && PLAT.dispatchFallback === 'enter') {
+    return {
+      path: 'reviewed-enter',
+      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key:'Enter', code:'Enter', keyCode:13, which:13,
+        bubbles:true, cancelable:true, composed:true
+      }))
+    };
+  }
+  const form = _uniqueReviewedForm(input);
+  if (form) {
+    return { path: 'reviewed-form', run: () => form.requestSubmit() };
+  }
+  const taught = TeachStore.matchEl('send');
+  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') {
+    return { path: 'reviewed-taught', run: () => taught.click() };
+  }
+  return null;
+}
+
+function _preDispatchEvidenceGate(input, intendedText, strategy) {
+  if (!strategy) return { ok: false, code: 'SEND-001', reason: 'No safe Send mechanism.' };
+  if (strategy.ambiguous) {
+    return { ok: false, code: 'SEND-003', reason: 'Multiple plausible Send controls — refusing to guess.' };
+  }
+  if (!_composerHoldsPrompt(input, intendedText)) {
+    return { ok: false, code: 'COMPOSER-002', reason: 'Composer does not hold the intended prompt after injection.' };
+  }
+  if (strategy.path === 'reviewed-button' || strategy.path === 'reviewed-taught') {
+    const buttons = strategy.path === 'reviewed-taught'
+      ? (TeachStore.matchEl('send') ? [TeachStore.matchEl('send')] : [])
+      : _reviewedPlatformSendMatches();
+    const btn = buttons[0];
+    if (!btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true' || !_visible(btn)) {
+      return { ok: false, code: 'SEND-004', reason: 'Reviewed Send control is not enabled or visible.' };
+    }
+  }
+  return { ok: true };
+}
+
+function _siteAutomationDisabled() {
+  try {
+    const map = JSON.parse(GM_getValue('siteDisabled', '{}')) || {};
+    return !!map[location.hostname];
+  } catch(_) { return false; }
+}
+
 function _settleSendPromise(ok) {
   const resolve = _pendingSendResolve;
   _pendingSendResolve = null;
@@ -2424,6 +2602,18 @@ function _sendEvidence() {
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
+  if (GHOST.ui.killSwitch) {
+    L.detail = '⚠ Kill switch is on — automation disabled';
+    Timeline.record('send_blocked', { reason: 'kill-switch' });
+    render();
+    return false;
+  }
+  if (_siteAutomationDisabled()) {
+    L.detail = `⚠ Ghost is disabled on ${location.hostname}`;
+    Timeline.record('send_blocked', { reason: 'site-disabled' });
+    render();
+    return false;
+  }
   const safe = assertInteractionSafe();
   if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
@@ -2455,24 +2645,18 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     await sleep(500);
-    const btn = Adapter.getSendBtn();
-    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
-    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
-    // is no fallback or escalation: the selected mechanism fires once, then
-    // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
-    if (!strategy) {
-      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
-      pauseWithProbe('No safe Send mechanism — prompt left for manual review');
+    // v8.7 — evidence-gated tier ladder: one mechanism chosen before the journal.
+    const strategy = _selectSendStrategy(input);
+    const gate = _preDispatchEvidenceGate(input, text, strategy);
+    if (!gate.ok) {
+      Reporter.capture(gate.code, gate.reason);
+      pauseWithProbe(gate.reason);
+      return false;
+    }
+    if (GHOST.ui.dryRun) {
+      L.detail = `Dry run — would send via ${strategy.path}; nothing dispatched`;
+      Timeline.record('send_dry_run', { path: strategy.path, round: L.round + 1 });
+      render();
       return false;
     }
     DIAG.sendPath = strategy.path;
@@ -5096,6 +5280,12 @@ function renderSettingsTab() {
     <div class="g-div"></div>
     <div class="g-row"><label>🌙 Unattended</label><div class="g-tog${GHOST.ui.unattended?' on':''}" id="cfg-unattended"></div></div>
     <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Keeps running when the tab is in the background. The tab must stay <b>open</b> — this does not move the run to a server. Off by default: it sends prompts while you're not looking.</div>
+    <div class="g-row"><label>🧪 Dry run</label><div class="g-tog${GHOST.ui.dryRun?' on':''}" id="cfg-dryrun"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Stages prompts but never dispatches Send — shows which tier <i>would</i> fire.</div>
+    <div class="g-row"><label>⛔ Kill switch</label><div class="g-tog${GHOST.ui.killSwitch?' on':''}" id="cfg-killswitch"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Hard-stops all automated sends until turned off.</div>
+    <div class="g-row"><label>📡 Net read (beta)</label><div class="g-tog${GHOST.ui.netReadEnabled?' on':''}" id="cfg-netread"></div></div>
+    <div class="g-hint" style="margin-top:-2px;margin-bottom:5px">Read-only stream parser for completion hints. Never clicks Send.</div>
     <div class="g-row"><label>🎨 Skin</label><select id="cfg-skin" style="width:100px">${[...Object.keys(SKIN_PRESETS),'custom'].map(k=>`<option value="${k}"${GHOST.ui.skinTheme===k?' selected':''}>${k==='custom'?'Custom…':SKIN_PRESETS[k].name}</option>`).join('')}</select><button class="g-btn-sm" id="cfg-skin-imp" title="Import a .gitl.json skin" style="margin-top:0">⬆</button><button class="g-btn-sm" id="cfg-skin-exp" title="Export active skin — edit the file, re-import: that's the whole modding loop" style="margin-top:0">⬇</button></div>
     <div class="g-row"><label>🌈 Accent</label><input type="range" id="cfg-hue" title="Tint accent · double-click resets to the skin&#39;s own hue" min="0" max="360" value="${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()}" style="width:80px;accent-color:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%)"><span style="width:14px;height:14px;border-radius:50%;background:hsl(${Number.isFinite(GHOST.ui.accentHue)?GHOST.ui.accentHue:SKIN.baseHue()} 100% 60%);display:inline-block;margin-left:5px;border:1px solid #2e2f35;flex-shrink:0"></span></div>
     <div class="g-swatches">${[350,265,220,185,145,40].map(h=>`<button class="g-swatch" data-hue="${h}" title="Set accent" style="background:hsl(${h} 85% 58%)"></button>`).join('')}</div>
@@ -5579,6 +5769,25 @@ function bindEvents() {
       : 'Unattended OFF — pauses when you switch away';
     render();
   });
+  $('#cfg-dryrun')?.addEventListener('click', function(){
+    this.classList.toggle('on');
+    GHOST.ui.dryRun = this.classList.contains('on');
+    _save('dryRun', GHOST.ui.dryRun);
+    render();
+  });
+  $('#cfg-killswitch')?.addEventListener('click', function(){
+    this.classList.toggle('on');
+    GHOST.ui.killSwitch = this.classList.contains('on');
+    _save('killSwitch', GHOST.ui.killSwitch);
+    render();
+  });
+  $('#cfg-netread')?.addEventListener('click', function(){
+    this.classList.toggle('on');
+    GHOST.ui.netReadEnabled = this.classList.contains('on');
+    _save('netReadEnabled', GHOST.ui.netReadEnabled);
+    if (!GHOST.ui.netReadEnabled) try { GITL_NET_READ.reset(); } catch(_) {}
+    render();
+  });
   $('#cfg-skin')?.addEventListener('change', e => {
     const v = e.target.value;
     if (v === 'custom' && !GHOST.ui.customSkin) { SKIN.importFile(); render(); return; }
@@ -5752,6 +5961,7 @@ safeBoot(() => {
   });
   _phase('heartbeat', false, () => startTabHeartbeat());
   _phase('tab-lock',  false, () => claimTabLock());
+  _phase('selector-cache', false, () => _ensureSelectorCacheObserver());
   _phase('bus',       false, () => GhostBus.init());
   _phase('panel-sentinel', false, () => startPanelSentinel());
 

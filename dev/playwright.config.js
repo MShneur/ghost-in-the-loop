@@ -53,6 +53,16 @@ const projects = [
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
     },
   },
+  {
+    name: 'chromium-mobile',
+    use: {
+      ...devices['Pixel 5'],
+      hasTouch: true,
+      isMobile: true,
+      launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+      userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36',
+    },
+  },
 ];
 
 if (firefoxAvailable) {
