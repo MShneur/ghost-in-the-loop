@@ -133,6 +133,50 @@ fixtures, not the current private live schema. Schema drift safely reduces the
 experiment to malformed/oversized metadata while the normal DOM path remains.
 See `docs/CURSOR_EVAL_TRACK_C.md` for the full comparison and enablement.
 
+### Mobile-repro CI and measured observer work
+
+**Mobile coverage:** the previous Firefox project mixed a phone viewport and
+Android-style UA into the only Firefox run, but did not enable touch and was not
+named as mobile coverage. The matrix now keeps desktop Firefox and adds a
+separate `mobile-firefox` project (`hasTouch`, 412×915 viewport, Android-style
+Firefox UA). This is still Playwright desktop Gecko, not GeckoView. The new
+fixture is synthetic and routed locally; it does not inspect or certify a live
+site. The first full run also exposed two orb tests that used mouse-only test
+input; the product already used Pointer Events. The tests now use Playwright
+touchscreen input for taps and touch Pointer Event metadata for drag coverage.
+
+**Buttonless composer reproduction:** the fixture has a ProseMirror-style
+composer, attachment popup, dictation control, delayed Stop control, and no
+Send button. Browser tests prove the reviewed Enter path dispatches once,
+never clicks either adjacent trap, and commits only after independent fixture
+evidence. With Enter configured as a no-op, the transaction becomes uncertain
+with the prompt intact and no second actuator.
+
+**Measured observer findings and fixes:**
+- Before: 200 unrelated class changes in one burst scheduled one debounced,
+  document-wide Continue-button scan. After: zero scans. Revealing an actual
+  Continue control still schedules exactly one scan/click.
+- Before: one unrelated 200-node append burst scheduled one sentinel
+  `getComputedStyle`/geometry check. After: zero style/layout reads. Removing
+  the panel still triggers one observer-driven remount before the 3s poll.
+
+The changes are mutation-record filters, not new caches: Continue work runs
+only when the changed subtree contains a matching control, and sentinel work
+runs only when a removed subtree contains the panel (or it is disconnected).
+The fallback sentinel poll remains for CSS-only hiding.
+
+**Selector-cache decision:** configured input/diagnostic lookups keep their
+existing connected-node cache and route/manual/visibility invalidation.
+Reviewed and taught Send actuators continue to resolve fresh and re-check
+uniqueness, visibility, enabled state, and veto safety every time. No actuator
+cache or broad mutation invalidator was added; either could preserve a stale
+control or add more whole-page observer work than it saves.
+
+**CI finding:** the root workflow was still executing the promoted root tree,
+not the canonical `dev/` tree named in the handoff. Its working directory and
+cache/artifact paths now target `dev/`, so the current browser matrix and
+generated-extension parity gate actually run.
+
 ## v8.6.2 — Mobile send pre-dispatch evidence
 
 **Hypothesis checked:** ChatGPT- and Perplexity-shaped contenteditable fixtures

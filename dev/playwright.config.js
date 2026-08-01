@@ -5,17 +5,16 @@ const fs = require('fs');
 /**
  * Playwright config for Ghost in the Loop e2e.
  *
- * Two engines, on purpose. The Gemini "panel never appears" saga (v8.1.0–8.1.5)
- * happened because every test ran in Chromium while the field failure was
- * Firefox Android — so a whole class of engine-specific behaviour (Trusted
- * Types enforcement, in the end) went unexercised. We now run the suite in
- * BOTH Chromium and Firefox.
+ * Two engines plus an explicit mobile-emulation project, on purpose. The
+ * Gemini "panel never appears" saga (v8.1.0–8.1.5) happened because every test
+ * ran in Chromium while the field failure was Firefox Android — so a whole
+ * class of engine-specific behaviour went unexercised.
  *
- * Firefox note: Playwright's Firefox is desktop Gecko, not GeckoView/Android.
- * It is NOT a perfect stand-in for Firefox Android, but it shares the Gecko
- * engine and the same Trusted Types / CSP implementation, which is exactly the
- * layer that bit us. Treat Firefox-project passes as "Gecko-validated," not
- * "Android-certified" — real-device confirmation still belongs to the reporter.
+ * Firefox note: both Firefox projects use Playwright's desktop Gecko build, not
+ * GeckoView/Android. The mobile project adds touch input, a phone viewport and
+ * a Firefox-for-Android-style UA, but it remains browser emulation. Treat its
+ * passes as desktop-Gecko coverage of the mobile DOM class, never as Android
+ * certification; real-device confirmation still belongs to the reporter.
  */
 
 // Managed env pre-installs Chromium at a fixed path; prefer it over a
@@ -60,10 +59,15 @@ if (firefoxAvailable) {
     name: 'firefox',
     use: {
       ...devices['Desktop Firefox'],
-      // Approximate the reporter's environment (mobile viewport + Android UA)
-      // while keeping the real Gecko engine that enforces Trusted Types.
+    },
+  });
+  projects.push({
+    name: 'mobile-firefox',
+    use: {
+      ...devices['Desktop Firefox'],
       viewport: { width: 412, height: 915 },
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
+      hasTouch: true,
     },
   });
 }

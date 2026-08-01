@@ -71,6 +71,22 @@ recovery. See `docs/CURSOR_EVAL_TRACK_C.md` for the comparison with Socket.IO,
 `batchexecute`, other SSE, `aria-live`, and Stop→Send signals, plus enablement
 and residual risks.
 
+### Mobile browser matrix and observer cost bounds
+
+- Added a distinct `mobile-firefox` Playwright project with touch dispatch, a
+  412×915 viewport, and a Firefox-for-Android-style user agent. It still runs
+  Playwright's desktop Gecko, not GeckoView, so this is mobile-DOM emulation
+  rather than Android certification.
+- Added a synthetic, buttonless mobile composer fixture. It proves the reviewed
+  Enter strategy fires once without pressing adjacent attachment/dictation
+  controls, and that a no-op Enter becomes uncertain without a second actuator.
+  The fixture makes no claim about a current live-site DOM.
+- Reduced mutation-observer work: unrelated page churn no longer schedules a
+  document-wide Continue scan or forces the panel sentinel to read style/layout.
+  Relevant Continue reveals and panel removals remain covered in real browsers.
+- Corrected the repository workflow to run the canonical `dev/` Jest,
+  Playwright, syntax, and generated-extension parity gates.
+
 ## [8.6.2] — Exact pre-dispatch send evidence
 
 - Before opening the at-most-once send journal, Ghost now proves that the live,

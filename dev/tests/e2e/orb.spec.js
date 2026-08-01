@@ -96,13 +96,23 @@ test.describe('Orb launcher', () => {
     expect(colours.idle).not.toBe(colours.running);
   });
 
-  test('tapping the orb expands it to the full panel', async ({ page }) => {
+  test('tapping the orb expands it to the full panel', async ({ page }, testInfo) => {
     await page.addInitScript(GM_ORB);
     await page.addInitScript(RAW);
     await page.goto(MOCK);
     await page.waitForTimeout(800);
 
-    await page.click('#gitl');
+    if (testInfo.project.use.hasTouch) {
+      const box = await page.locator('#gitl').boundingBox();
+      expect(box).not.toBeNull();
+      const viewport = page.viewportSize();
+      await page.touchscreen.tap(
+        Math.min((viewport?.width || 412) - 1, Math.max(1, box.x + box.width / 2)),
+        Math.max(1, box.y + box.height / 2)
+      );
+    } else {
+      await page.click('#gitl');
+    }
     await page.waitForTimeout(200);
 
     const after = await page.evaluate(() => {
@@ -116,7 +126,7 @@ test.describe('Orb launcher', () => {
     expect(after.collapsed).toBe(false);
   });
 
-  test('dragging across the midline snaps to the opposite (left) edge and persists', async ({ page }) => {
+  test('dragging across the midline snaps to the opposite (left) edge and persists', async ({ page }, testInfo) => {
     await page.addInitScript(GM_ORB);
     await page.addInitScript(RAW);
     await page.goto(MOCK);
@@ -127,12 +137,33 @@ test.describe('Orb launcher', () => {
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
     });
 
-    // Drag from the right-edge orb to the far left of the viewport.
-    await page.mouse.move(start.x, start.y);
-    await page.mouse.down();
-    await page.mouse.move(start.x - 40, start.y + 30, { steps: 3 });
-    await page.mouse.move(30, start.y + 60, { steps: 5 });
-    await page.mouse.up();
+    // Drag from the right-edge orb to the far left of the viewport. The mobile
+    // project uses the same Pointer Event path with touch pointer metadata.
+    if (testInfo.project.use.hasTouch) {
+      const orb = page.locator('#gitl');
+      await orb.dispatchEvent('pointerdown', {
+        pointerId: 7, pointerType: 'touch', isPrimary: true,
+        button: 0, buttons: 1, clientX: start.x, clientY: start.y
+      });
+      await orb.dispatchEvent('pointermove', {
+        pointerId: 7, pointerType: 'touch', isPrimary: true,
+        button: -1, buttons: 1, clientX: start.x - 40, clientY: start.y + 30
+      });
+      await orb.dispatchEvent('pointermove', {
+        pointerId: 7, pointerType: 'touch', isPrimary: true,
+        button: -1, buttons: 1, clientX: 30, clientY: start.y + 60
+      });
+      await orb.dispatchEvent('pointerup', {
+        pointerId: 7, pointerType: 'touch', isPrimary: true,
+        button: 0, buttons: 0, clientX: 30, clientY: start.y + 60
+      });
+    } else {
+      await page.mouse.move(start.x, start.y);
+      await page.mouse.down();
+      await page.mouse.move(start.x - 40, start.y + 30, { steps: 3 });
+      await page.mouse.move(30, start.y + 60, { steps: 5 });
+      await page.mouse.up();
+    }
     await page.waitForTimeout(150);
 
     const state = await page.evaluate(() => {

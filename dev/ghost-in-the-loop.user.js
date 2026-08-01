@@ -1058,6 +1058,44 @@ function _qAll(sels) {
   return results;
 }
 
+/* The continue observer watches broad page mutations so it can catch a
+   pre-rendered control revealed through an ancestor's class/style. Avoid
+   scheduling a document-wide button scan when the changed subtree cannot
+   contain a reviewed Continue label. */
+function _nodeHasContinueControl(node) {
+  const labels = PLAT?.continueLabels || [];
+  if (!labels.length || !node) return false;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  if (!el) return false;
+  const matches = candidate => {
+    try {
+      return candidate.matches('button')
+        && labels.some(label => String(candidate.textContent || '').includes(label));
+    } catch(_) {
+      return false;
+    }
+  };
+  if (matches(el)) return true;
+  try {
+    for (const button of el.querySelectorAll('button')) {
+      if (matches(button)) return true;
+    }
+  } catch(_) {}
+  return false;
+}
+
+function _continueMutationRelevant(records) {
+  for (const record of records || []) {
+    // Checking the target covers ancestor class/style reveals and sibling
+    // removals that expose an already-mounted Continue control.
+    if (_nodeHasContinueControl(record.target)) return true;
+    for (const node of record.addedNodes || []) {
+      if (_nodeHasContinueControl(node)) return true;
+    }
+  }
+  return false;
+}
+
 /* ── Heuristic finders (final fallback tier) ─────────────────────
    When a site redesign breaks every configured selector, these locate the
    composer and send button by ROLE and MEANING instead of class names —
@@ -6585,8 +6623,9 @@ safeBoot(() => {
   _phase('continue-observer', false, () => {
     // Fast-path: a Continue button revealed via CSS (not just freshly inserted)
     // also triggers the auto-click. The loop tick remains the primary driver.
-    new MutationObserver(() => {
+    new MutationObserver(records => {
       if (GHOST.loop.state !== 'RUNNING' || GHOST.loop.isSending) return;
+      if (!_continueMutationRelevant(records)) return;
       clearTimeout(_mutDebounce);
       _mutDebounce = setTimeout(() => { GHOST.loop.lastActivity = Date.now(); Adapter.clickContinue(); }, 300);
     }).observe(document.body, {
@@ -6672,6 +6711,19 @@ function startPanelSentinel() {
     return false;
   };
 
+  const mutationMayDownPanel = records => {
+    if (!panel || !panel.isConnected) return true;
+    for (const record of records || []) {
+      for (const removed of record.removedNodes || []) {
+        if (removed === panel) return true;
+        try {
+          if (typeof removed.contains === 'function' && removed.contains(panel)) return true;
+        } catch(_) {}
+      }
+    }
+    return false;
+  };
+
   const teardown = () => {
     try { mo && mo.disconnect(); } catch(_) {}
     if (poll) clearInterval(poll);
@@ -6716,8 +6768,12 @@ function startPanelSentinel() {
     render();
   };
 
-  const schedule = () => {
+  const schedule = records => {
     if (opened || scheduled) return;
+    // Chat streams and Ghost's own renders mutate the DOM constantly. They
+    // cannot disconnect the panel unless a removed subtree contains it, so do
+    // not force style/layout reads for those unrelated mutation bursts.
+    if (!mutationMayDownPanel(records)) return;
     scheduled = setTimeout(() => { scheduled = null; ensure(); }, DEBOUNCE_MS);
   };
 

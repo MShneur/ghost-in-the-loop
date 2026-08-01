@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mobile buttonless composer fixture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font: 16px system-ui, sans-serif; background: #f7f7f8; }
+    main { min-height: 100vh; padding: 24px 14px 110px; }
+    .turn { max-width: 42rem; margin: 0 auto 16px; padding: 12px; border-radius: 14px; background: white; }
+    .composer-shell {
+      position: fixed; left: 10px; right: 10px; bottom: 10px;
+      display: flex; align-items: end; gap: 8px; padding: 8px;
+      border: 1px solid #c8c8cc; border-radius: 24px; background: white;
+    }
+    .composer-action { width: 42px; height: 42px; flex: 0 0 42px; border: 0; border-radius: 50%; background: #ececef; }
+    #prompt-textarea {
+      min-height: 42px; max-height: 132px; flex: 1; padding: 10px 4px;
+      outline: none; overflow-y: auto; white-space: pre-wrap;
+    }
+    #stop-control[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main aria-label="Synthetic chat fixture">
+    <article class="turn" data-testid="conversation-turn-1">
+      <div data-message-author-role="assistant">
+        Fixture response already present so send confirmation has a baseline.
+      </div>
+    </article>
+  </main>
+  <form class="composer-shell" aria-label="Message composer" onsubmit="return false">
+    <button type="button" id="composer-plus-btn" class="composer-action"
+      aria-label="Add photos and files" aria-haspopup="menu">+</button>
+    <div id="prompt-textarea" class="ProseMirror" contenteditable="true"
+      data-placeholder="Message" role="textbox" aria-label="Message"></div>
+    <!-- Deliberately no Send control: this reproduces the buttonless class. -->
+    <button type="button" id="dictation-control" class="composer-action"
+      aria-label="Start voice mode">◉</button>
+    <button type="button" id="stop-control" class="composer-action"
+      data-testid="stop-button" aria-label="Stop generating" hidden>■</button>
+  </form>
+  <script>
+    window.__fixture = {
+      enterKeydowns: 0,
+      attachClicks: 0,
+      dictationClicks: 0,
+      touchPointers: 0,
+      submitEnabled: true
+    };
+
+    const composer = document.getElementById('prompt-textarea');
+    document.getElementById('composer-plus-btn').addEventListener('click', () => window.__fixture.attachClicks++);
+    document.getElementById('dictation-control').addEventListener('click', () => window.__fixture.dictationClicks++);
+    composer.addEventListener('pointerdown', event => {
+      if (event.pointerType === 'touch') window.__fixture.touchPointers++;
+    });
+    composer.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.shiftKey) return;
+      window.__fixture.enterKeydowns++;
+      event.preventDefault();
+      if (!window.__fixture.submitEnabled) return;
+      const text = composer.textContent;
+      composer.replaceChildren();
+      const turn = document.createElement('article');
+      turn.className = 'turn';
+      turn.dataset.messageAuthorRole = 'user';
+      turn.textContent = text;
+      document.querySelector('main').appendChild(turn);
+      document.getElementById('stop-control').hidden = false;
+    });
+  </script>
+</body>
+</html>
