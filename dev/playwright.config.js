@@ -48,6 +48,7 @@ const firefoxAvailable = (() => {
 const projects = [
   {
     name: 'chromium',
+    testIgnore: '**/mobile-*.spec.js',
     use: {
       ...devices['Desktop Chrome'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
@@ -58,10 +59,40 @@ const projects = [
 if (firefoxAvailable) {
   projects.push({
     name: 'firefox',
+    testIgnore: '**/mobile-*.spec.js',
     use: {
       ...devices['Desktop Firefox'],
       // Approximate the reporter's environment (mobile viewport + Android UA)
       // while keeping the real Gecko engine that enforces Trusted Types.
+      viewport: { width: 412, height: 915 },
+      userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
+    },
+  });
+}
+
+/* Mobile projects (v8.7.0 — Track G). The SEND-001 field failure class lives
+   on mobile web: touch, a narrow viewport, and a mobile UA change which DOM
+   the sites serve (the dictation control occupies the Send slot). Desktop
+   projects never reproduced it. Mobile specs (mobile-*.spec.js) run ONLY here
+   so the desktop suite cost stays flat. */
+projects.push({
+  name: 'mobile-chromium',
+  testMatch: '**/mobile-*.spec.js',
+  use: {
+    ...devices['Pixel 7'],
+    launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+  },
+});
+
+if (firefoxAvailable) {
+  projects.push({
+    name: 'mobile-firefox',
+    testMatch: '**/mobile-*.spec.js',
+    use: {
+      ...devices['Desktop Firefox'],
+      // isMobile is a Chromium-only emulation flag; for Gecko we approximate
+      // with touch + the mobile viewport + the Android Firefox UA.
+      hasTouch: true,
       viewport: { width: 412, height: 915 },
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
     },

@@ -1227,6 +1227,7 @@ function _selectAnswerCandidate() {
 }
 
 // Adapter — all DOM reads/writes
+const _stopMemo = { at: 0, v: false };
 const Adapter = {
   peekInput() {
     return _q('in', PLAT.input) || TeachStore.matchEl('input') || SelectorMemory.lookup('input');
@@ -1242,7 +1243,20 @@ const Adapter = {
   getSendCandidate() {
     return _heurSend(this.peekInput() || null);
   },
-  stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
+  stopVisible() {
+    /* Perf memo (v8.7.0 — Track G): this scan ran 2-4 times per 2.5s tick
+       (tick gate + isGenerating + send evidence). A stop control persists for
+       whole seconds while generating, so a 400ms memo is invisible to the
+       completion logic — EXCEPT during a live send transaction, where send
+       evidence always gets a fresh scan. Reset on every cache clear. */
+    const L = (typeof GHOST !== 'undefined' && GHOST.loop) || null;
+    const live = !!(L && (L.sendPending || L.isSending));
+    const now = Date.now();
+    if (!live && now - _stopMemo.at < 400) return _stopMemo.v;
+    const v = _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null);
+    _stopMemo.at = now; _stopMemo.v = v;
+    return v;
+  },
   isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
   hasMessages()   { return !!_selectAnswerCandidate(); },
   getLastAnswer() {
@@ -1870,6 +1884,14 @@ const DIAG = {
       out.push(hi ? `✓ heur input: <${(hi.tagName||'?').toLowerCase()}>` : '✗ heur input: none');
       out.push(hs ? `✓ heur send: <${(hs.tagName||'?').toLowerCase()}> "${String(hs.getAttribute && (hs.getAttribute('aria-label')||hs.textContent)||'').trim().slice(0,30)}"` : '✗ heur send: none');
     } catch(_) {}
+    // Track D/F witnesses: why a send may have refused even with matches above.
+    try {
+      if (_sendAmbiguity() > 1) out.push(`⚠ send ambiguity: ${_sendAmbiguity()} live candidates (SEND-004)`);
+      const dis = _disabledReviewedSendCount();
+      if (dis > 0) out.push(`⚠ reviewed send present but DISABLED (${dis}) (SEND-003)`);
+      const compN = _ambiguousComposerCount();
+      if (compN > 1) out.push(`⚠ composer ambiguity: ${compN} visible composers (COMPOSER-003)`);
+    } catch(_) {}
     this.probe = out.join('\n');
   }
 };
@@ -2495,7 +2517,13 @@ async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.no
 let _pendingSendResolve = null;
 
 function _composerText(el) {
-  return String((el && (el.value || el.textContent)) || '').trim();
+  if (!el) return '';
+  /* Only form elements have a real .value. On a <div contenteditable> the
+     direct-value injection path can leave a JS property named "value" holding
+     our text while the visible editor stays empty — trusting it would fake
+     staging evidence AND fake the composer-cleared witness (v8.7.0 audit). */
+  const v = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') ? el.value : el.textContent;
+  return String(v || '').trim();
 }
 
 /* Pre-dispatch staging evidence (v8.7.0, Track A). Whitespace-insensitive:
@@ -3301,6 +3329,7 @@ function _clearElementCaches() {
   _deepLast.clear();
   _heurCache.input = { el: null, ts: 0 };
   _heurCache.send  = { el: null, ts: 0 };
+  _stopMemo.at = 0; _stopMemo.v = false;
 }
 
 /* Silent self-heal (v8.1): coming back from another app/tab is exactly when
