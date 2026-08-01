@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.5.1
+// @version      8.5.3
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.5.1';
+const VER = '8.5.3';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -325,6 +325,7 @@ const GITL_NET = {
   active: false,        // interceptor installed (kept for health snapshot compat)
   lastPulseT: 0,        // last traffic on a KNOWN chat endpoint (trusted)
   lastPulseH: 0,        // last traffic on a heuristic same-origin stream
+  lastWsPulseT: 0,      // meaningful WS payload only; heartbeat/control frames excluded
   _open: 0,             // streams currently open
   expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
 
@@ -363,6 +364,24 @@ const GITL_NET = {
       if (/log|telemetry|beacon|analytics|sentry|metric|track|collect|report/i.test(s)) return false;
       return String(method || 'GET').toUpperCase() === 'POST';
     } catch(_) { return false; }
+  },
+
+  _wsFrameIsMeaningful(data) {
+    try {
+      if (typeof data === 'string') {
+        const s = data.trim();
+        if (!s || /^(?:(?:2|3)(?:probe)?|(?:0|40|41)(?:\/[^,]+,?)?|"?(?:ping|pong|heartbeat|keepalive)"?)$/i.test(s)) return false;
+        if (/^\{[^}]*"(?:type|event)"\s*:\s*"(?:ping|pong|heartbeat|keepalive)"[^}]*\}$/i.test(s)) return false;
+        return s.length >= 8 || /(?:message|answer|query|text|content|token|delta|event)/i.test(s);
+      }
+      if (data && typeof data.size === 'number') return data.size >= 8;
+      if (data && typeof data.byteLength === 'number') return data.byteLength >= 8;
+      return !!data;
+    } catch(_) { return false; }
+  },
+  _pulseWs(data) {
+    if (!this._wsFrameIsMeaningful(data)) return false;
+    this.lastWsPulseT = Date.now(); this._pulse(true); return true;
   },
 
   /* True while generation traffic is plausibly flowing.
@@ -487,7 +506,7 @@ const GITL_NET = {
         UW.WebSocket = new Proxy(UW.WebSocket, {
           construct(T, a) {
             const ws = new T(...a);
-            try { ws.addEventListener('message', () => self._pulse(self._isChat(a[0]))); } catch(_) {}
+            try { ws.addEventListener('message', (ev) => { if (self._isChat(a[0])) self._pulseWs(ev && ev.data); else self._pulse(false); }); } catch(_) {}
             return ws;
           }
         });
@@ -531,7 +550,9 @@ const PROFILES = {
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
     stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
     staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
-    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
+    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]'],
+    assistantFallback: ['.pb-md > div'],
+    dispatchFallback: 'enter', // reviewed mobile fallback; selected before transaction start
     continueLabels: [],
     useCE: true, useNS: false
   },
@@ -955,6 +976,89 @@ function _reviewedSend() {
   return null;
 }
 
+/* ── Answer selection (v8.5.3 item 1) ────────────────────────
+   _qAll() groups matches by selector instead of document order. Perplexity
+   can also leave hidden duplicates and append follow-up UI after an answer.
+   Keep broad selectors fallback-only, bound the scan, restore DOM order, and
+   resolve nested nodes only inside the newest answer cluster. Read-only: this
+   code cannot click, inject, submit, retry, or alter actuator authority. */
+const ANSWER_SCAN_LIMIT = 48;
+function _answerText(el) {
+  try { return String((el && (el.innerText || el.textContent)) || '').replace(/\u200b/g, '').trim(); }
+  catch(_) { return ''; }
+}
+function _answerTerminalAtTail(text) {
+  const s = String(text || '').replace(/\u200b/g, '').trim();
+  return s.endsWith(SIGIL_PROCEED) || s.endsWith(SIGIL_HALT);
+}
+function _answerNodeUsable(el) {
+  if (!el || !el.isConnected || _isOwnUI(el)) return false;
+  try {
+    if (el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+    if (el.closest && el.closest('[hidden],[aria-hidden="true"]')) return false;
+    const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) return false;
+  } catch(_) {}
+  return true;
+}
+function _answerLooksLikeContent(el, text, tier) {
+  if (!text) return false;
+  try {
+    if (el.matches && el.matches('button,a,[role="button"]')) return false;
+    if (el.closest && el.closest('form,nav,aside,[role="navigation"],[role="toolbar"]')) return false;
+    const meta = [el.id, el.className, el.getAttribute('role'), el.getAttribute('data-testid'), el.getAttribute('aria-label')]
+      .map(v => String(v || '')).join(' ');
+    if (/follow.?up|related|suggest(?:ion|ed)?/i.test(meta)) return false;
+    if (tier === 'fallback' && /citation|source|reference|toolbar|action|composer/i.test(meta)) return false;
+  } catch(_) {}
+  if (text.includes(SIGIL_PROCEED) || text.includes(SIGIL_HALT)) return true;
+  return text.length >= 20;
+}
+function _answerDomOrder(a, b) {
+  if (a === b) return 0;
+  try {
+    const pos = a.compareDocumentPosition(b);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+  } catch(_) {}
+  return 0;
+}
+function _collectAnswerCandidates(selectors, tier) {
+  const byElement = new Map();
+  for (const [selectorIndex, sel] of (selectors || []).entries()) {
+    let matches = [];
+    try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+    const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+    for (let i = start; i < matches.length; i++) {
+      const el = matches[i];
+      if (!_answerNodeUsable(el)) continue;
+      const text = _answerText(el);
+      if (!_answerLooksLikeContent(el, text, tier)) continue;
+      const prior = byElement.get(el);
+      if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+    }
+  }
+  return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
+}
+function _selectAnswerCandidate() {
+  let candidates = _collectAnswerCandidates(PLAT.assistant, 'primary');
+  if (!candidates.length) candidates = _collectAnswerCandidates(PLAT.assistantFallback || [], 'fallback');
+  if (!candidates.length) return null;
+
+  // Anchor on the newest answer first. An older HALT/PROCEED can never beat a
+  // newer unfinished answer. Terminal preference is limited to nested nodes
+  // representing that same newest answer.
+  const anchor = candidates[candidates.length - 1];
+  const cluster = candidates.filter(c =>
+    c.el === anchor.el || c.el.contains(anchor.el) || anchor.el.contains(c.el));
+  const terminalTail = cluster.filter(c => _answerTerminalAtTail(c.text));
+  let selected = anchor;
+  if (terminalTail.length) {
+    selected = terminalTail.reduce((best, c) => c.text.length > best.text.length ? c : best, terminalTail[0]);
+  }
+  return { ...selected, candidateCount: candidates.length, ordinal: candidates.indexOf(selected) };
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
   peekInput() {
@@ -971,15 +1075,18 @@ const Adapter = {
   getSendCandidate() {
     return _heurSend(this.peekInput() || null);
   },
-  isGenerating()  { return !!_q('gen', PLAT.stop) || GITL_NET.streaming(); },
-  hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
-  getLastText() {
+  stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
+  isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
+  hasMessages()   { return !!_selectAnswerCandidate(); },
+  getLastAnswer() {
     // Gemini only: virtual scroll — nudge infinite-scroller to bottom
     if (PLAT && PLAT.key === 'gemini') {
       try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
     }
-    const els = _qAll(PLAT.assistant);
-    return els.length ? (els[els.length-1].innerText || '').trim() : '';
+    return _selectAnswerCandidate();
+  },
+  getLastText() {
+    return this.getLastAnswer()?.text || '';
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
@@ -1058,6 +1165,26 @@ const PERSONA_LIBRARY = {
 // Perplexity (and any model-switcher) variant — a REAL round table across models, not a simulated one.
 const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
 
+/* Model-switch features (the live round table, the Lens Relay workflow) only
+   make sense where the user can swap the active model between turns. Perplexity
+   (and arena sites) do; ChatGPT/Claude/Gemini are single-model. Field report:
+   Lens Relay's "Name which model should go next" fired on ChatGPT, which has
+   one model. Used to gate the round-table protocol and to neutralise
+   model-switch instructions in workflow stages on single-model platforms. */
+function _isModelSwitcher() {
+  try { return /perplexity|lmarena|chatbot\s*arena|poe\b/i.test(PLAT.label || ''); } catch(_) { return false; }
+}
+/* On a single-model platform, strip the "name the next model" instruction so a
+   model-switch workflow degrades to a single-model multi-lens round table
+   instead of asking a one-model site which model goes next. */
+function _stageForPlatform(text) {
+  if (_isModelSwitcher()) return text;
+  return String(text || '')
+    .replace(/\s*Name which model should go next\.?/gi, '')
+    .replace(/\s*Name the next model\.?/gi, '')
+    .trim();
+}
+
 /* The full context block for a run: who the model is (persona/committee),
    how it should think (posture), and how it should work (strategy).
    `includeStrategy` is false on roadmap resumes — re-sending the roadmap
@@ -1083,7 +1210,7 @@ function resolvePersonaInject() {
   const active = sel.filter(s => s && s !== 'none');
   if (!active.length) return '';
   // Special: live Perplexity round table is a protocol, not composable
-  if (active.includes('roundtable') && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
+  if (active.includes('roundtable') && _isModelSwitcher()) return ROUNDTABLE_LIVE;
   // Single persona — classic behavior
   if (active.length === 1) return allPersonas()[active[0]]?.inject || '';
   // Committee: concatenate perspectives with framing
@@ -1400,6 +1527,7 @@ const GHOST = {
     lastConfidence: 0,
     lastProgress: null,
     detail: '',
+    phase: 'idle', countdownUntil: 0, replyKey: '', replyStableTicks: 0, replyBaseline: null, lastDispatchConfirmedAt: 0,
     // At-most-once send transaction. Prompt text is never retained here.
     sendPending: false,
     sendDeadline: 0,
@@ -2104,6 +2232,13 @@ function randomDelay(round) {
   return (8 + Math.random() * 7) * 1000;
 }
 
+function _setLoopPhase(phase, detail) { const L=GHOST.loop, changed=L.phase!==phase||(detail!==undefined&&L.detail!==detail); L.phase=phase; if(detail!==undefined)L.detail=detail; return changed; }
+function _replyFingerprint(text) { const s=String(text||''); return `${s.length}:${s.slice(-180)}`; }
+function _observeReplyText(text) { const L=GHOST.loop,key=_replyFingerprint(text); if(key&&key===L.replyKey)L.replyStableTicks++; else{L.replyKey=key;L.replyStableTicks=0;} return {key,stableTicks:L.replyStableTicks}; }
+function _replyAdvancedBeyondBaseline(text) { const b=GHOST.loop.replyBaseline;if(!b)return true;const count=_qAll(PLAT.assistant).length,s=String(text||'');return count>b.assistantCount||s.length>b.assistantTextLength+4||(s.slice(-180)&&s.slice(-180)!==b.assistantTail); }
+function _terminalReplyReady(text,result,obs,stopVisible) { return !!text&&!!result&&['proceed','halt'].includes(result.signal)&&!stopVisible&&_replyAdvancedBeyondBaseline(text)&&obs.stableTicks>=1; }
+async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.now()+Math.max(0,ms);let shown=-1;while(L.state==='RUNNING'){const left=Math.max(0,L.countdownUntil-Date.now()),sec=Math.ceil(left/1000);if(sec!==shown){shown=sec;_setLoopPhase('countdown',`Next command in ${sec}s…`);render();}if(left<=0)break;await sleep(Math.min(250,left));}L.countdownUntil=0; }
+
 let _pendingSendResolve = null;
 
 function _composerText(el) {
@@ -2128,12 +2263,14 @@ function _beginSendAttempt(path, input) {
     attemptedAt: Date.now(),
     assistantCount: _qAll(PLAT.assistant).length,
     assistantTextLength: lastText.length,
+    assistantTail: lastText.slice(-180),
     trustedPulseAt: GITL_NET.lastPulseT || 0,
     composerHadText: _composerText(input).length > 0
   };
   L.sendTxn = txn;
   L.sendPending = true;
   L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
+  _setLoopPhase('confirming', 'Confirming next command…');
   GITL_NET.expectUntil = Date.now() + SEND_CONFIRM_MS;
   Timeline.record('send_attempted', {
     command: txn.id.slice(0, 8),
@@ -2156,7 +2293,7 @@ function _sendEvidence() {
 
   const input = Adapter.peekInput();
   const composerCleared = txn.composerHadText && !!input && _composerText(input).length < 4;
-  const stopVisible = !!_q('gen', PLAT.stop);
+  const stopVisible = Adapter.stopVisible();
   const trustedNetwork = GITL_NET.lastPulseT > txn.trustedPulseAt
     && Date.now() - GITL_NET.lastPulseT < 5000;
   if (composerCleared && stopVisible) return { confirmed: true, evidence: 'composer+stop' };
@@ -2171,12 +2308,7 @@ async function engineSend(text, skipDelay) {
   if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
   try {
-    if (!skipDelay) {
-      const delay = randomDelay(L.round);
-      L.detail = `Waiting ${(delay/1000).toFixed(0)}s…`;
-      render();
-      await sleep(delay);
-    }
+    if (!skipDelay) await _sleepCountdown(randomDelay(L.round));
     if (L.state !== 'RUNNING') return false;
     if (!await verifyTabLease()) {
       L.detail = '⚠ Another tab owns this conversation';
@@ -2190,6 +2322,7 @@ async function engineSend(text, skipDelay) {
       render();
       return false;
     }
+    _setLoopPhase('dispatching', 'Preparing next command…'); render();
     const input = Adapter.getInput();
     if (!input) {
       Reporter.capture('COMPOSER-001', 'No uniquely identifiable chat composer was available.');
@@ -2203,62 +2336,33 @@ async function engineSend(text, skipDelay) {
     }
     await sleep(500);
     const btn = Adapter.getSendBtn();
-    // v8.4.2 — LAYERED, AT-MOST-ONCE-IN-EFFECT dispatch (field bug ADAPTER-001:
-    // Perplexity's mobile follow-up composer has no uniquely-matching reviewed
-    // Send button, so button-only send stalled). The failsafe chain is: reviewed
-    // button → single Enter keypress → insertParagraph → native form submit. It
-    // preserves CG's at-most-once guarantee because each method fires ONLY while
-    // the composer still holds the unsent text; the moment it clears, something
-    // submitted it and we STOP — a second method is never dispatched, so the
-    // prompt cannot double-send. Buttonless failsafes are reviewed-platforms only
-    // (an unreviewed site with no reviewed button still leaves it for manual Send).
-    // Final commit still requires independent evidence (_sendEvidence): a dispatch
-    // that produced no send can never advance the round.
-    const hadText = _composerText(input).length > 0;
-    const tiers = [];
-    if (btn) tiers.push({ path: 'reviewed-button', run: () => btn.click() });
-    if (PLAT?.reviewed) {
-      tiers.push({ path: 'reviewed-enter', run: () => {
-        ['keydown','keypress','keyup'].forEach(t => input.dispatchEvent(
-          new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true })));
-      }});
-      tiers.push({ path: 'reviewed-paragraph', run: () => input.dispatchEvent(
-        new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })) });
-      tiers.push({ path: 'reviewed-form', run: () => {
-        const f = input.closest && input.closest('form');
-        if (f && typeof f.requestSubmit === 'function') f.requestSubmit();
-      }});
-    }
-    if (!tiers.length) {
-      Reporter.capture('SEND-001', 'This site has no reviewed automation adapter; use manual Send.');
-      pauseWithProbe('No safe Send control — prompt left for manual review');
+    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
+    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
+    // is no fallback or escalation: the selected mechanism fires once, then
+    // Ghost only observes confirmation evidence or enters `uncertain`.
+    const strategy = btn ? {
+      path: 'reviewed-button',
+      run: () => btn.click()
+    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
+      path: 'reviewed-enter',
+      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key:'Enter', code:'Enter', keyCode:13, which:13,
+        bubbles:true, cancelable:true, composed:true
+      }))
+    } : null);
+    if (!strategy) {
+      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
+      pauseWithProbe('No safe Send mechanism — prompt left for manual review');
       return false;
     }
-    DIAG.sendPath = tiers[0].path;
-    const completion = _beginSendAttempt(DIAG.sendPath, input);
-    let anyDispatched = false;
-    for (let i = 0; i < tiers.length; i++) {
-      try {
-        tiers[i].run();
-        anyDispatched = true;
-        DIAG.sendPath = tiers[i].path;
-        if (L.sendTxn) L.sendTxn.path = tiers[i].path;
-      } catch(_) { Timeline.record('send_tier_error', { tier: tiers[i].path }); continue; }
-      await sleep(900);
-      if (L.state !== 'RUNNING') break;
-      // Did it submit? Composer cleared is the earliest, safest signal; full
-      // evidence (stop/network/assistant) also counts. Either → do NOT escalate.
-      if ((hadText && _composerText(input).length < 4) || _sendEvidence().confirmed) break;
-      if (i < tiers.length - 1) Timeline.record('send_escalate', { from: tiers[i].path, to: tiers[i+1].path });
-    }
-    if (!anyDispatched) {
-      L.sendPending = false;
-      L.sendDeadline = 0;
-      if (L.sendTxn) L.sendTxn.state = 'failed';
-      Timeline.record('send_failed', { code: 'SEND-001', stage: 'dispatch' });
-      Reporter.capture('SEND-001', 'The reviewed Send control could not be activated.');
-      _settleSendPromise(false);
-      enginePause('Send failed before dispatch');
+    DIAG.sendPath = strategy.path;
+    const completion = _beginSendAttempt(strategy.path, input);
+    try {
+      strategy.run();
+    } catch(_) {
+      // The journal is already authoritative. Never try another mechanism.
+      Timeline.record('send_dispatch_error', { path: strategy.path });
+      _markSendUncertain();
       return false;
     }
     return await completion;
@@ -2291,7 +2395,9 @@ function _confirmSend(evidence) {
   L.round++;
   L.lastActivity = Date.now();
   L.staleTicks = 0;
-  L.detail = '';
+  L.replyBaseline = { assistantCount:txn.assistantCount, assistantTextLength:txn.assistantTextLength, assistantTail:txn.assistantTail||'' };
+  L.replyKey=''; L.replyStableTicks=0; L.lastDispatchConfirmedAt=Date.now();
+  _setLoopPhase('generating','Waiting for AI output…');
   try { GM_setValue('sendTier:' + location.hostname, txn.path); } catch(_) {}
   Timeline.record('send_confirmed', {
     command: txn.id.slice(0, 8),
@@ -2317,6 +2423,7 @@ function _markSendUncertain() {
     command: txn.id.slice(0, 8),
     round: L.round
   });
+  _setLoopPhase('error','Send could not be confirmed');
   Reporter.capture('SEND-002', 'Send could not be confirmed. Nothing was resent.');
   _settleSendPromise(false);
   try { DIAG.runProbe(); GHOST.ui.showDiag = true; } catch(_) {}
@@ -2358,7 +2465,7 @@ function reconcileUncertainSend(delivered) {
 
 function engineHalt(reason) {
   const L = GHOST.loop;
-  L.state = 'COMPLETE'; L.detail = reason; L.needsPayload = true;
+  L.state = 'COMPLETE'; L.detail = reason; L.phase='halted'; L.needsPayload = true;
   Ticker.stop(); L.timer = null;
   Timeline.record('halt', { reason, round: L.round });
   render();
@@ -2380,6 +2487,7 @@ function enginePause(reason) {
     _settleSendPromise(false);
   }
   L.state = 'PAUSED'; L.detail = reason;
+  L.phase=/error|failed|uncertain|watchdog|no output|too short|can't|cannot/i.test(String(reason||''))?'error':'paused';
   Ticker.stop(); L.timer = null;
   Timeline.record('pause', { reason, round: L.round });
   if (interruptedDispatch) {
@@ -2469,34 +2577,17 @@ function engineTick() {
   // Skipped entirely if drift guard is toggled off.
   if (GHOST.loop.driftEnabled && L.round >= L.maxRounds) { engineLimit(); return; }
 
-  // Still generating
-  if (Adapter.isGenerating()) { L.lastActivity = Date.now(); return; }
-
-  // Native continue button
-  if (Adapter.clickContinue()) { L.lastActivity = Date.now(); return; }
-
-  // Read output
+  // Read visible output before network telemetry. Persistent sockets can stay busy after the reply ends.
   const text = Adapter.getLastText();
-  if (!text) {
-    /* v8.1.2 field report (Perplexity Deep Research): this branch fires
-       before the FIRST assistant DOM node exists at all — during a long
-       silent "thinking" phase there is no text to read yet, but net traffic
-       or a stop button proves the model is working. The later no-signal
-       branch already got this isGenerating() witness + per-platform budget
-       in d7; this earlier branch was missed, so slow-starting platforms
-       could still pause ~12s after a perfectly good send. */
-    if (Adapter.isGenerating()) { L.staleTicks = 0; L.detail = '🧠 Model is still working…'; render(); return; }
-    L.staleTicks++;
-    const staleLimit = (PLAT && PLAT.staleTicks) || 5;
-    if (L.staleTicks >= staleLimit) pauseWithProbe('No output detected');
-    return;
-  }
-
-  // Detect signal
-  const result = detectSignal(text);
-  L.lastSignal = result.signal;
-  L.lastConfidence = result.confidence;
-  if (result.progress) L.lastProgress = result.progress;
+  const observation = _observeReplyText(text);
+  const result=text?detectSignal(text):{signal:'short',confidence:0,progress:null};
+  const stopVisible=Adapter.stopVisible(), terminalReady=_terminalReplyReady(text,result,observation,stopVisible);
+  if(Adapter.isGenerating()&&!terminalReady){L.lastActivity=Date.now();L.staleTicks=0;if(_setLoopPhase('generating',text?'AI is outputting…':'Waiting for AI output…'))render();return;}
+  if(terminalReady&&GITL_NET.streaming()){Timeline.record('network_generation_overridden',{platform:PLAT.key,signal:result.signal});DIAG.push('Stable terminal marker overrode stale network generation witness');}
+  if(Adapter.clickContinue()){L.lastActivity=Date.now();return;}
+  if(!text){_setLoopPhase('waiting-output','Waiting for AI output…');L.staleTicks++;const staleLimit=(PLAT&&PLAT.staleTicks)||5;if(L.staleTicks>=staleLimit)pauseWithProbe('No output detected');else render();return;}
+  L.lastSignal=result.signal;L.lastConfidence=result.confidence;if(result.progress)L.lastProgress=result.progress;
+  _setLoopPhase(terminalReady?'decision':'reading',terminalReady?(result.signal==='halt'?'HALT marker read':'PROCEED marker read'):'Reading final response…');
 
   if (result.signal === 'short') { L.staleTicks++; if (L.staleTicks >= 3) enginePause('Response too short — review output'); return; }
 
@@ -2510,7 +2601,7 @@ function engineTick() {
       if (next) {
         if (GHOST.workflow.pauseBetween) { enginePause(`Stage ${GHOST.workflow.stageIndex+1} complete — next queued`); return; }
         L.detail = `Advancing workflow stage ${GHOST.workflow.stageIndex+1}…`;
-        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${next}\n\nUse the same [[GITL::PROCEED]] / [[GITL::HALT]] protocol.`, false).then(ok => {
+        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${_stageForPlatform(next)}\n\nUse the same [[GITL::PROCEED]] / [[GITL::HALT]] protocol.`, false).then(ok => {
           if (ok) { GHOST.workflow.stageIndex++; _save('wfStage', GHOST.workflow.stageIndex); render(); }
           else { enginePause('Workflow advance failed'); }
         });
@@ -2756,6 +2847,7 @@ function resetLoop() {
   const L = GHOST.loop;
   _settleSendPromise(false);
   L.state = 'IDLE'; L.round = 0; L.staleTicks = 0; L.lastProgress = null;
+  L.phase='idle';L.countdownUntil=0;L.replyKey='';L.replyStableTicks=0;L.replyBaseline=null;
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendDeadline = 0; L.sendTxn = null;
@@ -2765,6 +2857,8 @@ function resetLoop() {
   resetRoadmap();
   render();
 }
+
+function rebootGhost(){const L=GHOST.loop,interrupted=!!(L.sendPending||L.sendTxn?.state==='dispatching'),txn=L.sendTxn;if(interrupted&&txn){txn.state='uncertain';txn.uncertainAt=Date.now();} _settleSendPromise(false);Ticker.stop();L.timer=null;_redetectStop();stopRailTracker();if(_tabLockInterval){clearInterval(_tabLockInterval);_tabLockInterval=null;}try{GhostBus.channel?.close();}catch(_){}GhostBus.channel=null;GhostBus.peers.clear();_clearElementCaches();Object.assign(GITL_NET,{_open:0,expectUntil:0,lastPulseT:0,lastPulseH:0,lastWsPulseT:0});Object.assign(L,{state:interrupted?'PAUSED':'IDLE',phase:interrupted?'error':'idle',detail:interrupted?'↻ Ghost reloaded — prior Send is uncertain; check the chat':'↻ Ghost reloaded — chat page left untouched',isSending:false,sendPending:false,sendDeadline:0,sendTxn:txn||null,staleTicks:0,replyKey:'',replyStableTicks:0,replyBaseline:null,countdownUntil:0});try{panel.remove();}catch(_){}_panelMounted=false;mountPanel();SKIN.apply();startTabHeartbeat();claimTabLock();GhostBus.init();render();reDetect();Timeline.record('ghost_reboot',{platform:PLAT.key,interruptedSend:interrupted});return true;}
 
 /* ═══════════════════════════════════════════════════════════════
    SPA ROUTE DETECTION
@@ -4175,7 +4269,8 @@ function injectStyles() {
 .g-plink{color:var(--g-accent);text-decoration:none;font-size:9px;margin-left:4px}.g-plink:hover{text-decoration:underline}
 .g-cust-badge{font-size:8px;color:#f59e0b;font-weight:400}
 .g-btn.st{background:#2d0a0a;border-color:#7f1d1d;color:var(--g-err)}.g-btn.st:hover{background:#7f1d1d}
-.g-prog{margin:2px 0 6px}
+.g-prog{margin:2px 0 3px}
+.g-pipe{margin-top:6px;display:flex;flex-direction:column;gap:3px}.g-pipe-row{display:flex;align-items:center;gap:4px;font-size:8.5px;color:var(--g-text-dim);white-space:nowrap;overflow:hidden}.g-pipe-row i{width:11px;height:11px;line-height:10px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;font-style:normal;font-size:7px;flex:0 0 auto}.g-pipe-row.act{color:var(--g-accent-text)}.g-pipe-row.done{color:var(--g-ok)}.g-pipe-row.err{color:var(--g-err)}
 .g-trk{height:5px;background:var(--g-surface-3);border-radius:2px;overflow:hidden}
 .g-fill{height:100%;background:linear-gradient(90deg,var(--g-ok),var(--g-accent));border-radius:2px;transition:width .4s}
 .g-plbl{display:flex;justify-content:space-between;align-items:baseline;margin-top:3px}
@@ -4196,6 +4291,7 @@ function injectStyles() {
 .g-safety.off .g-safety-lbl{color:var(--g-text-dim)}
 .g-safety-edit{width:42px;background:var(--g-bg-deep);border:1px solid var(--g-border-2);border-radius:4px;color:var(--g-text);font-size:10px;text-align:center;font-family:inherit;padding:2px 3px;margin-left:4px}
 .g-safety-edit:focus{border-color:#4338ca;outline:none}
+.g-prog{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(78px,.75fr);column-gap:6px;align-items:start}.g-prog>.g-trk,.g-prog>.g-plbl,.g-prog>.g-pipe{grid-column:1}.g-prog>.g-safety{grid-column:2;grid-row:1/4;margin-top:0;align-self:stretch;padding:6px 5px}.g-prog>.g-safety .g-safety-row{display:grid;grid-template-columns:28px 1fr;gap:3px}.g-prog>.g-safety .g-safety-lbl{grid-column:1/3;color:var(--g-text-mid)}.g-prog>.g-safety .g-safety-num{margin-left:0}.g-prog>.g-safety .g-safety-edit{width:38px;margin-left:0}@media(max-width:340px){.g-prog{grid-template-columns:minmax(0,1fr) 74px;column-gap:4px}}
 .g-stat{text-align:center;font-weight:600;font-size:10.5px;padding:4px 0;border-top:1px solid var(--g-surface-3);margin-top:2px}
 .g-row{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--g-text-low);margin-bottom:5px}
 .g-row label{color:var(--g-text-dim)}
@@ -4521,6 +4617,8 @@ function statLabel() {
   return L.detail || L.state;
 }
 
+function renderLoopPipeline(){const L=GHOST.loop,sec=L.countdownUntil?Math.max(0,Math.ceil((L.countdownUntil-Date.now())/1000)):0,signalDone=['proceed','halt'].includes(L.lastSignal);const output=['generating','waiting-output'].includes(L.phase)?['act',L.phase==='generating'?'AI outputting':'Waiting for output']:['done',L.phase==='idle'?'Output':'Output stopped'];const read=L.phase==='error'?['err','Read error']:signalDone&&['decision','countdown','dispatching','confirming','halted','generating'].includes(L.phase)?['done',L.lastSignal==='halt'?'HALT read':'PROCEED read']:L.phase==='reading'?['act','Checking marker']:['','Check marker'];let next=['','Next command'];if(L.phase==='countdown')next=['act',`Send in ${sec}s`];else if(L.phase==='dispatching')next=['act','Sending next'];else if(L.phase==='confirming')next=['act','Confirming send'];else if(L.phase==='generating'&&L.lastDispatchConfirmedAt)next=['done','Next sent'];else if(L.phase==='halted')next=['done','HALT'];else if(L.phase==='error')next=['err','Stopped on error'];else if(L.phase==='paused')next=['','Paused'];const row=([c,l])=>`<div class="g-pipe-row ${c}"><i>${c==='done'?'✓':c==='err'?'!':c==='act'?'●':'○'}</i><span>${_esc(l)}</span></div>`;return `<div class="g-pipe">${[output,read,next].map(row).join('')}</div>`;}
+
 function renderRunTab() {
   const L = GHOST.loop, p = L.lastProgress, pct = p ? Math.round((p.step/p.total)*100) : 0;
   const pm = L.payloadMode;
@@ -4542,13 +4640,14 @@ function renderRunTab() {
     </div>
     </div>
     <div class="g-mod g-mod-prog">
-      <div class="g-mod-h"><span class="g-mod-i">📊</span>Progress<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
+      <div class="g-mod-h"><span class="g-mod-i">📊</span>Run status<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
     <div class="g-prog">
       <div class="g-trk"><div class="g-fill" style="width:${pct}%"></div></div>
       <div class="g-plbl">
         <span class="g-step">${p?`${pm==='think'?'Batch':'Step'} <b>${Number(p.step)||0}</b> / ${Number(p.total)||0}${p.desc?' — '+_esc(p.desc.slice(0,22)):''}` : (L.state==='RUNNING'||L.state==='LIMIT'?`Round <b>${L.round}</b>`:'Waiting…')}</span>
         <span class="g-step-pct">${p?pct+'%':''}</span>
       </div>
+      ${renderLoopPipeline()}
       ${(L.state==='RUNNING'||L.state==='PAUSED'||L.state==='LIMIT') ? (()=>{
         const left = Math.max(0, L.maxRounds - L.round);
         const lowpct = L.maxRounds ? (left / L.maxRounds) * 100 : 100;
@@ -4557,7 +4656,7 @@ function renderRunTab() {
         return `<div class="g-safety${warn?' warn':''}${off?' off':''}" title="${off?'Drift guard OFF — loop runs without a cap.':'Drift guard: auto-pauses after this many continues.'}">
           <div class="g-safety-row">
             <div class="g-tog${L.driftEnabled?' on':''}" id="g-drift-tog"></div>
-            <span class="g-safety-lbl">drift guard</span>
+            <span class="g-safety-lbl">Drift</span>
             <span class="g-safety-num">${off?'OFF':'<b>'+left+'</b> left'}</span>
             <input type="number" class="g-safety-edit" id="g-drift-max" value="${L.maxRounds}" min="1" max="999">
             <button class="g-safety-rst" id="g-cnt-reset">↻</button>
@@ -4881,7 +4980,7 @@ function renderDiag() {
     DIAG.probe ? `<span class="ok">Probe:</span>\n${_esc(DIAG.probe)}` : '',
     DIAG.errors.length ? `<span class="warn">Errors:</span>\n${_esc(DIAG.errors.slice(0,5).join('\n'))}` : ''
   ].filter(Boolean).join('\n');
-  return `<div class="g-diag">${lines}</div><button class="g-btn-sm" id="g-probe">🔍 Probe selectors</button> <button class="g-btn-sm" id="g-report-now">⚠ Report a problem</button>`;
+  return `<div class="g-diag">${lines}</div><button class="g-btn-sm" id="g-redetect-only">⌖ Re-detect chat box</button> <button class="g-btn-sm" id="g-probe">🔍 Probe selectors</button> <button class="g-btn-sm" id="g-report-now">⚠ Report a problem</button>`;
 }
 
 function applyPosition(pos) {
@@ -4964,7 +5063,8 @@ function _applyRail() {
 /* Reposition the rail as the page scrolls or the viewport changes (mobile
    keyboard, orientation). rAF-coalesced, and only while rail mode is active —
    no idle loop, no permanent listeners. */
-let _railTracking = false;
+let _railTracking=false,_railInput=null,_railRO=null,_railMO=null,_railPoll=null,_railRectKey='';
+function _railBindInput(){const n=Adapter.peekInput();if(n===_railInput&&n?.isConnected)return;try{_railRO?.disconnect();}catch(_){}_railInput=n||null;_railRO=null;if(_railInput&&typeof ResizeObserver==='function'){try{_railRO=new ResizeObserver(_railReposition);_railRO.observe(_railInput);}catch(_){}}_railReposition();}
 function _railReposition() {
   if (_railReposition.pending) return;
   _railReposition.pending = true;
@@ -4974,30 +5074,8 @@ function _railReposition() {
     if (GHOST.ui.position === 'rail' && panel && panel.isConnected) { try { _applyRail(); } catch(_) {} }
   });
 }
-function startRailTracker() {
-  if (_railTracking) return;
-  _railTracking = true;
-  try {
-    // v8.5.1: do NOT reposition on page scroll — that made the panel jump around
-    // as the user scrolled (field-reported). Chat composers are fixed/sticky, so
-    // the rail only needs to follow viewport CHANGES: orientation (window resize)
-    // and the mobile keyboard (visualViewport resize). No scroll listeners.
-    window.addEventListener('resize', _railReposition, { passive: true });
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', _railReposition, { passive: true });
-    }
-  } catch(_) {}
-}
-function stopRailTracker() {
-  if (!_railTracking) return;
-  _railTracking = false;
-  try {
-    window.removeEventListener('resize', _railReposition);
-    if (window.visualViewport) {
-      window.visualViewport.removeEventListener('resize', _railReposition);
-    }
-  } catch(_) {}
-}
+function startRailTracker(){if(_railTracking)return;_railTracking=true;try{window.addEventListener('resize',_railReposition,{passive:true});if(window.visualViewport){window.visualViewport.addEventListener('resize',_railReposition,{passive:true});}_railBindInput();_railMO=new MutationObserver(()=>{if(!_railInput?.isConnected)_railBindInput();});_railMO.observe(document.body,{childList:true,subtree:true});_railPoll=setInterval(()=>{_railBindInput();if(!_railInput?.getBoundingClientRect)return;const r=_railInput.getBoundingClientRect(),k=[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)].join(':');if(k!==_railRectKey){_railRectKey=k;_railReposition();}},1200);}catch(_){} }
+function stopRailTracker(){if(!_railTracking)return;_railTracking=false;try{window.removeEventListener('resize',_railReposition);if(window.visualViewport){window.visualViewport.removeEventListener('resize',_railReposition);}_railRO?.disconnect();_railMO?.disconnect();if(_railPoll)clearInterval(_railPoll);}catch(_){}_railInput=null;_railRO=null;_railMO=null;_railPoll=null;_railRectKey='';}
 
 /* Position the orb. Collapsed: a tucked circle clinging to the saved edge
    (~12px off-screen) at the saved vertical ratio. Expanded: a normal-width
@@ -5061,7 +5139,7 @@ function render() {
       <span class="g-logo">${col && GHOST.ui.position==='dock-left' ? '☰ Ghost' : '<span class="g-ghost">👻</span> Ghost'}<span class="g-dot ${dotClass()}"></span></span>
       <span style="display:flex;align-items:center;gap:5px">
         <span class="g-plat">${_esc((typeof platformHealth==='function'?platformHealth().badge:'') + ' ' + PLAT.label)}</span>
-        <button class="g-minbtn" id="g-redetect" title="Re-detect the chat box — fixes 'can't find input' after switching browser/app or tabs (no page reload)">🔄</button>
+        <button class="g-minbtn" id="g-redetect" title="Reload Ghost only — no chat page reload and no AI prompt">↻</button>
         <button class="g-minbtn" id="g-info" title="Help & FAQ">?</button>
         <button class="g-minbtn" id="g-col" title="${col?'Expand':'Minimize'}">${GHOST.ui.position==='dock' ? (col?'◀':'▶') : GHOST.ui.position==='dock-left' ? (col?'▶':'◀') : (col?'＋':'－')}</button>
       </span>
@@ -5103,6 +5181,8 @@ function bindEvents() {
   const $ = s => panel.querySelector(s);
   const $$ = s => panel.querySelectorAll(s);
 
+  $('#g-redetect')?.addEventListener('click', rebootGhost);
+  $('#g-redetect-only')?.addEventListener('click', reDetect);
   $('#g-col')?.addEventListener('click', () => { GHOST.ui.collapsed=!GHOST.ui.collapsed; _save('panelCollapsed',GHOST.ui.collapsed); render(); });
   // Docked + collapsed: the whole strip is the expand target (the play button stays play)
   if ((GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left') && GHOST.ui.collapsed) {

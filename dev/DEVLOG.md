@@ -11,6 +11,52 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.5.3 — integrated CG's single-dispatch handoff + model-switch gating
+
+**Multi-agent handoff:** Agent CG built v8.5.3 (item 1 answer-selection + item 2
+single-dispatch) but their environment's GitHub connector couldn't upload the
+file (it stored the literal path / failed schema validation), so item 2 stayed
+uncommitted. The user delivered it as a zip. Claude Code (real git) integrated it
+onto main 8.5.2 — verified it was exactly `main + item1 + item2` (diffed), kept
+all 8.5.1 UI fixes, ran the full suite.
+
+**Item 2 (single dispatch):** replaces Claude's v8.4.2 layered chain. One reviewed
+mechanism chosen BEFORE `_beginSendAttempt()`; button, or a single Enter keydown
+only where the adapter declares `dispatchFallback:'enter'` (Perplexity). Fires
+once; exception → uncertain; no escalation. Strictly safer than the layered
+chain (removes the 900ms double-send window). Supersedes the v8.4.2 approach and
+its DEVLOG rationale.
+
+**Item 1 (answer selection):** read-only; better Perplexity answer detection.
+
+**Model-switch gating (Claude, this release):** field report — Lens Relay's "Name
+which model should go next" fired on ChatGPT (single model). Added
+`_isModelSwitcher()` (Perplexity/arena) and `_stageForPlatform()`; the live
+round-table persona is gated behind it, and injected workflow stages strip the
+model-switch instruction on single-model sites so Lens Relay degrades to a
+single-model multi-lens round table. Test: `tests/modelswitch.test.js`.
+
+**Test-quality note:** CG's `sendlayered.test.js` had a latent bug — it searched
+for `_beginSendAttempt` and matched the explanatory COMMENT, not the call
+(undetected because their env couldn't run CI). Fixed the search to target the
+call. Lesson: source-assertion tests must match on the specific call site.
+
+---
+
+## v8.5.2 — visible state machine and Perplexity heartbeat root cause
+
+**Field evidence:** the saved Perplexity page showed Ghost booted and a completed response containing `[[GITL::PROCEED]]`, while Ghost still reported reading/waiting.
+
+**Root cause:** v8.5.1 treated every frame on Perplexity's persistent Socket.IO connection as trusted generation traffic, including ping/pong and control frames. `engineTick()` therefore returned before reading the already-finished DOM response. A second contributor was treating a mounted-but-hidden Stop button as active.
+
+**Earlier attempts that were real but insufficient:** disabling mobile visual effects fixed jank; layered Send fallbacks fixed a separate dispatch failure. Neither can repair a transition that never reaches signal reading or sending. Do not diagnose future cases as lag or send-selector failure until the visible stage pipeline identifies the failing transition.
+
+**Chosen fix:** filter non-content WebSocket frames; require visible Stop evidence; and accept a terminal marker only when the response advanced beyond the pre-send baseline, remained stable across two ticks, and has no visible Stop control. Network is advisory and cannot veto those three independent DOM catches.
+
+**Residual risk:** Perplexity can change its Socket.IO payload format. The DOM completion gate remains an independent fallback. Real-device retesting is still required for any editor-specific follow-up send problem after the completion transition is restored.
+
+---
+
 ## v8.5.1 — mobile field fixes (and a testing lesson)
 
 Perplexity-mobile field reports exposed four bugs the desktop-mock e2e missed:

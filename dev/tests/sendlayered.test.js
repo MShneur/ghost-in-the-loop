@@ -1,69 +1,75 @@
 /**
- * LAYERED SEND FAILSAFES (v8.4.2) — mobile-Perplexity ADAPTER-001 fix.
+ * SINGLE-DISPATCH SELECTION (v8.5.3 item 2)
  *
- * Field report (Firefox/Android, Perplexity): round 1 sent, then the loop paused
- * with send:false. Root cause: the follow-up composer has no uniquely-matching
- * reviewed Send button, and engineSend was button-only (CG's at-most-once send).
- *
- * Fix: an ordered failsafe chain — reviewed button → single Enter → insertParagraph
- * → native form submit — that PRESERVES at-most-once IN EFFECT: each method fires
- * only while the composer still holds the unsent text; the instant it clears (or
- * independent evidence confirms), escalation STOPS, so a second method is never
- * dispatched after a send. The prompt therefore cannot double-send. Buttonless
- * tiers are reviewed-platforms only; unreviewed sites stay manual-send. Final
- * commit still requires _sendEvidence — a dispatch that produced no send can
- * never advance the round.
+ * A transaction selects one reviewed dispatch mechanism before the journal
+ * opens. Once dispatch begins, Ghost may observe, confirm, or pause uncertain;
+ * it may never escalate to another actuator.
  */
-const fs = require('fs'), path = require('path');
+const fs = require('fs');
+const path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
-const send = src.slice(src.indexOf('function engineSend'), src.indexOf('function _confirmSend'));
 
-describe('Layered send — the failsafe chain', () => {
-  test('reviewed button is tier 1 and clicks exactly once', () => {
-    expect(send).toContain("tiers.push({ path: 'reviewed-button', run: () => btn.click() })");
-    expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
+function body(name, nextName) {
+  const start = src.indexOf(`function ${name}`);
+  const end = nextName ? src.indexOf(`function ${nextName}`, start + 1) : -1;
+  return start < 0 ? '' : src.slice(start, end < 0 ? undefined : end);
+}
+
+describe('single reviewed dispatch selection', () => {
+  const send = body('engineSend', '_confirmSend');
+
+  test('Perplexity explicitly declares the only buttonless reviewed fallback', () => {
+    const profileStart = src.indexOf("perplexity: {");
+    const profileEnd = src.indexOf("\n  gemini:", profileStart);
+    const profile = src.slice(profileStart, profileEnd);
+    expect(profile).toContain("dispatchFallback: 'enter'");
+    expect((src.match(/dispatchFallback:\s*'enter'/g) || []).length).toBe(1);
   });
 
-  test('buttonless failsafes (Enter → paragraph → form) exist, reviewed-only', () => {
-    expect(send).toContain('if (PLAT?.reviewed) {');
+  test('selects the mechanism before opening the transaction journal', () => {
+    const selectAt = send.indexOf('const strategy = btn ?');
+    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const runAt = send.indexOf('strategy.run()');
+    expect(selectAt).toBeGreaterThan(-1);
+    expect(beginAt).toBeGreaterThan(selectAt);
+    expect(runAt).toBeGreaterThan(beginAt);
+  });
+
+  test('button wins; Enter is used only when the reviewed adapter opts in', () => {
+    expect(send).toContain("path: 'reviewed-button'");
+    expect(send).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
     expect(send).toContain("path: 'reviewed-enter'");
-    expect(send).toContain("path: 'reviewed-paragraph'");
-    expect(send).toContain("path: 'reviewed-form'");
-    expect(send).toContain('requestSubmit');
+    expect(send).toContain("new KeyboardEvent('keydown'");
+    expect(send).not.toContain("new KeyboardEvent('keypress'");
+    expect(send).not.toContain("new KeyboardEvent('keyup'");
   });
 
-  test('each tier is a single mechanism (no multi-signal pressEnter helper)', () => {
-    expect(send).not.toContain('Adapter.pressEnter');
-    // The Enter tier dispatches exactly the three keyboard events, nothing else.
-    expect(send).toContain("['keydown','keypress','keyup'].forEach");
-  });
-});
-
-describe('Layered send — at-most-once IN EFFECT (double-send guard)', () => {
-  test('escalation stops the instant the composer clears or evidence confirms', () => {
-    expect(send).toContain('(hadText && _composerText(input).length < 4) || _sendEvidence().confirmed) break;');
+  test('contains no post-begin fallback or actuator escalation', () => {
+    expect(send).not.toContain('reviewed-paragraph');
+    expect(send).not.toContain('reviewed-form');
+    expect(send).not.toContain('send_escalate');
+    expect(send).not.toContain('requestSubmit');
+    expect(send).not.toMatch(/for\s*\([^)]*tiers/);
+    expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
   });
 
-  test('the composer-had-text baseline is captured before dispatch', () => {
-    expect(send).toContain('const hadText = _composerText(input).length > 0;');
+  test('a dispatch exception becomes uncertain and never selects another mechanism', () => {
+    const runAt = send.indexOf('strategy.run()');
+    const catchAt = send.indexOf('catch(_)', runAt);
+    const uncertainAt = send.indexOf('_markSendUncertain()', catchAt);
+    expect(catchAt).toBeGreaterThan(runAt);
+    expect(uncertainAt).toBeGreaterThan(catchAt);
+    expect(send.slice(catchAt, uncertainAt + 22)).not.toContain('Adapter.getSendBtn');
   });
 
-  test('no automatic retry machinery is introduced (escalation != resend)', () => {
-    expect(src).not.toContain('SEND_MAX_RETRIES');
-    expect(src).not.toContain('_refireSend');
-    expect(send).not.toContain('L.round++'); // advancement stays in _confirmSend
-  });
-
-  test('still evidence-gated: waits on the transaction promise, never self-reports success', () => {
-    expect(send).toContain('const completion = _beginSendAttempt(DIAG.sendPath, input)');
-    expect(send).toContain('return await completion;');
-    expect(send).not.toContain('_confirmSend(');
-  });
-});
-
-describe('Layered send — unreviewed sites stay manual', () => {
-  test('no reviewed button and not reviewed → manual-send pause (fail closed)', () => {
-    expect(send).toContain('if (!tiers.length) {');
-    expect(send).toContain("pauseWithProbe('No safe Send control");
+  test('no strategy leaves the injected prompt for manual review before a transaction starts', () => {
+    const noStrategyAt = send.indexOf('if (!strategy)');
+    // Target the actual CALL, not the earlier explanatory comment that also
+    // mentions _beginSendAttempt() (the loose search matched the comment).
+    const beginAt = send.indexOf('const completion = _beginSendAttempt(');
+    expect(noStrategyAt).toBeGreaterThan(-1);
+    expect(beginAt).toBeGreaterThan(-1);
+    expect(noStrategyAt).toBeLessThan(beginAt);
+    expect(send).toContain('No safe Send mechanism — prompt left for manual review');
   });
 });
