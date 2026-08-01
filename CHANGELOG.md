@@ -1,5 +1,34 @@
 # Changelog
 
+## [8.5.3] — single-dispatch send, sharper answer selection, model-switch gating
+
+Integrates the v8.5.3 handoff package (Agent CG's item 1 + item 2, which the
+other environment couldn't push) plus a field fix for model-switch workflows.
+
+### Single-dispatch transaction authority (item 2)
+Replaces the v8.4.2 layered send chain with **one** reviewed mechanism chosen
+*before* the at-most-once journal opens: a unique reviewed Send button, or —
+only where the adapter declares it (`dispatchFallback:'enter'`, currently
+Perplexity) — a single Enter `keydown`. Once the transaction begins the chosen
+mechanism fires exactly once; a dispatch exception becomes `uncertain`, never a
+second actuator. No escalation, no double-send window. If no single reviewed
+mechanism exists, the prompt is left for manual Send.
+
+### Sharper answer selection (item 1, read-only)
+Perplexity's broad `.pb-md > div` is now a fallback tier; answer detection
+restores document order, bounds the scan, ignores hidden/nav/follow-up nodes,
+and anchors on the newest answer so an older HALT can't beat a newer streaming
+reply. Cannot click, inject, submit, or alter actuator authority.
+
+### Model-switch workflows are gated to model-switcher platforms
+Field report: **Lens Relay's "Name which model should go next" fired on
+ChatGPT**, which has one model. Model-switch features (the live round-table
+persona and the Lens Relay workflow) now check `_isModelSwitcher()` (Perplexity/
+arena sites). On a single-model platform the "name the next model" instruction
+is stripped from injected workflow stages, so Lens Relay degrades to a
+single-model multi-lens round table instead of asking a one-model site to pick
+the next model.
+
 ## [8.5.2] — completion observer, visible run stages, Ghost-only reboot
 
 - Fixed Perplexity remaining in reading/waiting forever: Socket.IO heartbeat and control frames no longer count as generation output.

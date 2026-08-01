@@ -1,9 +1,9 @@
 /**
  * AT-MOST-ONCE SEND TRANSACTION
  *
- * These tests lock down the safety boundary: a send is attempted once,
- * advances state only after independent evidence, and never automatically
- * retries an ambiguous dispatch.
+ * These tests lock down the safety boundary: one strategy is selected before
+ * the journal opens, exactly one dispatch occurs, state advances only after
+ * independent evidence, and ambiguous dispatch is never retried.
  */
 const fs = require('fs');
 const path = require('path');
@@ -16,7 +16,7 @@ function body(name, nextName) {
 }
 
 describe('dispatch authority', () => {
-  test('only reviewed platform selectors may return an actuator', () => {
+  test('only reviewed platform selectors may return a button actuator', () => {
     expect(src).toContain('function _reviewedSend()');
     expect(src).toContain('if (!PLAT?.reviewed) return null;');
     expect(src).toContain('if (matches.length === 1) return matches[0];');
@@ -37,28 +37,30 @@ describe('send transaction', () => {
   const send = body('engineSend', '_confirmSend');
   const confirm = body('_confirmSend', '_markSendUncertain');
 
-  test('engineSend is at-most-once IN EFFECT: button clicks once; buttonless failsafes escalate only while the composer still holds the unsent text', () => {
-    // v8.4.2: the reviewed button still clicks exactly once.
+  test('one transaction authorizes exactly one dispatch invocation', () => {
     expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
-    // Buttonless failsafes (Enter → paragraph → form-submit) exist but ONLY on
-    // reviewed platforms (unreviewed sites stay manual-send).
-    expect(send).toContain('if (PLAT?.reviewed) {');
-    // The double-send guard: escalation stops the instant the composer clears
-    // (or independent evidence confirms), so a second method is NEVER dispatched
-    // after one already sent — at-most-once is preserved in effect.
-    expect(send).toContain('_composerText(input).length < 4) || _sendEvidence().confirmed) break;');
-    // The multi-signal pressEnter helper is NOT used — each tier is one mechanism.
-    expect(send).not.toContain('Adapter.pressEnter');
+    expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    expect(send).not.toContain('send_escalate');
+    expect(send).not.toContain('reviewed-paragraph');
+    expect(send).not.toContain('reviewed-form');
+  });
+
+  test('strategy selection is complete before transaction creation', () => {
+    const strategy = send.indexOf('const strategy = btn ?');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const dispatch = send.indexOf('strategy.run()');
+    expect(strategy).toBeGreaterThan(-1);
+    expect(begin).toBeGreaterThan(strategy);
+    expect(dispatch).toBeGreaterThan(begin);
   });
 
   test('engineSend waits for the transaction promise instead of reporting success', () => {
-    expect(send).toContain('const completion = _beginSendAttempt');
     expect(send).toContain('return await completion;');
     expect(send).not.toContain('_confirmSend(');
     expect(send).not.toMatch(/return\s+true/);
   });
 
-  test('round advancement exists only in the confirmation/reconciliation paths', () => {
+  test('round advancement exists only in confirmation/reconciliation paths', () => {
     expect(confirm).toContain('L.round++;');
     expect(send).not.toContain('L.round++');
     expect(confirm).toContain("txn.state = 'committed'");
@@ -68,7 +70,13 @@ describe('send transaction', () => {
     expect(src).not.toContain('SEND_MAX_RETRIES');
     expect(src).not.toContain('_refireSend');
     expect(src).not.toContain('RecoveryEngine.recoverSend');
+    expect(src).not.toContain('send_escalate');
     expect(src).toContain('Nothing was resent.');
+  });
+
+  test('a throw after transaction begin enters uncertain rather than fallback', () => {
+    expect(send).toContain("Timeline.record('send_dispatch_error', { path: strategy.path })");
+    expect(send).toContain('_markSendUncertain();');
   });
 
   test('the loop will not parse stale output while dispatch is unresolved', () => {

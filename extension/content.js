@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.5.2';
+const VER = '8.5.3';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -529,7 +529,9 @@ const PROFILES = {
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
     stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
     staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
-    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]','.pb-md > div'],
+    assistant: ['div[class*="prose"]','div[dir="auto"][class*="break-words"]'],
+    assistantFallback: ['.pb-md > div'],
+    dispatchFallback: 'enter', // reviewed mobile fallback; selected before transaction start
     continueLabels: [],
     useCE: true, useNS: false
   },
@@ -953,6 +955,89 @@ function _reviewedSend() {
   return null;
 }
 
+/* ── Answer selection (v8.5.3 item 1) ────────────────────────
+   _qAll() groups matches by selector instead of document order. Perplexity
+   can also leave hidden duplicates and append follow-up UI after an answer.
+   Keep broad selectors fallback-only, bound the scan, restore DOM order, and
+   resolve nested nodes only inside the newest answer cluster. Read-only: this
+   code cannot click, inject, submit, retry, or alter actuator authority. */
+const ANSWER_SCAN_LIMIT = 48;
+function _answerText(el) {
+  try { return String((el && (el.innerText || el.textContent)) || '').replace(/\u200b/g, '').trim(); }
+  catch(_) { return ''; }
+}
+function _answerTerminalAtTail(text) {
+  const s = String(text || '').replace(/\u200b/g, '').trim();
+  return s.endsWith(SIGIL_PROCEED) || s.endsWith(SIGIL_HALT);
+}
+function _answerNodeUsable(el) {
+  if (!el || !el.isConnected || _isOwnUI(el)) return false;
+  try {
+    if (el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+    if (el.closest && el.closest('[hidden],[aria-hidden="true"]')) return false;
+    const cs = typeof getComputedStyle === 'function' ? getComputedStyle(el) : null;
+    if (cs && (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse')) return false;
+  } catch(_) {}
+  return true;
+}
+function _answerLooksLikeContent(el, text, tier) {
+  if (!text) return false;
+  try {
+    if (el.matches && el.matches('button,a,[role="button"]')) return false;
+    if (el.closest && el.closest('form,nav,aside,[role="navigation"],[role="toolbar"]')) return false;
+    const meta = [el.id, el.className, el.getAttribute('role'), el.getAttribute('data-testid'), el.getAttribute('aria-label')]
+      .map(v => String(v || '')).join(' ');
+    if (/follow.?up|related|suggest(?:ion|ed)?/i.test(meta)) return false;
+    if (tier === 'fallback' && /citation|source|reference|toolbar|action|composer/i.test(meta)) return false;
+  } catch(_) {}
+  if (text.includes(SIGIL_PROCEED) || text.includes(SIGIL_HALT)) return true;
+  return text.length >= 20;
+}
+function _answerDomOrder(a, b) {
+  if (a === b) return 0;
+  try {
+    const pos = a.compareDocumentPosition(b);
+    if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+    if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+  } catch(_) {}
+  return 0;
+}
+function _collectAnswerCandidates(selectors, tier) {
+  const byElement = new Map();
+  for (const [selectorIndex, sel] of (selectors || []).entries()) {
+    let matches = [];
+    try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+    const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+    for (let i = start; i < matches.length; i++) {
+      const el = matches[i];
+      if (!_answerNodeUsable(el)) continue;
+      const text = _answerText(el);
+      if (!_answerLooksLikeContent(el, text, tier)) continue;
+      const prior = byElement.get(el);
+      if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+    }
+  }
+  return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
+}
+function _selectAnswerCandidate() {
+  let candidates = _collectAnswerCandidates(PLAT.assistant, 'primary');
+  if (!candidates.length) candidates = _collectAnswerCandidates(PLAT.assistantFallback || [], 'fallback');
+  if (!candidates.length) return null;
+
+  // Anchor on the newest answer first. An older HALT/PROCEED can never beat a
+  // newer unfinished answer. Terminal preference is limited to nested nodes
+  // representing that same newest answer.
+  const anchor = candidates[candidates.length - 1];
+  const cluster = candidates.filter(c =>
+    c.el === anchor.el || c.el.contains(anchor.el) || anchor.el.contains(c.el));
+  const terminalTail = cluster.filter(c => _answerTerminalAtTail(c.text));
+  let selected = anchor;
+  if (terminalTail.length) {
+    selected = terminalTail.reduce((best, c) => c.text.length > best.text.length ? c : best, terminalTail[0]);
+  }
+  return { ...selected, candidateCount: candidates.length, ordinal: candidates.indexOf(selected) };
+}
+
 // Adapter — all DOM reads/writes
 const Adapter = {
   peekInput() {
@@ -971,14 +1056,16 @@ const Adapter = {
   },
   stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
   isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
-  hasMessages()   { return _qAll(PLAT.assistant).length > 0; },
-  getLastText() {
+  hasMessages()   { return !!_selectAnswerCandidate(); },
+  getLastAnswer() {
     // Gemini only: virtual scroll — nudge infinite-scroller to bottom
     if (PLAT && PLAT.key === 'gemini') {
       try { const s = document.querySelector('infinite-scroller'); if (s) s.scrollTop = s.scrollHeight; } catch(_){}
     }
-    const els = _qAll(PLAT.assistant);
-    return els.length ? (els[els.length-1].innerText || '').trim() : '';
+    return _selectAnswerCandidate();
+  },
+  getLastText() {
+    return this.getLastAnswer()?.text || '';
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
@@ -1057,6 +1144,26 @@ const PERSONA_LIBRARY = {
 // Perplexity (and any model-switcher) variant — a REAL round table across models, not a simulated one.
 const ROUNDTABLE_LIVE = 'This is a live multi-model round table. The operator switches the active model between turns using the model selector. You are ONE lens at this table. Give your OWN independent assessment of the work so far — do NOT simply agree with or extend the previous model. Challenge assumptions, fill gaps, add what only you would add. Put all substantive output in a single code block, no fluff, so it carries cleanly to the next model. End with one line naming which model should take the next turn and why, then [[GITL::PROCEED]] — or [[GITL::HALT]] only if genuine consensus is reached.';
 
+/* Model-switch features (the live round table, the Lens Relay workflow) only
+   make sense where the user can swap the active model between turns. Perplexity
+   (and arena sites) do; ChatGPT/Claude/Gemini are single-model. Field report:
+   Lens Relay's "Name which model should go next" fired on ChatGPT, which has
+   one model. Used to gate the round-table protocol and to neutralise
+   model-switch instructions in workflow stages on single-model platforms. */
+function _isModelSwitcher() {
+  try { return /perplexity|lmarena|chatbot\s*arena|poe\b/i.test(PLAT.label || ''); } catch(_) { return false; }
+}
+/* On a single-model platform, strip the "name the next model" instruction so a
+   model-switch workflow degrades to a single-model multi-lens round table
+   instead of asking a one-model site which model goes next. */
+function _stageForPlatform(text) {
+  if (_isModelSwitcher()) return text;
+  return String(text || '')
+    .replace(/\s*Name which model should go next\.?/gi, '')
+    .replace(/\s*Name the next model\.?/gi, '')
+    .trim();
+}
+
 /* The full context block for a run: who the model is (persona/committee),
    how it should think (posture), and how it should work (strategy).
    `includeStrategy` is false on roadmap resumes — re-sending the roadmap
@@ -1082,7 +1189,7 @@ function resolvePersonaInject() {
   const active = sel.filter(s => s && s !== 'none');
   if (!active.length) return '';
   // Special: live Perplexity round table is a protocol, not composable
-  if (active.includes('roundtable') && /Perplexity/i.test(PLAT.label)) return ROUNDTABLE_LIVE;
+  if (active.includes('roundtable') && _isModelSwitcher()) return ROUNDTABLE_LIVE;
   // Single persona — classic behavior
   if (active.length === 1) return allPersonas()[active[0]]?.inject || '';
   // Committee: concatenate perspectives with framing
@@ -2208,62 +2315,33 @@ async function engineSend(text, skipDelay) {
     }
     await sleep(500);
     const btn = Adapter.getSendBtn();
-    // v8.4.2 — LAYERED, AT-MOST-ONCE-IN-EFFECT dispatch (field bug ADAPTER-001:
-    // Perplexity's mobile follow-up composer has no uniquely-matching reviewed
-    // Send button, so button-only send stalled). The failsafe chain is: reviewed
-    // button → single Enter keypress → insertParagraph → native form submit. It
-    // preserves CG's at-most-once guarantee because each method fires ONLY while
-    // the composer still holds the unsent text; the moment it clears, something
-    // submitted it and we STOP — a second method is never dispatched, so the
-    // prompt cannot double-send. Buttonless failsafes are reviewed-platforms only
-    // (an unreviewed site with no reviewed button still leaves it for manual Send).
-    // Final commit still requires independent evidence (_sendEvidence): a dispatch
-    // that produced no send can never advance the round.
-    const hadText = _composerText(input).length > 0;
-    const tiers = [];
-    if (btn) tiers.push({ path: 'reviewed-button', run: () => btn.click() });
-    if (PLAT?.reviewed) {
-      tiers.push({ path: 'reviewed-enter', run: () => {
-        ['keydown','keypress','keyup'].forEach(t => input.dispatchEvent(
-          new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true })));
-      }});
-      tiers.push({ path: 'reviewed-paragraph', run: () => input.dispatchEvent(
-        new InputEvent('beforeinput', { inputType:'insertParagraph', bubbles:true, cancelable:true, composed:true })) });
-      tiers.push({ path: 'reviewed-form', run: () => {
-        const f = input.closest && input.closest('form');
-        if (f && typeof f.requestSubmit === 'function') f.requestSubmit();
-      }});
-    }
-    if (!tiers.length) {
-      Reporter.capture('SEND-001', 'This site has no reviewed automation adapter; use manual Send.');
-      pauseWithProbe('No safe Send control — prompt left for manual review');
+    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
+    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
+    // is no fallback or escalation: the selected mechanism fires once, then
+    // Ghost only observes confirmation evidence or enters `uncertain`.
+    const strategy = btn ? {
+      path: 'reviewed-button',
+      run: () => btn.click()
+    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
+      path: 'reviewed-enter',
+      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key:'Enter', code:'Enter', keyCode:13, which:13,
+        bubbles:true, cancelable:true, composed:true
+      }))
+    } : null);
+    if (!strategy) {
+      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
+      pauseWithProbe('No safe Send mechanism — prompt left for manual review');
       return false;
     }
-    DIAG.sendPath = tiers[0].path;
-    const completion = _beginSendAttempt(DIAG.sendPath, input);
-    let anyDispatched = false;
-    for (let i = 0; i < tiers.length; i++) {
-      try {
-        tiers[i].run();
-        anyDispatched = true;
-        DIAG.sendPath = tiers[i].path;
-        if (L.sendTxn) L.sendTxn.path = tiers[i].path;
-      } catch(_) { Timeline.record('send_tier_error', { tier: tiers[i].path }); continue; }
-      await sleep(900);
-      if (L.state !== 'RUNNING') break;
-      // Did it submit? Composer cleared is the earliest, safest signal; full
-      // evidence (stop/network/assistant) also counts. Either → do NOT escalate.
-      if ((hadText && _composerText(input).length < 4) || _sendEvidence().confirmed) break;
-      if (i < tiers.length - 1) Timeline.record('send_escalate', { from: tiers[i].path, to: tiers[i+1].path });
-    }
-    if (!anyDispatched) {
-      L.sendPending = false;
-      L.sendDeadline = 0;
-      if (L.sendTxn) L.sendTxn.state = 'failed';
-      Timeline.record('send_failed', { code: 'SEND-001', stage: 'dispatch' });
-      Reporter.capture('SEND-001', 'The reviewed Send control could not be activated.');
-      _settleSendPromise(false);
-      enginePause('Send failed before dispatch');
+    DIAG.sendPath = strategy.path;
+    const completion = _beginSendAttempt(strategy.path, input);
+    try {
+      strategy.run();
+    } catch(_) {
+      // The journal is already authoritative. Never try another mechanism.
+      Timeline.record('send_dispatch_error', { path: strategy.path });
+      _markSendUncertain();
       return false;
     }
     return await completion;
@@ -2502,7 +2580,7 @@ function engineTick() {
       if (next) {
         if (GHOST.workflow.pauseBetween) { enginePause(`Stage ${GHOST.workflow.stageIndex+1} complete — next queued`); return; }
         L.detail = `Advancing workflow stage ${GHOST.workflow.stageIndex+1}…`;
-        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${next}\n\nUse the same [[GITL::PROCEED]] / [[GITL::HALT]] protocol.`, false).then(ok => {
+        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${_stageForPlatform(next)}\n\nUse the same [[GITL::PROCEED]] / [[GITL::HALT]] protocol.`, false).then(ok => {
           if (ok) { GHOST.workflow.stageIndex++; _save('wfStage', GHOST.workflow.stageIndex); render(); }
           else { enginePause('Workflow advance failed'); }
         });
