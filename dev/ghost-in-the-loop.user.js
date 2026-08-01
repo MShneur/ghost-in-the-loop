@@ -2449,7 +2449,7 @@ let _pendingSendResolve = null;
 function _composerRawText(el) {
   if (!el) return '';
   try {
-    const value = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+    const value = typeof el.value === 'string'
       ? el.value
       : (typeof el.innerText === 'string' ? el.innerText : el.textContent);
     return String(value == null ? '' : value).replace(/\r\n?/g, '\n');

@@ -157,7 +157,7 @@ describe('ladder authority and transaction wiring', () => {
     const evidence = body('_preDispatchEvidence', '_settleSendPromise');
     expect(evidence).toContain('_composerRawText(input) === intended');
     expect(evidence).toContain('current === strategy.actuator');
-    expect(evidence).toContain("PLAT.dispatchFallback === 'enter'");
+    expect(evidence).toContain("PLAT?.dispatchFallback === 'enter'");
     expect(evidence).toContain('_reviewedComposer(input) === input');
     expect(evidence).toContain('_reviewedSubmitForm(input) === strategy.actuator');
     expect(evidence).toContain('_reviewedTaughtSend() === strategy.actuator');

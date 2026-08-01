@@ -197,7 +197,7 @@ for (const platform of PLATFORMS) {
       expect(blocked.enterKeydowns).toBe(0);
       expect(blocked.sendTxn).toBeNull();
       expect(blocked.state).toBe('PAUSED');
-      expect(blocked.detail).toContain('Staged prompt changed before Send');
+      expect(blocked.detail).toContain('Prompt staging could not be verified');
     });
   });
 }
