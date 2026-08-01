@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.6.1';
+const VER = '8.7.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -268,6 +268,9 @@ function isTabSafeToAct() {
 /* Pre-send safety gate: called before every engineSend.
    Returns { ok, reason } */
 function assertInteractionSafe() {
+  if (!_isSiteEnabled()) {
+    return { ok: false, reason: 'site-disabled' };
+  }
   if (!unattendedOn() && !document.hasFocus() && typeof GHOST !== 'undefined' && GHOST.loop.state === 'RUNNING') {
     return { ok: false, reason: 'tab-not-focused' };
   }
@@ -307,6 +310,11 @@ const GITL_NET = {
   lastWsPulseT: 0,      // meaningful WS payload only; heartbeat/control frames excluded
   _open: 0,             // streams currently open
   expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
+  /* v8.7.0 read-only network text prototype (flagged off by default).
+     Never an actuation source — supplements DOM reads when enabled. */
+  netReadEnabled: false,
+  lastAssistantSnippet: '',
+  lastAssistantAt: 0,
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -374,6 +382,37 @@ const GITL_NET = {
     return false;
   },
 
+  _loadNetReadFlag() {
+    try { this.netReadEnabled = !!GM_getValue('gitlNetRead', false); } catch(_) { this.netReadEnabled = false; }
+  },
+
+  /* ChatGPT SSE: extract assistant text deltas when net-read flag is on. */
+  _ingestChatGptSse(chunk) {
+    if (!this.netReadEnabled || !chunk) return;
+    try {
+      const s = typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+      for (const line of s.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (!payload || payload === '[DONE]') continue;
+        const obj = JSON.parse(payload);
+        const piece = obj?.message?.content?.parts?.[0]
+          || obj?.v?.message?.content?.parts?.[0]
+          || obj?.p?.match(/"parts":\s*\[\s*"([^"]+)/)?.[1];
+        if (typeof piece === 'string' && piece.length) {
+          this.lastAssistantSnippet = (this.lastAssistantSnippet + piece).slice(-8000);
+          this.lastAssistantAt = Date.now();
+        }
+      }
+    } catch(_) {}
+  },
+
+  peekAssistantText() {
+    if (!this.netReadEnabled || !this.lastAssistantSnippet) return '';
+    if (Date.now() - this.lastAssistantAt > 120000) return '';
+    return this.lastAssistantSnippet;
+  },
+
   _emit(byteCount, isDone) {
     const bytes = Math.max(0, Number(byteCount) || 0);
     this.lastEventBytes = bytes;
@@ -388,6 +427,7 @@ const GITL_NET = {
   install() {
     if (this.active) return;
     this.active = true;
+    this._loadNetReadFlag();
     /* v8.1.3 field report (Gemini "doesn't load"): install() used to run
        fully unguarded at module top-level, OUTSIDE safeBoot()'s try/catch
        (which only wraps panel creation much further down). In strict mode,
@@ -439,6 +479,7 @@ const GITL_NET = {
                     while (true) {
                       const { done, value } = await reader.read();
                       if (done) { self._emit(0, true); break; }
+                      if (self.netReadEnabled && value) self._ingestChatGptSse(value);
                       self._emit(value?.byteLength || value?.length || 0, false);
                     }
                   } catch(_) { /* stream aborted — normal on navigation */ }
@@ -1125,7 +1166,9 @@ const Adapter = {
     return _selectAnswerCandidate();
   },
   getLastText() {
-    return this.getLastAnswer()?.text || '';
+    const dom = this.getLastAnswer()?.text || '';
+    const net = GITL_NET.peekAssistantText();
+    return dom || net;
   },
   clickContinue() {
     if (!PLAT.continueLabels?.length) return false;
@@ -1673,6 +1716,7 @@ const GHOST = {
     notifyOn: GM_getValue('notifyOn',false),
     cfgAdv: GM_getValue('cfgAdv',false),
     unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
+    dryRun: GM_getValue('dryRun', false), // show what would send without dispatching
     explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
     teaching: null, // runtime-only: 'send' | 'input' while capturing a control
     teachMsg: '',   // runtime-only: last teach result/hint
@@ -2365,6 +2409,104 @@ function _composerText(el) {
   return String((el && (el.value || el.textContent)) || '').trim();
 }
 
+/* v8.7.0 safeguards — kill-switch, per-site enable, staging verification,
+   ambiguity guard, and pre-journal dispatch tier selection. */
+function _isSiteEnabled() {
+  try {
+    if (GM_getValue('gitlKillSwitch', false)) return false;
+    const disabled = JSON.parse(GM_getValue('gitlSiteDisabled', '{}') || '{}');
+    if (disabled[location.hostname]) return false;
+  } catch(_) {}
+  return true;
+}
+
+function _composerHoldsPrompt(el, expected) {
+  const have = _composerText(el);
+  const need = String(expected || '').trim();
+  if (!need || !have) return false;
+  if (have === need) return true;
+  const prefix = need.slice(0, Math.min(48, need.length));
+  return prefix.length >= 12 && have.includes(prefix);
+}
+
+function _nudgeComposerActivation(el) {
+  if (!el) return;
+  try {
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', composed: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  } catch(_) {}
+}
+
+function _sendSelectionAmbiguous() {
+  const candidates = new Set();
+  const taught = TeachStore.matchEl('send');
+  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true'
+      && _visible(taught) && _sendLooksSafe(taught)) candidates.add(taught);
+  if (PLAT?.reviewed) {
+    for (const sel of PLAT.send || []) {
+      let matches = [];
+      try {
+        matches = [...document.querySelectorAll(sel)].filter(el =>
+          !_isOwnUI(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true'
+          && _visible(el) && _sendLooksSafe(el));
+      } catch(_) { matches = []; }
+      if (matches.length > 1) return true;
+      matches.forEach(m => candidates.add(m));
+    }
+  }
+  return candidates.size > 1;
+}
+
+function _composerAmbiguous() {
+  let n = 0;
+  for (const el of _qAll(['textarea:not([disabled])', 'div[contenteditable="true"]'])) {
+    if (_visible(el)) n++;
+  }
+  return n > 1;
+}
+
+function _reviewedFormForInput(input) {
+  if (!input || !PLAT?.reviewed) return null;
+  const form = input.closest ? input.closest('form') : null;
+  if (!form || _isOwnUI(form)) return null;
+  let forms = [];
+  try {
+    forms = [...document.querySelectorAll('form')].filter(f => !_isOwnUI(f) && _visible(f));
+  } catch(_) { return null; }
+  if (forms.length !== 1 || forms[0] !== form) return null;
+  let submits = [];
+  try {
+    submits = [...form.querySelectorAll('button[type="submit"],input[type="submit"],button')].filter(el =>
+      _visible(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && _sendLooksSafe(el)
+      && ((el.getAttribute('type') || '') === 'submit' || SEND_WORDS.test(String(el.getAttribute('aria-label') || el.textContent || ''))));
+  } catch(_) { return null; }
+  if (submits.length !== 1) return null;
+  return form;
+}
+
+/* Pre-journal tier ladder (invariant #2/#3): pick exactly one mechanism
+   before _beginSendAttempt — never escalate after dispatch. */
+function _selectDispatchStrategy(input) {
+  const btn = Adapter.getSendBtn();
+  if (btn) {
+    return { path: 'reviewed-button', run: () => btn.click() };
+  }
+  if (PLAT?.reviewed && PLAT.dispatchFallback === 'enter') {
+    return {
+      path: 'reviewed-enter',
+      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+        bubbles: true, cancelable: true, composed: true
+      }))
+    };
+  }
+  const form = _reviewedFormForInput(input);
+  if (form && typeof form.requestSubmit === 'function') {
+    return { path: 'reviewed-form', run: () => form.requestSubmit() };
+  }
+  return null;
+}
+
 function _settleSendPromise(ok) {
   const resolve = _pendingSendResolve;
   _pendingSendResolve = null;
@@ -2454,25 +2596,38 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('Chat composer rejected the prompt');
       return false;
     }
-    await sleep(500);
-    const btn = Adapter.getSendBtn();
+    _nudgeComposerActivation(input);
+    await sleep(300);
+    if (!_composerHoldsPrompt(input, text)) {
+      Reporter.capture('COMPOSER-002', 'Composer does not contain the injected prompt after staging.');
+      pauseWithProbe('Prompt not staged in composer');
+      return false;
+    }
+    if (_composerAmbiguous()) {
+      Reporter.capture('COMPOSER-003', 'Multiple plausible composers — refusing to guess.');
+      pauseWithProbe('Ambiguous chat composer');
+      return false;
+    }
+    if (_sendSelectionAmbiguous()) {
+      Reporter.capture('SEND-003', 'Multiple plausible Send controls — refusing to guess.');
+      pauseWithProbe('Ambiguous Send controls');
+      return false;
+    }
+    await sleep(200);
     // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
     // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
     // is no fallback or escalation: the selected mechanism fires once, then
     // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
+    const strategy = _selectDispatchStrategy(input);
     if (!strategy) {
       Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
       pauseWithProbe('No safe Send mechanism — prompt left for manual review');
+      return false;
+    }
+    if (GHOST.ui.dryRun) {
+      L.detail = `⧗ Dry-run: would send via ${strategy.path}`;
+      Timeline.record('send_dry_run', { path: strategy.path, round: L.round + 1 });
+      render();
       return false;
     }
     DIAG.sendPath = strategy.path;
@@ -3028,6 +3183,24 @@ function _clearElementCaches() {
   _deepLast.clear();
   _heurCache.input = { el: null, ts: 0 };
   _heurCache.send  = { el: null, ts: 0 };
+}
+
+/* Invalidate composer cache when the SPA rebuilds the input subtree (throttled). */
+let _cacheMutObs = null;
+let _cacheMutTs = 0;
+function _ensureComposerCacheInvalidation() {
+  if (_cacheMutObs || typeof MutationObserver !== 'function') return;
+  try {
+    _cacheMutObs = new MutationObserver(() => {
+      const now = Date.now();
+      if (now - _cacheMutTs < 300) return;
+      if (!_cache.has('in') && !_heurCache.input.el) return;
+      _cacheMutTs = now;
+      _cache.delete('in');
+      _heurCache.input = { el: null, ts: 0 };
+    });
+    _cacheMutObs.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
+  } catch(_) {}
 }
 
 /* Silent self-heal (v8.1): coming back from another app/tab is exactly when
@@ -5754,6 +5927,7 @@ safeBoot(() => {
   _phase('tab-lock',  false, () => claimTabLock());
   _phase('bus',       false, () => GhostBus.init());
   _phase('panel-sentinel', false, () => startPanelSentinel());
+  _phase('selector-cache', false, () => _ensureComposerCacheInvalidation());
 
   _phase('boot-retry', false, () => {
     // SPA boot retry: ChatGPT/Gemini/Angular render chat elements late; keep

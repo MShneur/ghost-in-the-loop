@@ -11,6 +11,34 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.7.0 — Cursor eval upgrade (multi-track integration)
+
+**Context:** HANDOFF_CURSOR_EVAL.md assigned parallel tracks A–G. This release
+integrates the test-backed, reversible items on branch `cursor/eval-upgrade-7f27`
+for review on Personal Forge — not promoted to main.
+
+**Track A (send last mile):** added `_composerHoldsPrompt` evidence gate +
+`_nudgeComposerActivation` after `injectText`. Enter/button dispatch only proceeds
+when the composer actually contains the staged prompt. Addresses the field
+hypothesis that programmatic insert doesn't enable mobile Send buttons.
+
+**Track F (tier ladder):** extracted `_selectDispatchStrategy` with tiers:
+reviewed button → reviewed Enter → unique `form.requestSubmit()`. Teach Mode
+remains inside `_reviewedSend` (human-reviewed actuator). Truth table:
+`tests/sendtiers.test.js`.
+
+**Track D (safeguards):** `gitlKillSwitch`, per-host `gitlSiteDisabled`,
+`_sendSelectionAmbiguous` / `_composerAmbiguous`, `dryRun` mode.
+
+**Track C (network read):** `gitlNetRead` flag + ChatGPT SSE ingest prototype.
+Read-only; DOM remains primary.
+
+**Track G (mobile CI):** `mobile-chrome` Playwright project + `mobile-send.spec.js`.
+Composer selector cache invalidates on throttled DOM mutations.
+
+**Deferred:** live-site selector canary, full Perplexity socket.io text parse,
+real-device Android certification (CI uses emulated mobile).
+
 ## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
 
 **What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,

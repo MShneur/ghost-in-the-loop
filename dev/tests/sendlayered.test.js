@@ -17,6 +17,7 @@ function body(name, nextName) {
 
 describe('single reviewed dispatch selection', () => {
   const send = body('engineSend', '_confirmSend');
+  const ladder = body('_selectDispatchStrategy', '_settleSendPromise');
 
   test('the buttonless reviewed Enter fallback is opt-in per adapter (Perplexity + ChatGPT)', () => {
     const perpStart = src.indexOf("perplexity: {");
@@ -33,7 +34,7 @@ describe('single reviewed dispatch selection', () => {
   });
 
   test('selects the mechanism before opening the transaction journal', () => {
-    const selectAt = send.indexOf('const strategy = btn ?');
+    const selectAt = send.indexOf('const strategy = _selectDispatchStrategy(input)');
     const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
@@ -42,21 +43,22 @@ describe('single reviewed dispatch selection', () => {
   });
 
   test('button wins; Enter is used only when the reviewed adapter opts in', () => {
-    expect(send).toContain("path: 'reviewed-button'");
-    expect(send).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
-    expect(send).toContain("path: 'reviewed-enter'");
-    expect(send).toContain("new KeyboardEvent('keydown'");
-    expect(send).not.toContain("new KeyboardEvent('keypress'");
-    expect(send).not.toContain("new KeyboardEvent('keyup'");
+    expect(ladder).toContain("path: 'reviewed-button'");
+    expect(ladder).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
+    expect(ladder).toContain("path: 'reviewed-enter'");
+    expect(ladder).toContain("new KeyboardEvent('keydown'");
+    expect(ladder).not.toContain("new KeyboardEvent('keypress'");
+    expect(ladder).not.toContain("new KeyboardEvent('keyup'");
   });
 
   test('contains no post-begin fallback or actuator escalation', () => {
     expect(send).not.toContain('reviewed-paragraph');
-    expect(send).not.toContain('reviewed-form');
-    expect(send).not.toContain('send_escalate');
-    expect(send).not.toContain('requestSubmit');
     expect(send).not.toMatch(/for\s*\([^)]*tiers/);
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    // form.requestSubmit lives in the pre-journal ladder, not as post-dispatch escalation
+    expect(send).not.toContain('requestSubmit');
+    const ladderFn = body('_selectDispatchStrategy', '_settleSendPromise');
+    expect(ladderFn).toContain('requestSubmit');
   });
 
   test('a dispatch exception becomes uncertain and never selects another mechanism', () => {

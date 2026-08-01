@@ -1,5 +1,43 @@
 # Changelog
 
+## [8.7.0] — Cursor eval upgrade: send hardening, safeguards, mobile CI
+
+Multi-track evaluation branch (`cursor/eval-upgrade-7f27`) integrating tested
+improvements from the HANDOFF_CURSOR_EVAL brief. **Not promoted to main** —
+review on Personal Forge first.
+
+### Send last mile (Track A)
+- **Pre-dispatch evidence gate:** after injection Ghost verifies the composer
+  actually holds the staged prompt (`_composerHoldsPrompt`) before any
+  dispatch mechanism is chosen. Fires `COMPOSER-002` and pauses loud if staging
+  failed — catches the React/ProseMirror "button stays disabled" hypothesis.
+- **Composer activation nudge:** extra `input`/`change` events after inject to
+  wake editors that gate Send on native keystrokes.
+
+### Send tier ladder (Track F)
+- **`_selectDispatchStrategy`:** documented pre-journal ladder — reviewed button
+  → reviewed Enter (`dispatchFallback`) → unique `form.requestSubmit()` when a
+  single reviewed form wraps the composer. Still at-most-once; no post-dispatch
+  escalation. Truth-table tests in `sendtiers.test.js`.
+
+### Safeguards (Track D)
+- **Ambiguity guard:** pauses when multiple plausible composers or Send controls
+  resolve (`COMPOSER-003`, `SEND-003`) instead of guessing.
+- **Kill-switch:** `gitlKillSwitch` GM flag blocks all sends.
+- **Per-site disable:** `gitlSiteDisabled` JSON map (hostname → true).
+- **Dry-run mode:** `dryRun` GM flag logs the chosen path without opening the
+  send journal.
+
+### Network read prototype (Track C)
+- **Flagged off by default:** `gitlNetRead` enables ChatGPT SSE snippet capture
+  via `GITL_NET._ingestChatGptSse`. Read-only; `Adapter.getLastText()` prefers
+  DOM, falls back to network snippet. Never an actuation source.
+
+### Mobile CI (Track G)
+- Playwright **`mobile-chrome`** project (Pixel 5 + touch) with
+  `mobile-send.spec.js` reproducing the buttonless ChatGPT mobile Enter path.
+- Throttled mutation-based composer cache invalidation.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

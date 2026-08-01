@@ -52,6 +52,7 @@ const projects = [
       ...devices['Desktop Chrome'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
     },
+    testIgnore: /mobile-send\.spec\.js/,
   },
 ];
 
@@ -65,8 +66,21 @@ if (firefoxAvailable) {
       viewport: { width: 412, height: 915 },
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
     },
+    testIgnore: /mobile-send\.spec\.js/,
   });
 }
+
+/* v8.7.0 — dedicated mobile project for touch + narrow viewport repro.
+   Uses Playwright device descriptors (Track G / prior-art from Playwright). */
+projects.push({
+  name: 'mobile-chrome',
+  use: {
+    ...devices['Pixel 5'],
+    hasTouch: true,
+    launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
+  },
+  testMatch: /mobile-send\.spec\.js/,
+});
 
 module.exports = defineConfig({
   testDir: './tests/e2e',
