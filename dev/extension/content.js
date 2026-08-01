@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.5.3';
+const VER = '8.6.0';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -933,10 +933,69 @@ const SelectorMemory = {
   }
 };
 
-/* Only reviewed profile selectors can authorize a send. A heuristic result
-   is diagnostic information, never an actuator. Each selector tier must
-   resolve to exactly one enabled, visible, veto-safe element. */
+/* ── TEACH STORE (v8.6.0) — user-captured, human-reviewed locators ──
+   When Ghost can't auto-detect the input or send control on a site (common on
+   mobile / redesigned DOMs it has never seen), the user taps the real control
+   ONCE and Ghost stores a stable selector for it, per host. This is distinct
+   from the auto-learn SelectorMemory that reviewed-send deliberately disabled:
+   a taught send is a HUMAN-REVIEWED actuator, so it can authorize automation
+   even on an otherwise-unreviewed site — but it still passes the same safety
+   veto (_sendLooksSafe) every time it's resolved, so a mistaken tap on a
+   popup-toggle can never become a live send target. */
+const TeachStore = {
+  key: 'gitlTaught',
+  _data: null,
+  _load() {
+    if (this._data) return this._data;
+    try { this._data = JSON.parse(GM_getValue(this.key, '{}')) || {}; } catch(_) { this._data = {}; }
+    return this._data;
+  },
+  _persist() { try { GM_setValue(this.key, JSON.stringify(this._data)); } catch(_){} },
+  get(kind) { const rec = this._load()[location.hostname]?.[kind]; return rec && rec.sel ? rec.sel : null; },
+  set(kind, sel) {
+    if (!sel) return false;
+    const d = this._load(), h = location.hostname;
+    d[h] = d[h] || {};
+    d[h][kind] = { sel, at: Date.now() };
+    this._persist();
+    try { Timeline.record('taught_selector', { kind }); } catch(_){}
+    return true;
+  },
+  forget(kind) {
+    const d = this._load(), h = location.hostname;
+    if (d[h] && d[h][kind]) { delete d[h][kind]; if (!Object.keys(d[h]).length) delete d[h]; this._persist(); }
+  },
+  forgetHost() { const d = this._load(), h = location.hostname; if (d[h]) { delete d[h]; this._persist(); } },
+  hasAny() { const rec = this._load()[location.hostname]; return !!(rec && Object.keys(rec).length); },
+  /* Resolve the stored selector to a live element, re-validating every time. */
+  matchEl(kind) {
+    const sel = this.get(kind);
+    if (!sel) return null;
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        if (el && !_isOwnUI(el) && _visible(el)) {
+          if (kind === 'send' && !_sendLooksSafe(el)) return null; // veto still applies
+          if (kind === 'input') {
+            const ok = el.tagName === 'TEXTAREA' || el.getAttribute('contenteditable') === 'true';
+            if (!ok) return null;
+          }
+          return el;
+        }
+      }
+    } catch(_) {}
+    return null;
+  }
+};
+
+/* Only reviewed profile selectors — or a HUMAN-TAUGHT control (TeachStore) —
+   can authorize a send. A heuristic result is diagnostic information, never an
+   actuator. Each selector tier must resolve to exactly one enabled, visible,
+   veto-safe element. */
 function _reviewedSend() {
+  // A human-taught send control is a reviewed actuator (the user pointed at it),
+  // valid on any host — but it is re-veto'd on every resolve by matchEl.
+  const taught = TeachStore.matchEl('send');
+  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
   if (!PLAT?.reviewed) return null;
   for (const sel of PLAT.send || []) {
     let matches = [];
@@ -1041,7 +1100,7 @@ function _selectAnswerCandidate() {
 // Adapter — all DOM reads/writes
 const Adapter = {
   peekInput() {
-    return _q('in', PLAT.input) || SelectorMemory.lookup('input');
+    return _q('in', PLAT.input) || TeachStore.matchEl('input') || SelectorMemory.lookup('input');
   },
   getInput() {
     let el = this.peekInput();
@@ -1123,6 +1182,85 @@ const Adapter = {
     ['keydown','keypress','keyup'].forEach(t => {
       el.dispatchEvent(new KeyboardEvent(t, { key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true, cancelable:true, composed:true }));
     });
+  }
+};
+
+/* ── TEACH controller (v8.6.0) ───────────────────────────────────
+   Arm a one-shot capture: the next tap the user makes on the PAGE (not on
+   Ghost's own panel) is intercepted — the page control is NOT triggered — and
+   its stable selector is stored via TeachStore. Send captures re-veto through
+   _sendLooksSafe; input captures must be a textarea/contenteditable. */
+const Teach = {
+  armed: null,
+  _tailUntil: 0,
+  arm(kind) {
+    if (this.armed) this.disarm(false);
+    this.armed = kind;
+    GHOST.ui.teaching = kind; GHOST.ui.teachMsg = '';
+    try {
+      document.addEventListener('pointerdown', this._capture, true);
+      document.addEventListener('mousedown', this._suppress, true);
+      document.addEventListener('click', this._suppress, true);
+    } catch(_) {}
+    try { render(); } catch(_) {}
+  },
+  disarm(rerender, keepTail) {
+    this.armed = null;
+    GHOST.ui.teaching = null;
+    try {
+      document.removeEventListener('pointerdown', this._capture, true);
+      if (keepTail) {
+        // A capture fired: keep swallowing the trailing mousedown/mouseup/click
+        // of the SAME tap so the taught control is never actually pressed.
+        this._tailUntil = Date.now() + 600;
+        setTimeout(() => {
+          this._tailUntil = 0;
+          try {
+            document.removeEventListener('mousedown', this._suppress, true);
+            document.removeEventListener('click', this._suppress, true);
+          } catch(_) {}
+        }, 600);
+      } else {
+        this._tailUntil = 0;
+        document.removeEventListener('mousedown', this._suppress, true);
+        document.removeEventListener('click', this._suppress, true);
+      }
+    } catch(_) {}
+    if (rerender !== false) { try { render(); } catch(_) {} }
+  },
+  _inOwnUI(t) { return !!(t && t.closest && t.closest('#gitl')); },
+  _suppress(e) {
+    if (Teach._inOwnUI(e.target)) return;
+    if (!Teach.armed && !(Teach._tailUntil && Date.now() < Teach._tailUntil)) return;
+    e.preventDefault(); e.stopPropagation();
+  },
+  _capture(e) {
+    if (!Teach.armed) return;
+    const t = e.target;
+    if (!t || Teach._inOwnUI(t)) return;   // taps on the panel operate normally
+    e.preventDefault(); e.stopPropagation();
+    const kind = Teach.armed;
+    const el = kind === 'send'
+      ? ((t.closest && t.closest('button,[role="button"],a')) || t)
+      : ((t.closest && t.closest('textarea,[contenteditable="true"]')) || t);
+    Teach._commit(kind, el);
+  },
+  _commit(kind, el) {
+    let reason = '';
+    if (kind === 'send' && !_sendLooksSafe(el)) {
+      reason = 'That looks like a menu / attach control, not Send. Tap the actual Send button.';
+    } else if (kind === 'input') {
+      const ok = el && (el.tagName === 'TEXTAREA' || (el.getAttribute && el.getAttribute('contenteditable') === 'true'));
+      if (!ok) reason = 'That is not a text box. Tap the chat input where you type your message.';
+    }
+    const sel = reason ? null : SelectorMemory.derive(el);
+    this.disarm(false, true);
+    if (reason) { GHOST.ui.teachMsg = '⚠ ' + reason; try { render(); } catch(_){} return; }
+    if (!sel) { GHOST.ui.teachMsg = '⚠ Could not pin a stable selector for that element — try a nearby, more stable control.'; try { render(); } catch(_){} return; }
+    TeachStore.set(kind, sel);
+    GHOST.ui.teachMsg = `✓ ${kind === 'send' ? 'Send button' : 'Chat input'} captured for ${location.hostname}. Ghost will use it here from now on.`;
+    try { reDetect(); } catch(_){}
+    try { render(); } catch(_){}
   }
 };
 
@@ -1535,6 +1673,8 @@ const GHOST = {
     cfgAdv: GM_getValue('cfgAdv',false),
     unattended: GM_getValue('unattended',false), // relax the focus guard + use a Worker ticker
     explain: false, // runtime-only: tap-ⓘ-then-tap-anything help mode
+    teaching: null, // runtime-only: 'send' | 'input' while capturing a control
+    teachMsg: '',   // runtime-only: last teach result/hint
     helpSec: 'start',
     prevTab: null,
     wsNewPersona: false,
@@ -4186,6 +4326,10 @@ function injectStyles() {
 .g-mod .g-btns,.g-mod .g-prog,.g-mod .g-row,.g-mod .g-hint,.g-mod .g-posture-wrap{margin:0;padding:5px 7px}
 .g-mod .g-hint{padding-top:0}
 .g-mod-transport .g-btns{gap:5px}
+.g-teach-b{padding:6px 8px;font-size:9.5px;color:var(--g-text-mid);line-height:1.5}
+.g-teach-b .g-btns{margin-top:5px}
+.g-teach.act{border-color:var(--g-accent-deep)}
+.g-teach.act .g-mod-h{color:var(--g-accent-text)}
 .g-swatches{display:flex;gap:5px;margin:2px 0 6px}
 .g-swatch{width:15px;height:15px;border-radius:50%;border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0;flex-shrink:0}
 .g-swatch:hover{transform:scale(1.15)}
@@ -4598,6 +4742,33 @@ function statLabel() {
 
 function renderLoopPipeline(){const L=GHOST.loop,sec=L.countdownUntil?Math.max(0,Math.ceil((L.countdownUntil-Date.now())/1000)):0,signalDone=['proceed','halt'].includes(L.lastSignal);const output=['generating','waiting-output'].includes(L.phase)?['act',L.phase==='generating'?'AI outputting':'Waiting for output']:['done',L.phase==='idle'?'Output':'Output stopped'];const read=L.phase==='error'?['err','Read error']:signalDone&&['decision','countdown','dispatching','confirming','halted','generating'].includes(L.phase)?['done',L.lastSignal==='halt'?'HALT read':'PROCEED read']:L.phase==='reading'?['act','Checking marker']:['','Check marker'];let next=['','Next command'];if(L.phase==='countdown')next=['act',`Send in ${sec}s`];else if(L.phase==='dispatching')next=['act','Sending next'];else if(L.phase==='confirming')next=['act','Confirming send'];else if(L.phase==='generating'&&L.lastDispatchConfirmedAt)next=['done','Next sent'];else if(L.phase==='halted')next=['done','HALT'];else if(L.phase==='error')next=['err','Stopped on error'];else if(L.phase==='paused')next=['','Paused'];const row=([c,l])=>`<div class="g-pipe-row ${c}"><i>${c==='done'?'✓':c==='err'?'!':c==='act'?'●':'○'}</i><span>${_esc(l)}</span></div>`;return `<div class="g-pipe">${[output,read,next].map(row).join('')}</div>`;}
 
+/* Teach-controls UI (v8.6.0). Surfaces when Ghost can't find the input/send on
+   a site, while a capture is armed, or when the site already has taught controls
+   (so the user can re-teach or forget). */
+function renderTeach() {
+  const h = (typeof platformHealth === 'function') ? platformHealth() : { input: true, send: true };
+  const teaching = GHOST.ui.teaching;
+  const msg = GHOST.ui.teachMsg;
+  const tSend = TeachStore.get('send'), tInput = TeachStore.get('input');
+  if (teaching) {
+    return `<div class="g-mod g-teach act"><div class="g-mod-h"><span class="g-mod-i">🎯</span>Teach mode</div>
+      <div class="g-teach-b">Tap your <b>${teaching === 'send' ? 'Send button' : 'chat input'}</b> on the page — Ghost won't trigger it, it just learns where it is.
+      <div class="g-btns"><button class="g-btn st" id="g-teach-cancel">✕ Cancel</button></div></div></div>`;
+  }
+  const needInput = !h.input, needSend = !h.send;
+  const rows = [];
+  if (needInput || tInput) rows.push(`<button class="g-btn" id="g-teach-input">${tInput ? '↻ Re-teach input' : '🎯 Teach input'}</button>`);
+  if (needSend || tSend) rows.push(`<button class="g-btn" id="g-teach-send">${tSend ? '↻ Re-teach Send' : '🎯 Teach Send'}</button>`);
+  if (!rows.length && !msg) return '';
+  const lead = (needInput || needSend)
+    ? `Ghost can't find your ${needInput && needSend ? 'chat input or Send button' : needInput ? 'chat input' : 'Send button'} here. Point it out once — it'll remember for ${_esc(location.hostname)}.`
+    : `Custom controls taught for ${_esc(location.hostname)}.`;
+  return `<div class="g-mod g-teach"><div class="g-mod-h"><span class="g-mod-i">🎯</span>Teach controls${(tSend || tInput) ? '<span class="g-mod-x">custom for this site</span>' : ''}</div>
+    <div class="g-teach-b">${lead}
+    <div class="g-btns">${rows.join('')}${(tSend || tInput) ? `<button class="g-btn st" id="g-teach-forget">Forget</button>` : ''}</div>
+    ${msg ? `<div class="g-hint">${_esc(msg)}</div>` : ''}</div></div>`;
+}
+
 function renderRunTab() {
   const L = GHOST.loop, p = L.lastProgress, pct = p ? Math.round((p.step/p.total)*100) : 0;
   const pm = L.payloadMode;
@@ -4618,6 +4789,7 @@ function renderRunTab() {
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
+    ${renderTeach()}
     <div class="g-mod g-mod-prog">
       <div class="g-mod-h"><span class="g-mod-i">📊</span>Run status<span class="g-mod-x">${p?pct+'%':'—'}</span></div>
     <div class="g-prog">
@@ -5223,6 +5395,10 @@ function bindEvents() {
     render();
   });
   $('#g-stop')?.addEventListener('click', stopLoop);
+  $('#g-teach-send')?.addEventListener('click', () => Teach.arm('send'));
+  $('#g-teach-input')?.addEventListener('click', () => Teach.arm('input'));
+  $('#g-teach-cancel')?.addEventListener('click', () => { GHOST.ui.teachMsg=''; Teach.disarm(true); });
+  $('#g-teach-forget')?.addEventListener('click', () => { TeachStore.forgetHost(); GHOST.ui.teachMsg='Taught controls cleared for this site.'; try { reDetect(); } catch(_){} render(); });
   $('#g-reset')?.addEventListener('click', resetLoop);
   $('#g-send-seen')?.addEventListener('click', () => reconcileUncertainSend(true));
   $('#g-send-manual')?.addEventListener('click', () => reconcileUncertainSend(false));

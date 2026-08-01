@@ -1,5 +1,38 @@
 # Changelog
 
+## [8.6.0] — Teach Mode: user-taught Send / input controls
+
+When a site (or a mobile DOM) hides the Send button or chat input behind
+markup Ghost can't auto-detect, the loop had no way forward. Teach Mode lets
+the human close that gap once, by hand.
+
+### What it does
+In the Run tab, when a control is missing (or already taught) Ghost shows
+**Teach Send** / **Teach Input** buttons. Arming one puts Ghost in capture
+mode; the user taps the real control **once**. Ghost derives a stable selector
+(`SelectorMemory.derive`) and stores it **per host** (`TeachStore`, key
+`gitlTaught`). From then on Ghost uses the taught control on that site.
+**Forget** clears it.
+
+### It is still a reviewed actuator — never a blind clicker
+- A taught **Send** is treated as a *human-reviewed* actuator, so it is honoured
+  even on sites Ghost hasn't formally reviewed — but it is re-checked through
+  `_sendLooksSafe` on **every** resolve. If the taught element ever looks like a
+  menu / attach / stop control, it is refused. Teaching a popup-toggle
+  (`aria-haspopup`) is vetoed at capture time with a hint, and nothing is stored.
+- A taught **input** must resolve to a `<textarea>` or `contenteditable`; any
+  other tap is rejected.
+- Capture uses `preventDefault` + `stopPropagation` on the teaching tap and
+  swallows the trailing `mousedown`/`click` of that same gesture, so **teaching
+  a control never actually presses it**.
+
+### Wiring
+`_reviewedSend()` consults `TeachStore.matchEl('send')` *before* the
+reviewed-platform gate; `Adapter.peekInput()` consults `TeachStore.matchEl('input')`
+between the platform selector and selector memory. No change to the
+at-most-once send transaction: a taught send is still a single reviewed
+mechanism chosen before the journal opens.
+
 ## [8.5.3] — single-dispatch send, sharper answer selection, model-switch gating
 
 Integrates the v8.5.3 handoff package (Agent CG's item 1 + item 2, which the

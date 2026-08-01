@@ -11,6 +11,36 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.6.0 — Teach Mode (user-taught Send / input controls)
+
+**What was tried:** From CI I could not close the recurring "Ghost can't find the
+Send button / chat input" gap — it only reproduces on real sites / mobile DOMs I
+can't drive. Rather than keep guessing selectors, hand the last-mile detection to
+the one actor who can always see the control: the user.
+
+**Design:** `TeachStore` (per-host, key `gitlTaught`, `get/set/forget/forgetHost/
+hasAny/matchEl`) + a `Teach` capture controller. Arming adds capture-phase
+`pointerdown`/`mousedown`/`click` listeners; the first non-own-UI tap is captured,
+the element resolved (`button,[role=button],a` for send / `textarea,
+[contenteditable]` for input), veto'd, and a derived selector stored. Consulted
+first in `_reviewedSend` and `peekInput`.
+
+**Why a taught send stays safe:** it is a *reviewed* actuator (honoured on
+unreviewed sites) but re-run through `_sendLooksSafe` on every resolve, so a
+menu/attach/stop control can never become the actuator even if taught by mistake.
+`matchEl` returns null when the stored selector no longer matches or fails veto.
+
+**What failed first (e2e caught it):** the initial capture disarmed synchronously
+on `pointerdown`, tearing down the `mousedown`/`click` suppressors — so the
+trailing `click` of the *same* tap pressed the taught control. Also `_suppress`
+bailed once `armed` was null. Fix: a `_tailUntil` window (~600ms) keeps swallowing
+the trailing events of the capturing gesture after disarm. The Firefox+Chromium
+e2e (`tests/e2e/teach.spec.js`) now proves the control is never fired.
+
+**Tests:** `tests/teach.test.js` (TeachStore round-trips + source-contract on the
+wiring), `tests/e2e/teach.spec.js` (real-browser capture, popup-toggle veto,
+input capture). Updated `selmem.test.js` for the new input chain.
+
 ## v8.5.3 — integrated CG's single-dispatch handoff + model-switch gating
 
 **Multi-agent handoff:** Agent CG built v8.5.3 (item 1 answer-selection + item 2
