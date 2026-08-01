@@ -1,9 +1,12 @@
 # Ghost in the Loop — Cursor Evaluation Report (v8.7.0)
 
+**Recommendation-ID:** `GITL-EVAL-20260801-cac16205`  
 **Branch:** `cursor/gitl-eval-integrator-2995` (off `claude/skin-system-redesign-dh04go`)  
 **Product version:** 8.7.0 (review only — **not promoted to `main`**)  
 **Base:** live 8.6.1 + skin-system redesign branch  
-**Personal Forge note:** push to `MShneur/ctrl-forge` was denied (`cursor[bot]` 403). A forge-format package lives at repo-root `forge-handoff/` for manual copy into CTRL-FORGE `mine/projects/`.
+**Personal Forge:** filed as CTRL-FORGE recommendation set  
+https://github.com/MShneur/ctrl-forge/issues/2 (parent) · #3 report · #4 gaps · #5 prior art · #6 manifest.  
+Git push to `ctrl-forge` remains denied for `cursor[bot]`; forge-format tree also at `forge-handoff/`.
 
 ---
 
