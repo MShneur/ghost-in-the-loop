@@ -18,12 +18,18 @@ function body(name, nextName) {
 describe('single reviewed dispatch selection', () => {
   const send = body('engineSend', '_confirmSend');
 
-  test('Perplexity explicitly declares the only buttonless reviewed fallback', () => {
-    const profileStart = src.indexOf("perplexity: {");
-    const profileEnd = src.indexOf("\n  gemini:", profileStart);
-    const profile = src.slice(profileStart, profileEnd);
-    expect(profile).toContain("dispatchFallback: 'enter'");
-    expect((src.match(/dispatchFallback:\s*'enter'/g) || []).length).toBe(1);
+  test('the buttonless reviewed Enter fallback is opt-in per adapter (Perplexity + ChatGPT)', () => {
+    const perpStart = src.indexOf("perplexity: {");
+    const perp = src.slice(perpStart, src.indexOf("\n  gemini:", perpStart));
+    expect(perp).toContain("dispatchFallback: 'enter'");
+
+    const cgStart = src.indexOf("chatgpt: {");
+    const cg = src.slice(cgStart, src.indexOf("\n  perplexity:", cgStart));
+    expect(cg).toContain("dispatchFallback: 'enter'");
+
+    // Still explicit opt-in — declared only by adapters that submit on Enter,
+    // never a universal default. (Both composers are Enter-to-send.)
+    expect((src.match(/dispatchFallback:\s*'enter'/g) || []).length).toBe(2);
   });
 
   test('selects the mechanism before opening the transaction journal', () => {

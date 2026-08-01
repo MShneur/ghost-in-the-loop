@@ -11,6 +11,36 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
+
+**What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,
+v8.6.0. `capabilities.send:false`, `heuristicSendCandidate:false`,
+`input:true`, timeline showed `send_blocked reply-generating` → `roadmap_reask`
+→ `pause`. The prompt inserted fine but no reviewed Send control could be
+resolved, so every round paused for manual send.
+
+**Root cause:** ChatGPT's mobile web composer doesn't expose a uniquely
+resolvable, enabled, visible Send button the way desktop does (dictation button
+occupies that slot until a native keystroke). `_reviewedSend()` and the
+heuristic both returned null, and the ChatGPT adapter declared no
+`dispatchFallback`, so `engineSend` hit the `SEND-001` dead-end — the same class
+of failure Perplexity mobile had before it got the Enter fallback.
+
+**Fix:** added `dispatchFallback: 'enter'` to the ChatGPT adapter. When no
+unique reviewed button resolves, the single-dispatch selector picks the reviewed
+Enter path (one `keydown`, chosen before `_beginSendAttempt`, no escalation).
+ChatGPT's ProseMirror composer submits on Enter by default, so this sends the
+already-injected prompt. Desktop keeps using the button (fallback unreached).
+
+**Why it's safe:** if the user disabled "Enter sends", Enter is a no-op →
+`_confirmSend` sees the composer still full → `uncertain`, not a false success
+or double-send. Worst case degrades to the pre-fix manual-send state for that
+one user, while the default-setting majority now auto-continues.
+
+**Tests:** updated `sendlayered.test.js` — the buttonless Enter fallback is now
+opt-in for two adapters (Perplexity + ChatGPT), still explicit, still not a
+universal default (count === 2).
+
 ## v8.6.0 — Teach Mode (user-taught Send / input controls)
 
 **What was tried:** From CI I could not close the recurring "Ghost can't find the
