@@ -321,6 +321,35 @@ if (typeof window !== 'undefined') {
    is the page's real window (Firefox MV3 port: inject in world:"MAIN"). */
 const UW = (typeof unsafeWindow !== 'undefined' && unsafeWindow) ? unsafeWindow : window;
 
+/* Track C prototype parser — ChatGPT SSE (`/backend-api/conversation`).
+   Feeds raw decoded text in arbitrary chunk boundaries; `data:` lines carry
+   full-message JSON snapshots (message.content.parts) and the stream ends
+   with `data: [DONE]`. Text only ever GROWS monotonically (a stale shorter
+   snapshot can never erase newer text). Pure + stateless-input: safe to unit
+   test without the network. Deliberately not wired to any decision — the
+   parsed text is diagnostic evidence only. */
+function _sseChatGptFeed(state, chunk) {
+  state.buf = (state.buf || '') + String(chunk || '');
+  const lines = state.buf.split('\n');
+  state.buf = lines.pop() || '';   // trailing partial line waits for more data
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t.startsWith('data:')) continue;
+    const payload = t.slice(5).trim();
+    if (payload === '[DONE]') { state.done = true; continue; }
+    if (!payload.startsWith('{')) continue;
+    try {
+      const j = JSON.parse(payload);
+      const parts = j && j.message && j.message.content && j.message.content.parts;
+      if (Array.isArray(parts)) {
+        const txt = parts.filter(p => typeof p === 'string').join('');
+        if (txt && txt.length >= String(state.text || '').length) state.text = txt;
+      }
+    } catch(_) { /* malformed frame — advisory channel, never fatal */ }
+  }
+  return state;
+}
+
 const GITL_NET = {
   bus: new EventTarget(),
   capturedAt: 0,
@@ -332,6 +361,29 @@ const GITL_NET = {
   lastWsPulseT: 0,      // meaningful WS payload only; heartbeat/control frames excluded
   _open: 0,             // streams currently open
   expectUntil: 0,       // set by a dispatch attempt; bounds heuristic pulses
+
+  /* Track C prototype (v8.7.0): opt-in CONTENT tap of the platform's own
+     stream. Flagged OFF by default (Settings → Advanced → "Net read"). When
+     on, ChatGPT SSE snapshots are parsed into streamText/streamDone.
+     READ-ONLY: never persisted, never exported into reports, and never
+     consulted by actuation or send-authority code — the DOM completion gate
+     stays the independent authority (see DEVLOG v8.5.2). */
+  netRead: false,
+  streamText: '',
+  streamDone: false,
+  _sseLive: null,
+  _sseDec: null,
+  resetStream() { this.streamText = ''; this.streamDone = false; this._sseLive = null; },
+  _sseTap(value) {
+    try {
+      if (!/chatgpt\.com|chat\.openai\.com/.test(location.hostname)) return;
+      if (!this._sseDec && typeof TextDecoder !== 'undefined') this._sseDec = new TextDecoder();
+      if (!this._sseDec) return;
+      this._sseLive = _sseChatGptFeed(this._sseLive || {}, this._sseDec.decode(value, { stream: true }));
+      this.streamText = this._sseLive.text || '';
+      this.streamDone = !!this._sseLive.done;
+    } catch(_) {}
+  },
 
   AI_ENDPOINTS: [
     '/backend-api/conversation',   // ChatGPT
@@ -465,6 +517,7 @@ const GITL_NET = {
                       const { done, value } = await reader.read();
                       if (done) { self._emit(0, true); break; }
                       self._emit(value?.byteLength || value?.length || 0, false);
+                      if (self.netRead) self._sseTap(value);   // Track C: opt-in, read-only
                     }
                   } catch(_) { /* stream aborted — normal on navigation */ }
             })();
@@ -529,6 +582,9 @@ const GITL_NET = {
    this runs before safeBoot() and used to be able to take the whole script
    down with it (see the v8.1.3 note inside install()). */
 try { GITL_NET.install(); } catch(err) { console.error('[GITL] GITL_NET.install() threw at top level — continuing boot anyway:', err); }
+/* Track C content tap is OPT-IN (Settings → Advanced). Off = byte counts and
+   timestamps only, exactly the pre-prototype behavior. */
+try { GITL_NET.netRead = !!GM_getValue('netRead', false); } catch(_) {}
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 1 — PLATFORM ADAPTERS (all DOM access lives here)
@@ -2532,6 +2588,7 @@ function _beginSendAttempt(path, input) {
   L.sendDeadline = Date.now() + SEND_CONFIRM_MS;
   _setLoopPhase('confirming', 'Confirming next command…');
   GITL_NET.expectUntil = Date.now() + SEND_CONFIRM_MS;
+  GITL_NET.resetStream();   // Track C: stream evidence is round-scoped
   Timeline.record('send_attempted', {
     command: txn.id.slice(0, 8),
     round: L.round + 1,
@@ -3800,12 +3857,12 @@ const CONFIG_KEYS = [
   'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
   'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
   'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
-  'skinTheme','accentHue','unattended','firstRun','killSwitch','dryRun'
+  'skinTheme','accentHue','unattended','firstRun','killSwitch','dryRun','netRead'
 ];
 const CONFIG_BOOL_KEYS = new Set([
   'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
   'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
-  'cfgAdv','expAdv','unattended','firstRun','killSwitch','dryRun'
+  'cfgAdv','expAdv','unattended','firstRun','killSwitch','dryRun','netRead'
 ]);
 const CONFIG_DEFAULTS = Object.freeze({
   wfAuto:true, wfPause:false,
@@ -3815,7 +3872,7 @@ const CONFIG_DEFAULTS = Object.freeze({
   expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
   panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
   cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
-  unattended:false, firstRun:true, killSwitch:false, dryRun:false
+  unattended:false, firstRun:true, killSwitch:false, dryRun:false, netRead:false
 });
 
 function _validConfigValue(key, value) {
@@ -5306,6 +5363,7 @@ function renderSettingsTab() {
     <div class="g-row"><label>Signal window</label><input type="number" id="cfg-win" min="200" max="1200" step="100" value="${GHOST.signals.windowSize}"></div>
     <div class="g-row"><label>Extra proceed</label><input type="text" id="cfg-cp" placeholder="e.g. go on, next" value="${_esc(GHOST.signals.customProceed)}"></div>
     <div class="g-row"><label>Extra stop</label><input type="text" id="cfg-cs" placeholder="e.g. all done" value="${_esc(GHOST.signals.customStop)}"></div>
+    <div class="g-row"><label>📡 Net read</label><div class="g-tog${GITL_NET.netRead?' on':''}" id="cfg-netread" title="Experimental (ChatGPT): read the reply straight from the site's own stream. Read-only — never drives sends; text stays in memory only."></div></div>
     <div class="g-row"><label>🌐 Custom sites</label><div class="g-tog${GHOST.ui.showSites?' on':''}" id="cfg-sites-tog"></div></div>
     ${GHOST.ui.showSites ? `
       <textarea id="cfg-sites" class="g-sites" rows="5" spellcheck="false" placeholder='{"example.com":{"label":"MyAI","input":["textarea"],"send":["button[type=submit]"],"assistant":["div.msg"]}}'>${_esc(GM_getValue('customSites',''))}</textarea>
@@ -5331,6 +5389,7 @@ function renderDiag() {
     `<span>Stale:</span> ${L.staleTicks}`,
     `<span>Tick:</span> ${L.lastActivity ? Math.round((Date.now()-L.lastActivity)/1000)+'s ago' : '—'}`,
     `<span>Tab:</span> ${GITL_TAB_ID.slice(0,8)}`,
+    GITL_NET.netRead ? `<span>NetRead:</span> ${GITL_NET.streamText.length} chars${GITL_NET.streamDone ? ' · stream done' : ''} (advisory)` : '',
     DIAG.probe ? `<span class="ok">Probe:</span>\n${_esc(DIAG.probe)}` : '',
     DIAG.errors.length ? `<span class="warn">Errors:</span>\n${_esc(DIAG.errors.slice(0,5).join('\n'))}` : ''
   ].filter(Boolean).join('\n');
@@ -5746,6 +5805,7 @@ function bindEvents() {
   $('#cfg-kill')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.safety.killSwitch=this.classList.contains('on'); _save('killSwitch',GHOST.safety.killSwitch); Timeline.record('kill_switch', { on: GHOST.safety.killSwitch }); render(); });
   $('#cfg-siteoff')?.addEventListener('click', function(){ this.classList.toggle('on'); setSiteDisabled(this.classList.contains('on')); Timeline.record('site_disabled', { on: this.classList.contains('on') }); render(); });
   $('#cfg-dryrun')?.addEventListener('click', function(){ this.classList.toggle('on'); GHOST.safety.dryRun=this.classList.contains('on'); _save('dryRun',GHOST.safety.dryRun); Timeline.record('dry_run_toggled', { on: GHOST.safety.dryRun }); render(); });
+  $('#cfg-netread')?.addEventListener('click', function(){ this.classList.toggle('on'); GITL_NET.netRead=this.classList.contains('on'); _save('netRead',GITL_NET.netRead); GITL_NET.resetStream(); Timeline.record('net_read_toggled', { on: GITL_NET.netRead }); render(); });
   $('#cfg-max')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>0&&v<=999){GHOST.loop.maxRounds=v; _save('maxRounds',v);} });
   $('#cfg-win')?.addEventListener('change', e => { const v=parseInt(e.target.value,10); if(v>=200&&v<=1200){GHOST.signals.windowSize=v; _save('sigWindow',v);} });
   $('#cfg-cp')?.addEventListener('change', e => { GHOST.signals.customProceed=e.target.value; _save('customProceed',e.target.value); });
