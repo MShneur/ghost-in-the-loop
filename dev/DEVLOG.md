@@ -11,6 +11,77 @@ Before starting any new work, read the relevant sections — you may be repeatin
 
 ---
 
+## v8.7.0 — whole-system evaluation: send evidence gates, safeguards, net-read, mobile CI
+
+**Method:** a multi-track evaluation (tracks A–G per the committed eval plan)
+executed in integrator merge order: A → F → D → C/E/G → B. Baseline before
+touching anything: 428 unit / 74 e2e green, extension parity current.
+
+**What shipped (all behind the existing invariants):**
+- **Pre-dispatch evidence gate (A).** `engineSend` verifies the composer holds
+  the staged prompt (head+tail signature, whitespace-stripped) before any
+  mechanism is chosen. Motivation: `injectText` can report success while a
+  strict editor drops the text — and worse, a composer holding PRE-EXISTING
+  user text would have been sent as-is. Both are now `COMPOSER-002`, loud,
+  pre-journal (no transaction ever opens against unstaged content).
+- **`_composerText` honesty (B cheap fix).** It read `el.value || el.textContent`.
+  On a CE div the direct-value path can leave a JS `value` property holding our
+  text while the visible editor is empty — which would have faked BOTH the
+  staging gate and the composer-cleared witness. Now `.value` is only trusted
+  on TEXTAREA/INPUT. Found while writing the broken-composer e2e — the test
+  caught the hole before the audit did.
+- **Tier ladder (F).** Selection extracted into `_selectSendStrategy`:
+  taught → reviewed button → reviewed Enter → reviewed form (inert; no adapter
+  declares it). The v8.4.2 naive Enter+requestSubmit double-send is why the
+  form tier ships as machinery + truth-table tests only. Source-contract tests
+  were UPDATED (not deleted) to point at the ladder body — same guarantee,
+  moved location, per the v8.5.3 lesson about matching the call site.
+- **Safeguards (D).** Ambiguity guards (send `SEND-004`, composer
+  `COMPOSER-003`), disabled-send witness (`SEND-003`), kill switch, per-site
+  disable, dry-run. Behavior change worth knowing: `_reviewedSend` uniqueness
+  is now enforced across the WHOLE selector set (was: first selector with
+  exactly one match won, even if later selectors matched a different live
+  control). Teach Mode remains the human disambiguation on both guards.
+- **Net-read prototype (C).** ChatGPT SSE via GITL_NET: snapshots AND
+  JSON-patch ops, `[DONE]` terminal. OFF by default, read-only by contract
+  test, in-memory only. External prior art (stream-scraping write-ups, an
+  OSS chat-CLI adapter issue) confirmed both the current endpoint
+  (`/backend-api/f/conversation` — see below) and the patch framing.
+- **Mobile CI (G).** `mobile-chromium` (Pixel 7) + `mobile-firefox` (touch,
+  412×915, Android UA) projects; `mobile-send.spec.js` serves host-accurate
+  mocks through `page.route` so the REAL reviewed profiles engage. The
+  SEND-001 field class is now reproducible in CI. Desktop specs are
+  testIgnore'd from mobile projects — suite cost stays flat.
+
+**Real gap found by the audit (B), fixed same-session:** ChatGPT's stream
+moved to `/backend-api/f/conversation`. The `/f/` segment meant the trusted
+endpoint list never matched live ChatGPT traffic — trusted pulses silently
+became heuristic-only, weakening `isGenerating()` and the
+`composer+trusted-network` send evidence on the biggest platform. A
+`*-completion`-format check now fences the endpoint list.
+
+**Test-harness lessons banked:**
+- jsdom's zero-rect elements mean `_visible`-gated unit tests must stub
+  `getBoundingClientRect` per element (see safeguards.test.js `makeVisible`).
+- The VM context needs `KeyboardEvent`/`InputEvent`/`MouseEvent` from the
+  jest env or tier `run()` closures throw ReferenceError in unit tests.
+- Fixed-width source slices in contract tests (400/2600 chars) break whenever
+  a comment block grows — when you hit one, widen the window, never delete
+  the assertion.
+- e2e mock page scripts: capture `e.currentTarget` into a local BEFORE
+  setTimeout — it reads `null` after dispatch completes (cost one red run).
+
+**Deferred (needs the user / a real device, listed in the report):**
+admitting net-read as a completion WITNESS (needs field validation),
+`dispatchFallback: 'form'` on a verified site, selector-drift canary,
+Perplexity socket.io + Gemini batchexecute content parsing, real-device
+confirmation of the 8.6.1/8.7.0 Enter path.
+
+**Verification:** 490 unit / 82 e2e (2 desktop + 2 mobile projects) green,
+extension parity current. Numbers move to the report's verification block.
+
+---
+
 ## v8.6.1 — ChatGPT mobile send (reviewed Enter fallback)
 
 **What happened:** Diagnostic `SEND-001` from Android/Firefox on chatgpt.com,

@@ -182,6 +182,22 @@ A live readiness score in the panel header. Green means everything's working. Ye
 
 Desktop notification when the loop completes, pauses, or encounters an error. So you can actually leave the room instead of watching a progress bar like it owes you money.
 
+### Teach Mode
+
+When a site (or a mobile browser) hides its Send button or chat box behind markup Ghost has never seen, you can point at the real control once. Ghost remembers it for that site — and still re-vets it on every use, because trust is earned per click.
+
+### Safety Switches
+
+A global **kill switch** (nothing is staged or sent, anywhere), a **per-site disable**, and a **dry-run mode** that shows you exactly what Ghost *would* send — without sending it. Automation you can rehearse before you trust it. Steve would approve.
+
+---
+
+### Version 8.7 highlights
+
+- **Evidence-gated sending** — Ghost proves the composer holds your prompt before it will even consider pressing anything.
+- **Ambiguity guards** — two plausible Send buttons or chat boxes means Ghost asks, not guesses.
+- **Mobile send, tested on mobile** — new mobile CI projects reproduce the exact Android-class send failures in both browser engines.
+
 ---
 
 ## Technical Highlights
@@ -193,12 +209,12 @@ For people who want to know what's actually happening under the hood:
 | **Boot safety** | Transactional boot isolates optional subsystems, mounts a fail-loud banner for critical failures, and records stable local error codes. An independent canary distinguishes “Ghost failed” from “the userscript manager never injected it.” |
 | **Signal detection** | Weighted scoring: custom sigils `[[GITL::PROCEED]]` / `[[GITL::HALT]]` (+4), legacy keywords (+3), fuzzy matches (+2). HALT always wins ties. |
 | **Private diagnostics** | Network telemetry stores timing and byte counts only. Reports omit prompts, message text, full URLs, query strings, and conversation identifiers; users review locally before copying or downloading. |
-| **At-most-once send** | A two-phase tab lease gates one reviewed button click. State advances only after an assistant transition or correlated composer-plus-generation evidence. Ambiguity pauses for human reconciliation; there is no blind retry, Enter fallback, or learned Send actuator. |
+| **At-most-once send** | A two-phase tab lease gates one reviewed dispatch (button, or a declared reviewed Enter/form path — chosen before the transaction journal opens, never escalated after). State advances only after an assistant transition or correlated composer-plus-generation evidence. Ambiguity pauses for human reconciliation; there is no blind retry or learned Send actuator. |
 | **Anti-automation delay** | Randomized 8–15s between sends (2s on the first round). |
 | **Truthful export** | Platform API capture is checked against expected counts and unsupported parts. DOM capture is always labeled partial. Capsule hashes are integrity hints, never a reason to delete legitimate repeated turns. |
 | **Transactional import** | Config and Workshop bundles require exact schemas, validate every field before mutation, and roll back if persistence fails. |
 | **Own-UI isolation** | All DOM selectors exclude `#gitl` descendants. Ghost cannot accidentally type into its own panel. This needed to be a feature. |
-| **CI tested** | 371 unit tests (jest) plus Playwright boot-timing and send-safety tests in Chromium and Firefox. Runs on every push and pull request. |
+| **CI tested** | 490 unit tests (jest) plus Playwright boot-timing and send-safety tests in Chromium and Firefox — including mobile-viewport projects that reproduce the Android-class send failures. Runs on every push and pull request. |
 
 ---
 

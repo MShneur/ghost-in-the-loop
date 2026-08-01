@@ -160,11 +160,23 @@ last stored owner reaches the button click.
 
 ---
 
-## Send Transaction Contract (v8.3)
+## Send Transaction Contract (v8.3, refined v8.7)
 
-`engineSend()` has one authorized dispatch path: inject into the resolved
-composer, verify the tab lease, resolve exactly one reviewed Send control, and
-click once.
+`engineSend()` has one authorized dispatch path: resolve the composer
+(ambiguous-visible-composer → loud pause, `COMPOSER-003`), inject, **verify the
+composer holds the staged prompt** (evidence gate, `COMPOSER-002`), verify the
+tab lease, select exactly one reviewed mechanism from the tier ladder, and fire
+it once.
+
+The **send tier ladder** (`_selectSendStrategy`, v8.7) chooses BEFORE the
+journal opens: human-taught control → unique reviewed button (uniqueness across
+the whole reviewed selector set; >1 live candidate → loud `SEND-004`) →
+reviewed Enter fallback (adapter-declared) → reviewed `form.requestSubmit()`
+(adapter-declared, single veto-safe form wrapping the composer; currently
+inert). A reviewed control that is present but disabled after staging is its
+own loud state (`SEND-003`). No strategy → `SEND-001`, prompt left for manual
+Send. **Dry-run mode** (v8.7) stops after tier selection: no journal, no
+dispatch, loud pause.
 
 The journal state is:
 
@@ -185,9 +197,31 @@ dispatching → committed
 - Crash recovery restores interrupted `dispatching` work as `uncertain`; it
   never replays the command.
 
-Do not reintroduce Enter, form-submit, refocus, multi-click, or retry fallbacks.
-At-most-once behavior is a product invariant, not a temporary compatibility
-tradeoff.
+Do not reintroduce post-dispatch Enter, form-submit, refocus, multi-click, or
+retry fallbacks. Additional mechanisms may only join the ladder as
+**pre-journal selections**. At-most-once behavior is a product invariant, not
+a temporary compatibility tradeoff.
+
+## Safety Switches (v8.7)
+
+- **Kill switch** (`killSwitch`, global) and **per-site disable** (`gitlSiteOff`
+  map): checked in `assertInteractionSafe()` (every send), at the top of
+  `engineTick()` (a mid-run flip pauses loud), and in `startLoop`/`startQueue`.
+- **Dry run** (`dryRun`): every gate and staging step runs; actuation is
+  withheld. The would-be path is recorded (`dry_run_dispatch`) and the loop
+  pauses loud.
+- All three default OFF and ride config backup/restore (`CONFIG_KEYS`).
+
+## Net Read Prototype (v8.7, off by default)
+
+Settings → Advanced → **Net read** (`netRead`) taps the platform's own stream
+content via `GITL_NET` — currently ChatGPT SSE (`/backend-api/conversation`
+and `/backend-api/f/conversation`): full-message snapshots, JSON-patch ops on
+`/message/content/parts/N`, and the `[DONE]` sentinel. Evidence is
+round-scoped (`resetStream()` at each `_beginSendAttempt`), in-memory only,
+and **read-only by contract test**: never persisted, never in reports, never
+consulted by actuation or send authority. The DOM completion gate stays the
+independent authority.
 
 ---
 
@@ -267,7 +301,7 @@ comparison and exits nonzero on drift.
 The userscript is an IIFE — tests can't access its locals directly.
 `tests/setup.js` injects an export hook string into the instrumented source just before the closing `})()`. The hook uses `eval(name)` inside the closure to read locals and writes them to a `__GITL_TEST_SINK__` object passed in from the VM context.
 
-**Run:** `npm test` (28 suites / 371 tests)
+**Run:** `npm test` (41 suites / 490 tests)
 
 **Covers:**
 - Signal engine, Timeline, verified tab lease, send transactions, redaction,
@@ -297,6 +331,13 @@ binaries; GitHub Actions installs both)
 because unit tests cannot simulate injection timing. Firefox also exercises the
 Gecko/Trusted Types path that previously escaped Chromium-only validation.
 
+**Mobile projects (v8.7):** `mobile-chromium` (Pixel 7 descriptor) and
+`mobile-firefox` (touch + 412×915 + Android Firefox UA) run `mobile-*.spec.js`
+only; desktop projects ignore them, so suite cost stays flat. Mobile specs use
+`page.route` to serve host-accurate mocks so the real reviewed platform
+profiles engage (the SEND-001 mobile-send class — desktop projects could never
+reproduce it because the DOM differs by UA/viewport/touch).
+
 **Naming convention:** unit tests = `.test.js` (jest), e2e tests = `.spec.js` (Playwright). They never collide — jest's `testMatch` is scoped to `.test.js` only.
 
 ### Still NOT covered by either tier
@@ -309,13 +350,16 @@ Gecko/Trusted Types path that previously escaped Chromium-only validation.
 ## Network Interceptor Endpoints
 
 ```js
-'/backend-api/conversation'   // ChatGPT
+'/backend-api/conversation'   // ChatGPT (legacy)
+'/backend-api/f/conversation' // ChatGPT (current — the /f/ segment; added v8.7 after the audit found trusted pulses never fired on live ChatGPT)
 '/api/organizations'          // Claude
 '/socket.io/'                 // Perplexity
 '/api/v1/chat/completions'    // DeepSeek / OpenAI-compatible
+'/api/v0/chat/completion'     // DeepSeek (current)
 '/chat/conversation'          // HuggingChat
 '/api/chat'                   // Generic
 '/bard'                       // Gemini
+'batchexecute'                // Gemini (current streaming transport)
 '/turn/'                      // Copilot
 ```
 

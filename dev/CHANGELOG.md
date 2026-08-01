@@ -1,5 +1,59 @@
 # Changelog
 
+## [8.7.0] — Send evidence gates, safety switches, net-read prototype, mobile CI
+
+A whole-system evaluation release: the send/detection last mile is hardened,
+the safeguard floor is raised, and the exact mobile failure class from the
+field is now reproducible in CI. Every invariant from the send contract is
+unchanged — one reviewed mechanism, chosen before the journal, fired once.
+
+### Pre-dispatch evidence gate
+`engineSend` now verifies the composer **actually holds the injected prompt**
+(head+tail signature, whitespace-insensitive) before any send mechanism is
+chosen. A strict editor that silently drops an injection — or a composer
+holding pre-existing user text — fails loud (`COMPOSER-002` + probe) instead
+of dispatching the wrong payload. `_composerText` only trusts `.value` on real
+form elements, so a stray JS property can no longer fake staging evidence.
+
+### Send tier ladder (selection, never escalation)
+One reviewed mechanism is still chosen **before** the at-most-once journal
+opens — now as a documented ladder: human-taught control → unique reviewed
+button → reviewed Enter fallback → reviewed `form.requestSubmit()` (only when
+a single veto-safe form uniquely wraps the composer). The form tier ships
+**inert** — no adapter declares it until verified on a live site. A
+truth-table test suite proves no path can fire twice.
+
+### Safeguards
+- **Ambiguity guards.** More than one live, veto-safe Send candidate
+  (`SEND-004`) or more than one visible composer (`COMPOSER-003`) now pauses
+  loud instead of silently picking the first-listed selector. Teach Mode is
+  the disambiguation.
+- **Send control present but disabled** after staging is its own loud state
+  (`SEND-003`) instead of a generic dead-end — it points at Teach Send.
+- **Kill switch + per-site disable.** Stop all automation everywhere, or just
+  on this site. Checked before every send, at every tick, and at loop start;
+  flips mid-run pause loud. Settings toggles + Run-tab banners.
+- **Dry-run mode.** Runs every gate and stages the prompt, then reports what
+  *would* be sent and pauses — the journal never opens, nothing is sent.
+
+### Net-read prototype (off by default)
+Settings → Advanced → **Net read** parses ChatGPT's own SSE stream via the
+existing network hook (full snapshots, JSON-patch ops, `[DONE]`) into
+round-scoped, in-memory-only evidence. Read-only by contract test: never
+persisted, never reported, never consulted by actuation. Also fixes a real
+gap found in the audit — ChatGPT's stream moved to `/backend-api/f/conversation`,
+so trusted network pulses never fired on live ChatGPT (heuristic-only until now).
+
+### Mobile-repro CI
+New Playwright projects (`mobile-chromium`, `mobile-firefox`) with touch,
+mobile viewport, and Android UAs. `mobile-send.spec.js` reproduces the
+SEND-001 field class with host-accurate routed mocks: buttonless mobile
+ChatGPT submits through the reviewed Enter path (exactly one keydown,
+evidence-confirmed), an enabled reviewed button beats Enter, a
+silently-dropping composer is stopped by the gate, and buttonless mobile
+Perplexity submits via Enter. Plus a `stopVisible` perf memo (fresh scans
+during live sends) and fences against scroll-listener regressions.
+
 ## [8.6.1] — ChatGPT mobile send (reviewed Enter fallback)
 
 **Field report (Android / Firefox, chatgpt.com):** the loop inserted the prompt

@@ -1,0 +1,46 @@
+# Personal Forge recommendation manifest
+# Unique identifier: REC-GITL-8.7.0-5348
+
+id: REC-GITL-8.7.0-5348
+kind: recommendation
+status: ready-for-review
+created_at: "2026-08-01T12:00:00Z"
+agent_run_suffix: "5348"
+
+project:
+  name: Ghost in the Loop
+  version: "8.7.0"
+  repository: https://github.com/MShneur/ghost-in-the-loop
+  source_branch: cursor/ghost-loop-eval-5348
+  recommendation_branch: recommendation/REC-GITL-8.7.0-5348
+  base_branch: claude/skin-system-redesign-dh04go
+  promote_to_main: false
+
+summary: >
+  Whole-system evaluation (tracks A–G): pre-dispatch evidence gate, send tier
+  ladder, safeguards (kill switch, dry-run, ambiguity guards), net-read prototype
+  (off by default), mobile-repro CI, ChatGPT trusted-endpoint fix. All invariants
+  intact; 490 unit + 82 e2e tests green.
+
+deliverables:
+  - path: dev/docs/CURSOR_EVAL_REPORT.md
+    role: primary-report
+  - path: dev/docs/HANDOFF_CURSOR_EVAL.md
+    role: evaluation-brief
+  - path: dev/CHANGELOG.md
+    role: release-notes
+  - path: dev/DEVLOG.md
+    role: developer-log
+  - path: dev/ghost-in-the-loop.user.js
+    role: product-source
+
+verification:
+  jest: "41 suites / 490 tests passed"
+  playwright: "82 passed (chromium, firefox, mobile-chromium, mobile-firefox)"
+  extension_parity: current
+
+personal_forge:
+  target_repo: https://github.com/MShneur/ctrl-forge
+  target_path: mine/projects/ghost-in-the-loop/recommendations/REC-GITL-8.7.0-5348
+  push_status: blocked-integration-token-no-push
+  action_required: Grant push to ctrl-forge or copy this folder into mine/projects/
