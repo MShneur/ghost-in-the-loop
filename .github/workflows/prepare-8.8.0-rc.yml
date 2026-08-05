@@ -30,7 +30,14 @@ jobs:
         run: npm ci
 
       - name: Apply guarded version alignment
-        run: node scripts/prepare-8.8.0-rc.js .
+        shell: bash
+        run: |
+          set -eu
+          if grep -q '^// @version      8\.8\.0$' ghost-in-the-loop.user.js; then
+            echo "8.8.0 metadata already prepared"
+          else
+            node scripts/prepare-8.8.0-rc.js .
+          fi
 
       - name: Regenerate and certify extension
         run: npm run cert:base
@@ -75,6 +82,7 @@ jobs:
           set -eu
           rm -rf dist
           mkdir -p dist
+          npm run cert:artifact-index
           cp ghost-in-the-loop.user.js dist/ghost-in-the-loop-8.8.0.user.js
           (
             cd extension
