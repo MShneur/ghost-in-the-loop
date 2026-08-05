@@ -137,17 +137,49 @@ async function controlAt(page, descriptor) {
   return page.locator(CONTROL_SELECTOR).nth(descriptor.index);
 }
 
+async function classifyActionability(locator, descriptor) {
+  if (descriptor.disabled) {
+    return { state: 'disabled', reason: 'native or aria disabled' };
+  }
+  if (/\bg-dim\b/.test(descriptor.className)) {
+    return { state: 'dormant', reason: 'Ghost marks the control inactive with g-dim' };
+  }
+
+  const hit = await locator.evaluate((el) => {
+    const rect = el.getBoundingClientRect();
+    if (!rect.width || !rect.height) return { actionable: false, reason: 'zero-size' };
+    const x = Math.max(0, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
+    const y = Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
+    const top = document.elementFromPoint(x, y);
+    return {
+      actionable: Boolean(top && (top === el || el.contains(top))),
+      reason: top ? `${top.tagName.toLowerCase()}${top.id ? `#${top.id}` : ''}` : 'no-hit-target',
+    };
+  });
+
+  if (!hit.actionable) {
+    return { state: 'blocked', reason: `pointer target intercepted by ${hit.reason}` };
+  }
+  return { state: 'actionable', reason: 'visible, enabled, and receives pointer input' };
+}
+
 async function interact(locator, descriptor) {
-  if (descriptor.disabled) return { skipped: 'disabled' };
   await locator.scrollIntoViewIfNeeded();
+  const classification = await classifyActionability(locator, descriptor);
+  if (classification.state === 'disabled' || classification.state === 'dormant') {
+    return { classification, skipped: classification.state };
+  }
+  if (classification.state !== 'actionable') {
+    throw new Error(`Control is ${classification.state}: ${classification.reason}`);
+  }
   if (descriptor.tag === 'SELECT') {
     const next = descriptor.options.find((option) => option.value !== descriptor.value);
-    if (!next) return { skipped: 'single-option' };
+    if (!next) return { classification, skipped: 'single-option' };
     await locator.selectOption(next.value);
-    return { selected: next.value };
+    return { classification, selected: next.value };
   }
   await locator.click({ timeout: 7000 });
-  return { clicked: true };
+  return { classification, clicked: true };
 }
 
 async function openTab(page, tabIndex) {
