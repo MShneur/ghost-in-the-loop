@@ -6,6 +6,7 @@ on:
       - agent/choice-state-ui
     paths:
       - scripts/apply-choice-state.js.gz.b64
+      - scripts/patch-choice-signal-tests.js
       - .github/workflows/apply-choice-state.yml
 
 permissions:
@@ -25,13 +26,15 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Decode and apply reviewed patch
+      - name: Apply reviewed implementation and test contracts
         shell: bash
         run: |
           set -eu
-          base64 -d scripts/apply-choice-state.js.gz.b64 | gzip -d > /tmp/apply-choice-state.js
+          git show f3126eb7d6d68bff627abff6a74fd2d2473c9fa5:scripts/apply-choice-state.js.gz.b64 | base64 -d | gzip -d > /tmp/apply-choice-state.js
           node --check /tmp/apply-choice-state.js
           node /tmp/apply-choice-state.js .
+          node --check scripts/patch-choice-signal-tests.js
+          node scripts/patch-choice-signal-tests.js .
       - name: Build and certify generated extension
         run: npm run cert:base
       - name: Syntax checks
