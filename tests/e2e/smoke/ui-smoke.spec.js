@@ -2,6 +2,7 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('fs');
 const path = require('path');
+const { version: VERSION } = require('../../../package.json');
 
 /**
  * Full Ghost UI smoke crawler.
@@ -207,7 +208,7 @@ test.describe('Ghost complete UI smoke', () => {
     const { page, panel, evidence } = await boot(context);
     try {
       const version = await page.locator('html').getAttribute('data-gitl-boot');
-      expect(version).toMatch(/^ok:8\.7\.0$/);
+      expect(version).toBe(`ok:${VERSION}`);
       await expect(page.locator('#g-col')).toBeVisible();
 
       await page.locator('#g-col').click();
