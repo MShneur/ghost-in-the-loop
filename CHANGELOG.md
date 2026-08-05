@@ -1,7 +1,7 @@
 # Changelog
 
 
-## Unreleased — explicit user-choice pause
+## [8.8.0] — workflow-neutral controls and explicit decisions
 
 - Made Advanced a real opt-in boundary: Basic injects only PROCEED, CHOICE, and HALT and leaves the user's existing workflow untouched.
 - Added an optional Advanced committee shortcut where a user reply of P accepts only an option explicitly labeled Recommended by committee.
