@@ -3,6 +3,9 @@
 
 ## Unreleased — explicit user-choice pause
 
+- Made Advanced a real opt-in boundary: Basic injects only PROCEED, CHOICE, and HALT and leaves the user's existing workflow untouched.
+- Added an optional Advanced committee shortcut where a user reply of P accepts only an option explicitly labeled Recommended by committee.
+- Basic mode now pauses on a missing control marker instead of auto-injecting methodology or a recovery continuation.
 - Added `[[GITL::CHOICE]]` as a first-class, fail-safe state: Ghost stops all automatic actions when the model needs a user decision.
 - Reclassified question-like continuation phrases as CHOICE rather than PROCEED, preventing automatic answers to the model.
 - Added a distinct Choice needed status and one reviewed Send choice path that preserves the existing task and round count.

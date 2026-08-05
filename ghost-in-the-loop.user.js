@@ -1325,22 +1325,35 @@ function _stageForPlatform(text) {
     .trim();
 }
 
-/* The full context block for a run: who the model is (persona/committee),
-   how it should think (posture), and how it should work (strategy).
-   `includeStrategy` is false on roadmap resumes — re-sending the roadmap
-   payload mid-run would ask for a brand-new roadmap. */
+/* Basic mode is deliberately workflow-neutral. It adds only the three
+   machine-control outcomes Ghost needs and leaves the user's own process,
+   formatting, personas, and planning conventions untouched. */
+const BASIC_CONTROL_PROTOCOL = `\n\n---\n[Ghost control protocol]\nKeep the user's existing workflow and instructions unchanged. End each response with exactly one control marker:\n[[GITL::PROCEED]] — continue automatically\n[[GITL::CHOICE]] — stop because the user must decide or provide input\n[[GITL::HALT]] — stop because the requested work is complete\n---`;
+
+/* Optional Advanced shortcut used by committee-style workflows. It is never
+   present in Basic mode and never chooses unless the model clearly named one
+   recommendation before requesting the user's decision. */
+const COMMITTEE_P_SHORTCUT = `\n\n[Advanced: committee recommendation shortcut]\nWhen a genuine user decision is required, present concise options, clearly label one option "Recommended by committee", and end with [[GITL::CHOICE]]. If the user's next message is exactly P, apply that clearly labeled recommendation and continue. If no recommendation was clearly labeled, ask the user to choose instead of guessing.`;
+
+function advancedRunOn() { return !!(GHOST && GHOST.ui && GHOST.ui.runAdv); }
+
+/* Advanced is a functional boundary, not merely a collapsed panel. Basic gets
+   only BASIC_CONTROL_PROTOCOL. Persona, strategy, posture, and the committee
+   P shortcut are appended only after the user explicitly enables Advanced. */
 function runDirectives(includeStrategy = true) {
   const L = GHOST.loop;
+  let out = BASIC_CONTROL_PROTOCOL;
+  if (!advancedRunOn()) return out;
   const persona = resolvePersonaInject();
   const posture = POSTURES[L.posture] || POSTURES.standard;
-  let out = '';
   if (persona) out += `\n\n[Active persona]\n${persona}`;
   if (includeStrategy && PAYLOADS[L.payloadMode]) out += PAYLOADS[L.payloadMode].inject;
   out += posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
+  if (GHOST.ui.committeeProceed) out += COMMITTEE_P_SHORTCUT;
   return out;
 }
 function hasPendingDirectives() {
-  return !GHOST.persona._delivered && !!resolvePersonaInject();
+  return advancedRunOn() && !GHOST.persona._delivered && !!resolvePersonaInject();
 }
 
 function resolvePersonaInject() {
@@ -1707,7 +1720,8 @@ const GHOST = {
     skinTheme: (v => v==='new' ? 'aurora' : v)(GM_getValue('skinTheme','classic')),
     customSkin: GM_getValue('customSkin',''),
     accentHue: (v => (v===''||v==null) ? NaN : parseInt(v,10))(GM_getValue('accentHue','')),
-    runAdv: false,
+    runAdv: GM_getValue('runAdv',false),
+    committeeProceed: GM_getValue('committeeProceed',false),
     showDiag: false,
     showSites: false,
     firstRun: GM_getValue('firstRun',true),
@@ -2286,7 +2300,7 @@ const PAYLOADS = {
   }
 };
 
-const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ████░░░░ [Step X of Y] then [[GITL::PROCEED]] if more remain, [[GITL::CHOICE]] if the user must decide, or [[GITL::HALT]] when fully done.]`;
+const RESUME_TEXT = 'Continue.';
 
 /* ── Thinking postures (v7.1) ─────────────────────────────────────
    A user-declared expansion clause appended to whichever mode is running
@@ -2349,7 +2363,7 @@ function parseRoadmap(fullText) {
 function sendRoadmapStep() {
   const R = GHOST.roadmap, i = R.index, n = R.steps.length;
   GHOST.loop.detail = `🗺 Step ${i+1}/${n}`;
-  const personaClause = GHOST.persona.perTask && resolvePersonaInject() ? `\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : '';
+  const personaClause = advancedRunOn() && GHOST.persona.perTask && resolvePersonaInject() ? `\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}` : '';
   engineSend(`Continue.\n\n[Ghost roadmap — step ${i+1} of ${n}]\n${R.steps[i]}\n\nComplete this step fully and concretely. Deliverable output only, no fluff. End with [[GITL::PROCEED]] when this step is done — or [[GITL::HALT]] only if the ENTIRE roadmap is genuinely finished.${personaClause}`, false)
     .then(ok => { if (ok) { R.index = i + 1; _save('rmIndex', R.index); render(); } });
 }
@@ -2818,9 +2832,9 @@ function engineTick() {
       GHOST.workflow.active = false;
       GHOST.workflow.stageIndex = 0; _save('wfStage', 0);
     }
-    if (L.payloadMode === 'roadmap' && GHOST.roadmap.captured) {
+    if (advancedRunOn() && L.payloadMode === 'roadmap' && GHOST.roadmap.captured) {
       // Final committee review on roadmap completion
-      if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+      if (advancedRunOn() && GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
         GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
         const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
         engineSend(`[Ghost — Final Committee Review]\nAll work is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
@@ -2829,7 +2843,7 @@ function engineTick() {
       engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
     }
     // Final committee review on task completion
-    if (GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
+    if (advancedRunOn() && GHOST.persona.finalReview && !GHOST.persona._reviewDone && GHOST.persona.selected.filter(s=>s&&s!=='none').length>1) {
       GHOST.persona._reviewDone = true; L.detail = '📋 Committee final review…';
       const names = GHOST.persona.selected.filter(s=>s&&s!=='none').map(s=>(allPersonas()[s]||{}).label||s).join(', ');
       engineSend(`[Ghost — Final Committee Review]\nThe task is complete. As a committee of ${names}, conduct a final review:\n1. Each perspective: state your assessment — what is strong, what is missing, what risks remain.\n2. Surface disagreements between perspectives.\n3. Synthesize a final verdict with actionable improvements.\nEnd with [[GITL::HALT]] when the review is complete.`, false);
@@ -2842,7 +2856,7 @@ function engineTick() {
   if (result.signal === 'proceed') {
     L.staleTicks = 0;
     L.noSigilStreak = 0; L._nudgedTail = '';
-    if (L.payloadMode === 'roadmap') {
+    if (advancedRunOn() && L.payloadMode === 'roadmap') {
       const R = GHOST.roadmap;
       if (!R.captured) {
         if (parseRoadmap(text)) { L.detail = `🗺 Roadmap captured: ${R.steps.length} steps`; render(); sendRoadmapStep(); }
@@ -2862,7 +2876,7 @@ function engineTick() {
       if (!R.synthSent) { sendRoadmapSynthesis(); return; }
       engineHalt('✅ Roadmap complete'); resetRoadmap(); return;
     }
-    if (GHOST.persona.perTask && resolvePersonaInject()) {
+    if (advancedRunOn() && GHOST.persona.perTask && resolvePersonaInject()) {
       engineSend(`Continue.\n\n[Active committee — maintain all assigned perspectives for this step]\n${resolvePersonaInject()}`, false);
     } else if (hasPendingDirectives()) {
       // Personas were selected mid-run (or the run began from a paused state) —
@@ -2890,6 +2904,10 @@ function engineTick() {
   L.staleTicks++;
   const staleLimit = (PLAT && PLAT.staleTicks) || 5;
   if (L.staleTicks >= staleLimit) {
+    if (!advancedRunOn()) {
+      enginePause('No control marker — waiting for the user');
+      return;
+    }
     /* v8.1 sigil-free completion fallback: some models (DeepSeek especially)
        answer fully but never echo the [[GITL::…]] protocol markers. The reply
        IS complete — generation ended and the text went quiet — so instead of
@@ -2946,6 +2964,7 @@ function startWorkflow() {
   const L = GHOST.loop;
   if (GHOST.workflow.selected === 'none') { L.detail = 'Pick a workflow first'; render(); return; }
   if (L.state === 'RUNNING') return;
+  GHOST.ui.runAdv = true; _save('runAdv', true);
   GHOST.workflow.active = true;
   GHOST.workflow.autoAdvance = true;
   _save('wfAuto', true);
@@ -2989,7 +3008,10 @@ function startLoop() {
     L.phase = 'dispatching';
     L.lastActivity = Date.now();
     Timeline.record('choice_answered', { round: L.round, chars: typed.length });
-    const answer = typed + '\n\n[Ghost continuation: apply this user choice to the existing task. End with [[GITL::PROCEED]] if work remains, [[GITL::CHOICE]] if another user decision is required, or [[GITL::HALT]] when complete.]';
+    const pShortcut = advancedRunOn() && GHOST.ui.committeeProceed && /^p$/i.test(typed)
+      ? ' Apply the option that was clearly labeled "Recommended by committee".'
+      : '';
+    const answer = typed + `\n\n[Ghost continuation: apply this user input to the existing task.${pShortcut} End with [[GITL::PROCEED]] if work remains, [[GITL::CHOICE]] if another user decision is required, or [[GITL::HALT]] when complete.]`;
     engineSend(answer, true);
     L.timer = Ticker.start(engineTick, 2500);
     render();
@@ -3003,7 +3025,7 @@ function startLoop() {
   if (!L.needsPayload) {
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = '';
     L.sendPending = false;
-    GHOST.workflow.active = GHOST.workflow.selected !== 'none';
+    GHOST.workflow.active = advancedRunOn() && GHOST.workflow.selected !== 'none';
     L.timer = Ticker.start(engineTick, 2500);
     render(); engineTick();
     return;
@@ -3014,8 +3036,8 @@ function startLoop() {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
     L.originalTask = typed.slice(0, 2000); // remembered for the reground gate
     L.state = 'RUNNING'; L.lastActivity = Date.now();
-    GHOST.workflow.active = GHOST.workflow.selected !== 'none';
-    if (L.payloadMode === 'roadmap') { resetRoadmap(); GHOST.workflow.active = false; }
+    GHOST.workflow.active = advancedRunOn() && GHOST.workflow.selected !== 'none';
+    if (advancedRunOn() && L.payloadMode === 'roadmap') { resetRoadmap(); GHOST.workflow.active = false; }
     const full = typed + runDirectives(true);
     GHOST.persona._delivered = true;
     engineSend(full, true);
@@ -3028,7 +3050,7 @@ function startLoop() {
   if (Adapter.hasMessages()) {
     L.needsPayload = false; L.round = 0; L.lastProgress = null; L.staleTicks = 0;
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = 'Resuming…';
-    GHOST.workflow.active = GHOST.workflow.selected !== 'none';
+    GHOST.workflow.active = advancedRunOn() && GHOST.workflow.selected !== 'none';
     // Resume carries persona + posture (+ strategy, unless roadmap owns its own flow).
     GHOST.persona._delivered = true;
     engineSend(RESUME_TEXT + runDirectives(L.payloadMode !== 'roadmap'), true);
@@ -3046,6 +3068,7 @@ function startQueue(rawLines) {
   if (L.state === 'RUNNING') return;
   const steps = rawLines.split('\n').map(s => s.replace(/^\s*(?:\d+[.)]\s+|[-*]\s+)?/,'').trim()).filter(s => s.length > 2).slice(0, 30);
   if (!steps.length) { L.detail = 'Queue is empty'; render(); return; }
+  GHOST.ui.runAdv = true; _save('runAdv', true);
   L.payloadMode = 'roadmap'; _save('payloadMode','roadmap');
   GHOST.roadmap = { steps, index: 0, captured: true, synthSent: false };
   _save('rmSteps', JSON.stringify(steps)); _save('rmIndex', 0); _save('rmCaptured', true);
@@ -3823,12 +3846,12 @@ const CONFIG_KEYS = [
   'payloadMode','posture','maxRounds','driftEnabled','customProceed','customStop',
   'sigWindow','expFormat','expFilter','expRoles','expThinking','expSlug',
   'panelCollapsed','panelPosition','soundOn','notifyOn','cfgAdv','expAdv',
-  'skinTheme','accentHue','unattended','firstRun'
+  'runAdv','committeeProceed','skinTheme','accentHue','unattended','firstRun'
 ];
 const CONFIG_BOOL_KEYS = new Set([
   'wfAuto','wfPause','personaCommittee','personaPerTask','personaFinalReview',
   'driftEnabled','expRoles','expThinking','panelCollapsed','soundOn','notifyOn',
-  'cfgAdv','expAdv','unattended','firstRun'
+  'cfgAdv','expAdv','runAdv','committeeProceed','unattended','firstRun'
 ]);
 const CONFIG_DEFAULTS = Object.freeze({
   wfAuto:true, wfPause:false,
@@ -3837,7 +3860,7 @@ const CONFIG_DEFAULTS = Object.freeze({
   customProceed:'', customStop:'', sigWindow:400,
   expFormat:'markdown', expFilter:'all', expRoles:true, expThinking:true, expSlug:'',
   panelCollapsed:false, panelPosition:'top-right', soundOn:true, notifyOn:false,
-  cfgAdv:false, expAdv:false, skinTheme:'classic', accentHue:'',
+  cfgAdv:false, expAdv:false, runAdv:false, committeeProceed:false, skinTheme:'classic', accentHue:'',
   unattended:false, firstRun:true
 });
 
@@ -4997,7 +5020,7 @@ function renderRunTab() {
   const firstRun = GHOST.ui.firstRun;
   const idle = L.state==='IDLE'||L.state==='COMPLETE';
   const activeP = (GHOST.persona.selected||[]).filter(s=>s&&s!=='none');
-  const pLabel = activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'';
+  const pLabel = runAdv ? (activeP.length>1?'Committee: '+activeP.map(s=>(allPersonas()[s]||{}).label||s).join(', '):activeP.length===1?(allPersonas()[activeP[0]]||{}).label||'':'') : '';
   return `
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
@@ -5038,7 +5061,7 @@ function renderRunTab() {
       })() : ''}
     </div>
     </div>
-    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${_esc(PLAT?PLAT.label:'—')} · ${PAYLOADS[pm].label} · ${(POSTURES[L.posture]||POSTURES.standard).label}${L.state!=='IDLE'?' · R'+L.round:''}</div>
+    <div class="g-detect" style="font-size:8.5px;color:#555;margin-top:2px">● ${_esc(PLAT?PLAT.label:'—')} · ${runAdv ? PAYLOADS[pm].label+' · '+(POSTURES[L.posture]||POSTURES.standard).label : 'Basic controls'}${L.state!=='IDLE'?' · R'+L.round:''}</div>
     ${GHOST.report ? `<div class="g-report">
       <div class="g-report-h">⚠ Trouble report ready <span class="g-report-k">${_esc(GHOST.report.kind)}</span></div>
       <div class="g-report-b">${_esc((GHOST.report.detail||'').slice(0,120))}</div>
@@ -5047,7 +5070,7 @@ function renderRunTab() {
       <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-copy">📋 Copy</button><button class="g-btn-sm" id="g-rep-dl">⇩ Download</button></div>
       <div class="g-report-btns"><button class="g-btn-sm" id="g-rep-issue">↗ Review &amp; report bug</button><button class="g-btn-sm" id="g-rep-x" style="background:#18191c">Dismiss</button></div>
     </div>` : ''}
-    <button class="g-adv" id="run-adv">${runAdv?'Advanced ▴':'Advanced ▾'}</button>
+    <button class="g-adv" id="run-adv">${runAdv?'Advanced ON ▴':'Advanced OFF ▾'}</button>
     ${runAdv ? `
     <div class="g-mod g-mod-adv">
       <div class="g-mod-h"><span class="g-mod-i">🧭</span>Strategy<span class="g-mod-x">${PAYLOADS[pm].label}</span></div>
@@ -5065,8 +5088,13 @@ function renderRunTab() {
       </div>
     </div>
     </div>
+    <div class="g-mod g-mod-adv">
+      <div class="g-mod-h"><span class="g-mod-i">P</span>Committee shortcut<span class="g-mod-x">${GHOST.ui.committeeProceed?'ON':'OFF'}</span></div>
+      <div class="g-row"><label>Reply P = recommendation</label><div class="g-tog${GHOST.ui.committeeProceed?' on':''}" id="g-committee-p"></div></div>
+      <div class="g-hint">At a real decision, the committee labels one option Recommended. Reply P to accept only that labeled option.</div>
+    </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
-    <div class="g-peek${peekOpen?' open':''}" id="g-peek">${PAYLOADS[pm].preview}</div>
+    <div class="g-peek${peekOpen?' open':''}" id="g-peek">${_esc(runDirectives(true).trim())}</div>
     <div class="g-btns" style="margin-top:5px">
       <button class="g-btn" id="g-reground" title="Re-anchor AI to the original task">⊕ Reground</button>
       <button class="g-btn st" id="g-reset" title="Clear run state and start over">↻ Reset session</button>
@@ -5591,7 +5619,20 @@ function bindEvents() {
     if (GHOST.loop.state==='RUNNING') return;
     GHOST.loop.payloadMode=e.target.value; GHOST.loop.needsPayload=true; _save('payloadMode',GHOST.loop.payloadMode); render();
   });
-  $('#run-adv')?.addEventListener('click', () => { GHOST.ui.runAdv=!GHOST.ui.runAdv; render(); });
+  $('#run-adv')?.addEventListener('click', () => {
+    if (['RUNNING','PAUSED','CHOICE','LIMIT'].includes(GHOST.loop.state)) {
+      GHOST.loop.detail = 'Finish or reset the current run before changing Advanced';
+      render();
+      return;
+    }
+    GHOST.ui.runAdv=!GHOST.ui.runAdv; _save('runAdv',GHOST.ui.runAdv); render();
+  });
+  $('#g-committee-p')?.addEventListener('click', () => {
+    if (!GHOST.ui.runAdv || !['IDLE','COMPLETE'].includes(GHOST.loop.state)) return;
+    GHOST.ui.committeeProceed=!GHOST.ui.committeeProceed;
+    _save('committeeProceed',GHOST.ui.committeeProceed);
+    render();
+  });
   $('#g-goto-personas')?.addEventListener('click', e => { e.preventDefault(); GHOST.ui.tab='personas'; render(); });
   $('#g-reground')?.addEventListener('click', () => { if (GHOST.loop.state==='RUNNING'||GHOST.loop.state==='PAUSED') regroundLoop(); });
   $$('.g-pst').forEach(b => b.addEventListener('click', () => {
