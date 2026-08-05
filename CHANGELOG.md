@@ -1,5 +1,14 @@
 # Changelog
 
+## [8.7.1] — mobile wake recovery and reliable controls
+
+- Added layered automatic recovery after phone lock, app switching, background suspension, BFCache restoration, and focus return.
+- Rebuilds stale caches, ticker, heartbeat, tab lease, GhostBus, and control detection through one idempotent recovery gate.
+- Restores a previously running loop only when safe; unresolved or uncertain Send transactions pause without replay.
+- Added focused wake-recovery regression coverage and kept page reload, reground prompts, and automatic resend prohibited.
+- Reserved a dedicated tab-help strip so help controls no longer cover the Personas committee toggle.
+- Verified the reliability changes through unit, base-certification, Chromium, Firefox, and mobile Chromium test tiers before release-candidate packaging.
+
 ## [8.7.0] — verified composer staging and portable mobile test gate
 
 Ghost now observes the complete normalized prompt in the live composer before
