@@ -4521,7 +4521,7 @@ function injectStyles() {
 .g-tabs{display:flex;gap:3px;margin-bottom:8px}
 .g-tab{flex:1;padding:4px 0;border:1px solid var(--g-border);border-radius:5px;background:var(--g-surface);color:var(--g-text-dim);font-size:8.5px;cursor:pointer;text-align:center;font-weight:600;transition:all .15s;font-family:inherit}
 .g-tab:hover{background:var(--g-hover);color:var(--g-text-mid)}.g-tab.act{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
-#g-tc{position:relative}
+#g-tc{position:relative;padding-top:20px}
 .g-tabhelp{position:absolute;top:-2px;right:0;width:16px;height:16px;line-height:14px;text-align:center;border:1px solid var(--g-border-2);border-radius:50%;background:var(--g-surface-2);color:var(--g-muted);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;z-index:3}
 .g-tabhelp:hover{background:var(--g-accent-bg);border-color:var(--g-accent-deep);color:var(--g-accent-text)}
 .g-modes{display:flex;gap:3px;margin-bottom:6px}
