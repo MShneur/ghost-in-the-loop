@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   unit:
-    name: Unit Tests (jest)
+    name: Unit Tests and Base Certification
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +25,20 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      - name: Generated-artifact parity
-        run: npm run check:generated
+      - name: Build and certify extension artifacts
+        run: npm run cert:base
       - name: Syntax checks
         run: npm run lint
       - name: Run unit tests
         run: npm run test:unit
+      - name: Upload base certification artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-base-certification
+          path: test-results/extension-artifact-index.json
+          if-no-files-found: warn
+          retention-days: 7
 
   e2e:
     name: E2E Boot and Send-Safety Tests (Playwright)
