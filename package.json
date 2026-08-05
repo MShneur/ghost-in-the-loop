@@ -1,16 +1,20 @@
 {
   "name": "ghost-in-the-loop",
   "version": "8.7.0",
-  "description": "Ghost in the Loop \u2014 userscript, Firefox extension build, and test harness",
+  "description": "Ghost in the Loop — userscript, Firefox extension build, and test harness",
   "scripts": {
     "build": "npm run build:extension",
     "build:extension": "node scripts/build-extension.js",
     "check:generated": "node scripts/build-extension.js --check",
+    "cert:preflight": "node scripts/certify-extension.js preflight",
+    "cert:manifest-audit": "node scripts/certify-extension.js manifest",
+    "cert:artifact-index": "node scripts/certify-extension.js artifacts --out test-results/extension-artifact-index.json",
+    "cert:base": "npm run cert:preflight && npm run build:extension && npm run check:generated && npm run cert:manifest-audit && npm run cert:artifact-index",
     "test": "npm run check:generated && jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
     "test:all": "jest && playwright test",
-    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js"
+    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js && node --check scripts/certify-extension.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
