@@ -1,0 +1,95 @@
+name: Prepare 8.7.1 RC1
+
+on:
+  push:
+    branches:
+      - agent/certification-preflight
+    paths:
+      - scripts/prepare-871-rc1.js
+      - .github/workflows/prepare-871-rc1.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/certification-preflight
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Align release version
+        run: node scripts/prepare-871-rc1.js
+      - name: Build extension
+        run: npm run build:extension
+      - name: Base certification
+        run: npm run cert:base
+      - name: Syntax checks
+        run: npm run lint
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Commit release-candidate source
+        shell: bash
+        run: |
+          if git diff --quiet -- ghost-in-the-loop.user.js package.json package-lock.json extension; then
+            echo "Release version already aligned"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add ghost-in-the-loop.user.js package.json package-lock.json extension
+            git commit -m "build: prepare 8.7.1 release candidate"
+            git push origin HEAD:agent/certification-preflight
+          fi
+      - name: Package installable release candidate
+        shell: bash
+        run: |
+          set -eu
+          rm -rf dist
+          mkdir -p dist
+          cp ghost-in-the-loop.user.js dist/ghost-in-the-loop-8.7.1-rc1.user.js
+          zip -qr dist/ghost-in-the-loop-8.7.1-rc1-extension.zip extension
+          HEAD_SHA="$(git rev-parse HEAD)"
+          cat > dist/FIELD-TEST.txt <<EOF
+          Ghost in the Loop 8.7.1 RC1
+          Branch: agent/certification-preflight
+          Commit: ${HEAD_SHA}
+
+          PURPOSE
+          Validate automatic recovery after phone lock, browser backgrounding, and app switching.
+
+          USERSCRIPT INSTALL
+          Open ghost-in-the-loop-8.7.1-rc1.user.js in Tampermonkey or Violentmonkey and confirm installation.
+
+          FIREFOX EXTENSION INSTALL
+          Unzip ghost-in-the-loop-8.7.1-rc1-extension.zip, then load extension/manifest.json as a temporary add-on.
+
+          FIELD CHECK
+          1. Start a harmless multi-step Ghost run and confirm it reaches RUNNING.
+          2. Lock the phone for about 30 seconds, unlock, and confirm Ghost continues without pressing Resume.
+          3. Lock for at least 3 minutes, unlock, and confirm Ghost rebuilds runtime services and continues.
+          4. Switch to another app for at least 60 seconds, return, and confirm continuation.
+          5. Repeat lock/unlock three times. Confirm there is only one continuation per completed response.
+          6. During any ambiguous or interrupted Send, confirm Ghost pauses with an uncertainty message and does not resend.
+          7. Open Personas and confirm Committee remains clickable and is not covered by the help buttons.
+
+          PASS
+          Automatic continuation returns after every safe wake, no duplicate Send occurs, and no manual page reload is required.
+
+          FAIL
+          Save a screenshot or SingleFile capture showing Ghost status and the latest visible chat state. Do not repeatedly press Send.
+          EOF
+          (cd dist && sha256sum ghost-in-the-loop-8.7.1-rc1.user.js ghost-in-the-loop-8.7.1-rc1-extension.zip > SHA256SUMS.txt)
+      - name: Upload release-candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-in-the-loop-8.7.1-rc1
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
