@@ -1,0 +1,99 @@
+name: Prepare Ghost 8.8.0 release candidate
+
+on:
+  push:
+    branches:
+      - agent/choice-state-ui
+    paths:
+      - scripts/prepare-8.8.0-rc.js
+      - .github/workflows/prepare-8.8.0-rc.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/choice-state-ui
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply guarded version alignment
+        run: node scripts/prepare-8.8.0-rc.js .
+
+      - name: Regenerate and certify extension
+        run: npm run cert:base
+
+      - name: Syntax and whitespace checks
+        run: |
+          npm run lint
+          git diff --check
+
+      - name: Run complete unit suite
+        run: npm run test:unit
+
+      - name: Install browser matrix
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run browser and mobile safety suite
+        run: npm run test:e2e
+
+      - name: Commit verified 8.8.0 metadata and generated artifact
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            ghost-in-the-loop.user.js \
+            extension/content.js \
+            extension/manifest.json \
+            package.json \
+            package-lock.json \
+            CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "8.8.0 release-candidate metadata already current"
+          else
+            git commit -m "release: prepare Ghost in the Loop 8.8.0 candidate"
+            git push origin HEAD:agent/choice-state-ui
+          fi
+
+      - name: Package checksummed release-candidate artifacts
+        shell: bash
+        run: |
+          set -eu
+          rm -rf dist
+          mkdir -p dist
+          cp ghost-in-the-loop.user.js dist/ghost-in-the-loop-8.8.0.user.js
+          (
+            cd extension
+            zip -q -r ../dist/ghost-in-the-loop-8.8.0-extension.zip .
+          )
+          cp test-results/extension-artifact-index.json dist/
+          if [ -f e2e-results.json ]; then cp e2e-results.json dist/; fi
+          git rev-parse HEAD > dist/COMMIT.txt
+          sed -n '1,30p' CHANGELOG.md > dist/RELEASE-NOTES.md
+          (
+            cd dist
+            sha256sum ghost-in-the-loop-8.8.0.user.js ghost-in-the-loop-8.8.0-extension.zip > SHA256SUMS.txt
+          )
+          printf 'Ghost in the Loop 8.8.0 release candidate\nBranch: agent/choice-state-ui\nCommit: %s\nNot merged or published.\n' "$(git rev-parse HEAD)" > dist/RELEASE-CANDIDATE.txt
+
+      - name: Upload release-candidate bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghost-in-the-loop-8.8.0-release-candidate
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
