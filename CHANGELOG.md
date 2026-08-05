@@ -1,5 +1,13 @@
 # Changelog
 
+
+## Unreleased — explicit user-choice pause
+
+- Added `[[GITL::CHOICE]]` as a first-class, fail-safe state: Ghost stops all automatic actions when the model needs a user decision.
+- Reclassified question-like continuation phrases as CHOICE rather than PROCEED, preventing automatic answers to the model.
+- Added a distinct Choice needed status and one reviewed Send choice path that preserves the existing task and round count.
+- Kept plain-language behavior in the default help while moving exact marker details to the Advanced injected-prompt preview.
+
 ## [8.7.1] — mobile wake recovery and reliable controls
 
 - Added layered automatic recovery after phone lock, app switching, background suspension, BFCache restoration, and focus return.

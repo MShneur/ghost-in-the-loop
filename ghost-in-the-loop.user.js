@@ -137,6 +137,7 @@ try {
 /* Wrap any HTML string destined for an innerHTML sink. */
 function _TT(s) { return _ttPolicy ? _ttPolicy.createHTML(s) : s; }
 const SIGIL_PROCEED = '[[GITL::PROCEED]]';
+const SIGIL_CHOICE  = '[[GITL::CHOICE]]';
 const SIGIL_HALT    = '[[GITL::HALT]]';
 const LEGACY_PROCEED = 'PROCEED';
 const LEGACY_HALT    = 'SYSTEM_HALT';
@@ -1049,7 +1050,7 @@ function _answerText(el) {
 }
 function _answerTerminalAtTail(text) {
   const s = String(text || '').replace(/\u200b/g, '').trim();
-  return s.endsWith(SIGIL_PROCEED) || s.endsWith(SIGIL_HALT);
+  return s.endsWith(SIGIL_PROCEED) || s.endsWith(SIGIL_CHOICE) || s.endsWith(SIGIL_HALT);
 }
 function _answerNodeUsable(el) {
   if (!el || !el.isConnected || _isOwnUI(el)) return false;
@@ -1071,7 +1072,7 @@ function _answerLooksLikeContent(el, text, tier) {
     if (/follow.?up|related|suggest(?:ion|ed)?/i.test(meta)) return false;
     if (tier === 'fallback' && /citation|source|reference|toolbar|action|composer/i.test(meta)) return false;
   } catch(_) {}
-  if (text.includes(SIGIL_PROCEED) || text.includes(SIGIL_HALT)) return true;
+  if (text.includes(SIGIL_PROCEED) || text.includes(SIGIL_CHOICE) || text.includes(SIGIL_HALT)) return true;
   return text.length >= 20;
 }
 function _answerDomOrder(a, b) {
@@ -1650,7 +1651,7 @@ const GHOST = {
     synthSent: false
   },
   loop: {
-    state: 'IDLE', // IDLE | RUNNING | PAUSED | LIMIT | COMPLETE | ERROR
+    state: 'IDLE', // IDLE | RUNNING | CHOICE | PAUSED | LIMIT | COMPLETE | ERROR
     payloadMode: GM_getValue('payloadMode','loop'),
     posture: GM_getValue('posture','standard'),
     round: 0,
@@ -2199,9 +2200,15 @@ const GhostBus = {
    LAYER 4 — SIGNAL ENGINE (pure logic, no DOM)
    Halt ALWAYS wins. Confidence-scored. Unique sigils first.
    ═══════════════════════════════════════════════════════════════ */
-const FUZZY_PROCEED = ['to proceed','shall i continue','should i continue','want me to continue',
-  'ready for the next',"type 'continue'",'type "continue"','type continue','say continue',
-  'continue?','next section?','go on?','ready to proceed','awaiting your'];
+const FUZZY_PROCEED = ['to proceed','ready for the next',"type 'continue'",'type "continue"',
+  'type continue','say continue','ready to proceed'];
+
+/* A request for human input is never permission to auto-send. These phrases
+   intentionally favor a false pause over an unwanted continuation. */
+const FUZZY_CHOICE = ['shall i continue','should i continue','want me to continue',
+  'continue?','next section?','go on?','shall i proceed','would you like me to continue',
+  'awaiting your','awaiting your input','choose one','please choose','which option',
+  'which would you prefer','need your decision','awaiting your choice','please select','pick one'];
 
 const FUZZY_HALT = ['task complete','all sections complete','all parts complete','that concludes',
   'this concludes','fully complete','everything is complete','all done','sequence complete',
@@ -2220,11 +2227,12 @@ function detectSignal(fullText) {
   const cStop = GHOST.signals.customStop.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
   const cProc = GHOST.signals.customProceed.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
 
-  let hScore = 0, pScore = 0;
+  let hScore = 0, cScore = 0, pScore = 0;
   const progress = parseProgress(tail);
 
   // Unique sigils (highest weight)
   if (tail.includes(SIGIL_HALT))     hScore += 4;
+  if (tail.includes(SIGIL_CHOICE))   cScore += 5;
   if (tail.includes(SIGIL_PROCEED))  pScore += 4;
   // Legacy keywords — only fire if sigil NOT already present (prevents substring double-count:
   // LEGACY_PROCEED='PROCEED' is a substring of '[[GITL::PROCEED]]' which would otherwise
@@ -2233,6 +2241,7 @@ function detectSignal(fullText) {
   if (!tail.includes(SIGIL_PROCEED) && tail.includes(LEGACY_PROCEED)) pScore += 3;
   // Fuzzy
   if (FUZZY_HALT.some(p => low.includes(p)))    hScore += 2;
+  if (FUZZY_CHOICE.some(p => low.includes(p)))  cScore += 3;
   if (FUZZY_PROCEED.some(p => low.includes(p))) pScore += 2;
   // Custom
   if (cStop.some(p => low.includes(p)))  hScore += 2;
@@ -2241,13 +2250,16 @@ function detectSignal(fullText) {
   if (progress && progress.step < progress.total) pScore += 2;
   if (progress && progress.step >= progress.total) hScore += 1;
 
-  DIAG.lastSignal = `h:${hScore} p:${pScore}`;
+  DIAG.lastSignal = `h:${hScore} c:${cScore} p:${pScore}`;
   DIAG.lastTail = tail.slice(-80);
 
-  // HALT-FIRST: halt wins ties at threshold
+  // Explicit HALT remains authoritative. Otherwise, a user-choice request
+  // beats every proceed cue so Ghost can never answer the model on its own.
+  if (tail.includes(SIGIL_HALT)) return { signal: 'halt', confidence: hScore, progress };
+  if (cScore >= 3) return { signal: 'choice', confidence: cScore, progress };
   if (hScore >= 3 && hScore >= pScore) return { signal: 'halt', confidence: hScore, progress };
   if (pScore >= 3) return { signal: 'proceed', confidence: pScore, progress };
-  return { signal: 'none', confidence: Math.max(hScore, pScore), progress };
+  return { signal: 'none', confidence: Math.max(hScore, cScore, pScore), progress };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -2257,24 +2269,24 @@ const PAYLOADS = {
   loop: {
     label: '▶ Loop',
     hint: 'Step-by-step execution. You set the task.',
-    inject: `\n\n---\n[Ghost in the Loop v${VER} — Loop Mode]\nExecute this task step by step. One focused section per response.\n\nAt the end of every response, print:\n████░░░░ [Step X of Y] — one line describing what was completed\n\nThen on a new line:\n- More steps remain → [[GITL::PROCEED]]\n- Fully complete → [[GITL::HALT]]\n\nDo not skip the progress line. Make reasonable assumptions.\n---`,
-    preview: '▶ LOOP — Step-by-step execution.\nEnd each response with:\n████░░░░ [Step X of Y]\n[[GITL::PROCEED]] or [[GITL::HALT]]'
+    inject: `\n\n---\n[Ghost in the Loop v${VER} — Loop Mode]\nExecute this task step by step. One focused section per response.\n\nAt the end of every response, print:\n████░░░░ [Step X of Y] — one line describing what was completed\n\nThen on a new line:\n- More steps remain → [[GITL::PROCEED]]\n- You need the user to decide before continuing → [[GITL::CHOICE]]\n- Fully complete → [[GITL::HALT]]\n\nDo not skip the progress line. Make reasonable assumptions.\n---`,
+    preview: '▶ LOOP — Step-by-step execution.\nEnd each response with:\n████░░░░ [Step X of Y]\n[[GITL::PROCEED]], [[GITL::CHOICE]], or [[GITL::HALT]]'
   },
   think: {
     label: '🧠 Think First',
     hint: 'AI plans batches at ~80% capacity, then executes.',
-    inject: `\n\n---\n[Ghost in the Loop v${VER} — Think First Mode]\nBefore doing any work, read this task and plan how to complete it in focused batches.\n\nKeep each batch to ~80% of your comfortable response length.\n\nYour FIRST response: plan only — list batches briefly, end with [[GITL::PROCEED]]\n\nEach subsequent response: complete one batch, end with:\n████░░░░ [Batch X of Y] — what this batch covered\nThen: [[GITL::PROCEED]] or [[GITL::HALT]]\n\nThe script sends "Continue" automatically.\n---`,
-    preview: '🧠 THINK FIRST — AI self-plans.\nResponse 1: plan + batch count.\nEach batch ends with:\n████░░░░ [Batch X of Y]\n[[GITL::PROCEED]] or [[GITL::HALT]]'
+    inject: `\n\n---\n[Ghost in the Loop v${VER} — Think First Mode]\nBefore doing any work, read this task and plan how to complete it in focused batches.\n\nKeep each batch to ~80% of your comfortable response length.\n\nYour FIRST response: plan only — list batches briefly, end with [[GITL::PROCEED]]\n\nEach subsequent response: complete one batch, end with:\n████░░░░ [Batch X of Y] — what this batch covered\nThen: [[GITL::PROCEED]], [[GITL::CHOICE]], or [[GITL::HALT]]\nUse [[GITL::CHOICE]] only when the user must answer before work can continue.\n\nThe script sends "Continue" automatically only after [[GITL::PROCEED]].\n---`,
+    preview: '🧠 THINK FIRST — AI self-plans.\nResponse 1: plan + batch count.\nEach batch ends with:\n████░░░░ [Batch X of Y]\n[[GITL::PROCEED]], [[GITL::CHOICE]], or [[GITL::HALT]]'
   },
   roadmap: {
     label: '🗺 Roadmap',
     hint: 'AI researches → builds a roadmap → Ghost runs every step. Walk away.',
-    inject: `\n\n---\n[Ghost in the Loop v${VER} — Roadmap Autopilot]\nPhase 1 (this response): RESEARCH ONLY. Analyze this task deeply — context, constraints, unknowns, best approach. Do no execution work yet.\nThen output a machine-readable roadmap in EXACTLY this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each one self-contained and executable in a single response)\nEnd with [[GITL::PROCEED]]\n\nPhase 2: The script will then send you each step as its own prompt. Complete each step fully, end each with [[GITL::PROCEED]]. A final synthesis prompt will close the run.\n---`,
-    preview: '🗺 ROADMAP — Fire & forget.\nResponse 1: research + numbered\nroadmap under [[GITL::ROADMAP]].\nGhost then auto-runs every step\n+ final synthesis. [[GITL::HALT]] ends.'
+    inject: `\n\n---\n[Ghost in the Loop v${VER} — Roadmap Autopilot]\nPhase 1 (this response): RESEARCH ONLY. Analyze this task deeply — context, constraints, unknowns, best approach. Do no execution work yet.\nThen output a machine-readable roadmap in EXACTLY this format:\n\n[[GITL::ROADMAP]]\n1. first concrete step\n2. second concrete step\n3. ...\n\n(3–12 steps, each one self-contained and executable in a single response)\nEnd with [[GITL::PROCEED]]. If research cannot continue without a user decision, end with [[GITL::CHOICE]] instead.\n\nPhase 2: The script will then send you each step as its own prompt. Complete each step fully, end with [[GITL::PROCEED]], or [[GITL::CHOICE]] when the user must decide. A final synthesis prompt will close the run.\n---`,
+    preview: '🗺 ROADMAP — Fire & forget.\nResponse 1: research + numbered\nroadmap under [[GITL::ROADMAP]].\nGhost then auto-runs every step\n+ final synthesis. [[GITL::CHOICE]] pauses for you; [[GITL::HALT]] ends.'
   }
 };
 
-const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ████░░░░ [Step X of Y] then [[GITL::PROCEED]] if more remain, or [[GITL::HALT]] when fully done.]`;
+const RESUME_TEXT = `Continue.\n\n[Ghost reminder: end each response with ████░░░░ [Step X of Y] then [[GITL::PROCEED]] if more remain, [[GITL::CHOICE]] if the user must decide, or [[GITL::HALT]] when fully done.]`;
 
 /* ── Thinking postures (v7.1) ─────────────────────────────────────
    A user-declared expansion clause appended to whichever mode is running
@@ -2322,7 +2334,7 @@ function parseRoadmap(fullText) {
   const after = fullText.slice(at + SIGIL_ROADMAP.length);
   const steps = [];
   for (const line of after.split('\n')) {
-    if (line.includes(SIGIL_PROCEED) || line.includes(SIGIL_HALT)) break;
+    if (line.includes(SIGIL_PROCEED) || line.includes(SIGIL_CHOICE) || line.includes(SIGIL_HALT)) break;
     const m = line.match(/^\s*(?:\d+[.)]\s+|[-*]\s+)(.+)$/);
     if (m && m[1].trim().length > 3) steps.push(m[1].trim());
     if (steps.length >= 30) break;
@@ -2381,7 +2393,7 @@ function _setLoopPhase(phase, detail) { const L=GHOST.loop, changed=L.phase!==ph
 function _replyFingerprint(text) { const s=String(text||''); return `${s.length}:${s.slice(-180)}`; }
 function _observeReplyText(text) { const L=GHOST.loop,key=_replyFingerprint(text); if(key&&key===L.replyKey)L.replyStableTicks++; else{L.replyKey=key;L.replyStableTicks=0;} return {key,stableTicks:L.replyStableTicks}; }
 function _replyAdvancedBeyondBaseline(text) { const b=GHOST.loop.replyBaseline;if(!b)return true;const count=_qAll(PLAT.assistant).length,s=String(text||'');return count>b.assistantCount||s.length>b.assistantTextLength+4||(s.slice(-180)&&s.slice(-180)!==b.assistantTail); }
-function _terminalReplyReady(text,result,obs,stopVisible) { return !!text&&!!result&&['proceed','halt'].includes(result.signal)&&!stopVisible&&_replyAdvancedBeyondBaseline(text)&&obs.stableTicks>=1; }
+function _terminalReplyReady(text,result,obs,stopVisible) { return !!text&&!!result&&['proceed','choice','halt'].includes(result.signal)&&!stopVisible&&_replyAdvancedBeyondBaseline(text)&&obs.stableTicks>=1; }
 async function _sleepCountdown(ms) { const L=GHOST.loop;L.countdownUntil=Date.now()+Math.max(0,ms);let shown=-1;while(L.state==='RUNNING'){const left=Math.max(0,L.countdownUntil-Date.now()),sec=Math.ceil(left/1000);if(sec!==shown){shown=sec;_setLoopPhase('countdown',`Next command in ${sec}s…`);render();}if(left<=0)break;await sleep(Math.min(250,left));}L.countdownUntil=0; }
 
 let _pendingSendResolve = null;
@@ -2756,10 +2768,34 @@ function engineTick() {
   const stopVisible=Adapter.stopVisible(), terminalReady=_terminalReplyReady(text,result,observation,stopVisible);
   if(Adapter.isGenerating()&&!terminalReady){L.lastActivity=Date.now();L.staleTicks=0;if(_setLoopPhase('generating',text?'AI is outputting…':'Waiting for AI output…'))render();return;}
   if(terminalReady&&GITL_NET.streaming()){Timeline.record('network_generation_overridden',{platform:PLAT.key,signal:result.signal});DIAG.push('Stable terminal marker overrode stale network generation witness');}
+
+  /* CHOICE is checked before every automatic page action. Even a visible host
+     Continue button must not answer a question or bypass human review. */
+  if (result.signal === 'choice') {
+    L.lastSignal = result.signal; L.lastConfidence = result.confidence;
+    if (result.progress) L.lastProgress = result.progress;
+    if (!terminalReady) {
+      if (_setLoopPhase('reading', 'Checking user choice request…')) render();
+      return;
+    }
+    L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
+    L.state = 'CHOICE';
+    L.phase = 'choice';
+    L.needsPayload = true;
+    L.detail = 'Your choice is needed — type your answer in the chat box, then press ▶';
+    Ticker.stop(); L.timer = null;
+    Timeline.record('choice_requested', { round: L.round, confidence: result.confidence });
+    render();
+    notify('Your choice is needed before Ghost can continue');
+    return;
+  }
+
   if(Adapter.clickContinue()){L.lastActivity=Date.now();return;}
   if(!text){_setLoopPhase('waiting-output','Waiting for AI output…');L.staleTicks++;const staleLimit=(PLAT&&PLAT.staleTicks)||5;if(L.staleTicks>=staleLimit)pauseWithProbe('No output detected');else render();return;}
   L.lastSignal=result.signal;L.lastConfidence=result.confidence;if(result.progress)L.lastProgress=result.progress;
-  _setLoopPhase(terminalReady?'decision':'reading',terminalReady?(result.signal==='halt'?'HALT marker read':'PROCEED marker read'):'Reading final response…');
+  const decisionLabel = result.signal==='halt'?'HALT marker read':'PROCEED marker read';
+  _setLoopPhase(terminalReady?'decision':'reading',terminalReady?decisionLabel:'Reading final response…');
 
   if (result.signal === 'short') { L.staleTicks++; if (L.staleTicks >= 3) enginePause('Response too short — review output'); return; }
 
@@ -2773,7 +2809,7 @@ function engineTick() {
       if (next) {
         if (GHOST.workflow.pauseBetween) { enginePause(`Stage ${GHOST.workflow.stageIndex+1} complete — next queued`); return; }
         L.detail = `Advancing workflow stage ${GHOST.workflow.stageIndex+1}…`;
-        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${_stageForPlatform(next)}\n\nUse the same [[GITL::PROCEED]] / [[GITL::HALT]] protocol.`, false).then(ok => {
+        engineSend(`Continue.\n\n[Ghost workflow — stage ${GHOST.workflow.stageIndex+1} of ${wf.stages.length}]\n${_stageForPlatform(next)}\n\nUse the same [[GITL::PROCEED]] / [[GITL::CHOICE]] / [[GITL::HALT]] protocol.`, false).then(ok => {
           if (ok) { GHOST.workflow.stageIndex++; _save('wfStage', GHOST.workflow.stageIndex); render(); }
           else { enginePause('Workflow advance failed'); }
         });
@@ -2870,7 +2906,7 @@ function engineTick() {
       L.detail = `🕯 Reply had no sigil — auto-continuing (${L.noSigilStreak}/2) + re-stating protocol`;
       DIAG.push(`Sigil missing — soft proceed (${L.noSigilStreak}/2)`);
       Timeline.record('soft_proceed', { streak: L.noSigilStreak, round: L.round });
-      engineSend('Continue.\n\n[Ghost protocol reminder — your last reply was missing the control marker. From now on END EVERY reply with exactly one of:\n[[GITL::PROCEED]] — more work remains\n[[GITL::HALT]] — the whole task is fully complete\nAlso include "[Step X of Y]" on its own line so progress can be tracked.]', false);
+      engineSend('Continue.\n\n[Ghost protocol reminder — your last reply was missing the control marker. From now on END EVERY reply with exactly one of:\n[[GITL::PROCEED]] — more work remains\n[[GITL::CHOICE]] — the user must decide before you can continue\n[[GITL::HALT]] — the whole task is fully complete\nAlso include "[Step X of Y]" on its own line so progress can be tracked.]', false);
       render();
       return;
     }
@@ -2935,6 +2971,30 @@ function startLoop() {
   }
   const input = Adapter.getInput();
   const typed = input ? (input.value || input.textContent || '').trim() : '';
+
+  // A CHOICE response is part of the existing run, not a new task. Never
+  // reset rounds or replace the original task; send exactly one reviewed
+  // answer, then return to normal marker-driven execution.
+  if (L.state === 'CHOICE') {
+    if (!typed) {
+      try { input?.focus(); } catch(_) {}
+      L.detail = 'Your choice is needed — type your answer in the chat box, then press ▶';
+      render();
+      return;
+    }
+    L.needsPayload = false;
+    L.staleTicks = 0;
+    L.noSigilStreak = 0; L._nudgedTail = '';
+    L.state = 'RUNNING';
+    L.phase = 'dispatching';
+    L.lastActivity = Date.now();
+    Timeline.record('choice_answered', { round: L.round, chars: typed.length });
+    const answer = typed + '\n\n[Ghost continuation: apply this user choice to the existing task. End with [[GITL::PROCEED]] if work remains, [[GITL::CHOICE]] if another user decision is required, or [[GITL::HALT]] when complete.]';
+    engineSend(answer, true);
+    L.timer = Ticker.start(engineTick, 2500);
+    render();
+    return;
+  }
 
   // Mark first run done
   if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
@@ -3295,7 +3355,7 @@ function _safeRouteClass(href) {
 }
 
 window.addEventListener('beforeunload', () => {
-  if (GHOST.loop.state === 'RUNNING' || GHOST.loop.state === 'PAUSED') {
+  if (GHOST.loop.state === 'RUNNING' || GHOST.loop.state === 'CHOICE' || GHOST.loop.state === 'PAUSED') {
     const txn = GHOST.loop.sendTxn;
     _save('crashState', JSON.stringify({
       state: GHOST.loop.state, round: GHOST.loop.round, mode: GHOST.loop.payloadMode,
@@ -3323,6 +3383,12 @@ window.addEventListener('beforeunload', () => {
       };
       GHOST.loop.detail = 'Crash recovery: prior Send is uncertain. Check the conversation; nothing was resent.';
       Reporter.capture('SEND-002', 'A reload interrupted Send confirmation. Nothing was resent.');
+      return;
+    }
+    if (cs.state === 'CHOICE') {
+      GHOST.loop.state = 'CHOICE';
+      GHOST.loop.needsPayload = true;
+      GHOST.loop.detail = 'Your choice is still needed — type your answer, then press ▶';
       return;
     }
     // Only flag as crash if it was running (not manual refresh)
@@ -4503,7 +4569,7 @@ function injectStyles() {
 .g-logo{font-weight:800;font-size:10.5px;text-transform:uppercase;color:var(--g-text-dim);letter-spacing:.6px;display:flex;align-items:center;gap:5px}
 .g-dot{display:inline-block;width:7px;height:7px;border-radius:50%;transition:all .3s}
 .g-dot.run{background:var(--g-ok);box-shadow:0 0 5px var(--g-ok);animation:gpulse 1.4s infinite}
-.g-dot.pause{background:var(--g-warn)}.g-dot.done{background:var(--g-accent)}.g-dot.err{background:var(--g-err)}.g-dot.idle{background:var(--g-text-dim)}
+.g-dot.pause{background:var(--g-warn)}.g-dot.choice{background:#38bdf8;box-shadow:0 0 5px #38bdf8}.g-dot.done{background:var(--g-accent)}.g-dot.err{background:var(--g-err)}.g-dot.idle{background:var(--g-text-dim)}
 @keyframes gpulse{0%,100%{opacity:1}50%{opacity:.4}}
 .g-plat{font-size:9.5px;background:var(--g-surface-3);padding:2px 6px;border-radius:4px;color:var(--g-accent);font-weight:600;border:1px solid #2a2b33}
 .g-minbtn{background:var(--g-surface);border:1px solid var(--g-border-2);color:var(--g-text-mid);font-size:10px;cursor:pointer;padding:1px 6px;border-radius:4px;font-weight:700;transition:all .15s}
@@ -4512,7 +4578,7 @@ function injectStyles() {
 .g-coll-row{display:none;align-items:center;gap:6px;margin-top:4px}
 #gitl.collapsed .g-coll-row{display:flex}
 .g-qbtn{width:34px;height:26px;border:1px solid var(--g-border);border-radius:6px;font-size:13px;cursor:pointer;transition:all .15s}
-.g-qbtn.play{background:var(--g-ok-bg);color:var(--g-ok);border-color:var(--g-ok-deep)}.g-qbtn.pause{background:#2d1900;color:var(--g-warn);border-color:#78350f}
+.g-qbtn.play{background:var(--g-ok-bg);color:var(--g-ok);border-color:var(--g-ok-deep)}.g-qbtn.pause{background:#2d1900;color:var(--g-warn);border-color:#78350f}.g-qbtn.choice{background:#082f49;color:#7dd3fc;border-color:#0369a1}
 .g-qstat{font-size:10px;font-weight:700}
 .g-proj{display:flex;align-items:center;gap:5px;margin-bottom:7px;padding:5px 7px;background:var(--g-surface-2);border:1px solid var(--g-border);border-radius:7px}
 .g-proj-lbl{font-size:9px;color:var(--g-text-faint);flex-shrink:0}
@@ -4877,23 +4943,24 @@ function _esc(s) {
 
 function dotClass() {
   const s = GHOST.loop.state;
-  return s==='RUNNING'?'run':s==='PAUSED'?'pause':s==='COMPLETE'?'done':s==='ERROR'?'err':'idle';
+  return s==='RUNNING'?'run':s==='CHOICE'?'choice':s==='PAUSED'?'pause':s==='COMPLETE'?'done':s==='ERROR'?'err':'idle';
 }
 function statColor() {
   const s = GHOST.loop.state;
-  return s==='RUNNING'?'#34d399':s==='PAUSED'?'#fbbf24':s==='LIMIT'?'#f59e0b':s==='COMPLETE'?'#818cf8':s==='ERROR'?'#f87171':'#555';
+  return s==='RUNNING'?'#34d399':s==='CHOICE'?'#38bdf8':s==='PAUSED'?'#fbbf24':s==='LIMIT'?'#f59e0b':s==='COMPLETE'?'#818cf8':s==='ERROR'?'#f87171':'#555';
 }
 function statLabel() {
   const L = GHOST.loop;
   if (L.state==='IDLE') return L.detail || 'Ready — type a prompt and press ▶';
   if (L.state==='RUNNING') return L.detail || `Round ${L.round} / ${L.maxRounds}`;
+  if (L.state==='CHOICE') return L.detail || 'Choice needed';
   if (L.state==='PAUSED') return L.detail || 'Paused';
   if (L.state==='LIMIT') return L.detail || `Hit ${L.maxRounds} auto-continues — ▶ for ${L.limitStep} more`;
   if (L.state==='COMPLETE') return L.detail || 'Complete';
   return L.detail || L.state;
 }
 
-function renderLoopPipeline(){const L=GHOST.loop,sec=L.countdownUntil?Math.max(0,Math.ceil((L.countdownUntil-Date.now())/1000)):0,signalDone=['proceed','halt'].includes(L.lastSignal);const output=['generating','waiting-output'].includes(L.phase)?['act',L.phase==='generating'?'AI outputting':'Waiting for output']:['done',L.phase==='idle'?'Output':'Output stopped'];const read=L.phase==='error'?['err','Read error']:signalDone&&['decision','countdown','dispatching','confirming','halted','generating'].includes(L.phase)?['done',L.lastSignal==='halt'?'HALT read':'PROCEED read']:L.phase==='reading'?['act','Checking marker']:['','Check marker'];let next=['','Next command'];if(L.phase==='countdown')next=['act',`Send in ${sec}s`];else if(L.phase==='dispatching')next=['act','Sending next'];else if(L.phase==='confirming')next=['act','Confirming send'];else if(L.phase==='generating'&&L.lastDispatchConfirmedAt)next=['done','Next sent'];else if(L.phase==='halted')next=['done','HALT'];else if(L.phase==='error')next=['err','Stopped on error'];else if(L.phase==='paused')next=['','Paused'];const row=([c,l])=>`<div class="g-pipe-row ${c}"><i>${c==='done'?'✓':c==='err'?'!':c==='act'?'●':'○'}</i><span>${_esc(l)}</span></div>`;return `<div class="g-pipe">${[output,read,next].map(row).join('')}</div>`;}
+function renderLoopPipeline(){const L=GHOST.loop,sec=L.countdownUntil?Math.max(0,Math.ceil((L.countdownUntil-Date.now())/1000)):0,signalDone=['proceed','choice','halt'].includes(L.lastSignal);const output=['generating','waiting-output'].includes(L.phase)?['act',L.phase==='generating'?'AI outputting':'Waiting for output']:['done',L.phase==='idle'?'Output':'Output stopped'];const read=L.phase==='error'?['err','Read error']:signalDone&&['decision','choice','countdown','dispatching','confirming','halted','generating'].includes(L.phase)?['done',L.lastSignal==='halt'?'HALT read':L.lastSignal==='choice'?'CHOICE read':'PROCEED read']:L.phase==='reading'?['act','Checking marker']:['','Check marker'];let next=['','Next command'];if(L.phase==='choice')next=['act','Waiting for your answer'];else if(L.phase==='countdown')next=['act',`Send in ${sec}s`];else if(L.phase==='dispatching')next=['act','Sending next'];else if(L.phase==='confirming')next=['act','Confirming send'];else if(L.phase==='generating'&&L.lastDispatchConfirmedAt)next=['done','Next sent'];else if(L.phase==='halted')next=['done','HALT'];else if(L.phase==='error')next=['err','Stopped on error'];else if(L.phase==='paused')next=['','Paused'];const row=([c,l])=>`<div class="g-pipe-row ${c}"><i>${c==='done'?'✓':c==='err'?'!':c==='act'?'●':'○'}</i><span>${_esc(l)}</span></div>`;return `<div class="g-pipe">${[output,read,next].map(row).join('')}</div>`;}
 
 /* Teach-controls UI (v8.6.0). Surfaces when Ghost can't find the input/send on
    a site, while a capture is armed, or when the site already has taught controls
@@ -4934,11 +5001,12 @@ function renderRunTab() {
   return `
     ${firstRun ? `<div class="g-firstrun"><b>👻 Quick start</b><br>1. Type your task in the chat box<br>2. Press ▶ — Ghost auto-continues until done<br>3. Walk away ☕<br><button class="g-btn-sm" id="g-onb-done">Got it</button></div>` : ''}
     ${pLabel?`<div class="g-hint" style="border-left-color:#6d28d9">♙ ${_esc(pLabel)}${GHOST.persona.perTask?' · per-task':''}${GHOST.persona.finalReview?' · final review':''} <a href="#" class="g-plink" id="g-goto-personas">edit</a></div>`:''}
+    ${L.state==='CHOICE' ? `<div class="g-limit" style="border-color:#0369a1;background:#082f49"><div class="g-limit-h" style="color:#7dd3fc">Your choice is needed</div><div class="g-limit-b">Type your answer in the site chat box, then press <b>▶ Send choice</b>. Ghost will not choose or continue on its own.</div></div>` : ''}
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-mod g-mod-transport">
       <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${_esc(statLabel())}</span></div>
     <div class="g-btns">
-      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='RUNNING'?'Pause auto-continue':'Start / Resume'} (Alt+P)">${L.state==='RUNNING'?'⏸ Pause':L.state==='LIMIT'?'▶ Continue':L.state==='PAUSED'?'▶ Resume':'▶ Start'}</button>
+      <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='RUNNING'?'Pause auto-continue':'Start / Resume'} (Alt+P)">${L.state==='RUNNING'?'⏸ Pause':L.state==='CHOICE'?'▶ Send choice':L.state==='LIMIT'?'▶ Continue':L.state==='PAUSED'?'▶ Resume':'▶ Start'}</button>
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
     </div>
@@ -5060,7 +5128,7 @@ const HELP_SECTIONS = {
   start: { label: 'Start', html: `
     <b>What is Ghost?</b><br>You give the AI a big task. Ghost keeps pressing "continue" for you — through every step — until the AI says it's truly done.<br><br>
     <b>The 30-second version:</b><br>1. Type your task in the chat box<br>2. Press the big ▶<br>3. Walk away ☕<br><br>
-    <b>How does it know when to stop?</b><br>Ghost teaches the AI two signals: <code>[[GITL::PROCEED]]</code> = "more to do", <code>[[GITL::HALT]]</code> = "finished". Ghost reads them and acts.` },
+    <b>How does it know what to do next?</b><br>Ghost continues when more work remains, stops when the task is complete, and pauses when the AI needs your choice. The exact control protocol is shown under <b>Run → Advanced → What gets injected</b>.` },
   run: { label: 'Run', html: `
     <b>The Run tab</b> is command center.<br><br>
     <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
@@ -5419,9 +5487,9 @@ function render() {
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
   panel.className = [col?'collapsed':'', GHOST.ui.position==='bottom-bar'?'pos-bb':'', GHOST.ui.position==='dock'?'pos-dock':'', GHOST.ui.position==='dock-left'?'pos-dock pos-dock-left':'', GHOST.ui.position==='orb'?('pos-orb'+(GHOST.ui.orbEdge==='left'?' orb-left':'')):'', GHOST.ui.position==='rail'?'pos-rail':''].filter(Boolean).join(' ');
   const qc = statColor();
-  const ql = L.state==='RUNNING'?'Running…':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
+  const ql = L.state==='RUNNING'?'Running…':L.state==='CHOICE'?'Choice needed':L.state==='LIMIT'?`▶ ${L.maxRounds} reached — tap for ${L.limitStep} more`:L.state==='PAUSED'?'Paused':L.state==='COMPLETE'?'Done':'Idle';
   const qIcon = L.state==='RUNNING'?'⏸':'▶';
-  const qCls  = L.state==='RUNNING'?'pause':L.state==='LIMIT'?'play limit':'play';
+  const qCls  = L.state==='RUNNING'?'pause':L.state==='CHOICE'?'choice':L.state==='LIMIT'?'play limit':'play';
   // Compact dock status: step/round + drift guard remaining (editable)
   const dockStat = (()=>{
     if (L.state==='IDLE'||L.state==='COMPLETE') return '';
