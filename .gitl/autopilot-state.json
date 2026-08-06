@@ -1,23 +1,52 @@
 {
-  "schema": "gitl-autopilot-state-v1",
+  "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "status": "active",
   "round": 1,
-  "expectedWorker": 1,
+  "roundPhase": "awaiting-supervisor",
+  "mode": "review-after-round",
+  "supervisorWorker": 1,
   "completedWorkers": [],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
-  "headAtLastHandoff": "d6df915468a75272ac335a550d906a54075e1db8",
-  "currentStep": null,
-  "nextAction": "Worker 1 should reconstruct repository state, claim the lease, and perform the earliest unfinished narrow roadmap step.",
-  "completedSteps": [],
+  "planLocation": ".gitl/orchestration/round-plan.json",
+  "orchestrationLocation": ".gitl/orchestration/README.md",
+  "promptLocation": ".gitl/orchestration/task-prompts.md",
+  "productHeadAtRoundStart": "d6df915468a75272ac335a550d906a54075e1db8",
+  "coordinationBootstrapHead": "252e40a07dfc957e9a30dcab9e8772af6556744a",
+  "headAtLastHandoff": "a496b9576b83a93c773f451923c5c4b9789ae6ed",
+  "currentStep": "Supervisor Worker 1 must validate the v2 plan and assign a dependency-safe specialist chain.",
+  "nextAction": "Worker 1 reads the orchestration package, verifies repository and CI state, then writes bounded assignments for Workers 2 through 6.",
+  "completedSteps": [
+    {
+      "type": "coordination-bootstrap",
+      "result": "Created the initial durable fallback ledger."
+    },
+    {
+      "type": "orchestration-upgrade",
+      "result": "Installed supervisor-led v2 workflow, role prompts, round plan, and mobile shell design brief."
+    }
+  ],
   "findings": [
     {
       "worker": 2,
       "type": "coordination-bootstrap",
-      "finding": "No Personal Forge autopilot state or repository fallback was found; created the required single fallback ledger without performing development work."
+      "finding": "No Personal Forge autopilot state existed; the isolated branch ledger was created."
+    },
+    {
+      "worker": "human-review",
+      "type": "orchestration-design",
+      "finding": "Peer workers duplicated planning authority; one supervisor plus five specialists is the preferred autonomous model."
+    },
+    {
+      "worker": "human-brief",
+      "type": "mobile-shell",
+      "finding": "Preferred hypothesis is an isolated compact launcher opening a numbered bottom sheet; composer integration remains experimental."
     }
+  ],
+  "briefs": [
+    ".gitl/briefs/mobile-shell-concepts.md"
   ],
   "testEvidence": [],
   "lease": {
