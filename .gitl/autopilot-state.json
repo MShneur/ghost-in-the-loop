@@ -2,12 +2,12 @@
   "schema":"gitl-autopilot-state-v2",
   "project":"ghost-in-the-loop",
   "releaseTarget":"8.8.0",
-  "status":"active",
+  "status":"awaiting-human-verification",
   "round":1,
-  "roundPhase":"in-progress",
+  "roundPhase":"complete",
   "mode":"review-after-round",
   "supervisorWorker":1,
-  "completedWorkers":[1,2,3,4,5],
+  "completedWorkers":[1,2,3,4,5,6],
   "branch":"agent/8.8-repair-resume",
   "stateLocation":".gitl/autopilot-state.json",
   "planLocation":".gitl/orchestration/round-plan.json",
@@ -18,9 +18,9 @@
   "productHeadAtRoundStart":"d6df915468a75272ac335a550d906a54075e1db8",
   "coordinationBootstrapHead":"252e40a07dfc957e9a30dcab9e8772af6556744a",
   "coordinationPackageHead":"32ef0fe254812cd67a4733cc715455c4c13941db",
-  "headAtLastHandoff":"7e0c92345bfe291e0ac22e696b1a9898a44e1347",
-  "currentStep":"Worker 6 audits round 1, including Worker 5's unexecuted mobile instrumentation and all unresolved production-path and CI gaps.",
-  "nextAction":"Worker 6 claims the lease, verifies commits and CI, audits evidence for Workers 2 through 5, marks each assignment accepted, rejected, or needs-more-evidence, then closes the round for human verification.",
+  "headAtLastHandoff":"1ff441c7a3433645407c711da48f2c445e0fc5b9",
+  "currentStep":"Round 1 audit complete; waiting for human verification before any further autonomous round.",
+  "nextAction":"Human review should inspect Worker 6 evidence and decide whether to reopen RR-E2E-FAULTS for production-path instrumentation and exact-head Chromium/mobile execution.",
   "requiredProgramsMayNotBeDropped":true,
   "requiredPrograms":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "completedSteps":[
@@ -33,7 +33,8 @@
     {"type":"R1-W3-RR-E2E-BUILD","result":"Worker 3 committed the deterministic Playwright fixture and durable evidence, marked the assignment blocked because Chromium/CI was not executed, and explicitly handed execution and falsification to Worker 4."},
     {"type":"no-stall-handoff-rule","result":"Updated orchestration policy so every worker must commit durable results, mark submitted or blocked, release the lease, and make the next dependency-safe worker ready when continuation is possible."},
     {"type":"R1-W4-RR-REDTEAM","result":"Worker 4 located exact-head failed CI, diagnosed cancelled jobs, requested a rerun, found missing repeated-replacement and real-production-path evidence, recorded a blocked verdict, and handed off to Worker 5."},
-    {"type":"R1-W5-RR-MOBILE-PERF","result":"Worker 5 added deterministic Pixel-class mobile Chromium viewport/lifecycle and bounded repair instrumentation, recorded the exact unexecuted test command and limitations, marked the assignment blocked, and handed off to Worker 6."}
+    {"type":"R1-W5-RR-MOBILE-PERF","result":"Worker 5 added deterministic Pixel-class mobile Chromium viewport/lifecycle and bounded repair instrumentation, recorded the exact unexecuted test command and limitations, marked the assignment blocked, and handed off to Worker 6."},
+    {"type":"R1-W6-ROUND-AUDIT","result":"Worker 6 accepted the supervisor plan and Worker 2 research contract, marked Workers 3 through 5 needs-more-evidence, preserved RR-E2E-FAULTS as in progress, and closed round 1 for human verification."}
   ],
   "findings":[
     {"worker":2,"type":"coordination-bootstrap","finding":"No Personal Forge autopilot state existed; the isolated branch ledger was created."},
@@ -45,12 +46,14 @@
     {"worker":3,"type":"repair-resume-fixture","finding":"The fixture commit exists, but executable Chromium evidence remains absent; Worker 4 is authorized and required to execute or falsify it while preserving the blocked status."},
     {"worker":"human-correction","type":"orchestration-liveness","finding":"Blocked or partially completed workers must still make a durable commit and explicit next-worker handoff so the staggered automation cannot deadlock on bookkeeping."},
     {"worker":4,"type":"repair-resume-red-team","finding":"Exact-head CI run 31126606451 failed with cancelled jobs; the rerun was requested, while repeated DOM replacement, rapid pause/resume, stale-work resurrection, and real production-path fault injection remain unproven."},
-    {"worker":5,"type":"mobile-performance","finding":"The existing chromium-mobile project excluded repair-resume.spec.js. Worker 5 added a Pixel-class Chromium context with 12-request coalescing, bounded service restart proxies, viewport/lifecycle churn, zero Send actuation, and duplicate accessible-control assertions, but exact-head execution and real Android production-path measurements remain absent."}
+    {"worker":5,"type":"mobile-performance","finding":"The existing chromium-mobile project excluded repair-resume.spec.js. Worker 5 added a Pixel-class Chromium context with 12-request coalescing, bounded service restart proxies, viewport/lifecycle churn, zero Send actuation, and duplicate accessible-control assertions, but exact-head execution and real Android production-path measurements remain absent."},
+    {"worker":6,"type":"round-audit","finding":"The fault matrix is acceptable as a specification, but the browser/mobile fixtures remain synthetic and unexecuted; production-path runtime injection, exact-head CI, adversarial rerender/race proof, and real-device performance evidence are still required."}
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
-  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md"],
-  "lease":{"holder":6,"acquiredAt":"2026-08-06T21:02:00Z","expiresAt":"2026-08-06T21:47:00Z","branchHead":"e689019351123250871b75ad34764d28b9c41a3b"},
+  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md"],
+  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
   "blockedReason":null,
   "publishReady":false,
-  "verificationSummary":null
+  "verificationSummary":"Complete six-worker round ready for review. Worker 2's fault contract is accepted; Workers 3 through 5 need more evidence because the final browser/mobile fixture is synthetic, unexecuted on its exact head, and does not prove production-path Repair & Resume behavior or real-device performance.",
+  "roundVerdicts":{"worker1":"accepted","worker2":"accepted","worker3":"needs-more-evidence","worker4":"needs-more-evidence","worker5":"needs-more-evidence","worker6":"accepted"}
 }
