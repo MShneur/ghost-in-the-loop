@@ -15,7 +15,7 @@
   "promptLocation": ".gitl/orchestration/task-prompts.md",
   "productHeadAtRoundStart": "d6df915468a75272ac335a550d906a54075e1db8",
   "coordinationBootstrapHead": "252e40a07dfc957e9a30dcab9e8772af6556744a",
-  "headAtLastHandoff": "a496b9576b83a93c773f451923c5c4b9789ae6ed",
+  "headAtLastHandoff": "2b0f1c7e319f1e1eb7a77206812f7b4e084f9310",
   "currentStep": "Supervisor Worker 1 must validate the v2 plan and assign a dependency-safe specialist chain.",
   "nextAction": "Worker 1 reads the orchestration package, verifies repository and CI state, then writes bounded assignments for Workers 2 through 6.",
   "completedSteps": [
@@ -26,6 +26,10 @@
     {
       "type": "orchestration-upgrade",
       "result": "Installed supervisor-led v2 workflow, role prompts, round plan, and mobile shell design brief."
+    },
+    {
+      "type": "mobile-shell-clarification",
+      "result": "Reframed teal, blue, and red as adapter-owned in-flow host layout mounts; blue and red overlays are explicitly prohibited."
     }
   ],
   "findings": [
@@ -42,7 +46,7 @@
     {
       "worker": "human-brief",
       "type": "mobile-shell",
-      "finding": "Preferred hypothesis is an isolated compact launcher opening a numbered bottom sheet; composer integration remains experimental."
+      "finding": "User-confirmed design intent is controlled site-layout hijacking: teal attaches to the host header action row, blue attaches as the final composer action cell, and red is a sibling row beneath the composer that expands the host footer upward. These are in-flow structural mounts, not overlays."
     }
   ],
   "briefs": [
