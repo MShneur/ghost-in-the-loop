@@ -7,7 +7,7 @@
   "roundPhase":"in-progress",
   "mode":"review-after-round",
   "supervisorWorker":1,
-  "completedWorkers":[1,2,3,4],
+  "completedWorkers":[1,2,3,4,5],
   "branch":"agent/8.8-repair-resume",
   "stateLocation":".gitl/autopilot-state.json",
   "planLocation":".gitl/orchestration/round-plan.json",
@@ -19,9 +19,9 @@
   "productHeadAtRoundStart":"bd9e6416211e2fb090101b4a84df5c804fe38d91",
   "coordinationBootstrapHead":"252e40a07dfc957e9a30dcab9e8772af6556744a",
   "coordinationPackageHead":"32ef0fe254812cd67a4733cc715455c4c13941db",
-  "headAtLastHandoff":"dd202ed2b3fd06949bc204c1c5e6cae3f4fda23e",
-  "currentStep":"Worker 5 executes R2-W5-RR-MOBILE-MEASURE using Worker 4's production-path adversarial fixture head.",
-  "nextAction":"Worker 5 claims the lease, checks for exact-head CI on 348a5f40dd43cd298bdceac824e56deec296a84a, executes the production-path fixture under mobile Chromium or records deterministic real-seam measurements, then submits or blocks and hands off to Worker 6.",
+  "headAtLastHandoff":"2c1102e9f21151fccccca3ab1ac4929c65fa9aba",
+  "currentStep":"Worker 6 executes R2-W6-RR-CERT-AUDIT and closes Round 2 for human verification.",
+  "nextAction":"Worker 6 claims the lease, audits all Round 2 commits and evidence, rejects unsupported exact-head/mobile certification claims, writes worker-6 evidence, and sets the round to awaiting-human-verification.",
   "requiredProgramsMayNotBeDropped":true,
   "requiredPrograms":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "completedSteps":[
@@ -33,7 +33,8 @@
     {"type":"agent-succession-rule","result":"Missed worker slots no longer deadlock the chain; the next eligible agent takes the earliest ready assignment while preserving its role and evidence contract."},
     {"type":"R2-W2-RR-PROD-SEAM","result":"A successor agent mapped the real closure-local Repair & Resume path and submitted a Playwright-only test seam design with no product changes."},
     {"type":"R2-W3-RR-PROD-INSTRUMENT","result":"Worker 3 committed a transformed-userscript Playwright fixture that invokes the real Repair and Resume path, recorded unexecuted test limitations, and handed exact-head execution to Worker 4."},
-    {"type":"R2-W4-RR-EXACTHEAD-REDTEAM","result":"Worker 4 added rapid same-task and eight-replacement production-path adversarial cases, rejected stale CI as evidence, recorded the absence of exact-head execution, and handed mobile measurement to Worker 5."}
+    {"type":"R2-W4-RR-EXACTHEAD-REDTEAM","result":"Worker 4 added rapid same-task and eight-replacement production-path adversarial cases, rejected stale CI as evidence, recorded the absence of exact-head execution, and handed mobile measurement to Worker 5."},
+    {"type":"R2-W5-RR-MOBILE-MEASURE","result":"Worker 5 added the production Repair and Resume fixture to the Pixel 7 Chromium project, recorded the lack of executable browser evidence, and handed independent certification to Worker 6."}
   ],
   "findings":[
     {"worker":6,"type":"round-audit","finding":"Production-path runtime injection, exact-head Chromium/mobile execution, adversarial rerender/race proof, and defensible performance evidence remain required."},
@@ -42,11 +43,12 @@
     {"worker":"human-review","type":"orchestration-correction","finding":"Assignments are agent-executable work units; a missed scheduled worker slot must not deadlock the chain. The next available eligible agent takes the earliest ready assignment."},
     {"worker":2,"type":"production-seam","finding":"The narrow safe seam is a Playwright-transformed userscript facade that calls closure-local repairAndResume directly and exposes no Send authority or mutable live state."},
     {"worker":3,"type":"production-path-fixture","finding":"The real closure-local repair function is now invoked by a fixture-only facade with restart and zero-actuation assertions, but exact-head Chromium execution remains unproven."},
-    {"worker":4,"type":"red-team","finding":"Rapid repeated repair and eight consecutive composer replacements are now asserted against the real production seam, but exact-head browser execution and mid-call route/lease mutation remain unproven."}
+    {"worker":4,"type":"red-team","finding":"Rapid repeated repair and eight consecutive composer replacements are now asserted against the real production seam, but exact-head browser execution and mid-call route/lease mutation remain unproven."},
+    {"worker":5,"type":"mobile-measurement","finding":"The real production fixture is now selected by the Pixel 7 Chromium project, but no exact-head browser run, lifecycle measurement, real Android result, or Firefox Android result exists."}
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
-  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md"],
-  "lease":{"holder":5,"acquiredAt":"2026-08-06T21:56:00Z","expiresAt":"2026-08-06T22:41:00Z","branchHead":"ff44534f2c514718fa7cecba66fbba2017dbce6d"},
+  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md",".gitl/evidence/round-2/worker-5.md"],
+  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null,
