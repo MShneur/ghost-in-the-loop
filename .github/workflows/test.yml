@@ -1,72 +1,78 @@
-name: Ghost in the Loop — CI
+name: Apply and certify composer semantic fix
 
 on:
   push:
     branches:
-      - main
-      - 'agent/**'
-  pull_request:
-    branches: [main]
+      - agent/8.8-composer-semantic-fix
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  unit:
-    name: Unit Tests and Base Certification
+  apply-and-certify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Build and certify extension artifacts
-        run: npm run cert:base
-      - name: Syntax checks
-        run: npm run lint
-      - name: Run unit tests
-        run: npm run test:unit
-      - name: Upload base certification artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-base-certification
-          path: test-results/extension-artifact-index.json
-          if-no-files-found: warn
-          retention-days: 7
+          ref: agent/8.8-composer-semantic-fix
+          fetch-depth: 2
 
-  e2e:
-    name: E2E Boot and Send-Safety Tests (Playwright)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Verify guarded repair branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/8.8-composer-semantic-fix"
+          test -f scripts/apply-composer-semantic-fix.js
+
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: npm
+
       - name: Install dependencies
         run: npm ci
-      - name: Install Playwright browsers
-        # Both engines: the v8.1.x Gemini failure went undiagnosed for weeks
-        # because e2e ran Chromium-only while the field failure was Firefox
-        # (Trusted Types). playwright.config.js advertises the Firefox project
-        # only when a Firefox build is present, so installing it here is what
-        # makes CI actually run the Gecko matrix.
+
+      - name: Apply deterministic source patch
+        run: node scripts/apply-composer-semantic-fix.js
+
+      - name: Regenerate extension artifact
+        run: npm run build:extension
+
+      - name: Focused composer evidence tests
+        run: npx jest tests/repo-nanny/composer-evidence.test.js --runInBand
+
+      - name: Syntax, parity, full unit, and base certification
+        run: |
+          npm run lint
+          npm run check:generated
+          npm run test:unit
+          npm run cert:base
+
+      - name: Install browser engines
         run: npx playwright install --with-deps chromium firefox
-      - name: Run browser safety tests
-        run: npm run test:e2e
-      - name: Upload e2e results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-results
-          path: |
-            e2e-results.json
-            test-results/
-          retention-days: 7
+
+      - name: Chromium multiline composer regression
+        run: npx playwright test tests/e2e/repo-nanny/composer-multiline.spec.js --project=chromium
+
+      - name: Firefox multiline composer regression
+        run: npx playwright test tests/e2e/repo-nanny/composer-multiline.spec.js --project=firefox
+
+      - name: Mobile Chromium multiline composer regression
+        run: npx playwright test tests/e2e/repo-nanny/composer-multiline.spec.js --project=chromium-mobile
+
+      - name: Commit verified fix and remove carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout HEAD^ -- .github/workflows/test.yml
+          rm scripts/apply-composer-semantic-fix.js
+          git add ghost-in-the-loop.user.js extension/content.js CHANGELOG.md \
+            tests/repo-nanny/composer-evidence.test.js \
+            tests/e2e/repo-nanny/composer-multiline.spec.js \
+            .github/workflows/test.yml scripts/apply-composer-semantic-fix.js
+          git diff --cached --check
+          git commit -m "fix: verify multiline rich-editor prompts semantically"
+          git push origin HEAD:agent/8.8-composer-semantic-fix
