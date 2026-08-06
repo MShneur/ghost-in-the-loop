@@ -19,8 +19,8 @@
   "mandatoryReads":[".gitl/orchestration/task-prompts.md",".gitl/orchestration/round-plan.json",".gitl/orchestration/agent-succession-rule.md"],
   "productHeadAtRoundStart":"73011bef60ac9c6129b5f946a4b814a8842e3332",
   "headAtLastHandoff":"02520ff6220a1bb720910e1a043cab1672e510f1",
-  "currentStep":"Automatic recovery dispatch is armed for the next wake. The earliest ready assignment is R3-A1-RR-CI-RECOVERY.",
-  "nextAction":"At the 6:20 PM EDT wake, nominal Worker 3 must automatically claim R3-A1-RR-CI-RECOVERY from round-plan.json and execute it. It must not HOLD because Worker 2 missed 6:10, because of nominal-role mismatch, or because an earlier test failed. If a test fails, it must activate R3-A2 with exact head, command, run/job IDs, logs, traces, and reproduction evidence before releasing the lease.",
+  "currentStep":"Human-authorized orchestration hardening: add active-work waiting and bounded research fallback without displacing R3-A1-RR-CI-RECOVERY.",
+  "nextAction":"Complete the orchestration hardening transaction, release the lease, then the next available agent executes R3-A1-RR-CI-RECOVERY.",
   "automaticDispatch":{
     "enabled":true,
     "scheduledFor":"2026-08-06T18:20:00-04:00",
@@ -47,7 +47,7 @@
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md",".gitl/evidence/round-2/worker-5.md",".gitl/evidence/round-2/worker-6.md",".gitl/evidence/round-3/worker-1.md"],
-  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
+  "lease":{"holder":"orchestration-hardening-agent","acquiredAt":"2026-08-06T22:15:00Z","expiresAt":"2026-08-06T23:00:00Z","branchHead":"f544d46c814cbbede9049c00e25192587ddc4264"},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null
