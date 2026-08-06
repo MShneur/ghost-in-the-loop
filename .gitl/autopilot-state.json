@@ -44,7 +44,7 @@
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md"],
-  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
+  "lease":{"holder":4,"acquiredAt":"2026-08-06T21:53:00Z","expiresAt":"2026-08-06T22:38:00Z","branchHead":"f6dde7798593dc692af223e2380a5a4df65f72e4"},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null,
