@@ -47,3 +47,4 @@ changelog = replaceOnce(changelog, heading, heading + entry, '8.8 changelog head
 fs.writeFileSync(changelogPath, changelog);
 
 console.log('Applied semantic rich-editor composer reader and changelog entry.');
+// This normal file update intentionally triggers the already-registered guarded CI workflow.
