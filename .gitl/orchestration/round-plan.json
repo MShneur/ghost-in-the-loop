@@ -4,7 +4,7 @@
   "releaseTarget": "8.8.0",
   "mode": "review-after-round",
   "round": 1,
-  "status": "awaiting-supervisor",
+  "status": "in-progress",
   "supervisorWorker": 1,
   "schedule": [
     { "worker": 1, "minute": 0, "role": "supervisor-integrator" },
@@ -28,7 +28,7 @@
     {
       "id": "RR-E2E-FAULTS",
       "title": "Browser-level Repair and Resume fault injection",
-      "status": "ready",
+      "status": "in-progress",
       "releaseCritical": true
     },
     {
@@ -58,130 +58,103 @@
       ],
       "fallback": "Keep the current rail only when an adapter cannot pass structural mount verification.",
       "phases": [
-        {
-          "id": "MS-1-RESEARCH",
-          "title": "Map structural mount contracts for supported platform adapters",
-          "dependsOn": [],
-          "requiredEvidence": [
-            "header action row",
-            "composer action row",
-            "composer/footer stack",
-            "layout type",
-            "rerender behavior",
-            "message-list bottom-spacing behavior",
-            "reversible insertion design"
-          ]
-        },
-        {
-          "id": "MS-2-MOUNT-CORE",
-          "title": "Implement structural mount registry and verification/repair primitives",
-          "dependsOn": ["MS-1-RESEARCH"],
-          "requiredEvidence": [
-            "single mount identity",
-            "scoped observer",
-            "reversible style changes",
-            "clean unmount",
-            "fallback on verification failure"
-          ]
-        },
-        {
-          "id": "MS-3-BLUE-RED",
-          "title": "Implement blue composer cell and red expandable sibling row behind an experimental flag",
-          "dependsOn": ["MS-2-MOUNT-CORE"],
-          "requiredEvidence": [
-            "normal document flow",
-            "host Send node identity preserved",
-            "red expansion pushes content upward",
-            "no duplicate mount after composer replacement"
-          ]
-        },
-        {
-          "id": "MS-4-TEAL",
-          "title": "Implement teal header action cell where adapter structure permits",
-          "dependsOn": ["MS-2-MOUNT-CORE"],
-          "requiredEvidence": [
-            "normal header reflow",
-            "no hidden or overlapped host controls",
-            "responsive overflow behavior"
-          ]
-        },
-        {
-          "id": "MS-5-RED-TEAM",
-          "title": "Adversarial structural-mount and Send-safety certification",
-          "dependsOn": ["MS-3-BLUE-RED", "MS-4-TEAL"],
-          "requiredEvidence": [
-            "host controls inserted before and after Ghost",
-            "repeated subtree replacement",
-            "exactly one mount",
-            "Send/attachments/voice/tools remain operable",
-            "unmount restores layout"
-          ]
-        },
-        {
-          "id": "MS-6-MOBILE-PERF-A11Y",
-          "title": "Mobile, accessibility, keyboard, layout-shift, and lower-end performance certification",
-          "dependsOn": ["MS-5-RED-TEAM"],
-          "requiredEvidence": [
-            "keyboard open/close",
-            "orientation",
-            "narrow width and large text",
-            "focus and accessible names",
-            "observer and layout measurements",
-            "lower-end or throttled-device results"
-          ]
-        },
-        {
-          "id": "MS-7-CROSS-ADAPTER",
-          "title": "Expand and certify structural mount contracts across supported platforms",
-          "dependsOn": ["MS-6-MOBILE-PERF-A11Y"],
-          "requiredEvidence": [
-            "adapter-by-adapter result",
-            "certified mount modes",
-            "documented rail fallback where structural mounting is unsafe"
-          ]
-        },
-        {
-          "id": "MS-8-FINAL-AUDIT",
-          "title": "Devil's Advocate and customer-voice review of the host-affixed shell",
-          "dependsOn": ["MS-7-CROSS-ADAPTER"],
-          "requiredEvidence": [
-            "maintenance cost review",
-            "rail comparison",
-            "safety review",
-            "release recommendation"
-          ]
-        }
+        { "id": "MS-1-RESEARCH", "title": "Map structural mount contracts for supported platform adapters", "dependsOn": [], "requiredEvidence": ["header action row", "composer action row", "composer/footer stack", "layout type", "rerender behavior", "message-list bottom-spacing behavior", "reversible insertion design"] },
+        { "id": "MS-2-MOUNT-CORE", "title": "Implement structural mount registry and verification/repair primitives", "dependsOn": ["MS-1-RESEARCH"], "requiredEvidence": ["single mount identity", "scoped observer", "reversible style changes", "clean unmount", "fallback on verification failure"] },
+        { "id": "MS-3-BLUE-RED", "title": "Implement blue composer cell and red expandable sibling row behind an experimental flag", "dependsOn": ["MS-2-MOUNT-CORE"], "requiredEvidence": ["normal document flow", "host Send node identity preserved", "red expansion pushes content upward", "no duplicate mount after composer replacement"] },
+        { "id": "MS-4-TEAL", "title": "Implement teal header action cell where adapter structure permits", "dependsOn": ["MS-2-MOUNT-CORE"], "requiredEvidence": ["normal header reflow", "no hidden or overlapped host controls", "responsive overflow behavior"] },
+        { "id": "MS-5-RED-TEAM", "title": "Adversarial structural-mount and Send-safety certification", "dependsOn": ["MS-3-BLUE-RED", "MS-4-TEAL"], "requiredEvidence": ["host controls inserted before and after Ghost", "repeated subtree replacement", "exactly one mount", "Send/attachments/voice/tools remain operable", "unmount restores layout"] },
+        { "id": "MS-6-MOBILE-PERF-A11Y", "title": "Mobile, accessibility, keyboard, layout-shift, and lower-end performance certification", "dependsOn": ["MS-5-RED-TEAM"], "requiredEvidence": ["keyboard open/close", "orientation", "narrow width and large text", "focus and accessible names", "observer and layout measurements", "lower-end or throttled-device results"] },
+        { "id": "MS-7-CROSS-ADAPTER", "title": "Expand and certify structural mount contracts across supported platforms", "dependsOn": ["MS-6-MOBILE-PERF-A11Y"], "requiredEvidence": ["adapter-by-adapter result", "certified mount modes", "documented rail fallback where structural mounting is unsafe"] },
+        { "id": "MS-8-FINAL-AUDIT", "title": "Devil's Advocate and customer-voice review of the host-affixed shell", "dependsOn": ["MS-7-CROSS-ADAPTER"], "requiredEvidence": ["maintenance cost review", "rail comparison", "safety review", "release recommendation"] }
       ]
     },
+    { "id": "BUILD-IDENTITY", "title": "Canonical build, candidate, and release-channel identity", "status": "backlog", "releaseCritical": true },
+    { "id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, and protocol reconciliation", "status": "backlog", "releaseCritical": true },
+    { "id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true }
+  ],
+  "priorityOrder": ["RR-E2E-FAULTS", "LIFECYCLE-FROZEN-DISCARDED", "LONG-CHAT-PERF", "MOBILE-SHELL-STRUCTURAL", "BUILD-IDENTITY", "DOCS-RECONCILIATION", "FINAL-CERT-PACKAGE"],
+  "assignments": [
     {
-      "id": "BUILD-IDENTITY",
-      "title": "Canonical build, candidate, and release-channel identity",
-      "status": "backlog",
-      "releaseCritical": true
+      "id": "R1-W2-RR-FAULT-MATRIX",
+      "worker": 2,
+      "role": "researcher-architect",
+      "program": "RR-E2E-FAULTS",
+      "status": "ready",
+      "goal": "Reproduce and specify a browser-level Repair and Resume fault-injection matrix for the current implementation, including detached DOM, interrupted generation, route replacement, transient unavailable controls, stale lease/state, and duplicate-resume prevention.",
+      "rationale": "RR-E2E-FAULTS is the earliest unfinished release-critical program; implementation must follow verified browser failure contracts rather than assumptions.",
+      "dependencies": [],
+      "allowedFiles": ["tests/e2e/**", "tests/**repair**", "docs/**", ".gitl/evidence/round-1/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["broad production changes", "weakening Send or CHOICE safeguards", "changing main", "merge/tag/release/publish"],
+      "acceptanceCriteria": ["Map each fault to current observable behavior and expected safe recovery", "Identify exact fixture hooks and deterministic injection points", "Define duplicate-resume and uncertain-Send negative assertions", "Add a focused specification or failing fixture test when feasible", "Record primary browser/platform sources only where external behavior is claimed"],
+      "requiredTests": ["Run any added focused Jest or Playwright specification test", "Record existing relevant test results or NOT TESTED"],
+      "requiredEvidence": ["fault matrix", "repository reproduction", "implementation-ready test contract", "files/commit", "commands and CI IDs"],
+      "fallbackWork": "If browser execution is unavailable, produce the deterministic fixture/specification test and exact Playwright commands without changing production code."
     },
     {
-      "id": "DOCS-RECONCILIATION",
-      "title": "Architecture, README, help, changelog, and protocol reconciliation",
-      "status": "backlog",
-      "releaseCritical": true
+      "id": "R1-W3-RR-E2E-BUILD",
+      "worker": 3,
+      "role": "builder",
+      "program": "RR-E2E-FAULTS",
+      "status": "waiting",
+      "goal": "Implement the smallest Repair and Resume browser fault-injection fixtures and regression coverage required by Worker 2's accepted contract; change production code only when a reproduced test proves a defect.",
+      "rationale": "The builder follows the research contract and keeps changes reviewable and evidence-driven.",
+      "dependencies": ["R1-W2-RR-FAULT-MATRIX:submitted"],
+      "allowedFiles": ["tests/e2e/**", "tests/**repair**", "ghost-in-the-loop.user.js", "extension/content.js", "scripts/build-extension.js", ".gitl/evidence/round-1/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["changing unrelated UI", "second Send path", "weakening CHOICE/route/lease uncertainty handling", "changing main", "merge/tag/release/publish"],
+      "acceptanceCriteria": ["Deterministic browser faults cover the Worker 2 matrix slice", "No duplicate resume or duplicate send occurs", "Detached/replaced controls recover or stop safely", "Generated extension artifact parity is preserved when production code changes", "All required focused gates pass before commit"],
+      "requiredTests": ["node syntax checks", "focused Jest tests", "focused Playwright RR tests", "npm run check:generated when production changes", "npm test when feasible"],
+      "requiredEvidence": ["reproduction before fix", "implementation commit", "diff scope", "test output and CI IDs", "remaining uncovered faults"],
+      "fallbackWork": "If Worker 2 exposes no product defect, add only the deterministic browser fixtures/regression tests and record no production change."
     },
     {
-      "id": "FINAL-CERT-PACKAGE",
-      "title": "Full certification, release audit, package, and SHA-256 verification",
-      "status": "backlog",
-      "releaseCritical": true
+      "id": "R1-W4-RR-REDTEAM",
+      "worker": 4,
+      "role": "test-engineer-red-team",
+      "program": "RR-E2E-FAULTS",
+      "status": "waiting",
+      "goal": "Attempt to falsify Worker 3's Repair and Resume coverage using races, repeated subtree replacement, route changes, stale state, uncertain Send, and rapid pause/resume sequences.",
+      "rationale": "Repair paths are safety-critical and need independent negative-path evidence before acceptance.",
+      "dependencies": ["R1-W3-RR-E2E-BUILD:submitted"],
+      "allowedFiles": ["tests/e2e/**", "tests/**repair**", ".gitl/evidence/round-1/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["rewriting production implementation", "weakening assertions", "changing main", "merge/tag/release/publish"],
+      "acceptanceCriteria": ["Exercise at least one race and one repeated-DOM-replacement case", "Verify exactly-once resume/send authority", "Verify uncertainty stops rather than guesses", "Verify route and lease transitions do not resurrect stale work", "File failing evidence rather than masking failures"],
+      "requiredTests": ["focused Playwright adversarial suite", "relevant Jest state/lease tests", "browser matrix where available"],
+      "requiredEvidence": ["falsification attempts", "failure traces or pass evidence", "test commands/CI IDs", "scope and limitations"],
+      "fallbackWork": "If browser execution is blocked, add adversarial deterministic tests that fail on the unsafe behavior and submit them without changing production code."
+    },
+    {
+      "id": "R1-W5-RR-MOBILE-PERF",
+      "worker": 5,
+      "role": "mobile-browser-accessibility-performance",
+      "program": "RR-E2E-FAULTS",
+      "status": "waiting",
+      "goal": "Evaluate the round's Repair and Resume path under mobile Chromium viewport/lifecycle pressure and measure whether recovery polling, observers, timers, or repeated scans remain bounded.",
+      "rationale": "A browser fault fix that is correct on desktop can still regress Android and lower-end devices.",
+      "dependencies": ["R1-W3-RR-E2E-BUILD:submitted"],
+      "allowedFiles": ["tests/e2e/**", "tests/**performance**", "docs/**", ".gitl/evidence/round-1/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["broad feature implementation", "subjective performance claims without measurements", "changing main", "merge/tag/release/publish"],
+      "acceptanceCriteria": ["Run or define a mobile Chromium fault scenario", "Record timer/observer/scan counts or bounded proxies", "Check viewport resize and background/foreground transitions where harness permits", "Confirm no accessibility-visible duplicate status/control is introduced", "State Firefox/mobile gaps explicitly"],
+      "requiredTests": ["Playwright mobile Chromium project or equivalent emulation", "focused performance instrumentation", "relevant regression suite"],
+      "requiredEvidence": ["measurements", "device/emulation settings", "commands and CI IDs", "Android/lower-end risk conclusion"],
+      "fallbackWork": "If mobile browser execution is unavailable, add deterministic instrumentation assertions and document the exact CI/browser command needed."
+    },
+    {
+      "id": "R1-W6-ROUND-AUDIT",
+      "worker": 6,
+      "role": "devils-advocate-release-auditor",
+      "program": "RR-E2E-FAULTS",
+      "status": "waiting",
+      "goal": "Audit every round-1 assignment, commit, diff, test claim, CI run, generated parity result, and evidence file; accept, reject, or require more evidence for each assignment and close the round for human verification.",
+      "rationale": "Review-after-round mode requires an independent evidence audit before any roadmap progress is credited.",
+      "dependencies": ["R1-W2-RR-FAULT-MATRIX:submitted-or-blocked", "R1-W3-RR-E2E-BUILD:submitted-or-blocked", "R1-W4-RR-REDTEAM:submitted-or-blocked", "R1-W5-RR-MOBILE-PERF:submitted-or-blocked"],
+      "allowedFiles": [".gitl/evidence/round-1/**", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["product implementation", "accepting chat-only claims", "changing main", "merge/tag/release/publish"],
+      "acceptanceCriteria": ["Review all worker evidence and referenced commits", "Verify clean-head CI and generated parity where claimed", "Mark each assignment accepted/rejected/needs-more-evidence with reasons", "Reject safety regressions or unsupported completion", "Set awaiting-human-verification and release lease"],
+      "requiredTests": ["Re-run or inspect authoritative clean-head gates as needed", "Verify CI run IDs and conclusions"],
+      "requiredEvidence": ["assignment-by-assignment verdict", "commit/diff audit", "test/CI audit", "unresolved risks", "round recommendation"],
+      "fallbackWork": "When evidence is missing, mark needs-more-evidence or rejected; do not infer success."
     }
   ],
-  "priorityOrder": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
-  "assignments": [],
   "evidence": [],
   "roundDecision": null,
   "humanReviewRequired": true,
