@@ -3,7 +3,7 @@
   "project":"ghost-in-the-loop",
   "releaseTarget":"8.8.0",
   "mode":"review-after-round",
-  "round":2,
+  "round":3,
   "status":"in-progress",
   "supervisorWorker":1,
   "schedule":[
@@ -14,30 +14,65 @@
     {"worker":5,"minute":40,"role":"mobile-browser-accessibility-performance"},
     {"worker":6,"minute":50,"role":"devils-advocate-release-auditor"}
   ],
-  "planningPolicy":{"supervisorOwnsOfficialRoadmap":true,"specialistsMayRecommendOnly":true,"oneBoundedAssignmentPerWorker":true,"dependenciesMustBeSatisfied":true,"productWorkRequiresEvidence":true,"workerEvidenceRequired":true,"roundClosesAfterWorker6":true,"userRequiredProgramsMayNotBeDropped":true,"blockedWorkMustHandOff":true,"missedSlotMayBeClaimedByNextEligibleAgent":true,"scheduleIsWakeCadenceNotTaskOwnership":true,"agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md"},
+  "planningPolicy":{
+    "supervisorOwnsOfficialRoadmap":true,
+    "oneBoundedAssignmentPerWake":true,
+    "dependenciesMustBeSatisfied":true,
+    "productWorkRequiresEvidence":true,
+    "workerEvidenceRequired":true,
+    "userRequiredProgramsMayNotBeDropped":true,
+    "blockedWorkMustHandOff":true,
+    "missedSlotMayBeClaimedByNextEligibleAgent":true,
+    "failedAttemptCreatesReadyRecovery":true,
+    "staleCompletedLeaseMayBeRepaired":true,
+    "scheduleIsWakeCadenceNotTaskOwnership":true,
+    "agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md"
+  },
   "requiredPrograms":[
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"in-progress","releaseCritical":true},
     {"id":"LIFECYCLE-FROZEN-DISCARDED","title":"Frozen and discarded page lifecycle research and recovery","status":"backlog","releaseCritical":true},
     {"id":"LONG-CHAT-PERF","title":"Long-conversation observation, scanning, rendering, timer, and constrained-device performance","status":"backlog","releaseCritical":true},
-    {"id":"MOBILE-SHELL-STRUCTURAL","title":"Host-affixed mobile Ghost shell research, implementation, and certification","status":"backlog","releaseCritical":true,"userRequired":true,"brief":".gitl/briefs/mobile-shell-concepts.md"},
+    {"id":"MOBILE-SHELL-STRUCTURAL","title":"Host-affixed mobile Ghost shell research, implementation, and certification","status":"backlog","releaseCritical":true,"userRequired":true},
     {"id":"BUILD-IDENTITY","title":"Canonical build, candidate, and release-channel identity","status":"backlog","releaseCritical":true},
     {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, and protocol reconciliation","status":"backlog","releaseCritical":true},
     {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"backlog","releaseCritical":true}
   ],
   "priorityOrder":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "assignments":[
-    {"id":"R2-W2-RR-PROD-SEAM","worker":2,"role":"researcher-architect","program":"RR-E2E-FAULTS","status":"submitted","executedBy":"successor-agent-after-missed-slot","goal":"Design and prove the narrowest safe test-only seam that invokes the real production Repair and Resume path.","dependencies":[],"evidencePath":".gitl/evidence/round-2/worker-2.md","submissionCommits":["0b84c8bb86709b4f30d9da4154f9dad11a18acb5","075538c6c7777430cdf6c28000e21b79cee59603","7fe66b17d06c08ec8f18468cbfa7ed399abd7981"]},
-    {"id":"R2-W3-RR-PROD-INSTRUMENT","worker":3,"role":"builder","program":"RR-E2E-FAULTS","status":"blocked","goal":"Implement test-only production-path instrumentation and focused browser coverage.","dependencies":["R2-W2-RR-PROD-SEAM:submitted"],"evidencePath":".gitl/evidence/round-2/worker-3.md","implementationCommit":"8bf2bde529d3e43c976e0be1b38ce08ab562510a","blockedReason":"No exact-head Chromium execution."},
-    {"id":"R2-W4-RR-EXACTHEAD-REDTEAM","worker":4,"role":"test-engineer-red-team","program":"RR-E2E-FAULTS","status":"blocked","goal":"Execute and falsify production-path Repair and Resume under adversarial races.","dependencies":["R2-W3-RR-PROD-INSTRUMENT:submitted-or-blocked"],"evidencePath":".gitl/evidence/round-2/worker-4.md","testCommit":"348a5f40dd43cd298bdceac824e56deec296a84a","evidenceCommit":"dd202ed2b3fd06949bc204c1c5e6cae3f4fda23e","blockedReason":"No exact-head Chromium run; mid-call route/lease mutation unproven."},
-    {"id":"R2-W5-RR-MOBILE-MEASURE","worker":5,"role":"mobile-browser-accessibility-performance","program":"RR-E2E-FAULTS","status":"blocked","goal":"Execute the production-path repair fixture under mobile Chromium and constrained-device conditions.","dependencies":["R2-W3-RR-PROD-INSTRUMENT:submitted-or-blocked","R2-W4-RR-EXACTHEAD-REDTEAM:submitted-or-blocked"],"allowedFiles":["tests/e2e/**","tests/**performance**","playwright.config.*","docs/**",".gitl/evidence/round-2/worker-5.md",".gitl/orchestration/round-plan.json",".gitl/autopilot-state.json"],"prohibitedActions":["subjective performance claims","invented real-device evidence","broad feature implementation","main/merge/tag/release/publish"],"acceptanceCriteria":["Run mobile Chromium against production seam","Exercise viewport and lifecycle transitions","Record bounded recovery proxies","Check accessible duplicates and focus","Report real-device absence"],"requiredTests":["Playwright mobile Chromium","constrained-device run","focused accessibility assertions","relevant regression suite"],"requiredEvidence":["device profile","exact commands and head","measurements","CI IDs","Android and Firefox limitations"],"evidencePath":".gitl/evidence/round-2/worker-5.md","testCommit":"61ea682b7395225a005864b6aa82701a0e46c82d","evidenceCommit":"12c9068b0b1cdb8ef15a115bce4c261d248022cc","blockedReason":"Production fixture is now selected by the Pixel 7 project, but no browser execution or exact-head CI completed."},
-    {"id":"R2-W6-RR-CERT-AUDIT","worker":6,"role":"devils-advocate-release-auditor","program":"RR-E2E-FAULTS","status":"ready","goal":"Audit round 2 and decide whether RR-E2E-FAULTS is certified, rejected, or still needs evidence.","rationale":"Only independent audit may distinguish actual production-path proof from improved scaffolding.","dependencies":["R2-W2-RR-PROD-SEAM:submitted-or-blocked","R2-W3-RR-PROD-INSTRUMENT:submitted-or-blocked","R2-W4-RR-EXACTHEAD-REDTEAM:submitted-or-blocked","R2-W5-RR-MOBILE-MEASURE:submitted-or-blocked"],"allowedFiles":[".gitl/evidence/round-2/worker-6.md",".gitl/orchestration/round-plan.json",".gitl/autopilot-state.json"],"prohibitedActions":["product implementation","accepting stale-head/cancelled CI","main/merge/tag/release/publish"],"acceptanceCriteria":["Verify real production path invocation","Verify instrumentation is test-only","Verify exact-head Chromium and mobile results","Verify adversarial race coverage","Verify zero Send actuation and exactly-once restart","Mark each assignment and close the round"],"requiredTests":["independent inspection of commits, diffs, logs, artifacts, and evidence"],"requiredEvidence":["verdict per worker","authoritative heads and CI IDs","unsupported claims rejected","exact next action"],"fallbackWork":"Close the round as needs-more-evidence without weakening the certification bar.","evidencePath":".gitl/evidence/round-2/worker-6.md"}
+    {
+      "id":"R3-A1-RR-CI-RECOVERY",
+      "intendedRole":"builder-test-recovery",
+      "status":"ready",
+      "program":"RR-E2E-FAULTS",
+      "goal":"Verify the Firefox matrix repair and obtain authoritative exact-head desktop Chromium and Pixel 7 Chromium production-path Repair and Resume results.",
+      "dependencies":[],
+      "allowedFiles":["tests/e2e/**","playwright.config.*",".github/workflows/**",".gitl/evidence/round-3/**",".gitl/orchestration/round-plan.json",".gitl/autopilot-state.json"],
+      "prohibitedActions":["main/merge/tag/release/publish","weakening assertions","accepting stale-head CI","broad product implementation without a reproduced defect"],
+      "acceptanceCriteria":["Firefox no longer executes Chromium-only isMobile context","Firefox-safe narrow viewport coverage remains","production-path fixture runs on exact-head Chromium","production-path fixture runs on Pixel 7 Chromium","zero Send actuation and restart assertions are recorded","failure creates the next ready repair assignment rather than stopping"],
+      "requiredTests":["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox","npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium","npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile","relevant exact-head CI"],
+      "requiredEvidence":["exact head","commands","CI run and job IDs","logs or traces","criterion results","next recovery assignment for every failure"],
+      "fallbackWork":"If workflow dispatch is unavailable, add a guarded temporary exact-head workflow, record the run, and remove temporary machinery after authoritative clean-head execution."
+    },
+    {
+      "id":"R3-A2-RR-PROVEN-FAILURE-REPAIR",
+      "intendedRole":"builder",
+      "status":"waiting-on-predecessor",
+      "program":"RR-E2E-FAULTS",
+      "goal":"Repair only defects proven by R3-A1, rerun focused exact-head tests, and preserve safety invariants.",
+      "dependencies":["R3-A1-RR-CI-RECOVERY:failed-or-submitted"],
+      "activationRule":"If A1 passes fully, mark this not-needed and activate A3. If A1 fails, rewrite this assignment with the exact failing test and evidence, then make it ready."
+    },
+    {
+      "id":"R3-A3-RR-REDTEAM-CERT",
+      "intendedRole":"red-team-auditor",
+      "status":"waiting-on-predecessor",
+      "program":"RR-E2E-FAULTS",
+      "goal":"Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
+      "dependencies":["R3-A1-RR-CI-RECOVERY:submitted","R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted-or-not-needed"]
+    }
   ],
   "evidence":[
-    {"worker":1,"path":".gitl/evidence/round-2/worker-1.md","status":"submitted"},
-    {"worker":2,"path":".gitl/evidence/round-2/worker-2.md","status":"submitted"},
-    {"worker":3,"path":".gitl/evidence/round-2/worker-3.md","status":"blocked"},
-    {"worker":4,"path":".gitl/evidence/round-2/worker-4.md","status":"blocked"},
-    {"worker":5,"path":".gitl/evidence/round-2/worker-5.md","status":"blocked","testCommit":"61ea682b7395225a005864b6aa82701a0e46c82d","evidenceCommit":"12c9068b0b1cdb8ef15a115bce4c261d248022cc"}
+    {"worker":1,"path":".gitl/evidence/round-3/worker-1.md","status":"submitted"}
   ],
   "roundDecision":null,
   "humanReviewRequired":true,
