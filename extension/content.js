@@ -2472,7 +2472,18 @@ let _pendingSendResolve = null;
 function _composerText(el) {
   if (!el) return '';
   const tag = String(el.tagName || '').toUpperCase();
-  const text = tag === 'TEXTAREA' || tag === 'INPUT' ? el.value : el.textContent;
+  let text;
+  if (tag === 'TEXTAREA' || tag === 'INPUT') {
+    text = el.value;
+  } else {
+    /* Rich editors represent visible line breaks with block nodes. textContent
+       concatenates adjacent blocks (for example <p>one</p><p>two</p> becomes
+       "onetwo"), which falsely rejected complete multiline prompts on current
+       ChatGPT mobile. innerText reflects the rendered editing text; fall back
+       to textContent for DOM shims and editors that do not expose innerText. */
+    const rendered = typeof el.innerText === 'string' ? el.innerText : '';
+    text = rendered || el.textContent;
+  }
   return String(text || '').trim();
 }
 

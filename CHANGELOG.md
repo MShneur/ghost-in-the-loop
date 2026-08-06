@@ -3,6 +3,7 @@
 
 ## [8.8.0] — workflow-neutral controls and explicit decisions
 
+- Fixed false COMPOSER-002 pauses for complete multiline prompts in block-structured contenteditable editors by verifying rendered semantic text while retaining exact normalized staging checks.
 - Added context-aware adapter capability states so idle conditional controls do not create false ADAPTER-001 reports, while missing controls during required operations still fail closed.
 - Added a health-gated Repair & Resume action that rebuilds Ghost runtime services and rearms paused observation without injecting a prompt, clicking Continue, or opening a Send transaction itself.
 - Made Advanced a real opt-in boundary: Basic injects only PROCEED, CHOICE, and HALT and leaves the user's existing workflow untouched.
