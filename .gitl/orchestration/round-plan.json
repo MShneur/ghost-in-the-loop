@@ -47,10 +47,18 @@
     {
       "id": "MOBILE-SHELL",
       "priority": 4,
-      "title": "Mobile Ghost launcher and menu shell evaluation",
+      "title": "Host-affixed mobile Ghost header, composer-cell, and expandable-row evaluation",
       "status": "backlog",
       "releaseCritical": false,
-      "brief": ".gitl/briefs/mobile-shell-concepts.md"
+      "brief": ".gitl/briefs/mobile-shell-concepts.md",
+      "mountingRequirement": "Attach Ghost into each site's real row/column layout so the host page reflows around it; do not implement blue or red as viewport overlays.",
+      "mountModes": [
+        "header-action-cell",
+        "composer-action-cell",
+        "composer-sibling-row"
+      ],
+      "overlayProhibited": true,
+      "implementationGate": "Adapter-specific structural discovery, reversible insertion, Send-node preservation, duplicate prevention, and in-flow expansion tests are required before product implementation."
     },
     {
       "id": "BUILD-IDENTITY",
