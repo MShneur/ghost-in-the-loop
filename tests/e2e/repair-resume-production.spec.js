@@ -120,6 +120,30 @@ test.describe('Repair & Resume production path', () => {
     expect(result.lastRepair).toBeTruthy();
   });
 
+  test('rapid same-task repair requests restart the failed ticker exactly once', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const form = document.getElementById('composer');
+      const send = document.getElementById('true-send');
+      const input = document.getElementById('chat-box');
+      const events = { submit: 0, click: 0, input: 0, keydown: 0 };
+      form.addEventListener('submit', e => { events.submit += 1; e.preventDefault(); });
+      send.addEventListener('click', () => { events.click += 1; });
+      input.addEventListener('input', () => { events.input += 1; });
+      input.addEventListener('keydown', () => { events.keydown += 1; });
+
+      window.__GITL_Test.preparePausedTickerFault();
+      const before = window.__GITL_Test.counts();
+      const repairs = Array.from({ length: 12 }, () => window.__GITL_Test.requestRepair());
+      const after = window.__GITL_Test.counts();
+      return { before, after, repairs, events, value: input.value };
+    });
+
+    expect(result.repairs[0].ok).toBe(true);
+    expect(result.after.tickerStart - result.before.tickerStart).toBe(1);
+    expect(result.events).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+    expect(result.value).toBe('unchanged');
+  });
+
   test('route, lease, and uncertain-send blockers fail closed in the real health model', async ({ page }) => {
     const blocked = await page.evaluate(() => ({
       route: window.__GITL_Test.runtimeHealth({
@@ -150,36 +174,58 @@ test.describe('Repair & Resume production path', () => {
     expect(blocked.journal.canRepairAndResume).toBe(false);
   });
 
-  test('replaced composer receives no repair-time events and stale nodes stay untouched', async ({ page }) => {
+  test('repeated composer replacement leaves every stale node untouched', async ({ page }) => {
     const result = await page.evaluate(() => {
-      const oldForm = document.getElementById('composer');
-      const oldInput = document.getElementById('chat-box');
-      const oldSend = document.getElementById('true-send');
-      const oldEvents = { submit: 0, click: 0, input: 0, keydown: 0 };
-      oldForm.addEventListener('submit', e => { oldEvents.submit += 1; e.preventDefault(); });
-      oldSend.addEventListener('click', () => { oldEvents.click += 1; });
-      oldInput.addEventListener('input', () => { oldEvents.input += 1; });
-      oldInput.addEventListener('keydown', () => { oldEvents.keydown += 1; });
+      const stale = [];
+      for (let i = 0; i < 8; i += 1) {
+        const form = document.querySelector('form');
+        const input = form.querySelector('textarea');
+        const send = form.querySelector('button');
+        const events = { submit: 0, click: 0, input: 0, keydown: 0 };
+        form.addEventListener('submit', e => { events.submit += 1; e.preventDefault(); });
+        send.addEventListener('click', () => { events.click += 1; });
+        input.addEventListener('input', () => { events.input += 1; });
+        input.addEventListener('keydown', () => { events.keydown += 1; });
+        const replacement = form.cloneNode(true);
+        replacement.id = `composer-replacement-${i}`;
+        form.replaceWith(replacement);
+        stale.push({ form, input, send, events });
+      }
 
-      const replacement = oldForm.cloneNode(true);
-      replacement.id = 'composer-replacement';
-      oldForm.replaceWith(replacement);
+      const live = document.querySelector('form');
+      const liveInput = live.querySelector('textarea');
+      const liveSend = live.querySelector('button');
+      const liveEvents = { submit: 0, click: 0, input: 0, keydown: 0 };
+      live.addEventListener('submit', e => { liveEvents.submit += 1; e.preventDefault(); });
+      liveSend.addEventListener('click', () => { liveEvents.click += 1; });
+      liveInput.addEventListener('input', () => { liveEvents.input += 1; });
+      liveInput.addEventListener('keydown', () => { liveEvents.keydown += 1; });
 
       window.__GITL_Test.preparePausedTickerFault();
+      const before = window.__GITL_Test.counts();
       const repair = window.__GITL_Test.requestRepair();
+      const after = window.__GITL_Test.counts();
       return {
         repair,
-        oldEvents,
-        oldConnected: oldForm.isConnected,
-        replacementConnected: replacement.isConnected,
-        replacementValue: replacement.querySelector('textarea').value
+        before,
+        after,
+        stale: stale.map(x => ({ connected: x.form.isConnected, events: x.events, value: x.input.value })),
+        liveConnected: live.isConnected,
+        liveEvents,
+        liveValue: liveInput.value
       };
     });
 
     expect(result.repair.ok).toBe(true);
-    expect(result.oldEvents).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
-    expect(result.oldConnected).toBe(false);
-    expect(result.replacementConnected).toBe(true);
-    expect(result.replacementValue).toBe('unchanged');
+    expect(result.after.tickerStart - result.before.tickerStart).toBe(1);
+    expect(result.stale).toHaveLength(8);
+    for (const node of result.stale) {
+      expect(node.connected).toBe(false);
+      expect(node.events).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+      expect(node.value).toBe('unchanged');
+    }
+    expect(result.liveConnected).toBe(true);
+    expect(result.liveEvents).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+    expect(result.liveValue).toBe('unchanged');
   });
 });
