@@ -37,6 +37,41 @@ describe('composer staging evidence', () => {
     input.remove();
   });
 
+  test('accepts a complete multiline prompt rendered as contenteditable block nodes', () => {
+    const input = document.createElement('div');
+    input.setAttribute('contenteditable', 'true');
+    input.innerHTML = '<p>Start the scheduled worker.</p><p>Read the GitHub assignment.</p>';
+    Object.defineProperty(input, 'innerText', {
+      configurable: true,
+      value: 'Start the scheduled worker.\nRead the GitHub assignment.'
+    });
+    document.body.appendChild(input);
+
+    expect(input.textContent).toBe('Start the scheduled worker.Read the GitHub assignment.');
+    expect(_composerText(input)).toBe('Start the scheduled worker.\nRead the GitHub assignment.');
+    expect(_promptStagedInComposer(
+      input,
+      'Start the scheduled worker.\nRead the GitHub assignment.'
+    )).toBe(true);
+    input.remove();
+  });
+
+  test('still rejects a partial multiline rich-editor prompt', () => {
+    const input = document.createElement('div');
+    input.setAttribute('contenteditable', 'true');
+    Object.defineProperty(input, 'innerText', {
+      configurable: true,
+      value: 'Start the scheduled worker.'
+    });
+    document.body.appendChild(input);
+
+    expect(_promptStagedInComposer(
+      input,
+      'Start the scheduled worker.\nRead the GitHub assignment.'
+    )).toBe(false);
+    input.remove();
+  });
+
   test('rejects detached composers and empty expected prompts', () => {
     const input = document.createElement('textarea');
     input.value = 'Expected Ghost prompt';
