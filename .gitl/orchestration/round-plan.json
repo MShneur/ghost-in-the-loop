@@ -1,5 +1,5 @@
 {
-  "schema": "gitl-round-plan-v1",
+  "schema": "gitl-round-plan-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "mode": "review-after-round",
@@ -11,7 +11,7 @@
     { "worker": 2, "minute": 10, "role": "researcher-architect" },
     { "worker": 3, "minute": 20, "role": "builder" },
     { "worker": 4, "minute": 30, "role": "test-engineer-red-team" },
-    { "worker": 5, "minute": 40, "role": "mobile-browser-performance" },
+    { "worker": 5, "minute": 40, "role": "mobile-browser-accessibility-performance" },
     { "worker": 6, "minute": 50, "role": "devils-advocate-release-auditor" }
   ],
   "planningPolicy": {
@@ -20,70 +20,170 @@
     "oneBoundedAssignmentPerWorker": true,
     "dependenciesMustBeSatisfied": true,
     "productWorkRequiresEvidence": true,
-    "roundClosesAfterWorker6": true
+    "workerEvidenceRequired": true,
+    "roundClosesAfterWorker6": true,
+    "userRequiredProgramsMayNotBeDropped": true
   },
-  "backlog": [
+  "requiredPrograms": [
     {
       "id": "RR-E2E-FAULTS",
-      "priority": 1,
       "title": "Browser-level Repair and Resume fault injection",
       "status": "ready",
       "releaseCritical": true
     },
     {
       "id": "LIFECYCLE-FROZEN-DISCARDED",
-      "priority": 2,
       "title": "Frozen and discarded page lifecycle research and recovery",
       "status": "backlog",
       "releaseCritical": true
     },
     {
       "id": "LONG-CHAT-PERF",
-      "priority": 3,
-      "title": "Long-conversation observation, scan, rendering, and timer performance",
+      "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance",
       "status": "backlog",
       "releaseCritical": true
     },
     {
-      "id": "MOBILE-SHELL",
-      "priority": 4,
-      "title": "Host-affixed mobile Ghost header, composer-cell, and expandable-row evaluation",
+      "id": "MOBILE-SHELL-STRUCTURAL",
+      "title": "Host-affixed mobile Ghost shell research, implementation, and certification",
       "status": "backlog",
-      "releaseCritical": false,
+      "releaseCritical": true,
+      "userRequired": true,
       "brief": ".gitl/briefs/mobile-shell-concepts.md",
-      "mountingRequirement": "Attach Ghost into each site's real row/column layout so the host page reflows around it; do not implement blue or red as viewport overlays.",
+      "mountingRequirement": "Attach Ghost into each site's real row/column layout so the host page reflows around it. Blue and red viewport overlays are prohibited.",
       "mountModes": [
-        "header-action-cell",
-        "composer-action-cell",
-        "composer-sibling-row"
+        "teal-header-action-cell",
+        "blue-composer-action-cell",
+        "red-composer-sibling-row"
       ],
-      "overlayProhibited": true,
-      "implementationGate": "Adapter-specific structural discovery, reversible insertion, Send-node preservation, duplicate prevention, and in-flow expansion tests are required before product implementation."
+      "fallback": "Keep the current rail only when an adapter cannot pass structural mount verification.",
+      "phases": [
+        {
+          "id": "MS-1-RESEARCH",
+          "title": "Map structural mount contracts for supported platform adapters",
+          "dependsOn": [],
+          "requiredEvidence": [
+            "header action row",
+            "composer action row",
+            "composer/footer stack",
+            "layout type",
+            "rerender behavior",
+            "message-list bottom-spacing behavior",
+            "reversible insertion design"
+          ]
+        },
+        {
+          "id": "MS-2-MOUNT-CORE",
+          "title": "Implement structural mount registry and verification/repair primitives",
+          "dependsOn": ["MS-1-RESEARCH"],
+          "requiredEvidence": [
+            "single mount identity",
+            "scoped observer",
+            "reversible style changes",
+            "clean unmount",
+            "fallback on verification failure"
+          ]
+        },
+        {
+          "id": "MS-3-BLUE-RED",
+          "title": "Implement blue composer cell and red expandable sibling row behind an experimental flag",
+          "dependsOn": ["MS-2-MOUNT-CORE"],
+          "requiredEvidence": [
+            "normal document flow",
+            "host Send node identity preserved",
+            "red expansion pushes content upward",
+            "no duplicate mount after composer replacement"
+          ]
+        },
+        {
+          "id": "MS-4-TEAL",
+          "title": "Implement teal header action cell where adapter structure permits",
+          "dependsOn": ["MS-2-MOUNT-CORE"],
+          "requiredEvidence": [
+            "normal header reflow",
+            "no hidden or overlapped host controls",
+            "responsive overflow behavior"
+          ]
+        },
+        {
+          "id": "MS-5-RED-TEAM",
+          "title": "Adversarial structural-mount and Send-safety certification",
+          "dependsOn": ["MS-3-BLUE-RED", "MS-4-TEAL"],
+          "requiredEvidence": [
+            "host controls inserted before and after Ghost",
+            "repeated subtree replacement",
+            "exactly one mount",
+            "Send/attachments/voice/tools remain operable",
+            "unmount restores layout"
+          ]
+        },
+        {
+          "id": "MS-6-MOBILE-PERF-A11Y",
+          "title": "Mobile, accessibility, keyboard, layout-shift, and lower-end performance certification",
+          "dependsOn": ["MS-5-RED-TEAM"],
+          "requiredEvidence": [
+            "keyboard open/close",
+            "orientation",
+            "narrow width and large text",
+            "focus and accessible names",
+            "observer and layout measurements",
+            "lower-end or throttled-device results"
+          ]
+        },
+        {
+          "id": "MS-7-CROSS-ADAPTER",
+          "title": "Expand and certify structural mount contracts across supported platforms",
+          "dependsOn": ["MS-6-MOBILE-PERF-A11Y"],
+          "requiredEvidence": [
+            "adapter-by-adapter result",
+            "certified mount modes",
+            "documented rail fallback where structural mounting is unsafe"
+          ]
+        },
+        {
+          "id": "MS-8-FINAL-AUDIT",
+          "title": "Devil's Advocate and customer-voice review of the host-affixed shell",
+          "dependsOn": ["MS-7-CROSS-ADAPTER"],
+          "requiredEvidence": [
+            "maintenance cost review",
+            "rail comparison",
+            "safety review",
+            "release recommendation"
+          ]
+        }
+      ]
     },
     {
       "id": "BUILD-IDENTITY",
-      "priority": 5,
       "title": "Canonical build, candidate, and release-channel identity",
       "status": "backlog",
       "releaseCritical": true
     },
     {
       "id": "DOCS-RECONCILIATION",
-      "priority": 6,
       "title": "Architecture, README, help, changelog, and protocol reconciliation",
       "status": "backlog",
       "releaseCritical": true
     },
     {
       "id": "FINAL-CERT-PACKAGE",
-      "priority": 7,
       "title": "Full certification, release audit, package, and SHA-256 verification",
       "status": "backlog",
       "releaseCritical": true
     }
   ],
+  "priorityOrder": [
+    "RR-E2E-FAULTS",
+    "LIFECYCLE-FROZEN-DISCARDED",
+    "LONG-CHAT-PERF",
+    "MOBILE-SHELL-STRUCTURAL",
+    "BUILD-IDENTITY",
+    "DOCS-RECONCILIATION",
+    "FINAL-CERT-PACKAGE"
+  ],
   "assignments": [],
   "evidence": [],
   "roundDecision": null,
-  "humanReviewRequired": true
+  "humanReviewRequired": true,
+  "publishReadyRequiresAllRequiredPrograms": true
 }
