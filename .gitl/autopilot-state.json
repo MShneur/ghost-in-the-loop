@@ -22,26 +22,31 @@
   "currentStep": "Worker 3 executes R1-W3-RR-E2E-BUILD using Worker 2's submitted browser fault contract.",
   "nextAction": "Worker 3 claims the lease, reads docs/REPAIR_RESUME_FAULT_MATRIX.md and Worker 2 evidence, reproduces the assigned browser faults, adds the smallest deterministic fixtures and regression coverage, changes production only after a proven defect, writes round-1 evidence, submits the assignment, and releases the lease.",
   "requiredProgramsMayNotBeDropped": true,
-  "requiredPrograms": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
+  "requiredPrograms": ["RR-E2E-FAULTS", "LIFECYCLE-FROZEN-DISCARDED", "LONG-CHAT-PERF", "MOBILE-SHELL-STRUCTURAL", "BUILD-IDENTITY", "DOCS-RECONCILIATION", "FINAL-CERT-PACKAGE"],
   "completedSteps": [
-    {"type":"coordination-bootstrap","result":"Created the initial durable fallback ledger."},
-    {"type":"orchestration-upgrade","result":"Installed supervisor-led v2 workflow, role prompts, round plan, and mobile shell design brief."},
-    {"type":"mobile-shell-clarification","result":"Reframed teal, blue, and red as adapter-owned in-flow host layout mounts; blue and red overlays are explicitly prohibited."},
-    {"type":"autonomous-program-upgrade","result":"Made the host-affixed mobile shell a release-critical phased program, published one universal six-worker prompt, and added durable per-worker evidence requirements for later ChatGPT review and revision."},
-    {"type":"round-1-supervisor-plan","result":"Worker 1 assigned a dependency-safe RR-E2E-FAULTS research, build, Red Team, mobile/performance, and audit chain to Workers 2 through 6."},
-    {"type":"R1-W2-RR-FAULT-MATRIX","result":"Worker 2 submitted a deterministic browser Repair & Resume fault matrix and implementation-ready Playwright contract without changing production code."}
+    {"type": "coordination-bootstrap", "result": "Created the initial durable fallback ledger."},
+    {"type": "orchestration-upgrade", "result": "Installed supervisor-led v2 workflow, role prompts, round plan, and mobile shell design brief."},
+    {"type": "mobile-shell-clarification", "result": "Reframed teal, blue, and red as adapter-owned in-flow host layout mounts; blue and red overlays are explicitly prohibited."},
+    {"type": "autonomous-program-upgrade", "result": "Made the host-affixed mobile shell a release-critical phased program, published one universal six-worker prompt, and added durable per-worker evidence requirements for later ChatGPT review and revision."},
+    {"type": "round-1-supervisor-plan", "result": "Worker 1 assigned a dependency-safe RR-E2E-FAULTS research, build, Red Team, mobile/performance, and audit chain to Workers 2 through 6."},
+    {"type": "R1-W2-RR-FAULT-MATRIX", "result": "Worker 2 submitted a deterministic browser Repair & Resume fault matrix and implementation-ready Playwright contract without changing production code."}
   ],
   "findings": [
-    {"worker":2,"type":"coordination-bootstrap","finding":"No Personal Forge autopilot state existed; the isolated branch ledger was created."},
-    {"worker":"human-review","type":"orchestration-design","finding":"Peer workers duplicated planning authority; one supervisor plus five specialists is the preferred autonomous model."},
-    {"worker":"human-brief","type":"mobile-shell","finding":"User-confirmed design intent is controlled site-layout hijacking: teal attaches to the host header action row, blue attaches as the final composer action cell, and red is a sibling row beneath the composer that expands the host footer upward. These are in-flow structural mounts, not overlays."},
-    {"worker":"human-authorization","type":"scope","finding":"Research, testing, implementation, cross-adapter certification, and final audit of the structural mobile shell are required on top of the remaining 8.8 roadmap before publish readiness."},
-    {"worker":1,"type":"round-planning","finding":"RR-E2E-FAULTS is the earliest unfinished release-critical program and now has a bounded five-worker evidence chain."},
-    {"worker":2,"type":"repair-resume-contract","finding":"Existing Send-safety and health tests are adjacent but do not jointly prove browser-level single-flight repair, exactly-once service restart, and zero Send actuation; the submitted matrix defines that missing contract."}
+    {"worker": 2, "type": "coordination-bootstrap", "finding": "No Personal Forge autopilot state existed; the isolated branch ledger was created."},
+    {"worker": "human-review", "type": "orchestration-design", "finding": "Peer workers duplicated planning authority; one supervisor plus five specialists is the preferred autonomous model."},
+    {"worker": "human-brief", "type": "mobile-shell", "finding": "User-confirmed design intent is controlled site-layout hijacking: teal attaches to the host header action row, blue attaches as the final composer action cell, and red is a sibling row beneath the composer that expands the host footer upward. These are in-flow structural mounts, not overlays."},
+    {"worker": "human-authorization", "type": "scope", "finding": "Research, testing, implementation, cross-adapter certification, and final audit of the structural mobile shell are required on top of the remaining 8.8 roadmap before publish readiness."},
+    {"worker": 1, "type": "round-planning", "finding": "RR-E2E-FAULTS is the earliest unfinished release-critical program and now has a bounded five-worker evidence chain."},
+    {"worker": 2, "type": "repair-resume-contract", "finding": "Existing Send-safety and health tests are adjacent but do not jointly prove browser-level single-flight repair, exactly-once service restart, and zero Send actuation; the submitted matrix defines that missing contract."}
   ],
   "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [".gitl/evidence/round-1/worker-1.md", ".gitl/evidence/round-1/worker-2.md"],
-  "lease": {"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
+  "lease": {
+    "holder": 3,
+    "acquiredAt": "2026-08-06T14:32:00-04:00",
+    "expiresAt": "2026-08-06T15:17:00-04:00",
+    "branchHead": "4926ec7999bbfebb4e5bbfcb01302311e4f998e7"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null
