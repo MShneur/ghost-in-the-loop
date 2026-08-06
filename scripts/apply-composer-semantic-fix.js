@@ -2,8 +2,15 @@
 
 const fs = require('fs');
 
-const path = 'ghost-in-the-loop.user.js';
-let source = fs.readFileSync(path, 'utf8');
+function replaceOnce(text, before, after, label) {
+  const first = text.indexOf(before);
+  if (first < 0) throw new Error(`Could not find ${label}`);
+  if (text.indexOf(before, first + before.length) >= 0) throw new Error(`Ambiguous ${label}`);
+  return text.slice(0, first) + after + text.slice(first + before.length);
+}
+
+const sourcePath = 'ghost-in-the-loop.user.js';
+let source = fs.readFileSync(sourcePath, 'utf8');
 
 const before = `function _composerText(el) {
   if (!el) return '';
@@ -29,10 +36,14 @@ const after = `function _composerText(el) {
   return String(text || '').trim();
 }`;
 
-const first = source.indexOf(before);
-if (first < 0) throw new Error('Could not find the original _composerText implementation');
-if (source.indexOf(before, first + before.length) >= 0) throw new Error('Ambiguous _composerText implementation');
+source = replaceOnce(source, before, after, '_composerText implementation');
+fs.writeFileSync(sourcePath, source);
 
-source = source.slice(0, first) + after + source.slice(first + before.length);
-fs.writeFileSync(path, source);
-console.log('Applied semantic rich-editor composer reader.');
+const changelogPath = 'CHANGELOG.md';
+let changelog = fs.readFileSync(changelogPath, 'utf8');
+const heading = '## [8.8.0] — workflow-neutral controls and explicit decisions\n\n';
+const entry = '- Fixed false COMPOSER-002 pauses for complete multiline prompts in block-structured contenteditable editors by verifying rendered semantic text while retaining exact normalized staging checks.\n';
+changelog = replaceOnce(changelog, heading, heading + entry, '8.8 changelog heading');
+fs.writeFileSync(changelogPath, changelog);
+
+console.log('Applied semantic rich-editor composer reader and changelog entry.');
