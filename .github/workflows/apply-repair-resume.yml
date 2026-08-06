@@ -6,6 +6,7 @@ on:
       - agent/8.8-repair-resume
     paths:
       - scripts/apply-repair-resume.js
+      - tests/transport.test.js
       - .github/workflows/apply-repair-resume.yml
 
 permissions:
