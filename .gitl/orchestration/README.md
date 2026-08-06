@@ -55,6 +55,23 @@ Workers 2–5:
 
 Worker 6 independently audits the round. It assumes claims are unproven until commits, diffs, tests, CI, and evidence files support them. It marks assignments `accepted`, `rejected`, or `needs-more-evidence`, then sets the round to `awaiting-human-verification`.
 
+## No-stall handoff rule
+
+A scheduled worker must never leave the round waiting on work that already has a durable commit or a documented blocker.
+
+Before ending its invocation, every worker must:
+
+1. Commit all authorized completed work and durable evidence to the isolated branch.
+2. Update `round-plan.json` and `autopilot-state.json` with the exact result.
+3. Mark the assignment `submitted` when its required gates pass, or `blocked` when they do not.
+4. Record the blocker, affected commits, unrun or failing tests, and the exact continuation step.
+5. Release the lease.
+6. Make the next dependency-safe worker `ready` when that worker can test, diagnose, falsify, or continue from the blocked evidence without pretending the blocked work passed.
+
+A blocked assignment is not completion and must not be accepted as success. It is, however, a valid durable handoff when the next worker's assignment explicitly permits `submitted-or-blocked` and requires preservation of the unresolved limitation.
+
+No worker may end with repository changes existing only in chat, an assignment still marked `ready`, or a next worker left unable to act because bookkeeping was omitted.
+
 ## Required product programs
 
 The supervisor must keep all release-critical programs in the plan until they are completed or the user explicitly changes scope.
