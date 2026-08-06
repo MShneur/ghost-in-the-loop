@@ -20,7 +20,7 @@
   "coordinationPackageHead":"32ef0fe254812cd67a4733cc715455c4c13941db",
   "headAtLastHandoff":"c30882351a8a2348bd8a53c8de971e33bc079496",
   "currentStep":"Worker 2 executes R2-W2-RR-PROD-SEAM and designs the safe test-only seam into the real production Repair and Resume path.",
-  "nextAction":"Worker 2 claims the lease at the next :10 slot, reads round-1 audit evidence and round-2 assignment, maps the real repair call graph, writes evidence, submits or blocks, releases the lease, and hands off to Worker 3.",
+  "nextAction":"The active agent executes the earliest ready assignment regardless of missed worker slot, while preserving the assignment role and evidence path.",
   "requiredProgramsMayNotBeDropped":true,
   "requiredPrograms":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "completedSteps":[
@@ -33,11 +33,12 @@
   "findings":[
     {"worker":6,"type":"round-audit","finding":"Production-path runtime injection, exact-head Chromium/mobile execution, adversarial rerender/race proof, and defensible performance evidence remain required."},
     {"worker":"human-review","type":"authorization","finding":"Proceed with the needed work and keep all workers accountable to their scheduled staggered times."},
-    {"worker":1,"type":"round-planning","finding":"Round 2 is restricted to converting the accepted fault contract into actual production-path and exact-head execution evidence."}
+    {"worker":1,"type":"round-planning","finding":"Round 2 is restricted to converting the accepted fault contract into actual production-path and exact-head execution evidence."},
+    {"worker":"human-review","type":"orchestration-correction","finding":"Assignments are agent-executable work units; a missed scheduled worker slot must not deadlock the chain. The next available eligible agent takes the earliest ready assignment."}
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md"],
-  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
+  "lease":{"holder":2,"acquiredAt":"2026-08-06T21:37:00Z","expiresAt":"2026-08-06T22:22:00Z","branchHead":"c40600e63bd8f439ab67fd2e4cb8a9fca5b30ed8"},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null,
