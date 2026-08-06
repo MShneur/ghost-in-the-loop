@@ -1,0 +1,81 @@
+{
+  "schema": "gitl-round-plan-v1",
+  "project": "ghost-in-the-loop",
+  "releaseTarget": "8.8.0",
+  "mode": "review-after-round",
+  "round": 1,
+  "status": "awaiting-supervisor",
+  "supervisorWorker": 1,
+  "schedule": [
+    { "worker": 1, "minute": 0, "role": "supervisor-integrator" },
+    { "worker": 2, "minute": 10, "role": "researcher-architect" },
+    { "worker": 3, "minute": 20, "role": "builder" },
+    { "worker": 4, "minute": 30, "role": "test-engineer-red-team" },
+    { "worker": 5, "minute": 40, "role": "mobile-browser-performance" },
+    { "worker": 6, "minute": 50, "role": "devils-advocate-release-auditor" }
+  ],
+  "planningPolicy": {
+    "supervisorOwnsOfficialRoadmap": true,
+    "specialistsMayRecommendOnly": true,
+    "oneBoundedAssignmentPerWorker": true,
+    "dependenciesMustBeSatisfied": true,
+    "productWorkRequiresEvidence": true,
+    "roundClosesAfterWorker6": true
+  },
+  "backlog": [
+    {
+      "id": "RR-E2E-FAULTS",
+      "priority": 1,
+      "title": "Browser-level Repair and Resume fault injection",
+      "status": "ready",
+      "releaseCritical": true
+    },
+    {
+      "id": "LIFECYCLE-FROZEN-DISCARDED",
+      "priority": 2,
+      "title": "Frozen and discarded page lifecycle research and recovery",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "LONG-CHAT-PERF",
+      "priority": 3,
+      "title": "Long-conversation observation, scan, rendering, and timer performance",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "MOBILE-SHELL",
+      "priority": 4,
+      "title": "Mobile Ghost launcher and menu shell evaluation",
+      "status": "backlog",
+      "releaseCritical": false,
+      "brief": ".gitl/briefs/mobile-shell-concepts.md"
+    },
+    {
+      "id": "BUILD-IDENTITY",
+      "priority": 5,
+      "title": "Canonical build, candidate, and release-channel identity",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "DOCS-RECONCILIATION",
+      "priority": 6,
+      "title": "Architecture, README, help, changelog, and protocol reconciliation",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "FINAL-CERT-PACKAGE",
+      "priority": 7,
+      "title": "Full certification, release audit, package, and SHA-256 verification",
+      "status": "backlog",
+      "releaseCritical": true
+    }
+  ],
+  "assignments": [],
+  "evidence": [],
+  "roundDecision": null,
+  "humanReviewRequired": true
+}
