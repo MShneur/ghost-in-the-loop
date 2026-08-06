@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [1, 2],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -18,9 +18,9 @@
   "productHeadAtRoundStart": "d6df915468a75272ac335a550d906a54075e1db8",
   "coordinationBootstrapHead": "252e40a07dfc957e9a30dcab9e8772af6556744a",
   "coordinationPackageHead": "32ef0fe254812cd67a4733cc715455c4c13941db",
-  "headAtLastHandoff": "0facc155cfcfb38d805a45a8ed6fd08cb81e8c80",
-  "currentStep": "Worker 2 executes R1-W2-RR-FAULT-MATRIX for the RR-E2E-FAULTS program.",
-  "nextAction": "Worker 2 reproduces and specifies the deterministic Repair and Resume browser fault matrix, writes round-1 evidence, marks the assignment submitted or blocked, and releases the lease.",
+  "headAtLastHandoff": "9c91699253e6e8b453e98013db4b732b8497b6d8",
+  "currentStep": "Worker 3 executes R1-W3-RR-E2E-BUILD using Worker 2's submitted browser fault contract.",
+  "nextAction": "Worker 3 claims the lease, reads docs/REPAIR_RESUME_FAULT_MATRIX.md and Worker 2 evidence, reproduces the assigned browser faults, adds the smallest deterministic fixtures and regression coverage, changes production only after a proven defect, writes round-1 evidence, submits the assignment, and releases the lease.",
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "completedSteps": [
@@ -28,23 +28,20 @@
     {"type":"orchestration-upgrade","result":"Installed supervisor-led v2 workflow, role prompts, round plan, and mobile shell design brief."},
     {"type":"mobile-shell-clarification","result":"Reframed teal, blue, and red as adapter-owned in-flow host layout mounts; blue and red overlays are explicitly prohibited."},
     {"type":"autonomous-program-upgrade","result":"Made the host-affixed mobile shell a release-critical phased program, published one universal six-worker prompt, and added durable per-worker evidence requirements for later ChatGPT review and revision."},
-    {"type":"round-1-supervisor-plan","result":"Worker 1 assigned a dependency-safe RR-E2E-FAULTS research, build, Red Team, mobile/performance, and audit chain to Workers 2 through 6."}
+    {"type":"round-1-supervisor-plan","result":"Worker 1 assigned a dependency-safe RR-E2E-FAULTS research, build, Red Team, mobile/performance, and audit chain to Workers 2 through 6."},
+    {"type":"R1-W2-RR-FAULT-MATRIX","result":"Worker 2 submitted a deterministic browser Repair & Resume fault matrix and implementation-ready Playwright contract without changing production code."}
   ],
   "findings": [
     {"worker":2,"type":"coordination-bootstrap","finding":"No Personal Forge autopilot state existed; the isolated branch ledger was created."},
     {"worker":"human-review","type":"orchestration-design","finding":"Peer workers duplicated planning authority; one supervisor plus five specialists is the preferred autonomous model."},
     {"worker":"human-brief","type":"mobile-shell","finding":"User-confirmed design intent is controlled site-layout hijacking: teal attaches to the host header action row, blue attaches as the final composer action cell, and red is a sibling row beneath the composer that expands the host footer upward. These are in-flow structural mounts, not overlays."},
     {"worker":"human-authorization","type":"scope","finding":"Research, testing, implementation, cross-adapter certification, and final audit of the structural mobile shell are required on top of the remaining 8.8 roadmap before publish readiness."},
-    {"worker":1,"type":"round-planning","finding":"RR-E2E-FAULTS is the earliest unfinished release-critical program and now has a bounded five-worker evidence chain."}
+    {"worker":1,"type":"round-planning","finding":"RR-E2E-FAULTS is the earliest unfinished release-critical program and now has a bounded five-worker evidence chain."},
+    {"worker":2,"type":"repair-resume-contract","finding":"Existing Send-safety and health tests are adjacent but do not jointly prove browser-level single-flight repair, exactly-once service restart, and zero Send actuation; the submitted matrix defines that missing contract."}
   ],
   "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
-  "testEvidence": [".gitl/evidence/round-1/worker-1.md"],
-  "lease": {
-    "holder": 2,
-    "acquiredAt": "2026-08-06T14:25:00-04:00",
-    "expiresAt": "2026-08-06T15:10:00-04:00",
-    "branchHead": "0facc155cfcfb38d805a45a8ed6fd08cb81e8c80"
-  },
+  "testEvidence": [".gitl/evidence/round-1/worker-1.md", ".gitl/evidence/round-1/worker-2.md"],
+  "lease": {"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null
