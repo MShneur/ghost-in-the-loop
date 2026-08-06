@@ -21,7 +21,7 @@
   "coordinationPackageHead":"32ef0fe254812cd67a4733cc715455c4c13941db",
   "headAtLastHandoff":"2c1102e9f21151fccccca3ab1ac4929c65fa9aba",
   "currentStep":"Worker 6 executes R2-W6-RR-CERT-AUDIT and closes Round 2 for human verification.",
-  "nextAction":"Worker 6 claims the lease, audits all Round 2 commits and evidence, rejects unsupported exact-head/mobile certification claims, writes worker-6 evidence, and sets the round to awaiting-human-verification.",
+  "nextAction":"Worker 6 audits Round 2 commits and evidence, writes the certification verdict, and closes the round for human verification.",
   "requiredProgramsMayNotBeDropped":true,
   "requiredPrograms":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "completedSteps":[
@@ -48,7 +48,7 @@
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md",".gitl/evidence/round-2/worker-5.md"],
-  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
+  "lease":{"holder":6,"acquiredAt":"2026-08-06T21:58:00Z","expiresAt":"2026-08-06T22:43:00Z","branchHead":"b3950b366865ece0893892bba458feadb1a3c9b0"},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null,
