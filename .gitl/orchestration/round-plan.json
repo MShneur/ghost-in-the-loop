@@ -63,7 +63,7 @@
       "worker":3,
       "role":"builder",
       "program":"RR-E2E-FAULTS",
-      "status":"ready",
+      "status":"blocked",
       "goal":"Implement the smallest test-only production-path instrumentation and focused browser coverage defined by Worker 2.",
       "rationale":"The release-critical gap is runtime proof through Ghost's actual repair services, not more synthetic model coverage.",
       "dependencies":["R2-W2-RR-PROD-SEAM:submitted"],
@@ -73,14 +73,16 @@
       "requiredTests":["node syntax checks","focused Jest where applicable","focused Playwright Chromium","generated parity","full unit suite if production source changes"],
       "requiredEvidence":["implementation commit","test commands and outputs or CI IDs","changed call path","generated artifact status","unexecuted gaps"],
       "fallbackWork":"Commit the safe seam and deterministic tests even if browser binaries are unavailable, mark blocked, and hand exact-head execution to Worker 4.",
-      "evidencePath":".gitl/evidence/round-2/worker-3.md"
+      "evidencePath":".gitl/evidence/round-2/worker-3.md",
+      "implementationCommit":"8bf2bde529d3e43c976e0be1b38ce08ab562510a",
+      "blockedReason":"The production-path Playwright fixture is committed, but no exact-head GitHub Actions run or local Chromium execution is available yet."
     },
     {
       "id":"R2-W4-RR-EXACTHEAD-REDTEAM",
       "worker":4,
       "role":"test-engineer-red-team",
       "program":"RR-E2E-FAULTS",
-      "status":"waiting",
+      "status":"ready",
       "goal":"Execute and falsify the production-path Repair and Resume tests on the exact implementation head under adversarial replacement, route, lease, pause/resume, and uncertain-Send races.",
       "rationale":"Round 1 lacked executable adversarial evidence and exact-head CI.",
       "dependencies":["R2-W3-RR-PROD-INSTRUMENT:submitted-or-blocked"],
@@ -129,7 +131,8 @@
   ],
   "evidence":[
     {"worker":1,"path":".gitl/evidence/round-2/worker-1.md","status":"submitted"},
-    {"worker":2,"path":".gitl/evidence/round-2/worker-2.md","status":"submitted","executedBy":"successor-agent-after-missed-slot"}
+    {"worker":2,"path":".gitl/evidence/round-2/worker-2.md","status":"submitted","executedBy":"successor-agent-after-missed-slot"},
+    {"worker":3,"path":".gitl/evidence/round-2/worker-3.md","status":"blocked","implementationCommit":"8bf2bde529d3e43c976e0be1b38ce08ab562510a"}
   ],
   "roundDecision":null,
   "humanReviewRequired":true,
