@@ -144,7 +144,8 @@ test.describe('Repair & Resume browser fault contract', () => {
     expect(snap.sendAttempts).toBe(0);
   });
 
-  test('Pixel-class viewport and lifecycle churn keep repair work bounded', async ({ browser }) => {
+  test('Pixel-class viewport and lifecycle churn keep repair work bounded', async ({ browser, browserName }) => {
+    test.skip(browserName !== 'chromium', 'Pixel-class isMobile emulation is Chromium-only; Firefox uses separate viewport-safe coverage.');
     const context = await browser.newContext({
       viewport: { width: 412, height: 915 },
       screen: { width: 412, height: 915 },
@@ -181,5 +182,25 @@ test.describe('Repair & Resume browser fault contract', () => {
     expect(statusCount).toBe(1);
     expect(sendCount).toBe(1);
     await context.close();
+  });
+
+  test('Firefox narrow viewport and lifecycle churn remain bounded without mobile emulation', async ({ page, browserName }) => {
+    test.skip(browserName !== 'firefox', 'Firefox-specific viewport-safe coverage.');
+    await page.setViewportSize({ width: 412, height: 915 });
+    await page.setContent(PAGE);
+    await page.addScriptTag({ content: harnessScript() });
+    await page.evaluate(() => {
+      for (const name of ['observer', 'timer', 'render', 'adapter']) window.__RR.breakService(name);
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+      document.dispatchEvent(new Event('visibilitychange'));
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    const results = await page.evaluate(() => Promise.all(Array.from({ length: 12 }, () => window.__RR.requestRepair())));
+    const snap = await page.evaluate(() => window.__RR.snapshot());
+    expect(results.filter(result => result.accepted)).toHaveLength(1);
+    expect(snap.acceptedRepairs).toBe(1);
+    expect(snap.starts).toEqual({ observer: 2, timer: 2, render: 2, adapter: 2 });
+    expect(snap.sendAttempts).toBe(0);
   });
 });
