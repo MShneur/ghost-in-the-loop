@@ -1,0 +1,32 @@
+{
+  "schema": "gitl-autopilot-state-v1",
+  "project": "ghost-in-the-loop",
+  "releaseTarget": "8.8.0",
+  "status": "active",
+  "round": 1,
+  "expectedWorker": 1,
+  "completedWorkers": [],
+  "branch": "agent/8.8-repair-resume",
+  "stateLocation": ".gitl/autopilot-state.json",
+  "headAtLastHandoff": "d6df915468a75272ac335a550d906a54075e1db8",
+  "currentStep": null,
+  "nextAction": "Worker 1 should reconstruct repository state, claim the lease, and perform the earliest unfinished narrow roadmap step.",
+  "completedSteps": [],
+  "findings": [
+    {
+      "worker": 2,
+      "type": "coordination-bootstrap",
+      "finding": "No Personal Forge autopilot state or repository fallback was found; created the required single fallback ledger without performing development work."
+    }
+  ],
+  "testEvidence": [],
+  "lease": {
+    "holder": null,
+    "acquiredAt": null,
+    "expiresAt": null,
+    "branchHead": null
+  },
+  "blockedReason": null,
+  "publishReady": false,
+  "verificationSummary": null
+}
