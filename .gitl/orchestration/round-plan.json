@@ -26,6 +26,8 @@
     "failedAttemptCreatesReadyRecovery":true,
     "staleCompletedLeaseMayBeRepaired":true,
     "scheduleIsWakeCadenceNotTaskOwnership":true,
+    "automaticEarliestReadyDispatch":true,
+    "roleMismatchMayNotCauseHold":true,
     "agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md"
   },
   "requiredPrograms":[
@@ -38,14 +40,25 @@
     {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"backlog","releaseCritical":true}
   ],
   "priorityOrder":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
+  "dispatch":{
+    "nextWake":"2026-08-06T18:20:00-04:00",
+    "nominalWorker":3,
+    "assignmentId":"R3-A1-RR-CI-RECOVERY",
+    "automatic":true,
+    "instruction":"The 6:20 PM EDT invocation must claim and execute R3-A1-RR-CI-RECOVERY. It must not HOLD because Worker 2 missed 6:10, because the assignment's intended role differs, or because an earlier test failed. Every proven failure must activate R3-A2 with exact evidence."
+  },
   "assignments":[
     {
       "id":"R3-A1-RR-CI-RECOVERY",
+      "worker":3,
+      "nominalWakeMinute":20,
+      "claimableByAnyEligibleWorker":true,
       "intendedRole":"builder-test-recovery",
       "status":"ready",
       "program":"RR-E2E-FAULTS",
       "goal":"Verify the Firefox matrix repair and obtain authoritative exact-head desktop Chromium and Pixel 7 Chromium production-path Repair and Resume results.",
       "dependencies":[],
+      "mandatoryAction":"Claim the lease and execute now. Do not return HOLD for missed prior slots, nominal-role mismatch, or an earlier failed test.",
       "allowedFiles":["tests/e2e/**","playwright.config.*",".github/workflows/**",".gitl/evidence/round-3/**",".gitl/orchestration/round-plan.json",".gitl/autopilot-state.json"],
       "prohibitedActions":["main/merge/tag/release/publish","weakening assertions","accepting stale-head CI","broad product implementation without a reproduced defect"],
       "acceptanceCriteria":["Firefox no longer executes Chromium-only isMobile context","Firefox-safe narrow viewport coverage remains","production-path fixture runs on exact-head Chromium","production-path fixture runs on Pixel 7 Chromium","zero Send actuation and restart assertions are recorded","failure creates the next ready repair assignment rather than stopping"],
@@ -55,15 +68,17 @@
     },
     {
       "id":"R3-A2-RR-PROVEN-FAILURE-REPAIR",
+      "claimableByAnyEligibleWorker":true,
       "intendedRole":"builder",
       "status":"waiting-on-predecessor",
       "program":"RR-E2E-FAULTS",
       "goal":"Repair only defects proven by R3-A1, rerun focused exact-head tests, and preserve safety invariants.",
       "dependencies":["R3-A1-RR-CI-RECOVERY:failed-or-submitted"],
-      "activationRule":"If A1 passes fully, mark this not-needed and activate A3. If A1 fails, rewrite this assignment with the exact failing test and evidence, then make it ready."
+      "activationRule":"If A1 passes fully, mark this not-needed and activate A3. If A1 fails, rewrite this assignment with the exact failing test, head, run/job IDs, logs, and reproduction command, then make it ready before releasing the lease."
     },
     {
       "id":"R3-A3-RR-REDTEAM-CERT",
+      "claimableByAnyEligibleWorker":true,
       "intendedRole":"red-team-auditor",
       "status":"waiting-on-predecessor",
       "program":"RR-E2E-FAULTS",
