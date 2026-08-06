@@ -1,0 +1,93 @@
+name: R3 A1 Exact-Head Recovery
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - .github/workflows/r3-a1-exact-head.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r3-a1-exact-head
+  cancel-in-progress: false
+
+jobs:
+  exact-head:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Verify guarded carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/8.8-repair-resume"
+          test "$(git rev-parse HEAD^)" = "ac0e1e92249b29afebe9e7d942170b9d766a5932"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Install required browsers
+        run: npx playwright install --with-deps chromium firefox
+      - name: Run required recovery matrix and write durable evidence
+        id: matrix
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .gitl/evidence/round-3
+          npx playwright test tests/e2e/repair-resume.spec.js --project=firefox > .gitl/evidence/round-3/r3-a1-firefox.log 2>&1
+          FIREFOX_CODE=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium > .gitl/evidence/round-3/r3-a1-chromium.log 2>&1
+          CHROMIUM_CODE=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile > .gitl/evidence/round-3/r3-a1-chromium-mobile.log 2>&1
+          MOBILE_CODE=$?
+          set -e
+
+          cat > .gitl/evidence/round-3/r3-a1-exact-head-result.md <<EOF
+          # R3 A1 Exact-Head Browser Result
+
+          - Tested carrier head: \`$GITHUB_SHA\`
+          - Guarded parent head: \`ac0e1e92249b29afebe9e7d942170b9d766a5932\`
+          - Branch: \`$GITHUB_REF_NAME\`
+          - Workflow run: \`$GITHUB_RUN_ID\`
+          - Workflow job: \`$GITHUB_JOB\`
+
+          ## Commands and exit codes
+
+          - \`npx playwright test tests/e2e/repair-resume.spec.js --project=firefox\`: \`$FIREFOX_CODE\`
+          - \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium\`: \`$CHROMIUM_CODE\`
+          - \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile\`: \`$MOBILE_CODE\`
+
+          ## Interpretation
+
+          - Exit code 0 is a pass for that exact command.
+          - Any nonzero exit code requires R3-A2 activation with the matching committed log.
+          - No production files are modified by this carrier.
+          EOF
+
+          echo "firefox_code=$FIREFOX_CODE" >> "$GITHUB_OUTPUT"
+          echo "chromium_code=$CHROMIUM_CODE" >> "$GITHUB_OUTPUT"
+          echo "mobile_code=$MOBILE_CODE" >> "$GITHUB_OUTPUT"
+      - name: Commit evidence and remove temporary carrier
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "gitl-actions"
+          git config user.email "actions@users.noreply.github.com"
+          rm .github/workflows/r3-a1-exact-head.yml
+          git add .github/workflows/r3-a1-exact-head.yml .gitl/evidence/round-3/r3-a1-exact-head-result.md .gitl/evidence/round-3/r3-a1-firefox.log .gitl/evidence/round-3/r3-a1-chromium.log .gitl/evidence/round-3/r3-a1-chromium-mobile.log
+          git commit -m "test(gitl): record R3 A1 exact-head browser results"
+          git push origin HEAD:agent/8.8-repair-resume
+      - name: Enforce matrix result
+        shell: bash
+        run: |
+          test "${{ steps.matrix.outputs.firefox_code }}" = "0"
+          test "${{ steps.matrix.outputs.chromium_code }}" = "0"
+          test "${{ steps.matrix.outputs.mobile_code }}" = "0"
