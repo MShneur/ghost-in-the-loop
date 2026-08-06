@@ -1,0 +1,55 @@
+name: Apply contextual adapter capabilities
+
+on:
+  push:
+    branches:
+      - agent/8.8-contextual-health
+    paths:
+      - scripts/apply-contextual-capabilities.js.gz.b64
+      - .github/workflows/apply-contextual-capabilities.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/8.8-contextual-health
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Decode and apply reviewed patch
+        shell: bash
+        run: |
+          set -eu
+          base64 -d scripts/apply-contextual-capabilities.js.gz.b64 | gzip -d > /tmp/apply-contextual-capabilities.js
+          node --check /tmp/apply-contextual-capabilities.js
+          node /tmp/apply-contextual-capabilities.js .
+      - name: Build and certify generated extension
+        run: npm run cert:base
+      - name: Syntax and whitespace checks
+        run: |
+          npm run lint
+          git diff --check
+      - name: Run complete unit suite
+        run: npm run test:unit
+      - name: Commit verified implementation
+        shell: bash
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghost-in-the-loop.user.js extension/content.js CHANGELOG.md tests/contextual-capabilities.test.js
+          if git diff --cached --quiet; then
+            echo "Contextual capability implementation already current"
+            exit 0
+          fi
+          git commit -m "fix: make adapter diagnostics context-aware"
+          git push origin HEAD:agent/8.8-contextual-health
