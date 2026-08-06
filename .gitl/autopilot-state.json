@@ -18,9 +18,9 @@
   "agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md",
   "mandatoryReads":[".gitl/orchestration/task-prompts.md",".gitl/orchestration/round-plan.json",".gitl/orchestration/agent-succession-rule.md"],
   "productHeadAtRoundStart":"73011bef60ac9c6129b5f946a4b814a8842e3332",
-  "headAtLastHandoff":"02520ff6220a1bb720910e1a043cab1672e510f1",
-  "currentStep":"Human-authorized orchestration hardening: add active-work waiting and bounded research fallback without displacing R3-A1-RR-CI-RECOVERY.",
-  "nextAction":"Complete the orchestration hardening transaction, release the lease, then the next available agent executes R3-A1-RR-CI-RECOVERY.",
+  "headAtLastHandoff":"9bfa2b910883bfa0d34669387438eda2cf4d9df4",
+  "currentStep":"Automatic recovery dispatch remains armed. The earliest ready assignment is R3-A1-RR-CI-RECOVERY.",
+  "nextAction":"The next available agent first checks for a valid lease, active workflow, or branch activity. If another agent is working, wait. Otherwise claim and execute R3-A1-RR-CI-RECOVERY. Only when no executable assignment exists may it perform one bounded next-update research task.",
   "automaticDispatch":{
     "enabled":true,
     "scheduledFor":"2026-08-06T18:20:00-04:00",
@@ -28,7 +28,15 @@
     "assignmentId":"R3-A1-RR-CI-RECOVERY",
     "claimableByAnyEligibleWorker":true,
     "holdForbiddenReasons":["missed prior worker slot","nominal role mismatch","previous failed test","previous blocked assignment with ready recovery"],
+    "holdRequiredReasons":["valid lease held by active agent","active workflow on relevant head","consistent branch movement proving current work"],
     "failureRoute":"Activate R3-A2-RR-PROVEN-FAILURE-REPAIR with exact failure evidence and keep the loop moving."
+  },
+  "researchFallback":{
+    "enabled":true,
+    "onlyWhenNoExecutableAssignment":true,
+    "neverCompeteWithActiveWork":true,
+    "topics":["new authoritative browser or extension behavior","better Playwright or CI workflows","safer scripts and deterministic fixtures","architecture and performance concepts","next-update compatibility risks"],
+    "releaseReadyMode":"Freeze the candidate and checksums; store research separately as next-update-research without changing publish-ready artifacts."
   },
   "requiredProgramsMayNotBeDropped":true,
   "requiredPrograms":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
@@ -37,17 +45,19 @@
     {"type":"round-2-complete-with-gaps","result":"Added a production-path fixture and adversarial/mobile scaffolding; exact-head execution remained absent."},
     {"type":"stale-lease-recovery","result":"Human-authorized supervisor repair closed Worker 6's incomplete handoff after its evidence showed the audit finished at 6:05 PM EDT but the lease record remained active."},
     {"type":"resilient-loop-upgrade","result":"Every wake-up takes the earliest ready task; missed slots and failed tests become successor-repair assignments instead of stop conditions."},
-    {"type":"automatic-dispatch-publication","result":"The full recovery instructions are embedded in the canonical universal prompt, round plan, and state so the scheduled worker discovers them without a manual message."}
+    {"type":"automatic-dispatch-publication","result":"The full recovery instructions are embedded in the canonical universal prompt, round plan, and state so the scheduled worker discovers them without a manual message."},
+    {"type":"active-work-and-research-policy","result":"Added a repository-evidence wait gate, bounded research fallback, and frozen-candidate next-update research mode."}
   ],
   "findings":[
     {"worker":6,"type":"incomplete-handoff","finding":"Worker 6 committed final audit evidence but failed to update plan/state and release its lease."},
     {"worker":1,"type":"ci-root-cause","finding":"The latest CI failure was a matrix error: a Pixel isMobile context was executed under Firefox, which Playwright does not support."},
     {"worker":"human-review","type":"liveness-requirement","finding":"A failed or missed worker must become the next repair assignment; later agents must not stop merely because an earlier slot failed."},
-    {"worker":1,"type":"prompt-drift","finding":"The previous universal prompt still restricted agents to their nominal worker role and allowed HOLD on role mismatch, contradicting the succession plan. The prompt is now corrected."}
+    {"worker":1,"type":"prompt-drift","finding":"The previous universal prompt still restricted agents to their nominal worker role and allowed HOLD on role mismatch, contradicting the succession plan. The prompt is now corrected."},
+    {"worker":"human-review","type":"active-work-and-research","finding":"Agents must wait for demonstrably active work, inherit missed tasks when inactive, and use otherwise idle or post-candidate wakes for bounded next-update research."}
   ],
   "briefs":[".gitl/briefs/mobile-shell-concepts.md"],
-  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md",".gitl/evidence/round-2/worker-5.md",".gitl/evidence/round-2/worker-6.md",".gitl/evidence/round-3/worker-1.md"],
-  "lease":{"holder":"orchestration-hardening-agent","acquiredAt":"2026-08-06T22:15:00Z","expiresAt":"2026-08-06T23:00:00Z","branchHead":"f544d46c814cbbede9049c00e25192587ddc4264"},
+  "testEvidence":[".gitl/evidence/round-1/worker-1.md",".gitl/evidence/round-1/worker-2.md",".gitl/evidence/round-1/worker-3.md",".gitl/evidence/round-1/worker-4.md",".gitl/evidence/round-1/worker-5.md",".gitl/evidence/round-1/worker-6.md",".gitl/evidence/round-2/worker-1.md",".gitl/evidence/round-2/worker-2.md",".gitl/evidence/round-2/worker-3.md",".gitl/evidence/round-2/worker-4.md",".gitl/evidence/round-2/worker-5.md",".gitl/evidence/round-2/worker-6.md",".gitl/evidence/round-3/worker-1.md",".gitl/evidence/round-3/orchestration-liveness-research-policy.md"],
+  "lease":{"holder":null,"acquiredAt":null,"expiresAt":null,"branchHead":null},
   "blockedReason":null,
   "publishReady":false,
   "verificationSummary":null
