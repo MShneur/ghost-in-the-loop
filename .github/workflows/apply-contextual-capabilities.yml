@@ -6,6 +6,7 @@ on:
       - agent/8.8-contextual-health
     paths:
       - scripts/apply-contextual-capabilities.js.gz.b64
+      - scripts/patch-contextual-capability-tests.js
       - .github/workflows/apply-contextual-capabilities.yml
 
 permissions:
@@ -32,6 +33,8 @@ jobs:
           base64 -d scripts/apply-contextual-capabilities.js.gz.b64 | gzip -d > /tmp/apply-contextual-capabilities.js
           node --check /tmp/apply-contextual-capabilities.js
           node /tmp/apply-contextual-capabilities.js .
+          node --check scripts/patch-contextual-capability-tests.js
+          node scripts/patch-contextual-capability-tests.js .
       - name: Build and certify generated extension
         run: npm run cert:base
       - name: Syntax and whitespace checks
@@ -46,7 +49,7 @@ jobs:
           set -eu
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add ghost-in-the-loop.user.js extension/content.js CHANGELOG.md tests/contextual-capabilities.test.js
+          git add ghost-in-the-loop.user.js extension/content.js CHANGELOG.md tests/contextual-capabilities.test.js tests/setup.js
           if git diff --cached --quiet; then
             echo "Contextual capability implementation already current"
             exit 0
