@@ -69,7 +69,7 @@ if (typeof __GITL_TEST_SINK__ !== 'undefined') {
   [ 'VER','SIGIL_PROCEED','SIGIL_HALT','LEGACY_PROCEED','LEGACY_HALT',
     'MIN_RESPONSE_LEN','GHOST','DIAG','Timeline','GITL_NET','Reporter','ERROR_CATALOG',
     'detectSignal','parseProgress','parseRoadmap','randomDelay','sleep',
-    'capabilityState','platformHealth','assertInteractionSafe','claimTabLock','verifyTabLease','releaseTabLock',
+    'capabilityState','platformHealth','_tabLeaseStatus','runtimeServiceHealth','repairAndResume','assertInteractionSafe','claimTabLock','verifyTabLease','releaseTabLock',
     '_tabLockKey','GITL_TAB_ID','GhostBus',
     'gitlSha256','buildCapsuleV2','buildFilename','_assessExportCapture','runExport',
     'CONFIG_SCHEMA','CONFIG_KEYS','_validateConfigBundle','restoreConfig','PROFILES',

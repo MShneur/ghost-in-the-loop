@@ -3264,6 +3264,176 @@ function recoverAfterWake(source='wake') {
   }
 }
 
+function _tabLeaseStatus(now=Date.now()) {
+  try {
+    const raw=GM_getValue(_tabLockKey(), null);
+    const lock=raw ? JSON.parse(raw) : null;
+    if (!lock || !lock.tabId || now-(Number(lock.ts)||0)>=8000) return 'available';
+    return lock.tabId===GITL_TAB_ID ? 'owned' : 'other';
+  } catch(_) {
+    return 'unknown';
+  }
+}
+
+/* Side-effect-free runtime service snapshot. Unlike adapter capability health,
+   this describes Ghost's own schedulers, lease, bus, caches, observer, panel,
+   route, network witness, and Send journal. Optional overrides keep the model
+   independently testable without weakening production inference. */
+function runtimeServiceHealth(overrides={}) {
+  const L=GHOST.loop;
+  const has=key=>Object.prototype.hasOwnProperty.call(overrides,key);
+  const state=String(has('runtimeState') ? overrides.runtimeState : (L.state||'IDLE'));
+  const activeContext=['RUNNING','PAUSED','CHOICE','LIMIT'].includes(state);
+  const tickerMode=String(has('tickerMode') ? overrides.tickerMode : Ticker.mode);
+  const heartbeat=has('heartbeat') ? !!overrides.heartbeat : !!_tabLockInterval;
+  const leaseStatus=String(has('leaseStatus') ? overrides.leaseStatus : _tabLeaseStatus());
+  const busConnected=has('busConnected') ? !!overrides.busConnected : !!GhostBus.channel;
+  const cachedInput=has('cachedInput') ? overrides.cachedInput : _cache.get('in');
+  const cacheConnected=!cachedInput || cachedInput.isConnected!==false;
+  const input=has('input') ? overrides.input : Adapter.peekInput();
+  const inputConnected=!!input && input.isConnected!==false;
+  const redetectActive=has('redetectActive') ? !!overrides.redetectActive
+    : !!(_redetectWatch.obs || _redetectWatch.timer);
+  const panelConnected=has('panelConnected') ? !!overrides.panelConnected
+    : !!(panel && panel.isConnected && document.getElementById('gitl')===panel);
+  const networkActive=has('networkActive') ? !!overrides.networkActive : !!GITL_NET.active;
+  const routeChanged=has('routeChanged') ? !!overrides.routeChanged
+    : !!(_wakeRecovery.routeClass && _wakeRecovery.routeClass!==_safeRouteClass());
+  const journalSafe=has('journalSafe') ? !!overrides.journalSafe
+    : !(L.sendPending || L.isSending || L.sendTxn?.state==='dispatching' || L.sendTxn?.state==='uncertain');
+
+  const repairable=[];
+  const blocked=[];
+  if (state==='RUNNING' && tickerMode==='none') repairable.push('ticker');
+  if (!heartbeat) repairable.push('heartbeat');
+  if (leaseStatus==='available' || leaseStatus==='unknown') repairable.push('tab-lease');
+  if (!busConnected) repairable.push('ghost-bus');
+  if (!cacheConnected) repairable.push('composer-cache');
+  if (activeContext && !inputConnected && !redetectActive) repairable.push('composer-observer');
+  if (!panelConnected) repairable.push('panel');
+  if (activeContext && !networkActive) repairable.push('network-observer');
+  if (!journalSafe) blocked.push('send-journal');
+  if (routeChanged) blocked.push('route-changed');
+  if (leaseStatus==='other') blocked.push('tab-lock-held');
+
+  return {
+    state,
+    services:{
+      ticker:tickerMode,
+      heartbeat:heartbeat?'active':'missing',
+      lease:leaseStatus,
+      bus:busConnected?'active':'missing',
+      composerCache:cacheConnected?'current':'stale',
+      composerObserver:inputConnected?'resolved':redetectActive?'watching':'missing',
+      panel:panelConnected?'mounted':'missing',
+      networkObserver:networkActive?'active':'missing',
+      route:routeChanged?'changed':'current',
+      sendJournal:journalSafe?'safe':'blocked'
+    },
+    repairable,
+    blocked,
+    needsRepair:repairable.length>0,
+    canRepairAndResume:state==='PAUSED' && !L.needsPayload && repairable.length>0 && blocked.length===0
+  };
+}
+
+/* Manual service repair with no prompt injection and no immediate actuator.
+   A repaired paused run only rearms observation/scheduling; the normal ticker
+   decides what happens later. Uncertain Send, route changes, and another tab's
+   live lease remain hard blocks. */
+function repairAndResume() {
+  const L=GHOST.loop;
+  const priorState=L.state;
+  const before=runtimeServiceHealth();
+  if (before.blocked.length) {
+    Ticker.stop();
+    L.timer=null;
+    L.state='PAUSED';
+    L.phase=before.blocked.includes('send-journal')?'error':'paused';
+    const reason=before.blocked[0];
+    L.detail=reason==='send-journal'
+      ? 'Repair blocked — prior Send is uncertain; reconcile it first'
+      : reason==='route-changed'
+        ? 'Repair blocked — conversation route changed while suspended'
+        : 'Repair blocked — another tab owns this conversation';
+    GHOST.lastRepair={at:Date.now(),source:'manual',repaired:[],resumed:false,blocked:before.blocked.slice()};
+    Timeline.record('repair_resume_blocked',{reason,state:priorState});
+    render();
+    return {ok:false,resumed:false,repaired:[],blocked:before.blocked.slice()};
+  }
+
+  const repaired=[];
+  const mark=name=>{ if (!repaired.includes(name)) repaired.push(name); };
+  const needed=name=>before.repairable.includes(name);
+
+  _clearElementCaches();
+  if (needed('composer-cache') || needed('composer-observer')) mark('composer');
+
+  Ticker.stop();
+  L.timer=null;
+  if (needed('ticker')) mark('ticker');
+
+  if (_tabLockInterval) { clearInterval(_tabLockInterval); _tabLockInterval=null; }
+  startTabHeartbeat();
+  if (needed('heartbeat')) mark('heartbeat');
+
+  const ownsLease=claimTabLock();
+  if (!ownsLease) {
+    Ticker.stop();
+    L.timer=null;
+    L.state='PAUSED';
+    L.phase='paused';
+    L.detail='Repair blocked — another tab acquired this conversation';
+    GHOST.lastRepair={at:Date.now(),source:'manual',repaired:repaired.slice(),resumed:false,blocked:['tab-lock-held']};
+    Timeline.record('repair_resume_blocked',{reason:'tab-lock-held',state:priorState,repairs:repaired});
+    render();
+    return {ok:false,resumed:false,repaired,blocked:['tab-lock-held']};
+  }
+  if (needed('tab-lease')) mark('tab-lease');
+
+  try { GhostBus.channel?.close(); } catch(_) {}
+  GhostBus.channel=null;
+  GhostBus.peers.clear();
+  GhostBus.init();
+  if (needed('ghost-bus')) mark('ghost-bus');
+
+  if (!GITL_NET.active) {
+    GITL_NET.install();
+    mark('network-observer');
+  }
+
+  if (!panel.isConnected || document.getElementById('gitl')!==panel) {
+    _panelMounted=false;
+    mountPanel();
+    SKIN.apply();
+    mark('panel');
+  }
+  if (GHOST.ui.position==='rail') startRailTracker();
+
+  reDetect();
+  const shouldRun=priorState==='RUNNING' || (priorState==='PAUSED' && !L.needsPayload);
+  const resumed=priorState==='PAUSED' && shouldRun;
+  if (shouldRun) {
+    L.state='RUNNING';
+    L.phase='waiting-output';
+    L.lastActivity=Date.now();
+    L.staleTicks=0;
+    L.replyKey='';
+    L.replyStableTicks=0;
+    L.timer=Ticker.start(engineTick,2500);
+    if (needed('ticker')) mark('ticker');
+  } else {
+    L.state=priorState;
+  }
+
+  const label=repaired.length ? repaired.join(', ') : 'runtime services';
+  L.detail=resumed ? '🛠 Repaired '+label+' — resumed safely' : '🛠 Repaired '+label;
+  GHOST.lastRepair={at:Date.now(),source:'manual',repaired:repaired.slice(),resumed,blocked:[]};
+  Timeline.record('repair_resume',{state:priorState,resumed,repairs:repaired,ticker:Ticker.mode});
+  render();
+  return {ok:true,resumed,repaired,blocked:[]};
+}
+
 function rebootGhost(){const L=GHOST.loop,interrupted=!!(L.sendPending||L.sendTxn?.state==='dispatching'),txn=L.sendTxn;if(interrupted&&txn){txn.state='uncertain';txn.uncertainAt=Date.now();} _settleSendPromise(false);Ticker.stop();L.timer=null;_redetectStop();stopRailTracker();if(_tabLockInterval){clearInterval(_tabLockInterval);_tabLockInterval=null;}try{GhostBus.channel?.close();}catch(_){}GhostBus.channel=null;GhostBus.peers.clear();_clearElementCaches();Object.assign(GITL_NET,{_open:0,expectUntil:0,lastPulseT:0,lastPulseH:0,lastWsPulseT:0});Object.assign(L,{state:interrupted?'PAUSED':'IDLE',phase:interrupted?'error':'idle',detail:interrupted?'↻ Ghost reloaded — prior Send is uncertain; check the chat':'↻ Ghost reloaded — chat page left untouched',isSending:false,sendPending:false,sendDeadline:0,sendTxn:txn||null,staleTicks:0,replyKey:'',replyStableTicks:0,replyBaseline:null,countdownUntil:0});try{panel.remove();}catch(_){}_panelMounted=false;mountPanel();SKIN.apply();startTabHeartbeat();claimTabLock();GhostBus.init();render();reDetect();Timeline.record('ghost_reboot',{platform:PLAT.key,interruptedSend:interrupted});return true;}
 
 /* ═══════════════════════════════════════════════════════════════
@@ -4940,6 +5110,7 @@ let _panelMounted = false;
    Registry-driven; capture-phase intercept swallows the click so nothing fires. */
 const EXPLAIN = [
   { sel:'#g-play',        name:'▶ Start · ⏸ Pause',  desc:'One toggle: ▶ starts (or resumes) the auto-continue loop; while running it becomes ⏸ Pause. The chat is untouched when paused — tap again to pick up where you left off.' },
+  { sel:'#g-repair-resume', name:'🛠 Repair & Resume', desc:'Repairs Ghost’s ticker, lease, bus, caches, observer, panel, and network witness, then rearms a paused run without injecting or sending anything immediately.' },
   { sel:'#g-reground',    name:'⊕ Reground',        desc:'Re-anchors the AI to the ORIGINAL task. Use it the moment answers drift off-topic.' },
   { sel:'#g-stop',        name:'✕ End & reset',     desc:'Ends the run and resets rounds, roadmap position and workflow stage.' },
   { sel:'#g-strategy',    name:'Strategy',          desc:'Step by step = one nudge per reply. Plan first = the AI batches a plan, then executes. Autopilot = the AI writes a roadmap and Ghost runs every step.' },
@@ -5071,6 +5242,8 @@ function renderTeach() {
 
 function renderRunTab() {
   const L = GHOST.loop, p = L.lastProgress, pct = p ? Math.round((p.step/p.total)*100) : 0;
+  const repairHealth = typeof runtimeServiceHealth === 'function' ? runtimeServiceHealth() : null;
+  const showRepairResume = !!(repairHealth && repairHealth.canRepairAndResume);
   const pm = L.payloadMode;
   const runAdv = GHOST.ui.runAdv || false;
   const peekOpen = panel.querySelector('.g-peek')?.classList.contains('open');
@@ -5089,6 +5262,7 @@ function renderRunTab() {
       <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='RUNNING'?'Pause auto-continue':'Start / Resume'} (Alt+P)">${L.state==='RUNNING'?'⏸ Pause':L.state==='CHOICE'?'▶ Send choice':L.state==='LIMIT'?'▶ Continue':L.state==='PAUSED'?'▶ Resume':'▶ Start'}</button>
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
     </div>
+    ${showRepairResume ? `<div class="g-btns" style="padding-top:0"><button class="g-btn go" id="g-repair-resume" title="Repair Ghost runtime services and resume without sending anything immediately">🛠 Repair &amp; Resume</button></div>` : ''}
     </div>
     ${renderTeach()}
     <div class="g-mod g-mod-prog">
@@ -5217,7 +5391,7 @@ const HELP_SECTIONS = {
   run: { label: 'Run', html: `
     <b>The Run tab</b> is command center.<br><br>
     <b>Strategy dropdown:</b><br>· <b>Step by step</b> — AI works in batches, Ghost continues each one<br>· <b>Plan first</b> — AI plans before working, then batches<br>· <b>Autopilot</b> — AI researches, writes its own plan, Ghost runs every step<br><br>
-    <b>Buttons:</b> ▶ Start/Resume · ⏸ Pause · ■ Stop (preserves progress). Reground and Reset are separate under Advanced ▾.<br><br>
+    <b>Buttons:</b> ▶ Start/Resume · ⏸ Pause · ■ Stop (preserves progress). When Ghost detects damaged runtime services on a paused run, a separate <b>🛠 Repair &amp; Resume</b> appears; it repairs Ghost and rearms observation without sending anything immediately. Reground and Reset are separate under Advanced ▾.<br><br>
     <b>Personas line:</b> shows your active persona or committee. Tap "edit" to jump to the Personas tab.<br><br>
     <b>Q: It stopped and shows "drift checkpoint"?</b><br>That's the drift guard catching a long run. It's a grounding pause so an unattended run cannot wander off-task. Three choices:<br>· <b>▶ Continue</b> — run more<br>· <b>⊕ Reground</b> — re-anchor the AI to the task it started on<br>· <b>✋ Stop &amp; wait</b> — pause for your instructions<br>You can edit the cap inline, toggle the guard off, or tap ↻ to reset.` },
   auto: { label: 'Auto', html: `
@@ -5698,6 +5872,7 @@ function bindEvents() {
   }));
   $('#g-posture-help')?.addEventListener('click', () => { GHOST.ui.prevTab=GHOST.ui.tab; GHOST.ui.helpSec='posture'; GHOST.ui.tab='info'; render(); });
   $('#g-play')?.addEventListener('click', primaryAction);
+  $('#g-repair-resume')?.addEventListener('click', repairAndResume);
   $('#g-limit-go')?.addEventListener('click', extendLimit);
   $('#g-limit-reground')?.addEventListener('click', regroundLoop);
   $('#g-limit-wait')?.addEventListener('click', () => enginePause('✋ Stopped at drift checkpoint — ▶ to resume'));
