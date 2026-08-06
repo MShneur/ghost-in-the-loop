@@ -13,11 +13,24 @@
   "planLocation": ".gitl/orchestration/round-plan.json",
   "orchestrationLocation": ".gitl/orchestration/README.md",
   "promptLocation": ".gitl/orchestration/task-prompts.md",
+  "evidenceContractLocation": ".gitl/orchestration/evidence-contract.md",
+  "evidenceRoot": ".gitl/evidence",
   "productHeadAtRoundStart": "d6df915468a75272ac335a550d906a54075e1db8",
   "coordinationBootstrapHead": "252e40a07dfc957e9a30dcab9e8772af6556744a",
-  "headAtLastHandoff": "2b0f1c7e319f1e1eb7a77206812f7b4e084f9310",
-  "currentStep": "Supervisor Worker 1 must validate the v2 plan and assign a dependency-safe specialist chain.",
-  "nextAction": "Worker 1 reads the orchestration package, verifies repository and CI state, then writes bounded assignments for Workers 2 through 6.",
+  "coordinationPackageHead": "32ef0fe254812cd67a4733cc715455c4c13941db",
+  "headAtLastHandoff": "32ef0fe254812cd67a4733cc715455c4c13941db",
+  "currentStep": "Supervisor Worker 1 must validate the required-program plan and assign a dependency-safe specialist chain.",
+  "nextAction": "Worker 1 reads the orchestration package, required programs, mobile shell brief, and current repository/CI evidence, then writes bounded assignments for Workers 2 through 6.",
+  "requiredProgramsMayNotBeDropped": true,
+  "requiredPrograms": [
+    "RR-E2E-FAULTS",
+    "LIFECYCLE-FROZEN-DISCARDED",
+    "LONG-CHAT-PERF",
+    "MOBILE-SHELL-STRUCTURAL",
+    "BUILD-IDENTITY",
+    "DOCS-RECONCILIATION",
+    "FINAL-CERT-PACKAGE"
+  ],
   "completedSteps": [
     {
       "type": "coordination-bootstrap",
@@ -30,6 +43,10 @@
     {
       "type": "mobile-shell-clarification",
       "result": "Reframed teal, blue, and red as adapter-owned in-flow host layout mounts; blue and red overlays are explicitly prohibited."
+    },
+    {
+      "type": "autonomous-program-upgrade",
+      "result": "Made the host-affixed mobile shell a release-critical phased program, published one universal six-worker prompt, and added durable per-worker evidence requirements for later ChatGPT review and revision."
     }
   ],
   "findings": [
@@ -47,6 +64,11 @@
       "worker": "human-brief",
       "type": "mobile-shell",
       "finding": "User-confirmed design intent is controlled site-layout hijacking: teal attaches to the host header action row, blue attaches as the final composer action cell, and red is a sibling row beneath the composer that expands the host footer upward. These are in-flow structural mounts, not overlays."
+    },
+    {
+      "worker": "human-authorization",
+      "type": "scope",
+      "finding": "Research, testing, implementation, cross-adapter certification, and final audit of the structural mobile shell are required on top of the remaining 8.8 roadmap before publish readiness."
     }
   ],
   "briefs": [
