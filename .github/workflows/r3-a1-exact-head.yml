@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 concurrency:
   group: r3-a1-exact-head
@@ -22,21 +23,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - name: Verify guarded carrier
+
+      - name: Verify guarded carrier and lease
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "agent/8.8-repair-resume"
-          test "$(git rev-parse HEAD^)" = "ac0e1e92249b29afebe9e7d942170b9d766a5932"
+          test "$(git rev-parse HEAD^)" = "b4fcc1de87ebd12f5415cfaa27c03ed36d9d33ff"
+          node - <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json', 'utf8'));
+          if (state.lease?.holder !== 'scheduled-agent-3') throw new Error(`unexpected lease holder: ${state.lease?.holder}`);
+          if (state.lease?.assignmentId !== 'R3-A1-RR-CI-RECOVERY') throw new Error(`unexpected assignment: ${state.lease?.assignmentId}`);
+          NODE
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
+
       - name: Install dependencies
         run: npm ci
+
       - name: Install required browsers
         run: npx playwright install --with-deps chromium firefox
-      - name: Run required recovery matrix and write durable evidence
+
+      - name: Run required recovery matrix
         id: matrix
         shell: bash
         run: |
@@ -49,43 +61,134 @@ jobs:
           npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile > .gitl/evidence/round-3/r3-a1-chromium-mobile.log 2>&1
           MOBILE_CODE=$?
           set -e
-
-          cat > .gitl/evidence/round-3/r3-a1-exact-head-result.md <<EOF
-          # R3 A1 Exact-Head Browser Result
-
-          - Tested carrier head: \`$GITHUB_SHA\`
-          - Guarded parent head: \`ac0e1e92249b29afebe9e7d942170b9d766a5932\`
-          - Branch: \`$GITHUB_REF_NAME\`
-          - Workflow run: \`$GITHUB_RUN_ID\`
-          - Workflow job: \`$GITHUB_JOB\`
-
-          ## Commands and exit codes
-
-          - \`npx playwright test tests/e2e/repair-resume.spec.js --project=firefox\`: \`$FIREFOX_CODE\`
-          - \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium\`: \`$CHROMIUM_CODE\`
-          - \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile\`: \`$MOBILE_CODE\`
-
-          ## Interpretation
-
-          - Exit code 0 is a pass for that exact command.
-          - Any nonzero exit code requires R3-A2 activation with the matching committed log.
-          - No production files are modified by this carrier.
-          EOF
-
           echo "firefox_code=$FIREFOX_CODE" >> "$GITHUB_OUTPUT"
           echo "chromium_code=$CHROMIUM_CODE" >> "$GITHUB_OUTPUT"
           echo "mobile_code=$MOBILE_CODE" >> "$GITHUB_OUTPUT"
-      - name: Commit evidence and remove temporary carrier
+
+      - name: Resolve numeric workflow job id
+        id: jobmeta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          JOB_ID=$(curl -fsSL \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            | jq -r '.jobs[] | select(.name == "exact-head") | .id' | head -n 1)
+          echo "job_id=${JOB_ID:-UNKNOWN}" >> "$GITHUB_OUTPUT"
+
+      - name: Write durable evidence and orchestration handoff
+        shell: bash
+        env:
+          FIREFOX_CODE: ${{ steps.matrix.outputs.firefox_code }}
+          CHROMIUM_CODE: ${{ steps.matrix.outputs.chromium_code }}
+          MOBILE_CODE: ${{ steps.matrix.outputs.mobile_code }}
+          JOB_ID: ${{ steps.jobmeta.outputs.job_id }}
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const firefox = Number(process.env.FIREFOX_CODE);
+          const chromium = Number(process.env.CHROMIUM_CODE);
+          const mobile = Number(process.env.MOBILE_CODE);
+          const pass = firefox === 0 && chromium === 0 && mobile === 0;
+          const runId = process.env.GITHUB_RUN_ID;
+          const jobId = process.env.JOB_ID || 'UNKNOWN';
+          const testedHead = process.env.GITHUB_SHA;
+          const productHead = '2d63c2506dd62705a46a368cefdfc7be0c4f6ebe';
+          const evidenceDir = '.gitl/evidence/round-3';
+          fs.mkdirSync(evidenceDir, { recursive: true });
+          const resultPath = path.join(evidenceDir, 'r3-a1-exact-head-result.md');
+          const workerPath = path.join(evidenceDir, 'worker-3.md');
+          const status = pass ? 'submitted' : 'failed';
+          const conclusion = pass ? 'PASS' : 'FAIL';
+          const result = `# R3 A1 Exact-Head Browser Result\n\n- Tested carrier head: \`${testedHead}\`\n- Product head under test: \`${productHead}\`\n- Branch: \`${process.env.GITHUB_REF_NAME}\`\n- Workflow run ID: \`${runId}\`\n- Workflow job ID: \`${jobId}\`\n\n## Commands and exit codes\n\n- \`npx playwright test tests/e2e/repair-resume.spec.js --project=firefox\`: \`${firefox}\`\n- \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium\`: \`${chromium}\`\n- \`npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile\`: \`${mobile}\`\n\n## Conclusion\n\n${conclusion}. Nonzero exit codes are preserved in the committed logs and activate R3-A2 rather than being masked.\n`;
+          fs.writeFileSync(resultPath, result);
+          const worker = `# Ghost Worker Evidence\n\n## Identity\n- Round: 3\n- Worker: 3\n- Role: Builder / test recovery successor\n- Assignment ID: R3-A1-RR-CI-RECOVERY\n- Started at: 2026-08-06T23:24:14Z\n- Finished at: workflow run ${runId}\n\n## State Read\n- Branch: \`agent/8.8-repair-resume\`\n- Starting product head: \`${productHead}\`\n- Lease state: prior holder expired at 23:16:19Z; scheduled-agent-3 reclaimed after branch-stability checks.\n- Dependencies: none.\n\n## Step Performed\nReclaimed the expired A1 lease, refreshed a guarded exact-head GitHub Actions carrier, and executed the required Firefox, desktop Chromium, and Pixel 7 Chromium Repair & Resume matrix against the real branch code.\n\n## Research Sources\n- Repository evidence: Round 2 Worker 6 required exact-head execution before certification.\n- Repository evidence: Round 3 supervisor fixed the Firefox-only Playwright matrix issue.\n- Repository evidence: product head \`${productHead}\` contains the prior holder's verified semantic rich-editor composer fix.\n- Inference: none used to claim browser results; command exit codes and committed logs are authoritative.\n\n## Changes\n- Product code changed by this successor: no.\n- Temporary carrier: \`.github/workflows/r3-a1-exact-head.yml\` refreshed and removed by this run.\n- Durable evidence: \`${resultPath}\`, three command logs, and this file.\n- Tested carrier head: \`${testedHead}\`.\n\n## Tests\n- Firefox focused command: ${firefox === 0 ? 'PASS' : `FAIL (${firefox})`} — \`.gitl/evidence/round-3/r3-a1-firefox.log\`.\n- Desktop Chromium production path: ${chromium === 0 ? 'PASS' : `FAIL (${chromium})`} — \`.gitl/evidence/round-3/r3-a1-chromium.log\`.\n- Pixel 7 Chromium production path: ${mobile === 0 ? 'PASS' : `FAIL (${mobile})`} — \`.gitl/evidence/round-3/r3-a1-chromium-mobile.log\`.\n- Workflow run ID: \`${runId}\`; job ID: \`${jobId}\`.\n\n## Acceptance Criteria\n- Firefox no longer executes Chromium-only isMobile context: ${firefox === 0 ? 'PASS' : 'FAIL'} — exact command result.\n- Firefox-safe narrow viewport coverage remains executable: ${firefox === 0 ? 'PASS' : 'FAIL'} — exact command result.\n- Production-path fixture runs on exact-head Chromium: ${chromium === 0 ? 'PASS' : 'FAIL'}.\n- Production-path fixture runs on Pixel 7 Chromium: ${mobile === 0 ? 'PASS' : 'FAIL'}.\n- Zero Send actuation and restart assertions are recorded: ${chromium === 0 && mobile === 0 ? 'PASS' : 'NOT PROVEN'} — production-path fixture exit codes plus logs.\n- Failure creates next ready repair assignment rather than stopping: PASS — orchestration handoff below.\n\n## Safety Checks\n- Send authority unchanged by this successor: PASS — no product modification.\n- CHOICE behavior unchanged: PASS.\n- Route and lease safety unchanged: PASS.\n- No main, merge, tag, release, or publish action: PASS.\n\n## Risks and Limits\n${pass ? '- Passing matrix is exact-head browser evidence, but independent Red Team certification remains required by R3-A3.' : '- At least one required browser command failed. A2 is activated with exact run IDs, exit codes, log paths, and tested head; no pass is inferred.'}\n\n## Recommended Next Action\n${pass ? 'Execute R3-A3-RR-REDTEAM-CERT and attempt to falsify this exact-head result.' : 'Execute R3-A2-RR-PROVEN-FAILURE-REPAIR using the committed failing logs and exact reproduction commands; repair only the proven defect.'}\n\n## Assignment Status\n- ${status}\n`;
+          fs.writeFileSync(workerPath, worker);
+
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+          const a1 = plan.assignments.find(a => a.id === 'R3-A1-RR-CI-RECOVERY');
+          const a2 = plan.assignments.find(a => a.id === 'R3-A2-RR-PROVEN-FAILURE-REPAIR');
+          const a3 = plan.assignments.find(a => a.id === 'R3-A3-RR-REDTEAM-CERT');
+          a1.status = status;
+          a1.executedBy = 'scheduled-agent-3-successor';
+          a1.testedCarrierHead = testedHead;
+          a1.productHeadUnderTest = productHead;
+          a1.workflowRunId = runId;
+          a1.workflowJobId = jobId;
+          a1.exitCodes = { firefox, chromium, chromiumMobile: mobile };
+          a1.logPaths = [
+            '.gitl/evidence/round-3/r3-a1-firefox.log',
+            '.gitl/evidence/round-3/r3-a1-chromium.log',
+            '.gitl/evidence/round-3/r3-a1-chromium-mobile.log'
+          ];
+          if (pass) {
+            a2.status = 'not-needed';
+            a2.notNeededReason = 'R3-A1 exact-head Firefox, Chromium, and Pixel 7 Chromium commands all exited 0.';
+            a3.status = 'ready';
+          } else {
+            a2.status = 'ready';
+            a2.dependencies = ['R3-A1-RR-CI-RECOVERY:failed'];
+            a2.failureEvidence = {
+              testedHead,
+              productHead,
+              workflowRunId: runId,
+              workflowJobId: jobId,
+              exitCodes: { firefox, chromium, chromiumMobile: mobile },
+              logs: a1.logPaths,
+              reproduction: [
+                'npx playwright test tests/e2e/repair-resume.spec.js --project=firefox',
+                'npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium',
+                'npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile'
+              ]
+            };
+          }
+          plan.evidence = Array.isArray(plan.evidence) ? plan.evidence : [];
+          if (!plan.evidence.some(e => e.path === workerPath)) plan.evidence.push({ worker: 3, assignment: a1.id, path: workerPath, status });
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+
+          const statePath = '.gitl/autopilot-state.json';
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+          state.completedWorkers = [...new Set([...(state.completedWorkers || []), 3])];
+          state.headAtLastHandoff = testedHead;
+          state.currentStep = pass ? 'R3-A1 exact-head matrix submitted; R3-A3-RR-REDTEAM-CERT is ready.' : 'R3-A1 exact-head matrix failed; R3-A2-RR-PROVEN-FAILURE-REPAIR is ready with exact failure evidence.';
+          state.nextAction = pass ? 'The next eligible agent claims R3-A3-RR-REDTEAM-CERT and independently falsifies the exact-head passing evidence.' : 'The next eligible agent claims R3-A2-RR-PROVEN-FAILURE-REPAIR, reads Worker 3 evidence and the committed logs, repairs only the proven failure, reruns focused exact-head tests, and hands off.';
+          state.testEvidence = Array.isArray(state.testEvidence) ? state.testEvidence : [];
+          for (const p of [workerPath, resultPath, ...a1.logPaths]) if (!state.testEvidence.includes(p)) state.testEvidence.push(p);
+          state.completedSteps = Array.isArray(state.completedSteps) ? state.completedSteps : [];
+          state.completedSteps.push({ type: 'R3-A1-RR-CI-RECOVERY', result: pass ? 'Exact-head Firefox, desktop Chromium, and Pixel 7 Chromium matrix passed and was submitted for Red Team certification.' : 'Exact-head matrix produced at least one failure; exact logs and reproduction were committed and A2 was activated.' });
+          state.findings = Array.isArray(state.findings) ? state.findings : [];
+          state.findings.push({ worker: 3, type: 'exact-head-browser-matrix', finding: pass ? 'All three required commands exited 0 on the guarded carrier head.' : `Required matrix exit codes: firefox=${firefox}, chromium=${chromium}, chromiumMobile=${mobile}; A2 activated.` });
+          state.lease = { holder: null, assignmentId: null, acquiredAt: null, expiresAt: null, branchHead: null };
+          state.blockedReason = null;
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          NODE
+
+      - name: Commit evidence, handoff, and remove temporary carrier
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "gitl-actions"
           git config user.email "actions@users.noreply.github.com"
           rm .github/workflows/r3-a1-exact-head.yml
-          git add .github/workflows/r3-a1-exact-head.yml .gitl/evidence/round-3/r3-a1-exact-head-result.md .gitl/evidence/round-3/r3-a1-firefox.log .gitl/evidence/round-3/r3-a1-chromium.log .gitl/evidence/round-3/r3-a1-chromium-mobile.log
-          git commit -m "test(gitl): record R3 A1 exact-head browser results"
+          git add .github/workflows/r3-a1-exact-head.yml \
+            .gitl/evidence/round-3/worker-3.md \
+            .gitl/evidence/round-3/r3-a1-exact-head-result.md \
+            .gitl/evidence/round-3/r3-a1-firefox.log \
+            .gitl/evidence/round-3/r3-a1-chromium.log \
+            .gitl/evidence/round-3/r3-a1-chromium-mobile.log \
+            .gitl/orchestration/round-plan.json \
+            .gitl/autopilot-state.json
+          git diff --cached --check
+          git commit -m "test(gitl): complete R3 A1 exact-head handoff"
           git push origin HEAD:agent/8.8-repair-resume
-      - name: Enforce matrix result
+
+      - name: Enforce matrix result after durable handoff
         shell: bash
         run: |
           test "${{ steps.matrix.outputs.firefox_code }}" = "0"
