@@ -14,7 +14,20 @@
     {"worker":5,"minute":40,"role":"mobile-browser-accessibility-performance"},
     {"worker":6,"minute":50,"role":"devils-advocate-release-auditor"}
   ],
-  "planningPolicy":{"supervisorOwnsOfficialRoadmap":true,"specialistsMayRecommendOnly":true,"oneBoundedAssignmentPerWorker":true,"dependenciesMustBeSatisfied":true,"productWorkRequiresEvidence":true,"workerEvidenceRequired":true,"roundClosesAfterWorker6":true,"userRequiredProgramsMayNotBeDropped":true,"blockedWorkMustHandOff":true},
+  "planningPolicy":{
+    "supervisorOwnsOfficialRoadmap":true,
+    "specialistsMayRecommendOnly":true,
+    "oneBoundedAssignmentPerWorker":true,
+    "dependenciesMustBeSatisfied":true,
+    "productWorkRequiresEvidence":true,
+    "workerEvidenceRequired":true,
+    "roundClosesAfterWorker6":true,
+    "userRequiredProgramsMayNotBeDropped":true,
+    "blockedWorkMustHandOff":true,
+    "missedSlotMayBeClaimedByNextEligibleAgent":true,
+    "scheduleIsWakeCadenceNotTaskOwnership":true,
+    "agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md"
+  },
   "requiredPrograms":[
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"in-progress","releaseCritical":true},
     {"id":"LIFECYCLE-FROZEN-DISCARDED","title":"Frozen and discarded page lifecycle research and recovery","status":"backlog","releaseCritical":true},
@@ -31,7 +44,8 @@
       "worker":2,
       "role":"researcher-architect",
       "program":"RR-E2E-FAULTS",
-      "status":"ready",
+      "status":"submitted",
+      "executedBy":"successor-agent-after-missed-slot",
       "goal":"Design and prove the narrowest safe test-only seam that invokes the real production Repair and Resume path rather than the synthetic window.__RR model.",
       "rationale":"Round 1 established a useful contract but failed to prove actual production control flow.",
       "dependencies":[],
@@ -41,14 +55,15 @@
       "requiredTests":["repository source inspection","focused specification or failing test when feasible","syntax check for any fixture-only change"],
       "requiredEvidence":["production call graph","selected seam and rejected alternatives","safety analysis","implementation-ready acceptance criteria","exact files and commands"],
       "fallbackWork":"If no safe hook can be added without architectural risk, write a bounded instrumentation design and a failing contract test that Worker 3 can implement.",
-      "evidencePath":".gitl/evidence/round-2/worker-2.md"
+      "evidencePath":".gitl/evidence/round-2/worker-2.md",
+      "submissionCommits":["0b84c8bb86709b4f30d9da4154f9dad11a18acb5","075538c6c7777430cdf6c28000e21b79cee59603","7fe66b17d06c08ec8f18468cbfa7ed399abd7981"]
     },
     {
       "id":"R2-W3-RR-PROD-INSTRUMENT",
       "worker":3,
       "role":"builder",
       "program":"RR-E2E-FAULTS",
-      "status":"waiting",
+      "status":"ready",
       "goal":"Implement the smallest test-only production-path instrumentation and focused browser coverage defined by Worker 2.",
       "rationale":"The release-critical gap is runtime proof through Ghost's actual repair services, not more synthetic model coverage.",
       "dependencies":["R2-W2-RR-PROD-SEAM:submitted"],
@@ -112,7 +127,10 @@
       "evidencePath":".gitl/evidence/round-2/worker-6.md"
     }
   ],
-  "evidence":[{"worker":1,"path":".gitl/evidence/round-2/worker-1.md","status":"submitted"}],
+  "evidence":[
+    {"worker":1,"path":".gitl/evidence/round-2/worker-1.md","status":"submitted"},
+    {"worker":2,"path":".gitl/evidence/round-2/worker-2.md","status":"submitted","executedBy":"successor-agent-after-missed-slot"}
+  ],
   "roundDecision":null,
   "humanReviewRequired":true,
   "publishReadyRequiresAllRequiredPrograms":true
