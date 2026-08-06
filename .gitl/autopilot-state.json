@@ -76,10 +76,10 @@
   ],
   "testEvidence": [],
   "lease": {
-    "holder": null,
-    "acquiredAt": null,
-    "expiresAt": null,
-    "branchHead": null
+    "holder": 1,
+    "acquiredAt": "2026-08-06T17:02:00Z",
+    "expiresAt": "2026-08-06T17:47:00Z",
+    "branchHead": "5dbf151648f2156ccd3ed840b983834f08a5bb03"
   },
   "blockedReason": null,
   "publishReady": false,
