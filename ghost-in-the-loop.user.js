@@ -1782,20 +1782,89 @@ const DIAG = {
    Scores platform readiness 0-100. Exposes 🟢🟡🔴 badge.
    Sources: HTML/CSS GPT capability scoring, Software Architect GPT
    ═══════════════════════════════════════════════════════════════ */
-function platformHealth() {
-  const input = Adapter.peekInput();
-  const send  = Adapter.getSendBtn();
-  const stop  = _q('gen', PLAT.stop);
-  const msgs  = _qAll(PLAT.assistant);
-  const canRead   = msgs.length > 0;
-  const canInject  = !!input;
-  const canSend    = !!send;
-  const canExport  = canRead;
-  const score = (canRead ? 25 : 0) + (canInject ? 30 : 0) + (canSend ? 30 : 0) + (canExport ? 15 : 0);
+function capabilityState(overrides = {}) {
+  const L = (typeof GHOST !== 'undefined' && GHOST.loop) ? GHOST.loop : {};
+  const has = key => Object.prototype.hasOwnProperty.call(overrides, key);
+  const phase = String(has('phase') ? overrides.phase : (L.phase || 'idle'));
+  const runtimeState = String(has('runtimeState') ? overrides.runtimeState : (L.state || 'IDLE'));
+  const input = has('input') ? overrides.input : Adapter.peekInput();
+  const sendControl = has('send') ? overrides.send : Adapter.getSendBtn();
+  const stopControl = has('stop') ? overrides.stop : _q('gen', PLAT.stop);
+  const assistantCount = Math.max(0, Number(has('assistantCount')
+    ? overrides.assistantCount : _qAll(PLAT.assistant).length) || 0);
+  let selectedAnswer = has('selectedAnswer') ? overrides.selectedAnswer : null;
+  if (!has('selectedAnswer')) {
+    try { selectedAnswer = _selectAnswerCandidate(); } catch(_) { selectedAnswer = null; }
+  }
+  const composerHasText = has('composerHasText') ? !!overrides.composerHasText : (() => {
+    try {
+      if (!input) return false;
+      const value = typeof input.value === 'string' ? input.value : input.textContent;
+      return !!String(value || '').trim();
+    } catch(_) { return false; }
+  })();
+  const reviewedEnter = has('reviewedEnter') ? !!overrides.reviewedEnter
+    : !!(PLAT && PLAT.reviewed && PLAT.dispatchFallback === 'enter');
+  const dispatching = has('dispatching') ? !!overrides.dispatching
+    : phase === 'dispatching' || L.sendTxn?.state === 'dispatching';
+  const generating = has('generating') ? !!overrides.generating
+    : phase === 'generating' || !!stopControl
+      || (runtimeState === 'RUNNING' && !!GITL_NET.streaming());
+  const inputRequired = has('inputRequired') ? !!overrides.inputRequired : dispatching;
+  const readRequired = has('readRequired') ? !!overrides.readRequired
+    : runtimeState === 'RUNNING' && ['waiting-output','generating','reading','decision'].includes(phase);
+  const sendRequired = has('sendRequired') ? !!overrides.sendRequired
+    : dispatching && !reviewedEnter;
+  const stopRequired = has('stopRequired') ? !!overrides.stopRequired
+    : runtimeState === 'RUNNING' && generating;
+
+  const states = {
+    input: input ? 'ready' : 'missing',
+    read: selectedAnswer ? 'ready' : assistantCount > 0 ? 'ambiguous' : 'missing',
+    send: (sendControl || reviewedEnter) ? 'ready'
+      : sendRequired ? 'missing-when-required' : 'latent-empty-composer',
+    stop: stopControl ? 'active'
+      : stopRequired ? 'missing-during-generation' : 'idle-absent'
+  };
+  const requiredMissing = [];
+  if (inputRequired && states.input !== 'ready') requiredMissing.push('input');
+  if (readRequired && states.read !== 'ready') requiredMissing.push('read');
+  if (sendRequired && states.send !== 'ready') requiredMissing.push('send');
+  if (stopRequired && states.stop !== 'active') requiredMissing.push('stop');
+
+  return {
+    phase, runtimeState, states, requiredMissing,
+    adapterFailure: requiredMissing.length > 0,
+    assistantCount, composerHasText,
+    inputControl: !!input,
+    sendControl: !!sendControl,
+    stopControl: !!stopControl,
+    reviewedEnter,
+    generating,
+    dispatching
+  };
+}
+
+function platformHealth(overrides = {}) {
+  const c = capabilityState(overrides);
+  const canRead = c.states.read === 'ready';
+  const canInject = c.states.input === 'ready';
+  const canSend = c.states.send === 'ready';
+  const canExport = canRead;
+  const baseScore = (canRead ? 25 : c.states.read === 'ambiguous' ? 10 : 0)
+    + (canInject ? 30 : 0)
+    + (c.states.send === 'missing-when-required' ? 0 : 30)
+    + (canExport ? 15 : 0);
+  const score = Math.max(0, Math.min(100, baseScore - (c.states.stop === 'missing-during-generation' ? 20 : 0)));
   return {
     platform: PLAT.label, score,
-    input: canInject, send: canSend, stop: !!stop,
-    assistantCount: msgs.length, ready: canInject && canSend,
+    capabilityStates: c.states,
+    requiredMissing: c.requiredMissing,
+    adapterFailure: c.adapterFailure,
+    phase: c.phase,
+    input: canInject, send: canSend, stop: c.states.stop === 'active',
+    assistantCount: c.assistantCount,
+    ready: canInject && !c.adapterFailure,
     badge: score >= 80 ? '🟢' : score >= 40 ? '🟡' : '🔴',
     netActive: GITL_NET.active,
     netStreaming: GITL_NET.streaming(),
@@ -2029,10 +2098,11 @@ const Reporter = {
           ? GHOST._degraded.filter(x => /^[a-z0-9-]{1,32}$/i.test(String(x))).slice(0, 12) : []
       },
       capabilities: {
-        input: !!h.input,
-        send: !!h.send,
-        stop: !!h.stop,
-        canRead: Number(h.assistantCount) > 0,
+        input: String(h.capabilityStates?.input || (h.input ? 'ready' : 'missing')),
+        read: String(h.capabilityStates?.read || (Number(h.assistantCount) > 0 ? 'ready' : 'missing')),
+        send: String(h.capabilityStates?.send || (h.send ? 'ready' : 'latent-empty-composer')),
+        stop: String(h.capabilityStates?.stop || (h.stop ? 'active' : 'idle-absent')),
+        requiredMissing: Array.isArray(h.requiredMissing) ? h.requiredMissing.slice(0, 4) : [],
         assistantCount: Number(h.assistantCount) || 0,
         learnedKinds,
         heuristicInputCandidate: !!(() => { try { return _heurInput(); } catch(_) { return false; } })(),
@@ -2067,7 +2137,8 @@ const Reporter = {
     lines.push(`| Version | ${d.app.version} |`);
     lines.push(`| Platform adapter | ${d.app.platform} (${d.app.reviewedAdapter ? 'reviewed' : 'manual-send only'}) |`);
     lines.push(`| Loop | ${d.runtime.state} · round ${d.runtime.round}/${d.runtime.maxRounds} |`);
-    lines.push(`| Capabilities | input:${d.capabilities.input} send:${d.capabilities.send} stop:${d.capabilities.stop} read:${d.capabilities.canRead} |`);
+    lines.push(`| Capabilities | input:${d.capabilities.input} read:${d.capabilities.read} send:${d.capabilities.send} stop:${d.capabilities.stop} |`);
+    lines.push(`| Required now | ${d.capabilities.requiredMissing.join(', ') || 'none'} |`);
     lines.push(`| Learned locator kinds | ${d.capabilities.learnedKinds.join(', ') || 'none'} (values excluded) |`);
     lines.push(`| Network observer | ${d.network.observerInstalled ? 'active' : 'off'} · trusted pulse:${d.network.trustedPulseAge} |`);
     lines.push(`| Browser | ${d.environment.family}${d.environment.major ? ' ' + d.environment.major : ''} · ${d.environment.os}${d.environment.mobile ? ' · mobile' : ''} |`);
@@ -2091,6 +2162,13 @@ const Reporter = {
 
   capture(kind) {
     const code = this.code(kind);
+    if (code === 'ADAPTER-001') {
+      const health = (typeof platformHealth === 'function') ? platformHealth() : { adapterFailure: true };
+      if (!health.adapterFailure) {
+        try { Timeline.record('adapter_probe_context', { state: 'not-required' }); } catch(_) {}
+        return null;
+      }
+    }
     const seenAt = this._seen.get(code) || 0;
     this._seen.set(code, Date.now());
     if (this.last?.kind === code && Date.now() - seenAt < 600000) return this.last;
