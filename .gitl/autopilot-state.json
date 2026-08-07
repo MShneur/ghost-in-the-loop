@@ -122,7 +122,7 @@
     },
     {
       "type": "round-6-research-fallback-constrained-runtime-04",
-      "result": "A fourth bounded post-A1X fallback used current Playwright and Chrome DevTools documentation plus repository Playwright configuration to define a two-tier constrained-runtime test method. Tier A uses Chromium-only CDP CPU rates 1x/4x/6x with invariant-based pass/fail gates and descriptive timing; Tier B remains separate physical/AVD evidence. Firefox remains a correctness lane because Playwright CDP is Chromium-only. Pixel emulation and hosted CPU throttling are explicitly not physical-device certification. Evidence commit 925c8450b78371ffc2848eb03397d4900ce04002."
+      "result": "A fourth bounded post-A1X fallback used current Playwright and Chrome DevTools documentation plus repository Playwright configuration to define a two-tier constrained-runtime test method. Tier A uses Chromium-only CDP CPU rates 1x/4x/6x with invariant-based correctness/resource gates and descriptive timing; Tier B remains separate physical/AVD evidence. Firefox remains a correctness lane because Playwright CDP is Chromium-only. Pixel emulation and hosted CPU throttling are explicitly not physical-device certification. Evidence commit 925c8450b78371ffc2848eb03397d4900ce04002."
     },
     {
       "type": "round-6-research-fallback-cross-adapter-contract-05",
@@ -215,7 +215,15 @@
     ".gitl/evidence/round-6/research-fallback-04.md",
     ".gitl/evidence/round-6/research-fallback-05.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-r6-research-csp-tt-06",
+    "assignmentId": "R6-RESEARCH-FALLBACK-CSP-TT-SHADOW-COMPAT-06",
+    "nominalWorker": 6,
+    "executedRole": "compatibility-security-researcher-with-devils-advocate-lens",
+    "acquiredAt": "2026-08-07T15:49:30Z",
+    "expiresAt": "2026-08-07T16:34:30Z",
+    "inspectedHead": "UNKNOWN-tip; branch remained exactly one commit ahead of 2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd and no open PR used the isolated branch as head"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
