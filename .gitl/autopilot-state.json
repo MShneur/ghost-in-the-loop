@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
   "headAtLastHandoff": "625151a83a5d1332f21c7f9445cc67d38cff9f06",
-  "currentStep": "R3-A2-RR-PROVEN-FAILURE-REPAIR is submitted. Scheduled-agent-3 repaired the CI observability blocker with PR-visible exact-head run 31137892852/job 92741313903 on head 65a5b94c8e31644b56a614fa1c404873451798ce. Setup, browser install, and Firefox passed; desktop Chromium and Pixel 7 Chromium reproduced the same ticker restart single-flight defect. Temporary workflows were removed and draft PR #13 was closed unmerged.",
-  "nextAction": "The next eligible agent must claim R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR regardless of nominal worker number. Make the smallest product repair so a paused ticker fault restarts exactly once, repeated same-task repair adds zero starts, and twelve rapid same-task requests still add exactly one start; preserve Send, CHOICE, route, lease, composer-staleness, and uncertainty safeguards, then rerun both Chromium production paths plus Firefox focused coverage before A3 Red Team certification.",
+  "currentStep": "Scheduled-agent-4 claimed R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR at branch head 22b0894247048cd4cf70b3edaf9e61754b9a8295 after verifying the A2 lease release, no combined statuses, and no connected-GitHub-visible PR workflow run on that head.",
+  "nextAction": "Make the smallest product repair for the proven same-task ticker restart single-flight defect, preserve Send/CHOICE/route/lease/composer-staleness/uncertainty safeguards, then rerun desktop Chromium, Pixel 7 Chromium, and Firefox focused Repair & Resume coverage with durable exact-head evidence.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible scheduled wake",
@@ -187,11 +187,11 @@
     ".gitl/evidence/round-3/worker-3.md"
   ],
   "lease": {
-    "holder": null,
-    "assignmentId": null,
-    "acquiredAt": null,
-    "expiresAt": null,
-    "branchHead": null
+    "holder": "scheduled-agent-4",
+    "assignmentId": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
+    "acquiredAt": "2026-08-07T01:30:00Z",
+    "expiresAt": "2026-08-07T02:15:00Z",
+    "branchHead": "22b0894247048cd4cf70b3edaf9e61754b9a8295"
   },
   "blockedReason": null,
   "publishReady": false,
