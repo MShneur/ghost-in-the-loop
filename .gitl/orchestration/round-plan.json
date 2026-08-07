@@ -61,9 +61,9 @@
   "dispatch": {
     "nextWake": "next eligible scheduled or manual agent",
     "nominalWorker": 5,
-    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
+    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
     "automatic": true,
-    "instruction": "Execute the earliest dependency-ready mobile/performance lifecycle assignment. Measure bounded restart, observer/scan/lock, accessibility, and constrained-device behavior under mobile Chromium emulation; distinguish emulator evidence from real-device claims and explicitly test whether the bounded duplicate cache invalidation has material performance consequences."
+    "instruction": "Execute the bounded A4 mobile/performance exact-head recovery. Use a temporary guarded connected-GitHub-visible carrier if needed, run the Pixel-7 chromium-mobile lifecycle fixture, preserve metrics/run/job/artifact evidence, remove temporary machinery, and on PASS activate the independent lifecycle audit."
   },
   "assignments": [
     {
@@ -246,7 +246,7 @@
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "ready",
+      "status": "blocked",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Evaluate lifecycle recovery under mobile Chromium/background-foreground pressure and measure whether timers, observers, scans, locks, and reattachment work remain bounded.",
       "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked"],
@@ -255,7 +255,36 @@
       "acceptanceCriteria": ["Run or define mobile Chromium background/foreground and viewport recovery scenarios", "Record timer/observer/scan/lock/restart counts or defensible bounded proxies", "Check repeated wake signals do not accumulate duplicate runtime services or accessible UI", "State real-device and Firefox lifecycle limitations explicitly", "Confirm latest message/composer remains usable after mobile wake where the harness permits"],
       "requiredTests": ["Playwright mobile Chromium or equivalent emulation", "focused lifecycle performance instrumentation", "relevant accessibility assertions"],
       "requiredEvidence": ["device/emulation profile", "measurements", "commands and CI IDs", "Android/lower-end risk conclusion", "browser gaps"],
-      "fallbackWork": "If exact mobile execution is unavailable, add instrumentation assertions against the real lifecycle seam and provide the exact guarded CI command required."
+      "fallbackWork": "If exact mobile execution is unavailable, add instrumentation assertions against the real lifecycle seam and provide the exact guarded CI command required.",
+      "evidencePath": ".gitl/evidence/round-4/worker-5.md",
+      "evidenceCommit": "c9e265a703cdc7b976315a9654e0ceff0de83212",
+      "blocker": "The Pixel-7 chromium-mobile fixture and instrumentation are committed, but exact observable execution evidence is unavailable through the current A4 connector surface. Ordinary push CI is configured but cannot be certified by inference; A4X is required for connected-GitHub-visible exact-head execution."
+    },
+    {
+      "id": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
+      "worker": 5,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "mobile-browser-accessibility-performance-execution-recovery",
+      "status": "ready",
+      "program": "LIFECYCLE-FROZEN-DISCARDED",
+      "goal": "Obtain exact-head connected-GitHub-visible execution evidence for the committed Pixel-7 mobile lifecycle/performance fixture without changing product behavior.",
+      "rationale": "A4 produced deterministic mobile/resource/accessibility instrumentation but its ordinary push-run result is not observable through the available connector query. Certification requires an exact guarded run rather than inference from workflow configuration.",
+      "dependencies": ["R4-A4-LIFECYCLE-MOBILE-PERF:blocked"],
+      "mandatoryAction": "Use the smallest temporary guarded CI carrier necessary to expose exact-head Pixel-7 chromium-mobile execution. Preserve raw metric attachment/results and distinguish emulation from physical-device evidence. Do not alter the fixture merely to obtain green CI.",
+      "allowedFiles": ["tests/**", "playwright.config.*", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["product implementation", "weakening resource/restart/Send/accessibility assertions", "inventing real-device or Firefox-Android evidence", "accepting stale-head/cancelled CI", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": [
+        "Guard and print expected versus actual exact head",
+        "Run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile",
+        "Preserve the mobile/performance JSON attachment or equivalent raw measurements plus logs/traces when available",
+        "Record run/job/artifact IDs and exact metric conclusions",
+        "Remove temporary carrier machinery and close any isolated draft PR unmerged",
+        "On PASS mark A4 and A4X submitted and activate R4-A5-LIFECYCLE-AUDIT",
+        "On FAIL preserve the exact failure and create only the smallest evidence-driven repair"
+      ],
+      "requiredTests": ["npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile"],
+      "requiredEvidence": ["exact tested head", "device/emulation profile", "raw measurements", "run/job/artifact IDs", "criterion verdicts", "carrier cleanup", "handoff result"],
+      "fallbackWork": "If connected-GitHub-visible execution still cannot be obtained, keep A4/A4X blocked on observability only, record the infrastructure reason precisely, release the lease, and leave A4X retry-ready."
     },
     {
       "id": "R4-A5-LIFECYCLE-AUDIT",
@@ -265,7 +294,7 @@
       "status": "waiting",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Independently audit Round 4 and decide whether frozen/discarded lifecycle recovery is certified, rejected, or still needs evidence.",
-      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked"],
+      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked", "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC:submitted-or-blocked"],
       "allowedFiles": [".gitl/evidence/round-4/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["product implementation", "accepting chat-only or stale-head claims", "main/merge/tag/release/publish"],
       "acceptanceCriteria": ["Verify source claims against authoritative browser/platform sources", "Verify exact-head tests and generated parity where claimed", "Verify no Send/CHOICE/route/lease/uncertainty regression", "Verify discarded/frozen cases are tested only to the extent supported by actual platform/harness evidence", "Mark each assignment accepted/rejected/needs-more-evidence", "Close the round to human verification only if the bounded lifecycle objective has been fully audited"],
@@ -280,7 +309,8 @@
     {"worker": 2, "assignment": "R4-A1X-LIFECYCLE-CONTRACT-EXEC", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"},
     {"worker": 3, "assignment": "R4-A2-LIFECYCLE-BUILD", "path": ".gitl/evidence/round-4/worker-3.md", "status": "submitted", "commit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23", "executionRecoveredBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE"},
     {"worker": 4, "assignment": "R4-A3-LIFECYCLE-REDTEAM", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"},
-    {"worker": 4, "assignment": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"}
+    {"worker": 4, "assignment": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"},
+    {"worker": 5, "assignment": "R4-A4-LIFECYCLE-MOBILE-PERF", "path": ".gitl/evidence/round-4/worker-5.md", "status": "blocked", "commit": "c9e265a703cdc7b976315a9654e0ceff0de83212", "executionRecovery": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
