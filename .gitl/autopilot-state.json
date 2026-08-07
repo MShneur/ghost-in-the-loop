@@ -242,7 +242,15 @@
     ".gitl/evidence/round-5/worker-4.md",
     ".gitl/evidence/round-5/worker-5.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-longchat-auditor",
+    "assignmentId": "R5-A5-LONGCHAT-AUDIT",
+    "role": "devils-advocate-release-auditor",
+    "nominalWorker": 6,
+    "acquiredAt": "2026-08-07T11:50:53Z",
+    "expiresAt": "2026-08-07T12:35:53Z",
+    "inspectedHead": "095ab6722e3aa2b84533bff0378996152230c055"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
