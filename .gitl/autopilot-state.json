@@ -255,7 +255,15 @@
     ".gitl/evidence/round-6/research-fallback-08.md",
     ".gitl/evidence/round-6/research-fallback-09.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-red-scroll-10",
+    "assignmentId": "R6-RESEARCH-FALLBACK-RED-SCROLL-ANCHOR-10",
+    "nominalWorker": 6,
+    "executedRole": "devils-advocate-release-auditor-with-mobile-layout-research",
+    "acquiredAt": "2026-08-07T16:51:16Z",
+    "expiresAt": "2026-08-07T17:36:16Z",
+    "inspectedHead": "d72b4039887b3b9cc4dae81ad7b330c95e7907be"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
