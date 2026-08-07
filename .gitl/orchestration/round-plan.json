@@ -91,11 +91,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
+    "nominalWorker": 5,
+    "assignmentId": "R5-A4-LONGCHAT-MOBILE-PERF",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R5-A3-LONGCHAT-REDTEAM regardless of timer number. Attempt to falsify the accepted grouped-selector optimization under mixed selector tails, mutation/DOM replacement, stale/hidden duplicates, route changes, and unresolved Send state without rewriting production or weakening the A2 oracle."
+    "instruction": "Claim R5-A4-LONGCHAT-MOBILE-PERF regardless of timer number. Execute exact-head Pixel-7 Chromium-emulation and desktop-Firefox long-chat evidence where portable, measure resource/usability trends, preserve zero Send actuation, and do not promote emulation into physical-device certification."
   },
   "assignments": [
     {
@@ -247,7 +247,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "ready",
+      "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Attempt to falsify the accepted long-chat optimization under adversarial DOM history, mutation churn, stale/hidden duplicates, route changes, and unresolved Send states.",
       "dependencies": ["R5-A2X-LONGCHAT-BUILD-EXEC:submitted"],
@@ -265,14 +265,37 @@
       "requiredEvidence": ["falsification cases", "exact head/run/job/artifact", "raw measurements", "failures preserved", "smallest recovery if needed"],
       "fallbackWork": "A deterministic failure must create a bounded ready recovery assignment before A4; do not weaken the performance or safety oracle.",
       "evidencePath": ".gitl/evidence/round-5/worker-4.md",
-      "activationReason": "A2X passed the unchanged A1/A2 oracle on exact candidate head 9d49e34af07015f8064ac66398004180216efb08; Red Team is now the earliest dependency-ready assignment."
+      "activationReason": "A2X passed the unchanged A1/A2 oracle on exact candidate head 9d49e34af07015f8064ac66398004180216efb08; Red Team is now the earliest dependency-ready assignment.",
+      "executedBy": "scheduled-agent-6-longchat-redteam-successor",
+      "claimCommit": "0cb75a1db0f0a144c3af1f7e75a848310c8d8c9e",
+      "testCommit": "73ec20832e6ae125fd38dd137f315ee695e186b6",
+      "testedHead": "73ec20832e6ae125fd38dd137f315ee695e186b6",
+      "runId": 31171939489,
+      "jobId": 92845452541,
+      "artifactId": 8991319478,
+      "artifactSha256": "eb54291a2aa50868b9281982422c548025f77130f1338d671a83094fae4273e3",
+      "temporaryPr": 25,
+      "metrics": {
+        "adversarialTurns": 2000,
+        "mixedTailTurns": 1200,
+        "afterMutationAnswerQsaMatchesPerSample": 2001,
+        "afterMutationAnswerP95Ms": 2.2,
+        "activeIntervalsBeforeAfter": [4, 4],
+        "intervalCreatesBeforeAfter": [5, 5],
+        "observerCreatesBeforeAfter": [3, 3],
+        "safetyEvents": { "submit": 0, "click": 0, "input": 0, "keydown": 0 },
+        "repeat2000BeginSendP95Ms": 6.4,
+        "repeat2000SendEvidenceP95Ms": 3.6,
+        "repeat2000SendObservationMatchesPerSample": 8004
+      },
+      "conclusion": "PASS. Exact-head adversarial Chromium preserved mixed selector-tail semantics, newest unfinished-answer authority, unchanged A2 2000-turn performance gates after heavy DOM replacement, stable timer/observer counts, and fail-closed route/lease/uncertain-Send behavior with zero actuation. Remaining Send-observation work still scales linearly and is carried forward as a bounded performance limit rather than weakened."
     },
     {
       "id": "R5-A4-LONGCHAT-MOBILE-PERF",
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "waiting",
+      "status": "ready",
       "program": "LONG-CHAT-PERF",
       "goal": "Measure the accepted long-chat path under Pixel-class Chromium emulation and cross-browser constraints without promoting emulation into physical-device certification.",
       "dependencies": ["R5-A3-LONGCHAT-REDTEAM:submitted-or-blocked"],
@@ -288,7 +311,8 @@
       "requiredTests": ["exact-head chromium-mobile long-chat fixture", "desktop Firefox correctness where supported", "resource accumulation and accessibility/usability assertions"],
       "requiredEvidence": ["device profile", "fixture size", "raw timing/resource metrics", "browser matrix", "limitations", "exact run/job/artifact"],
       "fallbackWork": "If a browser-specific failure is reproducible, preserve it and create the smallest platform-scoped recovery rather than weakening shared correctness.",
-      "evidencePath": ".gitl/evidence/round-5/worker-5.md"
+      "evidencePath": ".gitl/evidence/round-5/worker-5.md",
+      "activationReason": "R5-A3-LONGCHAT-REDTEAM passed exact adversarial Chromium on head 73ec20832e6ae125fd38dd137f315ee695e186b6 and preserved safety/performance oracles under selector-tail asymmetry, DOM replacement, route changes, uncertain Send, and foreign lease conditions."
     },
     {
       "id": "R5-A5-LONGCHAT-AUDIT",
