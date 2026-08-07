@@ -1,0 +1,63 @@
+name: R4 A3X Lifecycle Cache Idempotence
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-cache-idempotence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          fetch-depth: 1
+
+      - name: Guard exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "expected=${EXPECTED_HEAD}"
+          echo "actual=${actual}"
+          test "${actual}" = "${EXPECTED_HEAD}"
+          test "${GITHUB_HEAD_REF}" = "agent/8.8-repair-resume"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Focused lifecycle Jest
+        run: npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand
+
+      - name: Adversarial lifecycle wake fixture - Chromium
+        run: npx playwright test tests/e2e/lifecycle-redteam.spec.js --project=chromium
+
+      - name: Production lifecycle fixture - Chromium
+        run: npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r4-a3x-lifecycle-cache-idempotence-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
