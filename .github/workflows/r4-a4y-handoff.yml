@@ -1,0 +1,289 @@
+name: R4 A4Y Handoff
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          fetch-depth: 0
+
+      - name: Guard exact head and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "expected=${EXPECTED_HEAD}"
+          echo "actual=${actual}"
+          test "${actual}" = "${EXPECTED_HEAD}"
+          test "${GITHUB_HEAD_REF}" = "agent/8.8-repair-resume"
+
+      - name: Commit A4Y evidence and atomic handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "gitl-autopilot"
+          git config user.email "gitl-autopilot@users.noreply.github.com"
+          git checkout -B agent/8.8-repair-resume "${EXPECTED_HEAD}"
+
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.gitl/evidence/round-4/worker-5.md')
+          addendum = r'''
+
+---
+
+# A4Y Mobile Viewport Fixture Recovery Addendum
+
+## Identity
+- Round: 4
+- Worker evidence slot: 5
+- Intended role: `mobile-browser-test-fixture-repair`
+- Executing successor: `automation-successor-a4y`
+- Assignment ID: `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`
+- Started at: `2026-08-07T06:14:30Z`
+- Exact execution: `2026-08-07T06:17:51Z` through `2026-08-07T06:18:35Z`
+- Program: `LIFECYCLE-FROZEN-DISCARDED`
+
+## State Read
+- Branch: `agent/8.8-repair-resume`
+- A4Y lease claim commit: `bf2691000963d4b91d283dfab36e47685adb6862`
+- Prior state lease: `null`
+- Deferred-human queue: absent; no human decision blocked the recovery.
+- Earliest ready assignment: `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`.
+
+## Source-Level Root Cause
+A4X exact-head run `31152568300` / job `92785122646` proved that Pixel 7 emulation was active (Android Pixel 7 UA, DPR `2.625`, touch `1`) while the synthetic HTML page reported CSS layout width `981` and failed only the deliberate `width <= 500` assertion.
+
+Repository inspection of `tests/e2e/lifecycle-mobile-perf.spec.js` confirmed that the synthetic `PAGE` had no viewport metadata. The product userscript was not implicated.
+
+Competing interpretations were preserved:
+
+1. **Relax the width assertion** — rejected because it would erase a deliberate mobile-document contract merely to obtain green CI.
+2. **Correct the synthetic document** — selected because adding standards-correct device-width viewport metadata makes the fixture represent a normal mobile page without changing product behavior or any lifecycle/resource/Send/accessibility expectation.
+
+## Changes
+Fixture-only commit: `c2b2372ce961a5045810445c6184e9e2804babb4`
+
+Changed only `tests/e2e/lifecycle-mobile-perf.spec.js` by adding:
+
+`<meta name="viewport" content="width=device-width, initial-scale=1">`
+
+The `width <= 500` assertion and every semantic/resource/Send/accessibility assertion remained unchanged.
+
+Temporary exact-head carrier commit: `53497095439feaff586454ca778560db287ff2aa`
+
+Temporary workflow cleanup commit: `cb2f622f2249409c25cb97ced691c36aa1d353ff`
+
+Temporary draft PR #19 used isolated base `gitl/r4-a4y-ci-base`, never `main`, and was closed unmerged after evidence collection.
+
+## Exact-Head Tests and CI
+- Workflow run: `31153444356`
+- Job: `92787723447`
+- Tested head: `53497095439feaff586454ca778560db287ff2aa`
+- Exact-head guard: **PASS** — expected and actual were identical.
+- Command: `npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile`
+- Result: **PASS — 1/1 test passed**.
+- Playwright test duration: `556 ms`; total command reported `1 passed (2.0s)`.
+- Artifact: `r4-a4y-lifecycle-mobile-viewport-evidence`
+- Artifact ID: `8984194701`
+- Artifact SHA-256: `19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce`
+- Artifact size: `3655` bytes.
+
+## Raw Mobile Measurements
+Profile:
+- CSS layout viewport: `412 x 839`
+- devicePixelRatio: `2.625`
+- maxTouchPoints: `1`
+- UA: Android 14 / Pixel 7 / Chrome 148 mobile
+
+Across all 12 separated wake windows:
+- ticker starts per window: exactly `1`
+- heartbeat starts per window: exactly `1`
+- GhostBus init per window: exactly `1`
+- route re-detect per window: exactly `1`
+- cache invalidations per window: exactly `2`, inside the accepted bounded `1..2` contract
+
+Resource proxies:
+- active intervals: `4 -> 5`, within the `before + 1` bound
+- active MutationObservers: `3 -> 3`
+- interval creates/clears: `5/1 -> 29/24`
+- lock records: `1`
+- Ghost panel count: `1`
+
+Safety and host usability:
+- submit events: `0`
+- click events: `0`
+- input events: `0`
+- keydown events: `0`
+- loop state: `RUNNING`
+- original input connected: `true`, value `unchanged`
+- original Send connected: `true`, label `Send message`
+- latest rendered answer: `Latest answer 179`
+
+Descriptive emulation timing, not a physical-device budget:
+- elapsed min: about `7.7 ms`
+- median: about `8.2 ms`
+- max: about `13.6 ms`
+- mean: about `8.59 ms`
+- measured cache-clear time in this run: effectively `0 ms` at available timer resolution
+
+## Acceptance Criteria — A4Y
+- Show A4X failure and missing viewport metadata: **PASS**.
+- Make only the smallest synthetic viewport correction: **PASS**.
+- Preserve `width <= 500`: **PASS** — observed width `412`.
+- Preserve touch/mobile profile: **PASS** — touch `1`, Pixel 7 UA/DPR.
+- Preserve all 12 wake semantic-cardinality assertions: **PASS**.
+- Preserve bounded resource assertions: **PASS**.
+- Preserve zero Send-adjacent actuation: **PASS**.
+- Preserve original host input/Send/latest-message usability: **PASS**.
+- Exact guarded head execution: **PASS**.
+- Preserve raw artifact evidence: **PASS**.
+- Remove temporary carrier and close isolated draft PR unmerged: **PASS**.
+
+## Safety Checks
+- Product implementation changed: **NO**.
+- Send authority changed: **NO**.
+- CHOICE behavior changed: **NO**.
+- Route/lease/uncertainty safeguards changed: **NO**.
+- Width or lifecycle assertions weakened: **NO**.
+- `main` modified: **NO**.
+- Merge / auto-merge / tag / publish / release: **NONE**.
+
+## Risks and Limits
+1. This is Playwright Pixel 7 Chromium emulation, not physical Android-device certification.
+2. Firefox Android / GeckoView remains outside this fixture.
+3. Timing values are descriptive GitHub-hosted measurements without a calibrated low-end-device performance budget.
+4. `npm ci` still reports two pre-existing high-severity dependency findings; A4Y did not change dependencies.
+5. GitHub Actions reports Node-action deprecation warnings; these are maintenance signals, not failures of the lifecycle fixture.
+
+## Recommended Next Action
+Activate `R4-A5-LIFECYCLE-AUDIT` for independent Devil's Advocate review of all Round-4 lifecycle evidence. The auditor must verify exact heads, run/job/artifact claims, unsupported browser/device claims, and Send/CHOICE/route/lease/uncertainty preservation before closing the round.
+
+## Assignment Status
+- `R4-A4-LIFECYCLE-MOBILE-PERF`: **submitted after exact execution recovery**.
+- `R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC`: **submitted after A4Y fixture correction**.
+- `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`: **submitted**.
+'''
+          text = p.read_text()
+          if '# A4Y Mobile Viewport Fixture Recovery Addendum' not in text:
+              p.write_text(text.rstrip() + addendum + '\n')
+          PY
+
+          git add .gitl/evidence/round-4/worker-5.md
+          git commit -m "docs(gitl): record A4Y viewport recovery evidence"
+          EVIDENCE_COMMIT="$(git rev-parse HEAD)"
+          export EVIDENCE_COMMIT
+          echo "evidence_commit=${EVIDENCE_COMMIT}"
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          evidence_commit = os.environ['EVIDENCE_COMMIT']
+          plan_path = Path('.gitl/orchestration/round-plan.json')
+          state_path = Path('.gitl/autopilot-state.json')
+          plan = json.loads(plan_path.read_text())
+          state = json.loads(state_path.read_text())
+
+          plan['dispatch'] = {
+              'nextWake': 'next eligible scheduled or manual agent',
+              'nominalWorker': 6,
+              'assignmentId': 'R4-A5-LIFECYCLE-AUDIT',
+              'automatic': True,
+              'instruction': 'Independently audit all Round-4 lifecycle evidence, exact heads, CI run/job/artifact bindings, source claims, mobile-emulation limits, and Send/CHOICE/route/lease/uncertainty preservation. Certify only what the durable evidence proves; otherwise activate the smallest recovery.'
+          }
+
+          by_id = {a['id']: a for a in plan.get('assignments', [])}
+          for aid in ['R4-A4-LIFECYCLE-MOBILE-PERF', 'R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC', 'R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE']:
+              by_id[aid]['status'] = 'submitted'
+              by_id[aid]['evidencePath'] = '.gitl/evidence/round-4/worker-5.md'
+              by_id[aid]['evidenceCommit'] = evidence_commit
+          by_id['R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE']['fixtureCommit'] = 'c2b2372ce961a5045810445c6184e9e2804babb4'
+          by_id['R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE']['executionEvidence'] = {
+              'testedHead': '53497095439feaff586454ca778560db287ff2aa',
+              'runId': 31153444356,
+              'jobId': 92787723447,
+              'artifactId': 8984194701,
+              'artifactSha256': '19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce',
+              'result': 'PASS: Pixel 7 chromium-mobile 1/1; width=412; touch=1; 12/12 exact semantic recovery windows; bounded resources; zero Send-adjacent events'
+          }
+          by_id['R4-A5-LIFECYCLE-AUDIT']['status'] = 'ready'
+
+          evidence = plan.setdefault('evidence', [])
+          for entry in evidence:
+              if entry.get('assignment') in {'R4-A4-LIFECYCLE-MOBILE-PERF', 'R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC'}:
+                  entry['status'] = 'submitted'
+                  entry['commit'] = evidence_commit
+                  entry.pop('executionRecovery', None)
+          if not any(e.get('assignment') == 'R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE' for e in evidence):
+              evidence.append({
+                  'worker': 5,
+                  'assignment': 'R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE',
+                  'path': '.gitl/evidence/round-4/worker-5.md',
+                  'status': 'submitted',
+                  'commit': evidence_commit,
+                  'testedHead': '53497095439feaff586454ca778560db287ff2aa',
+                  'runId': 31153444356,
+                  'jobId': 92787723447,
+                  'artifactId': 8984194701
+              })
+
+          state['currentStep'] = ('R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE corrected only the synthetic mobile document by adding standards-correct device-width viewport metadata. Exact-head run 31153444356/job 92787723447 on head 53497095439feaff586454ca778560db287ff2aa passed the Pixel-7 chromium-mobile fixture 1/1 with width 412, touch 1, all 12 wake-window semantic/resource checks, zero Send-adjacent events, and host input/Send/latest-message usability intact. Artifact 8984194701 SHA-256 19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce preserves reporter evidence. A4/A4X/A4Y are submitted and R4-A5-LIFECYCLE-AUDIT is ready.')
+          state['nextAction'] = ('The next eligible wake claims R4-A5-LIFECYCLE-AUDIT and independently verifies every Round-4 lifecycle source claim, exact tested head, run/job/artifact binding, mobile-emulation limitation, and Send/CHOICE/route/lease/uncertainty safeguard before deciding certification or the smallest further recovery.')
+          state['automaticDispatch'] = {
+              'enabled': True,
+              'scheduledFor': 'next eligible wake',
+              'nominalWorker': 6,
+              'assignmentId': 'R4-A5-LIFECYCLE-AUDIT',
+              'claimableByAnyEligibleWorker': True,
+              'holdForbiddenReasons': [
+                  'missed prior worker slot',
+                  'nominal role mismatch',
+                  'previous failed test',
+                  'previous blocked assignment with ready recovery'
+              ],
+              'holdRequiredReasons': [
+                  'valid lease held by active agent',
+                  'active workflow on relevant head',
+                  'consistent branch movement proving current work',
+                  'true project-wide human decision or irreversible/publication/security gate'
+              ]
+          }
+          state.setdefault('completedSteps', []).append({
+              'type': 'round-4-a4y-mobile-viewport-pass',
+              'result': 'Fixture-only commit c2b2372ce961a5045810445c6184e9e2804babb4 added device-width viewport metadata without weakening width or lifecycle assertions. Exact-head run 31153444356/job 92787723447 passed Pixel-7 chromium-mobile 1/1 on head 53497095439feaff586454ca778560db287ff2aa. Artifact 8984194701 SHA-256 19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce records the evidence. A5 audit was activated.'
+          })
+          state.setdefault('findings', []).append({
+              'worker': 5,
+              'type': 'lifecycle-mobile-viewport-fixture-pass',
+              'finding': 'A4Y proved the prior width=981 failure was a synthetic-document viewport contract defect: adding standards-correct device-width viewport metadata changed the Pixel-7 CSS layout viewport to 412 while preserving touch/DPR, all 12 exact semantic recovery windows, bounded resources, zero Send-adjacent events, and host usability. This remains emulation evidence, not physical Android or Firefox-Android certification.'
+          })
+          state['headAtLastHandoff'] = evidence_commit
+          state['lease'] = None
+          state['blockedReason'] = None
+          state['publishReady'] = False
+
+          plan_path.write_text(json.dumps(plan, indent=2) + '\n')
+          state_path.write_text(json.dumps(state, indent=2) + '\n')
+          PY
+
+          git rm .github/workflows/r4-a4y-handoff.yml
+          git add .gitl/orchestration/round-plan.json .gitl/autopilot-state.json
+          git commit -m "chore(gitl): submit A4Y and activate lifecycle audit"
+          FINAL_HEAD="$(git rev-parse HEAD)"
+          echo "final_head=${FINAL_HEAD}"
+          git push origin HEAD:agent/8.8-repair-resume
