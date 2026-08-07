@@ -125,7 +125,15 @@
     ".gitl/evidence/round-4/worker-5.md",
     ".gitl/evidence/round-4/worker-6.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-round5-supervisor",
+    "assignmentId": "R5-SUPERVISOR-PLAN",
+    "intendedRole": "supervisor-integrator",
+    "nominalWorker": 6,
+    "acquiredAt": "2026-08-07T08:49:30Z",
+    "expiresAt": "2026-08-07T09:34:30Z",
+    "branchHead": "a348cadb125a18712f11ea6de02d2a22233736b6"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
