@@ -219,7 +219,15 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-lifecycle-audit",
+    "nominalWorker": 6,
+    "assignmentId": "R4-A5-LIFECYCLE-AUDIT",
+    "intendedRole": "devils-advocate-release-auditor",
+    "acquiredAt": "2026-08-07T08:05:29Z",
+    "expiresAt": "2026-08-07T08:50:29Z",
+    "inspectedHead": "adf79226da2c8141ace501d3af7656a31de58553"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
