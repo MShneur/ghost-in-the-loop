@@ -1,0 +1,105 @@
+name: Round 6 A2X Exact-Repository Carrier v2
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/a2x-carrier-v2-trigger.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-a2x-carrier-v2
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Guard candidate ancestry and branch scope
+        shell: bash
+        env:
+          EXPECTED_CANDIDATE: 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          git merge-base --is-ancestor "$EXPECTED_CANDIDATE" HEAD
+          git diff --name-only "$EXPECTED_CANDIDATE"..HEAD | tee /tmp/a2x-descendants.txt
+          if grep -Ev '^(\.gitl/|\.github/workflows/r6-a2x-carrier-v2\.yml$|tests/e2e/.*\.spec\.js$)' /tmp/a2x-descendants.txt; then
+            echo 'Unexpected descendant files after A2 candidate.' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Base certification
+        run: npm run cert:base
+
+      - name: Syntax and lint
+        run: npm run lint
+
+      - name: Full unit suite
+        run: npm run test:unit -- --runInBand
+
+      - name: Focused Send / CHOICE / route / lease / uncertainty regressions
+        run: npx jest tests/sendtransaction.test.js tests/choice-state.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand
+
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run Blue prototype in Chromium and Firefox
+        run: npx playwright test tests/e2e/mobile-shell-blue-prototype.spec.js --project=chromium --project=firefox
+
+      - name: Upload exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-a2x-v2-${{ github.run_id }}
+          path: |
+            test-results/
+            e2e-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Record durable result and self-remove
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .gitl/evidence/round-6
+          RESULT=PASS
+          if [ "${{ job.status }}" != "success" ]; then RESULT=FAIL; fi
+          cat > .gitl/evidence/round-6/a2x-carrier-v2-result.md <<EOF
+          # Round 6 A2X Exact-Repository Carrier v2 Result
+
+          - Result: **$RESULT**
+          - Tested head: \`${GITHUB_SHA}\`
+          - Required candidate ancestor: \`64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec\`
+          - GitHub Actions run ID: \`${GITHUB_RUN_ID}\`
+          - GitHub Actions run attempt: \`${GITHUB_RUN_ATTEMPT}\`
+          - Job: \`${GITHUB_JOB}\`
+          - Branch: \`${GITHUB_REF_NAME}\`
+          - Actor: \`${GITHUB_ACTOR}\`
+
+          The carrier executed the repository-defined dependency install, base certification, lint, full unit suite, focused Send/CHOICE/route/lease/uncertainty Jest regressions, Playwright Chromium+Firefox installation, and the deterministic Blue prototype spec in both configured browser projects. The run artifact \`r6-a2x-v2-${GITHUB_RUN_ID}\` preserves test outputs when present.
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-a2x-carrier-v2.yml .gitl/evidence/round-6/a2x-carrier-v2-trigger.md || true
+          git add .gitl/evidence/round-6/a2x-carrier-v2-result.md
+          git commit -m 'test(gitl): record A2X exact-repository carrier v2 result'
+          git push origin HEAD:agent/8.8-repair-resume
