@@ -1,0 +1,82 @@
+name: R3 A3 Red Team Exact Head
+
+on:
+  pull_request:
+    branches:
+      - gitl/r3-a3-ci-base
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  red-team-exact-head:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_HEAD: 5c057fe2235da50c23c800f7c345bc3814f01b3c
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 5c057fe2235da50c23c800f7c345bc3814f01b3c
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Guard exact product head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          printf 'tested_head=%s\nexpected_head=%s\n' "$(git rev-parse HEAD)" "$EXPECTED_HEAD" | tee /tmp/head.txt
+      - name: Install dependencies and browsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee /tmp/npm-ci.log
+          npx playwright install --with-deps chromium firefox 2>&1 | tee /tmp/browser-install.log
+      - name: Red-team control-flow checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE' 2>&1 | tee /tmp/redteam-static.log
+          const fs = require('fs');
+          const src = fs.readFileSync('ghost-in-the-loop.user.js','utf8');
+          const start = src.indexOf('function repairAndResume()');
+          const end = src.indexOf('function rebootGhost', start);
+          if (start < 0 || end < 0) throw new Error('repairAndResume body not found');
+          const body = src.slice(start, end);
+          const guard = "priorState==='RUNNING' && !before.needsRepair && before.blocked.length===0";
+          const blocked = 'if (before.blocked.length)';
+          if (!body.includes(guard)) throw new Error('healthy-running no-op guard missing');
+          if (body.indexOf(guard) > body.indexOf(blocked)) throw new Error('no-op guard is after blocker handling unexpectedly');
+          if (body.includes('engineSend(') || body.includes('Adapter.clickContinue')) throw new Error('Repair & Resume gained a Send actuator');
+          if (!body.includes("priorState==='PAUSED' && !L.needsPayload")) throw new Error('paused-only resume gate missing');
+          console.log('red-team static control-flow checks passed');
+          NODE
+      - name: Run exact-head parity, lint, unit, and browser gates
+        shell: bash
+        run: |
+          set +e
+          npm run check:generated > /tmp/check-generated.log 2>&1; S1=$?
+          npm run lint > /tmp/lint.log 2>&1; S2=$?
+          npm test -- --runInBand > /tmp/unit.log 2>&1; S3=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium > /tmp/chromium.log 2>&1; S4=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile > /tmp/chromium-mobile.log 2>&1; S5=$?
+          npx playwright test tests/e2e/repair-resume.spec.js --project=firefox > /tmp/firefox.log 2>&1; S6=$?
+          printf 'check_generated=%s\nlint=%s\nunit=%s\nchromium=%s\nchromium_mobile=%s\nfirefox=%s\n' "$S1" "$S2" "$S3" "$S4" "$S5" "$S6" | tee /tmp/status.txt
+          if [ "$S1" -ne 0 ] || [ "$S2" -ne 0 ] || [ "$S3" -ne 0 ] || [ "$S4" -ne 0 ] || [ "$S5" -ne 0 ] || [ "$S6" -ne 0 ]; then exit 1; fi
+      - name: Collect red-team evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p /tmp/r3-a3-redteam
+          for f in head.txt npm-ci.log browser-install.log redteam-static.log check-generated.log lint.log unit.log chromium.log chromium-mobile.log firefox.log status.txt; do
+            if [ -f "/tmp/$f" ]; then cp "/tmp/$f" "/tmp/r3-a3-redteam/$f"; fi
+          done
+      - name: Upload red-team evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r3-a3-redteam-exact-head-evidence
+          path: /tmp/r3-a3-redteam
+          if-no-files-found: error
+          retention-days: 7
