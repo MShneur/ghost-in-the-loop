@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "8cde19edb8325bf36dc40d2f31c9f1e38b3f2242",
-  "currentStep": "Round 4 is open. R4-A1-LIFECYCLE-CONTRACT is the earliest dependency-ready assignment for LIFECYCLE-FROZEN-DISCARDED.",
-  "nextAction": "The next eligible scheduled or manual agent claims the lease and executes R4-A1-LIFECYCLE-CONTRACT: map current recoverAfterWake behavior, research authoritative frozen/discarded lifecycle signals, add deterministic contract/specification coverage, write worker-2 evidence, then submit or block and hand off A2.",
+  "currentStep": "R4-A1-LIFECYCLE-CONTRACT claimed by scheduled-agent-6 as successor for the researcher/architect role.",
+  "nextAction": "Execute R4-A1-LIFECYCLE-CONTRACT: map recoverAfterWake, research authoritative lifecycle signals, add deterministic contract/specification coverage, write worker-2 evidence, submit or block, and activate R4-A2.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -128,7 +128,15 @@
     ".gitl/evidence/round-3/worker-6.md",
     ".gitl/evidence/round-4/worker-1.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6",
+    "nominalWorker": 6,
+    "executedAssignmentRole": "researcher-architect",
+    "assignmentId": "R4-A1-LIFECYCLE-CONTRACT",
+    "acquiredAt": "2026-08-07T02:49:40Z",
+    "expiresAt": "2026-08-07T03:34:40Z",
+    "branchHead": "b8afdd034b5e355cd3bb81aef688d66b3b84c743"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
