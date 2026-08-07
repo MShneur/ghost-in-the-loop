@@ -1085,18 +1085,43 @@ function _answerDomOrder(a, b) {
   return 0;
 }
 function _collectAnswerCandidates(selectors, tier) {
+  const selectorList = [...(selectors || [])];
   const byElement = new Map();
-  for (const [selectorIndex, sel] of (selectors || []).entries()) {
-    let matches = [];
-    try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
-    const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
-    for (let i = start; i < matches.length; i++) {
+  if (!selectorList.length) return [];
+  try {
+    const matches = [...document.querySelectorAll(selectorList.join(','))];
+    const remaining = selectorList.map(() => ANSWER_SCAN_LIMIT);
+    let pending = remaining.length;
+    for (let i = matches.length - 1; i >= 0 && pending > 0; i--) {
       const el = matches[i];
-      if (!_answerNodeUsable(el)) continue;
+      let selectorIndex = -1;
+      for (let s = 0; s < selectorList.length; s++) {
+        if (remaining[s] <= 0) continue;
+        if (!el.matches(selectorList[s])) continue;
+        remaining[s]--;
+        if (remaining[s] === 0) pending--;
+        if (selectorIndex < 0) selectorIndex = s;
+      }
+      if (selectorIndex < 0 || !_answerNodeUsable(el)) continue;
       const text = _answerText(el);
       if (!_answerLooksLikeContent(el, text, tier)) continue;
       const prior = byElement.get(el);
       if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+    }
+  } catch(_) {
+    byElement.clear();
+    for (const [selectorIndex, sel] of selectorList.entries()) {
+      let matches = [];
+      try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+      const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+      for (let i = start; i < matches.length; i++) {
+        const el = matches[i];
+        if (!_answerNodeUsable(el)) continue;
+        const text = _answerText(el);
+        if (!_answerLooksLikeContent(el, text, tier)) continue;
+        const prior = byElement.get(el);
+        if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+      }
     }
   }
   return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
