@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [1, 3],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
-  "headAtLastHandoff": "9bfa2b910883bfa0d34669387438eda2cf4d9df4",
-  "currentStep": "Scheduled agent 1 reclaimed R3-A1-RR-CI-RECOVERY after scheduled-agent-2's lease expired at 2026-08-07T00:56:27Z. The branch remained at a17099d5a17e8f7d313196635ae587a4bac6f440, created at 2026-08-07T00:15:01Z; connected GitHub showed no branch movement, no combined commit statuses, and no PR-triggered workflow run on that head.",
-  "nextAction": "Replace the brittle A1 carrier with a guarded fail-closed carrier that records setup, browser-install, and test failures and performs an always-run durable handoff; then execute the Firefox, desktop Chromium, and Pixel 7 Chromium matrix and submit A1 or activate A2 with exact failure evidence.",
+  "headAtLastHandoff": "9bc44761ab64c5d2187e0174c808133c0f5c2a9d",
+  "currentStep": "R3-A1-RR-CI-RECOVERY is blocked after scheduled-agent-1 successor reclaimed the expired lease, hardened the exact-head carrier, and observed no durable connected-GitHub-visible run/log handoff through 2026-08-07T01:18:12Z. Worker 3 evidence is committed, the temporary carrier is removed, and R3-A2-RR-PROVEN-FAILURE-REPAIR is ready.",
+  "nextAction": "The next eligible agent must claim R3-A2-RR-PROVEN-FAILURE-REPAIR regardless of nominal worker number. Repair the CI carrier dispatch/observability blocker using an execution path whose run/job IDs and logs are visible through connected GitHub, execute all three required browser commands on the exact head, and change product code only if those results reproduce a real defect.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "2026-08-06T18:20:00-04:00",
+    "scheduledFor": "2026-08-06T21:20:00-04:00",
     "nominalWorker": 3,
-    "assignmentId": "R3-A1-RR-CI-RECOVERY",
+    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -42,7 +42,7 @@
       "active workflow on relevant head",
       "consistent branch movement proving current work"
     ],
-    "failureRoute": "Activate R3-A2-RR-PROVEN-FAILURE-REPAIR with exact failure evidence and keep the loop moving."
+    "failureRoute": "Keep the earliest bounded recovery assignment ready with exact run/head/log evidence; never infer a browser pass from missing push-run visibility."
   },
   "researchFallback": {
     "enabled": true,
@@ -103,6 +103,10 @@
     {
       "type": "R3-A1-third-expired-lease-recovery",
       "result": "Scheduled agent 1 reclaimed A1 after scheduled-agent-2's lease expired at 00:56:27Z with no durable handoff; branch head remained a17099d5a17e8f7d313196635ae587a4bac6f440 after connected GitHub liveness checks."
+    },
+    {
+      "type": "R3-A1-blocked-handoff",
+      "result": "Scheduled-agent-1 successor hardened the carrier at e7311f273fcb95c9e72f37623fa1fae83e9fa19f but no authoritative connected-GitHub-visible run/job/log handoff appeared. A1 was durably marked blocked, Worker 3 evidence was committed, the temporary carrier was removed, and A2 was activated for execution/observability recovery."
     }
   ],
   "findings": [
@@ -145,6 +149,12 @@
       "worker": 1,
       "type": "carrier-handoff-gap",
       "finding": "Scheduled-agent-2's guarded carrier produced no durable handoff before its lease expired. The carrier design can terminate before its evidence/handoff step when dependency setup or browser installation fails, so the recovery path must make setup failures durable instead of silently re-leasing the same blind attempt."
+    },
+    {
+      "worker": 1,
+      "assignmentRoleWorker": 3,
+      "type": "carrier-dispatch-observability-blocker",
+      "finding": "The fail-closed carrier commit e7311f273fcb95c9e72f37623fa1fae83e9fa19f still produced no durable result commit during the bounded observation window. Connected GitHub exposed no combined status and no commit workflow run through its PR-run endpoint; push-run identity remained unavailable, so Firefox/Chromium/mobile results were not claimed."
     }
   ],
   "briefs": [
@@ -164,14 +174,15 @@
     ".gitl/evidence/round-2/worker-5.md",
     ".gitl/evidence/round-2/worker-6.md",
     ".gitl/evidence/round-3/worker-1.md",
-    ".gitl/evidence/round-3/orchestration-liveness-research-policy.md"
+    ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
+    ".gitl/evidence/round-3/worker-3.md"
   ],
   "lease": {
-    "holder": "scheduled-agent-1",
-    "assignmentId": "R3-A1-RR-CI-RECOVERY",
-    "acquiredAt": "2026-08-07T01:04:24Z",
-    "expiresAt": "2026-08-07T01:49:24Z",
-    "branchHead": "a17099d5a17e8f7d313196635ae587a4bac6f440"
+    "holder": null,
+    "assignmentId": null,
+    "acquiredAt": null,
+    "expiresAt": null,
+    "branchHead": null
   },
   "blockedReason": null,
   "publishReady": false,
