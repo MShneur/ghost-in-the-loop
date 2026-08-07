@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [1, 2],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "b6fddcb9af98b99cf2272597664e6f9da1468d90",
-  "currentStep": "R4-A1X-LIFECYCLE-CONTRACT-EXEC is in progress to obtain exact-branch-head execution evidence for wake-recovery and lifecycle-recovery-contract Jest without changing product behavior.",
-  "nextAction": "scheduled-agent-2 executes R4-A1X-LIFECYCLE-CONTRACT-EXEC; other workers must avoid conflicting writes while this lease is valid and active.",
+  "headAtLastHandoff": "4b694115a40d2803ed5179a5ecc1112a739f4cf4",
+  "currentStep": "R4-A1-LIFECYCLE-CONTRACT and R4-A1X-LIFECYCLE-CONTRACT-EXEC are submitted. Exact-head run 31143832068/job 92759102485 tested head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 with 2/2 suites passing, 12 tests passing, and 3 explicit TODOs. Temporary execution carrier was removed. R4-A2-LIFECYCLE-BUILD is ready.",
+  "nextAction": "The next eligible agent claims R4-A2-LIFECYCLE-BUILD. Reproduce the accepted lifecycle contract through executable production-path coverage first; implement only the smallest product change that a concrete contract failure requires, preserve all Send/CHOICE/route/lease/uncertainty safeguards, and hand off to R4-A3 whether submitted or blocked.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current eligible wake",
-    "nominalWorker": 2,
-    "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 3,
+    "assignmentId": "R4-A2-LIFECYCLE-BUILD",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -91,7 +91,11 @@
     },
     {
       "type": "round-4-a1-contract-blocked-on-execution",
-      "result": "Committed lifecycle contract 03c67625255803ae3b0b0fd662af3bf407996e0d, focused source-contract test 44464967410f7c44a8f546fc189466a39fcd16a8, and worker-2 evidence 79ed6dca0e8a44ff3a63302ff2c67720ed070dc7. Contract criteria are mapped; exact branch-head execution of the new test remains required before A1 can be submitted."
+      "result": "Committed lifecycle contract 03c67625255803ae3b0b0fd662af3bf407996e0d, focused source-contract test 44464967410f7c44a8f546fc189466a39fcd16a8, and worker-2 evidence 79ed6dca0e8a44ff3a63302ff2c67720ed070dc7. Contract criteria were mapped but exact branch-head execution was still required."
+    },
+    {
+      "type": "round-4-a1x-exact-head-pass",
+      "result": "Guarded connected-GitHub-visible run 31143832068/job 92759102485 checked out exact head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed both lifecycle source-contract suites: 12 tests passed, 3 explicit TODOs, zero failures. Temporary workflow carrier was removed in 20cb29497a6e8b4ca897c08f88f7ebfae4c288bd, A1/A1X were submitted, and A2 was activated."
     }
   ],
   "findings": [
@@ -120,7 +124,12 @@
       "worker": 2,
       "executedByNominalWorker": 6,
       "type": "ci-binding-gap",
-      "finding": "Push-triggered R3 A3 workflow run 31142660712/job 92755596910 succeeded but explicitly checked out old product head 5c057fe; it cannot certify new branch-head lifecycle tests. A1X is ready to obtain exact-head execution evidence."
+      "finding": "Push-triggered R3 A3 workflow run 31142660712/job 92755596910 succeeded but explicitly checked out old product head 5c057fe; it cannot certify new branch-head lifecycle tests. A1X was opened to obtain exact-head execution evidence."
+    },
+    {
+      "worker": 2,
+      "type": "lifecycle-contract-exact-head-pass",
+      "finding": "A1X used a PR-visible isolated temporary carrier because the connector did not expose push-run evidence. Run 31143832068/job 92759102485 verified expected=actual head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed 2 suites / 12 tests with 3 explicit TODOs. Legacy R3 job 92758568585 was rejected as evidence because it checked out old product head 5c057fe."
     }
   ],
   "briefs": [
@@ -146,16 +155,7 @@
     ".gitl/evidence/round-4/worker-1.md",
     ".gitl/evidence/round-4/worker-2.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-2",
-    "nominalWorker": 2,
-    "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
-    "intendedRole": "researcher-architect-execution-recovery",
-    "acquiredAt": "2026-08-07T03:11:49Z",
-    "expiresAt": "2026-08-07T03:56:49Z",
-    "inspectedHead": "branch agent/8.8-repair-resume was one coordination-only commit ahead of b6fddcb9af98b99cf2272597664e6f9da1468d90 before claim",
-    "activeWorkflowCheck": "No active workflow was found on b6fddcb9af98b99cf2272597664e6f9da1468d90; its latest recorded run 31142916197 was completed successfully. The connector does not expose branch-head SHA before a contents write, so the lease-claim commit becomes the exact execution head anchor."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
