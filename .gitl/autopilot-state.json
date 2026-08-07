@@ -26,8 +26,8 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "d116a0917b1465bc90882b64809a827c4329f3f4",
-  "currentStep": "R6-RESEARCH-FALLBACK-ADOPTION-DRIFT-01 completed one bounded non-conflicting research step. Fresh maintained/adoption evidence strengthens composer-local adapter discovery and weakens header-first assumptions, but also documents composer control-density/width volatility. Blue remains only the smallest architecture to test first; exact current insertion slot remains UNKNOWN and unauthorized. A1X stays blocked locally on DQ-R6-LIVE-STRUCTURE-CAPTURE and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written. Otherwise the next eligible wake must use a materially different bounded research fallback, such as scoped Custom Element/Shadow DOM repair lifecycle patterns or mobile keyboard/footer reflow failure modes; do not repeat the same permission call, deterministic probe, or adoption-drift search without changed evidence.",
+  "currentStep": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02 in progress: bounded non-conflicting research on scoped Custom Element/Shadow DOM mount lifecycle and repair semantics that can narrow A2 without guessing current ChatGPT structure.",
+  "nextAction": "Complete one materially different research fallback, write durable evidence and any falsifiable mount/repair constraints, update state, and release the lease. Do not modify product code or repeat the permission-gated live capture/adoption-drift search.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -110,7 +110,15 @@
     ".gitl/evidence/round-6/worker-2.md",
     ".gitl/evidence/round-6/research-fallback-01.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-r6-research-fallback-scoped-repair",
+    "assignmentId": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02",
+    "intendedRole": "researcher-architect with reliability/mobile dissent lens",
+    "acquiredAt": "2026-08-07T14:09:27Z",
+    "expiresAt": "2026-08-07T14:54:27Z",
+    "inspectedHead": "a616bff210920f9b941e8ff82c56d155764a2aa9",
+    "purpose": "One bounded non-conflicting research fallback on scoped structural mount lifecycle/repair semantics; no product changes."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
