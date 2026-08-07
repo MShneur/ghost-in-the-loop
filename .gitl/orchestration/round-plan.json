@@ -91,11 +91,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R5-A2X-LONGCHAT-BUILD-EXEC",
+    "nominalWorker": 4,
+    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R5-A2X-LONGCHAT-BUILD-EXEC regardless of timer number. Materialize and exactly execute the A1-selected stateless grouped-selector candidate; preserve all predeclared performance and safety gates."
+    "instruction": "Claim R5-A3-LONGCHAT-REDTEAM regardless of timer number. Attempt to falsify the accepted grouped-selector optimization under mixed selector tails, mutation/DOM replacement, stale/hidden duplicates, route changes, and unresolved Send state without rewriting production or weakening the A2 oracle."
   },
   "assignments": [
     {
@@ -164,7 +164,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "blocked",
+      "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Implement the smallest evidence-selected long-chat optimization and preserve exact answer-selection and fail-closed Send semantics.",
       "dependencies": ["R5-A1-LONGCHAT-BASELINE:submitted"],
@@ -183,17 +183,23 @@
       "activationReason": "A1 exact baseline submitted with deterministic scaling evidence and a predeclared grouped-selector falsification criterion.",
       "executedBy": "scheduled-agent-6-longchat-builder-successor",
       "fixtureCommit": "81cb49e30a66cfefd796f56784f9327f80df71c0",
-      "blockedReason": "The bounded builder wake committed the exact A2 falsification fixture and prepared the stateless grouped-selector candidate, but neither connector-authored PR nor isolated-branch workflow carrier executed and the local runner could not clone through its proxy. No product candidate was committed or exact tests run, so no performance verdict is inferred.",
+      "initialBlockedRecovery": "The bounded builder wake could not materialize or execute the candidate. R5-A2X-LONGCHAT-BUILD-EXEC was created as the exact execution recovery without weakening the oracle.",
+      "recoveredBy": "R5-A2X-LONGCHAT-BUILD-EXEC",
+      "candidateCommit": "9d49e34af07015f8064ac66398004180216efb08",
+      "testedHead": "9d49e34af07015f8064ac66398004180216efb08",
+      "runId": 31169354385,
+      "jobId": 92837396863,
+      "artifactId": 8990318746,
       "cleanupCommit": "01013755837d3719dd924d1b8b8a2a322238118b",
       "temporaryPr": 23,
-      "conclusion": "Candidate design remains plausible but UNKNOWN pending exact materialization and execution. Route to A2X; do not activate A3 yet."
+      "conclusion": "Recovered by A2X. The stateless grouped-selector candidate passed the unchanged A1/A2 performance, correctness, generated-parity, full-unit, and Send-safety gates on exact candidate head 9d49e34af07015f8064ac66398004180216efb08."
     },
     {
       "id": "R5-A2X-LONGCHAT-BUILD-EXEC",
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-execution-recovery",
-      "status": "ready",
+      "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Materialize the A1-selected stateless grouped-selector tail collector in an execution-capable environment, regenerate the extension, and bind its performance/correctness verdict to one exact committed head without changing the predeclared oracle.",
       "dependencies": ["R5-A2-LONGCHAT-BUILD:blocked"],
@@ -218,14 +224,30 @@
       ],
       "requiredEvidence": ["exact candidate head", "implementation diff", "before/after raw measurements", "exact run/job/artifact if CI is used", "all command results", "generated parity", "safety events", "failure preserved if any", "cleanup/handoff"],
       "fallbackWork": "If the candidate deterministically fails a predeclared performance or correctness gate, preserve the failure and create the smallest correction or evidence-backed alternative; do not weaken thresholds. If execution infrastructure alone fails, create only the smallest execution recovery.",
-      "evidencePath": ".gitl/evidence/round-5/worker-3.md"
+      "evidencePath": ".gitl/evidence/round-5/worker-3.md",
+      "executedBy": "scheduled-successor-a2x-build-exec",
+      "claimCommit": "d01c510660fd2d3fa2ac9857d33d0939ff97aa72",
+      "testedHead": "9d49e34af07015f8064ac66398004180216efb08",
+      "runId": 31169354385,
+      "jobId": 92837396863,
+      "artifactId": 8990318746,
+      "artifactSha256": "eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4",
+      "temporaryPr": 24,
+      "metrics": {
+        "answer2000QsaMatchesPerSample": 2001,
+        "answer2000QsaReductionVsA1Percent": 66.67,
+        "answer2000P95Ms": 1.0,
+        "answer180P95Ms": 0.4,
+        "safetyEvents": { "submit": 0, "click": 0, "input": 0, "keydown": 0 }
+      },
+      "conclusion": "PASS. Exact candidate reduced 2000-turn answer qSA returned-match work from 6003 to 2001/sample and p95 from 2.30 ms to 1.00 ms, passed the 180-turn gate at 0.40 ms, preserved newest-answer semantics and zero Send-adjacent actuation, and passed syntax/lint/generated parity, focused Jest, full unit, and Chromium A2 gates. Remaining union and send-observation work still scales with history and is routed to Red Team."
     },
     {
       "id": "R5-A3-LONGCHAT-REDTEAM",
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "waiting",
+      "status": "ready",
       "program": "LONG-CHAT-PERF",
       "goal": "Attempt to falsify the accepted long-chat optimization under adversarial DOM history, mutation churn, stale/hidden duplicates, route changes, and unresolved Send states.",
       "dependencies": ["R5-A2X-LONGCHAT-BUILD-EXEC:submitted"],
@@ -242,7 +264,8 @@
       "requiredTests": ["exact-head adversarial long-chat Chromium", "focused answer-selection/send-journal tests", "repeat benchmark after adversarial mutation load"],
       "requiredEvidence": ["falsification cases", "exact head/run/job/artifact", "raw measurements", "failures preserved", "smallest recovery if needed"],
       "fallbackWork": "A deterministic failure must create a bounded ready recovery assignment before A4; do not weaken the performance or safety oracle.",
-      "evidencePath": ".gitl/evidence/round-5/worker-4.md"
+      "evidencePath": ".gitl/evidence/round-5/worker-4.md",
+      "activationReason": "A2X passed the unchanged A1/A2 oracle on exact candidate head 9d49e34af07015f8064ac66398004180216efb08; Red Team is now the earliest dependency-ready assignment."
     },
     {
       "id": "R5-A4-LONGCHAT-MOBILE-PERF",
