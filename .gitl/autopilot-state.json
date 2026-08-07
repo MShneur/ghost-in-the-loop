@@ -265,7 +265,15 @@
     ".gitl/evidence/round-6/research-fallback-09.md",
     ".gitl/evidence/round-6/research-fallback-10.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-2-r6-delivery-pressure-reconcile",
+    "assignmentId": "R6-DP-RECONCILE-01",
+    "nominalWorker": 2,
+    "executedRole": "supervisor-integrator-with-researcher-architect-dissent",
+    "acquiredAt": "2026-08-07T17:16:00Z",
+    "expiresAt": "2026-08-07T18:01:00Z",
+    "inspectedHead": "84237df815ef56f779434db130d24d4ffbe14666"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
