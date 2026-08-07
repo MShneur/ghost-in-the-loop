@@ -2,12 +2,12 @@
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
-  "status": "active",
+  "status": "awaiting-human-verification",
   "round": 3,
-  "roundPhase": "in-progress",
+  "roundPhase": "audit-complete",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 3],
+  "completedWorkers": [1, 3, 6],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,15 +22,15 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
-  "headAtLastHandoff": "40dbf2d4a0649966ea574a8980f48172e03f35c7",
-  "currentStep": "Scheduled-agent-6 successor claimed R3-A3-RR-REDTEAM-CERT at branch head fabf5fe1e00681d5b06fb8e94c052a6048928a69 after verifying the prior lease was released, the branch was unchanged from the A2B handoff, and no connected-GitHub-visible pull-request workflow was active on the current coordination head.",
-  "nextAction": "Independently falsify exact product head 5c057fe2235da50c23c800f7c345bc3814f01b3c, verify run 31138679335/job 92743714584/artifact 8978979561 binding and logs, inspect the healthy-running no-op against Send/CHOICE/route/lease/uncertainty and stale-composer boundaries, then certify or activate the smallest concrete recovery assignment.",
+  "headAtLastHandoff": "be7a5e2ff6cfbfd6193f1f077fa4f65faa1ab7e9",
+  "currentStep": "Scheduled-agent-6 completed independent R3-A3-RR-REDTEAM-CERT. The audit accepted A2 and A2B, certified RR-E2E-FAULTS on exact product head 5c057fe2235da50c23c800f7c345bc3814f01b3c using pinned original job 92743714584 and artifact 8978979561, recorded the later stale-lease rerun nuance, and released the lease.",
+  "nextAction": "Human review is required by review-after-round mode. Do not open a new assignment until the Round 3 audit is accepted or reopened. If accepted, the next supervisor should open the next dependency-safe round beginning with LIFECYCLE-FROZEN-DISCARDED while preserving LONG-CHAT-PERF, MOBILE-SHELL-STRUCTURAL, BUILD-IDENTITY, DOCS-RECONCILIATION, and FINAL-CERT-PACKAGE.",
   "automaticDispatch": {
-    "enabled": true,
-    "scheduledFor": "next eligible scheduled wake",
-    "nominalWorker": 4,
-    "assignmentId": "R3-A3-RR-REDTEAM-CERT",
-    "claimableByAnyEligibleWorker": true,
+    "enabled": false,
+    "scheduledFor": "after human verification",
+    "nominalWorker": 1,
+    "assignmentId": null,
+    "claimableByAnyEligibleWorker": false,
     "holdForbiddenReasons": [
       "missed prior worker slot",
       "nominal role mismatch",
@@ -38,11 +38,12 @@
       "previous blocked assignment with ready recovery"
     ],
     "holdRequiredReasons": [
+      "round awaiting human verification",
       "valid lease held by active agent",
       "active workflow on relevant head",
       "consistent branch movement proving current work"
     ],
-    "failureRoute": "Every reproduced failure must leave the smallest dependency-safe repair assignment ready with exact head, command, run/job, and log evidence."
+    "failureRoute": "If human review reopens a concrete RR defect, create the smallest dependency-safe repair assignment with exact head, command, run/job, and log evidence. Otherwise the next supervisor opens the next required program in a new round."
   },
   "researchFallback": {
     "enabled": true,
@@ -115,6 +116,10 @@
     {
       "type": "R3-A2B-ticker-single-flight-repair",
       "result": "Scheduled-agent-4 successor added a four-line healthy-running Repair & Resume no-op guard, regenerated extension parity, and committed product head 5c057fe2235da50c23c800f7c345bc3814f01b3c. Exact-head run 31138679335/job 92743714584 passed generated parity, lint, all 42 unit suites/471 tests, desktop Chromium 4/4, Pixel 7 Chromium 4/4, and Firefox 5 passed with one intended mobile-only skip. A3 Red Team certification is ready."
+    },
+    {
+      "type": "R3-A3-independent-redteam-certification",
+      "result": "Scheduled-agent-6 independently inspected the exact product diff and source/test boundaries, verified original job 92743714584 and artifact 8978979561 on head 5c057fe2235da50c23c800f7c345bc3814f01b3c, independently checked artifact head/status/browser/unit logs, confirmed PR #14 was closed unmerged against a non-main base, and found no bounded RR safety or correctness defect. RR-E2E-FAULTS is certified for Round 3; the round now awaits human verification."
     }
   ],
   "findings": [
@@ -174,6 +179,21 @@
       "assignmentRoleWorker": 3,
       "type": "ticker-single-flight-repaired",
       "finding": "Healthy RUNNING Repair & Resume requests now no-op when runtimeServiceHealth reports no repairable service and no blocker. Exact-head run 31138679335/job 92743714584 on 5c057fe2235da50c23c800f7c345bc3814f01b3c passed desktop Chromium, Pixel 7 Chromium, Firefox, generated parity, lint, and unit coverage without weakening Send, CHOICE, route, lease, composer-staleness, or uncertainty safeguards."
+    },
+    {
+      "worker": 6,
+      "type": "independent-rr-certification",
+      "finding": "A3 independently verified the exact repair diff, pinned original job 92743714584, artifact 8978979561 and digest, artifact-internal exact-head/status/browser/unit logs, closed-unmerged non-main PR carrier, and source-level CHOICE/route/lease/uncertainty boundaries. No bounded RR defect was reproduced; RR-E2E-FAULTS is certified for Round 3."
+    },
+    {
+      "worker": 6,
+      "type": "run-attempt-binding-caveat",
+      "finding": "Workflow run 31138679335 was later re-run after A2B lease ownership ended; latest job 92746238803 correctly fails the obsolete A2B lease guard before tests. Certification is bound specifically to original job 92743714584 and artifact 8978979561, not to the run ID's latest-attempt conclusion."
+    },
+    {
+      "worker": 6,
+      "type": "nonblocking-observability-followup",
+      "finding": "The healthy-running repair no-op records repair_resume_noop but does not refresh GHOST.lastRepair, L.detail, or render. This can leave diagnostics visually stale after a harmless duplicate repair request; no safety consequence was reproduced."
     }
   ],
   "briefs": [
@@ -194,16 +214,23 @@
     ".gitl/evidence/round-2/worker-6.md",
     ".gitl/evidence/round-3/worker-1.md",
     ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
-    ".gitl/evidence/round-3/worker-3.md"
+    ".gitl/evidence/round-3/worker-3.md",
+    ".gitl/evidence/round-3/worker-6.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6",
-    "assignmentId": "R3-A3-RR-REDTEAM-CERT",
-    "acquiredAt": "2026-08-07T01:51:18Z",
-    "expiresAt": "2026-08-07T02:36:18Z",
-    "branchHead": "fabf5fe1e00681d5b06fb8e94c052a6048928a69"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
-  "verificationSummary": null
+  "verificationSummary": {
+    "round": 3,
+    "program": "RR-E2E-FAULTS",
+    "verdict": "certified-awaiting-human-verification",
+    "head": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
+    "runId": 31138679335,
+    "jobId": 92743714584,
+    "artifactId": 8978979561,
+    "artifactSha256": "5571ab9e56cfc537a99bf6f6f488cdc10b44b9b13fefcb60128e6275f144bb66",
+    "laterRerun": "job 92746238803 failed stale A2B lease guard before tests and is not the certified attempt",
+    "publishReady": false,
+    "nextRequiredProgram": "LIFECYCLE-FROZEN-DISCARDED"
+  }
 }
