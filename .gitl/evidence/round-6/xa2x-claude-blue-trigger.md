@@ -9,3 +9,4 @@
 - The carrier must recheck the remote trigger head, recover the expired lease, claim XA2X in canonical state before running the long verification matrix, and abort on any competing branch movement.
 - Deterministic success may submit XA2/XA2X and expose XA3 only at fixture scope. Current live Claude and live ChatGPT structural insertion remain `UNKNOWN` unless separately captured.
 - No `main`, merge, auto-merge, tag, publish, release, Send/CHOICE/route/lease/uncertainty weakening, or live Claude activation is authorized.
+- Retrigger note: the first trigger produced no state claim or branch-changing carrier activity during the workflow registration window; this evidence-only update retriggers the already-armed guarded workflow. Concurrency and remote-head guards prevent duplicate ownership if the earlier event later starts.
