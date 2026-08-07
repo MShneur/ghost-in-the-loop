@@ -73,3 +73,106 @@ Claim `R3-A2-RR-PROVEN-FAILURE-REPAIR`. Treat the proven failure as CI carrier d
 
 ## Assignment Status
 - blocked
+
+---
+
+# R3-A2 Observable Execution Recovery
+
+## Identity
+- Round: 3
+- Worker: 3 (assignment evidence slot)
+- Executing agent: scheduled-agent-3 / nominal Worker 3 wake
+- Role: Builder / CI observability recovery
+- Assignment ID: `R3-A2-RR-PROVEN-FAILURE-REPAIR`
+- Started at: `2026-08-07T01:22:00Z`
+- Finished at: `2026-08-07T01:27:32Z`
+
+## State Read
+- Branch: `agent/8.8-repair-resume`
+- Starting inspected head: `0a82a186656b2bec0d889e7699f9c45005c9fe26`
+- A1 status at takeover: blocked with the carrier-dispatch/observability failure and no active lease.
+- Lease claim commit: `1b61f554a91d036c9ef2c334a6d4557fc7efd5b7`.
+- Lease holder during execution: `scheduled-agent-3` for `R3-A2-RR-PROVEN-FAILURE-REPAIR`.
+- Dependency gate: satisfied by `R3-A1-RR-CI-RECOVERY:blocked`.
+
+## Step Performed
+
+Repaired the execution-observability blocker without touching product code. I created a temporary PR-visible exact-head Actions path, because the connected GitHub run lookup can enumerate pull-request-triggered runs. To preserve the prohibition on modifying or merging `main`, the temporary draft PR targeted an isolated CI base branch, `gitl/r3-a2-ci-base`, rather than `main`.
+
+The exact head under test was `65a5b94c8e31644b56a614fa1c404873451798ce`. Draft PR #13 was opened only as an execution carrier, never merged, and closed after evidence was collected. GitHub Actions run `31137892852`, job `92741313903`, checked out exactly that SHA and passed the branch/lease guard before setup and browser execution.
+
+This succeeded in converting the prior observability uncertainty into authoritative browser evidence. It also reproduced a real product defect: Repair & Resume restarts the ticker more than once for the same paused task in Chromium and Pixel 7 Chromium.
+
+## Changes
+- `.gitl/autopilot-state.json`: claimed A2 lease before all A2 writes.
+- Temporary isolated-branch workflow: `.github/workflows/r3-a2-observable-exact-head.yml` was added, exercised through PR #13, then removed from `agent/8.8-repair-resume` at cleanup commit `0fc8fcbe54c556d8e057b3b35aa2633bc1d4ac77`.
+- Temporary CI base branch: `gitl/r3-a2-ci-base`; its listener workflow was removed at cleanup commit `b0f2a42b7d9f810fb5d990d9dcfff6c4aea4484d`.
+- Draft PR #13: closed at `2026-08-07T01:27:32Z`, merged: false.
+- Product source changed: no — A2's allowed files did not permit product implementation before a reproduced defect.
+- Test assertions weakened: no.
+
+## Authoritative CI Evidence
+- Exact tested head: `65a5b94c8e31644b56a614fa1c404873451798ce`.
+- Workflow run ID: `31137892852`.
+- Workflow job ID: `92741313903`.
+- Workflow job conclusion: `failure` because the required Chromium legs failed; setup, browser installation, Firefox, artifact upload, and exact-head guard completed successfully.
+- Evidence artifact: `r3-a2-exact-head-evidence`, artifact ID `8978698975`.
+- Artifact ZIP SHA-256: `b52e8c5b28329f12a2e9575050ac66bc5c8d17a9c40566761802aedf33c31157`.
+- Artifact size: `1070307` bytes.
+
+## Tests
+- `npm ci`: PASS.
+- `npx playwright install --with-deps chromium firefox`: PASS.
+- `npx playwright test tests/e2e/repair-resume.spec.js --project=firefox`: PASS — 5 passed, 1 Pixel-class mobile-only case skipped as intended under Firefox.
+- `npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium`: FAIL — 2 failed, 2 passed after retry policy.
+- `npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile`: FAIL — same 2 failures, 2 passed after retry policy.
+- Full unit suite: NOT RUN — outside this bounded execution/observability recovery assignment and no product source changed.
+
+## Proven Product Failure
+
+Desktop Chromium and Pixel 7 Chromium reproduce the same two restart-coalescing defects in `tests/e2e/repair-resume-production.spec.js`:
+
+1. `repairs a real paused ticker fault once and never actuates Send`
+   - First repair starts the failed ticker once as expected.
+   - A second same-task repair starts it again.
+   - Assertion at line 117 expected ticker-start delta `0`; received `1`.
+
+2. `rapid same-task repair requests restart the failed ticker exactly once`
+   - Twelve rapid requests are not coalesced.
+   - Assertion at line 142 expected ticker-start delta `1`; received `12`.
+
+The two fail-closed safety cases in the same production suite passed on both Chromium projects: route/lease/uncertain-Send blockers remained blocked, and repeated composer replacement left stale nodes untouched. The failing restart assertions occur before the affected tests reach their later zero-Send event assertions, so this evidence does not claim those two failing cases independently proved zero Send actuation.
+
+## Acceptance Criteria
+- Repair the CI carrier dispatch/observability blocker: PASS — connected GitHub exposed exact run/job IDs and logs.
+- Exact-head binding: PASS — checkout and guard recorded `65a5b94c8e31644b56a614fa1c404873451798ce`.
+- Setup/install outcome is durable and visible: PASS.
+- Firefox exact command: PASS.
+- Desktop Chromium exact command: FAIL — real product restart defect reproduced.
+- Pixel 7 Chromium exact command: FAIL — same real product restart defect reproduced.
+- Product code changed only after reproduction: PASS — no product change was made in this bounded recovery assignment.
+- Failure creates the next bounded recovery assignment rather than stopping: PASS — handoff requires a ticker single-flight product repair before Red Team certification.
+
+## Safety Checks
+- Send authority weakened: no.
+- CHOICE behavior changed: no.
+- Route safeguards changed: no.
+- Lease safeguards changed: no.
+- Uncertainty safeguards changed: no.
+- `main` modified: no.
+- PR merged: no.
+- Auto-merge enabled: no.
+- Tag/release/publish action: none.
+
+## Risks and Limits
+- The current candidate has a confirmed restart/idempotence defect on desktop Chromium and Pixel 7 Chromium; Red Team certification must remain blocked until it is repaired and rerun.
+- Firefox is green for the focused browser fault contract, but that does not substitute for the failing Chromium production path.
+- `npm ci` reported two high-severity dependency audit findings. They were not the cause of this assignment's failures and are not being remediated within this bounded assignment.
+- The temporary base branch remains as an inert coordination branch because the connected GitHub surface available in this invocation exposes no branch-delete action; its temporary workflow has been removed and PR #13 is closed.
+
+## Recommended Next Action
+
+Claim `R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR` regardless of nominal worker number. Make the smallest product repair that ensures one paused-task repair starts the ticker once, a second same-task repair adds zero starts, and twelve rapid same-task repairs still add exactly one start. Preserve zero-Send, CHOICE, route, lease, composer-staleness, and uncertainty guards. Rerun both Chromium production projects plus the Firefox focused regression before handing off to independent Red Team certification.
+
+## Assignment Status
+- submitted — the A2 execution/observability blocker is repaired and authoritative evidence has converted the uncertainty into a concrete product-repair assignment.
