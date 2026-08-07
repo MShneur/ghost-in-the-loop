@@ -1,3 +1,0 @@
-R6-XA1-CLAUDE-STRUCTURE-CONTRACT
-expected_spec_commit=22b083c656a558ef4acf1a99ef497fb1fa828723
-carrier_arm_commit=457c577ae86331f45547b09b38ed4ae6dd9948d3
