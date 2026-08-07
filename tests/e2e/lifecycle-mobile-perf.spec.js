@@ -130,7 +130,9 @@ const messages = Array.from({ length: 180 }, (_, i) =>
 ).join('');
 
 const PAGE = `data:text/html,${encodeURIComponent(`<!doctype html>
-<html><body>
+<html>
+<head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body>
   <main>
     ${messages}
     <form id="composer">
