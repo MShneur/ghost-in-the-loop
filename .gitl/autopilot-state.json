@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2],
+  "completedWorkers": [1, 2, 3],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "4fa971db464c0a1037f8656073be0e64fd6d860c",
-  "currentStep": "R5-A2X-LONGCHAT-BUILD-EXEC claimed by scheduled successor using the builder-execution-recovery role on inspected head 522f287d2dfed2f2d876d0036e3d573fb34f81e0.",
-  "nextAction": "Lease holder materializes only the stateless grouped-selector union/reverse-tail candidate, regenerates extension/content.js, and executes the unchanged A1/A2 numerical, correctness, generated-parity, full-unit, and Send-safety gates on one exact committed head.",
+  "headAtLastHandoff": "8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2",
+  "currentStep": "R5-A2X-LONGCHAT-BUILD-EXEC submitted. Exact candidate head 9d49e34af07015f8064ac66398004180216efb08 passed the unchanged A1/A2 performance, correctness, generated-parity, full-unit, and zero-actuation gates. R5-A3-LONGCHAT-REDTEAM is ready.",
+  "nextAction": "Next eligible wake claims R5-A3-LONGCHAT-REDTEAM regardless of timer number and attempts to falsify the grouped-selector optimization under mixed selector tails, mutation/DOM replacement, stale/hidden duplicates, route changes, and unresolved Send state without rewriting production or weakening any oracle.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R5-A2X-LONGCHAT-BUILD-EXEC",
+    "nominalWorker": 4,
+    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -112,7 +112,11 @@
     },
     {
       "type": "round-5-a2-builder-bounded-step",
-      "result": "Nominal Worker 6 inherited the Builder role, committed exact A2 falsification fixture 81cb49e30a66cfefd796f56784f9327f80df71c0, prepared but did not accept the stateless grouped-selector candidate, and preserved Worker-3 evidence. Connector-authored workflow carriers did not execute and local git materialization was unavailable, so exact candidate evidence is absent. Temporary workflow was removed in 01013755837d3719dd924d1b8b8a2a322238118b, PR #23 was closed unmerged, and A2X is ready."
+      "result": "Nominal Worker 6 inherited the Builder role, committed exact A2 falsification fixture 81cb49e30a66cfefd796f56784f9327f80df71c0, prepared but did not accept the stateless grouped-selector candidate, and preserved Worker-3 evidence. Connector-authored workflow carriers did not execute and local git materialization was unavailable, so exact candidate evidence was absent. Temporary workflow was removed in 01013755837d3719dd924d1b8b8a2a322238118b, PR #23 was closed unmerged, and A2X was created as the smallest recovery."
+    },
+    {
+      "type": "round-5-a2x-longchat-build-exec",
+      "result": "Exact candidate head 9d49e34af07015f8064ac66398004180216efb08 passed run 31169354385/job 92837396863/artifact 8990318746. At 2000 turns answer qSA returned matches fell 6003 -> 2001/sample (66.67% reduction) and p95 2.30 -> 1.00 ms; at 180 turns p95 was 0.40 ms. Focused Jest passed 18/18, full unit passed 477 with 3 TODO, generated parity passed, and safety events were all zero. Worker-3 evidence commit 8465c3a3e470607dd40b62c7a26b4f64f45a0636; plan handoff commit 8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2 activated A3."
     }
   ],
   "findings": [
@@ -125,7 +129,7 @@
       "worker": 1,
       "executedByNominalWorker": 6,
       "type": "long-chat-hotpath-hypothesis",
-      "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This is a concrete scaling hypothesis, not yet a proven dominant bottleneck."
+      "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This was a concrete scaling hypothesis and A1 verified redundant full-selector enumeration."
     },
     {
       "worker": 1,
@@ -142,18 +146,30 @@
     {
       "worker": 2,
       "type": "long-chat-linear-selector-enumeration",
-      "finding": "Exact A1 measurement shows current ChatGPT answer selection performs 3 full-document assistant selector queries whose returned matches grow approximately linearly with retained history: 543/sample at 180 turns and 6003/sample at 2000 turns (11.06x). _beginSendAttempt and _sendEvidence each duplicate the expensive assistant-match enumeration. This is a measured Ghost hot path, not proof it dominates total host-page latency."
+      "finding": "Exact A1 measurement showed ChatGPT answer selection performed 3 full-document assistant selector queries whose returned matches grew approximately linearly with retained history: 543/sample at 180 turns and 6003/sample at 2000 turns. This was a measured Ghost hot path, not proof it dominated total host-page latency."
     },
     {
       "worker": 2,
       "type": "long-chat-minimal-falsifiable-repair",
-      "finding": "A2 should first attempt a stateless grouped-selector tail collector that preserves per-selector last-48 semantics and selector priority while reducing full-document qSA returned-match work by at least 60% at 2000 turns. Persistent MutationObserver/cache state remains the competing fallback if the minimalist repair is falsified."
+      "finding": "A1 selected a stateless grouped-selector tail collector that preserves per-selector last-48 semantics and selector priority, with a predeclared >=60% returned-match reduction gate before considering persistent MutationObserver/cache state."
     },
     {
       "worker": 3,
       "executedByNominalWorker": 6,
       "type": "long-chat-a2-execution-recovery",
-      "finding": "A2 committed a deterministic falsification fixture and retained unchanged A1 thresholds, but the product candidate could not be safely materialized and exactly executed in this bounded wake. The grouped-selector approach remains UNKNOWN, not accepted or rejected. A2X is the smallest ready recovery."
+      "finding": "A2 committed the deterministic falsification fixture but could not exactly materialize or execute the product candidate, so A2X was created rather than weakening or guessing the oracle."
+    },
+    {
+      "worker": 3,
+      "executedByNominalWorker": 2,
+      "type": "long-chat-grouped-selector-pass",
+      "finding": "A2X exact candidate 9d49e34af07015f8064ac66398004180216efb08 reduced 2000-turn answer-selection qSA returned matches from 6003 to 2001/sample (66.67%) and p95 from 2.30 to 1.00 ms while preserving 180-turn p95 at 0.40 ms, newest-answer semantics, generated parity, full unit tests, and zero Send-adjacent actuation. The one-union query still scales linearly with retained matching history."
+    },
+    {
+      "worker": 3,
+      "executedByNominalWorker": 2,
+      "type": "long-chat-send-observation-remains-linear",
+      "finding": "The same A2X exact run recorded 8004 qSA matches/sample at 2000 turns in both begin-Send and send-evidence observations, with p95 2.30 ms and 2.80 ms respectively. A3 must attack this remaining cost without weakening the at-most-once Send journal, delivery evidence, route, lease, CHOICE, or uncertainty safeguards."
     }
   ],
   "briefs": [
@@ -186,15 +202,7 @@
     ".gitl/evidence/round-5/worker-2.md",
     ".gitl/evidence/round-5/worker-3.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-a2x-build-exec",
-    "nominalWorker": 2,
-    "executedRole": "builder-execution-recovery",
-    "assignmentId": "R5-A2X-LONGCHAT-BUILD-EXEC",
-    "acquiredAt": "2026-08-07T10:08:33Z",
-    "expiresAt": "2026-08-07T10:53:33Z",
-    "branchHead": "522f287d2dfed2f2d876d0036e3d573fb34f81e0"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -205,8 +213,8 @@
     "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
     "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
-    "nextAssignment": "R5-A2X-LONGCHAT-BUILD-EXEC",
-    "performanceWinner": "UNKNOWN until A2X materializes and exactly measures the grouped-selector candidate against A1",
+    "nextAssignment": "R5-A3-LONGCHAT-REDTEAM",
+    "performanceWinner": "A2X accepted the stateless grouped-selector candidate at the current deterministic desktop-Chromium oracle; it is provisional pending Red-Team, mobile/cross-browser, and final audit. It removes redundant overlapping selector streams but does not eliminate history-size scaling.",
     "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
     "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
     "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
@@ -214,9 +222,16 @@
     "baselineJobId": 92825797473,
     "baselineArtifactId": 8988876017,
     "builderAssignment": "R5-A2-LONGCHAT-BUILD",
+    "builderRecoveryAssignment": "R5-A2X-LONGCHAT-BUILD-EXEC",
     "builderEvidence": ".gitl/evidence/round-5/worker-3.md",
+    "builderEvidenceCommit": "8465c3a3e470607dd40b62c7a26b4f64f45a0636",
     "builderFixtureCommit": "81cb49e30a66cfefd796f56784f9327f80df71c0",
-    "builderVerdict": "blocked-on-exact-materialization-and-execution"
+    "builderTestedHead": "9d49e34af07015f8064ac66398004180216efb08",
+    "builderRunId": 31169354385,
+    "builderJobId": 92837396863,
+    "builderArtifactId": 8990318746,
+    "builderArtifactSha256": "eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4",
+    "builderVerdict": "submitted-pass-pending-redteam-mobile-audit"
   },
   "priorRoundVerification": {
     "round": 4,
