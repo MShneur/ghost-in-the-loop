@@ -139,3 +139,103 @@ and remove temporary workflow machinery afterward. If the focused tests pass, ma
 
 ## Assignment Status
 - blocked — contract/specification work is durable, but required exact-head execution evidence for the new lifecycle test is missing.
+
+---
+
+# R4-A1X Lifecycle Contract Execution Recovery
+
+## Identity
+- Round: 4
+- Worker evidence slot: 2
+- Nominal executing wake: 2
+- Intended role: Researcher / Architect — execution recovery
+- Assignment ID: `R4-A1X-LIFECYCLE-CONTRACT-EXEC`
+- Started at: `2026-08-07T03:11:49Z`
+- Finished at: `2026-08-07T03:17:24Z`
+
+## State Read
+- Branch: `agent/8.8-repair-resume`.
+- Dependency: `R4-A1-LIFECYCLE-CONTRACT:blocked` was satisfied exactly as the recovery assignment requires.
+- Lease before claim: `null`.
+- Lease claim commit: `b372c35e1f27f8ade422550eded787d93fc2763b`.
+- Lease holder: `scheduled-agent-2`.
+- No active exact-head workflow was found before the claim; the previous visible lifecycle-adjacent workflow on `b6fddcb9af98b99cf2272597664e6f9da1468d90` was already completed.
+
+## Step Performed
+
+Obtained connected-GitHub-visible exact-branch-head execution evidence for the focused lifecycle contract tests without changing product behavior.
+
+The first temporary push-only carrier commit `c6601c0cd3b90b730ed896e447039b3f19ffd2fd` was not observable through the connector's PR-run surface. Rather than treating absence of visibility as success, the carrier was narrowed to an existing isolated draft PR surface and made explicitly PR-visible in commit `79de931a689c731a680ae4c1e1360f0ec4ad9ce7`.
+
+The guarded carrier checked out **exactly** `79de931a689c731a680ae4c1e1360f0ec4ad9ce7`, verified the actual Git head equaled the expected PR head, installed dependencies, and ran only the required focused Jest command.
+
+After success, the temporary workflow was removed in commit `20cb29497a6e8b4ca897c08f88f7ebfae4c288bd`.
+
+## Research / Competing Lenses
+
+No new external research was performed because an executable recovery assignment existed and the maker/succession rules prohibit replacing ready work with research.
+
+The execution method did apply two operational philosophies:
+
+1. **Push-only carrier:** smallest workflow surface, but connector observability was insufficient for authoritative run/job evidence.
+2. **PR-visible isolated carrier:** slightly broader trigger surface, but produced connected-GitHub-visible exact-head run/job/log evidence without targeting `main` or merging.
+
+The second method won on the assignment's explicit observability requirement. The legacy R3 workflow also fired, but its job `92758568585` checked out old product head `5c057fe2235da50c23c800f7c345bc3814f01b3c`; it was explicitly rejected as proof for A1X.
+
+## Changes
+- Lease coordination commit: `b372c35e1f27f8ade422550eded787d93fc2763b`.
+- Temporary workflow created: `.github/workflows/r4-a1x-lifecycle-exact-head.yml` at `c6601c0cd3b90b730ed896e447039b3f19ffd2fd`.
+- Temporary workflow made PR-visible and exact-head guarded: `79de931a689c731a680ae4c1e1360f0ec4ad9ce7`.
+- Temporary workflow removed after successful execution: `20cb29497a6e8b4ca897c08f88f7ebfae4c288bd`.
+- Product source changed: **none**.
+- Tests changed: **none**.
+- Generated artifacts changed: **none**.
+
+## Tests and CI
+
+Authoritative exact-head execution:
+
+- Tested commit: `79de931a689c731a680ae4c1e1360f0ec4ad9ce7`.
+- Workflow: `R4 A1X Lifecycle Exact Head`.
+- Run ID: `31143832068`.
+- Job ID: `92759102485`.
+- Required command: `npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand`.
+- Guard: expected head = actual checked-out head = `79de931a689c731a680ae4c1e1360f0ec4ad9ce7`.
+- Result: **PASS**.
+- Test suites: **2 passed / 2 total**.
+- Tests: **12 passed, 3 todo, 15 total**.
+- Snapshots: 0.
+- Jest time: 0.849 s.
+
+The three TODOs remain intentionally explicit execution gaps for browser-real BFCache persisted restore, discarded-document classification/fresh-boot behavior, and Chromium freeze coverage. Passing A1X therefore validates the source-contract suite; it does **not** certify those later browser-real cases ahead of A2/A3/A4.
+
+`npm ci` again reported two high-severity dependency audit findings. No dependency changes were authorized in this assignment.
+
+## Acceptance Criteria
+- Run wake-recovery and lifecycle-recovery-contract Jest on exact current branch head: **PASS** — exact tested head `79de931a...`, run `31143832068`, job `92759102485`.
+- Bind evidence to exact commit/run/job IDs: **PASS**.
+- Temporary carrier guarded expected head: **PASS**.
+- Temporary carrier removed after execution: **PASS** — cleanup commit `20cb29497a...`.
+- On PASS mark A1 and A1X submitted and activate A2: **PENDING COORDINATION HANDOFF IN FOLLOWING COMMITS**.
+- No product behavior change: **PASS**.
+
+## Safety Checks
+- Send authority unchanged: **PASS** — no product source changed.
+- CHOICE behavior unchanged: **PASS** — no product source changed.
+- Route/lease/uncertainty safeguards unchanged: **PASS** — no product source changed; shared coordination lease was used.
+- No `main`, merge, auto-merge, tag, release, or publish action: **PASS**.
+- Existing draft PR remained isolated from `main` and was not merged.
+
+## Risks and Limits
+- A1/A1X prove the lifecycle **contract/source assertions**, not full browser-real frozen/discarded recovery. The explicit TODOs must remain visible and feed A2/A3/A4 rather than being silently treated as certified behavior.
+- The existing R3 A3 draft PR/workflow still auto-runs its old product-head certification on branch changes. It is not valid evidence for new Round 4 branch-head tests unless a future assignment explicitly rebinds it.
+- Node action deprecation warnings appeared in CI; they did not affect the focused Jest result but are a future workflow-maintenance concern.
+- Two high-severity dependency audit findings remain outside this assignment.
+
+## Recommended Next Action
+
+Mark both `R4-A1-LIFECYCLE-CONTRACT` and `R4-A1X-LIFECYCLE-CONTRACT-EXEC` submitted, activate `R4-A2-LIFECYCLE-BUILD`, and have the next eligible wake determine whether the accepted contract requires a minimal product change or only production-path lifecycle fixture coverage. Preserve the three browser-real TODO gaps for downstream Red Team/mobile certification.
+
+## Assignment Status
+- `R4-A1X-LIFECYCLE-CONTRACT-EXEC`: submitted — exact-head execution passed and temporary carrier was removed.
+- `R4-A1-LIFECYCLE-CONTRACT`: eligible to transition from blocked to submitted because its sole blocker is resolved by the exact-head PASS above.
