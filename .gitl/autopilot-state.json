@@ -27,14 +27,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "9f16ea9c605280893a713abf3395677740c0a3b1",
-  "currentStep": "R6-A3 Red Team found one real deterministic safety failure: a clipped narrow Blue candidate could be reported structural. The smallest fail-closed repair now rejects clipped exact Send or Ghost mounts inside clipping containers. Repair carrier passed the existing Blue suite and A3 Red Team across Chromium+Firefox; A3 is submitted and A4 is ready. Live ChatGPT binding remains UNKNOWN pending A1X.",
-  "nextAction": "Execute R6-A4-MOBILE-SHELL-MOBILE-PERF before any research. Measure the surviving Blue candidate under narrow/mobile, keyboard, orientation, large text, reduced motion, browser, and constrained-runtime conditions while preserving zero Send actuation and explicit physical/live-host limits.",
+  "headAtLastHandoff": "c173205e1a7373de7065509a2053e26a108d50dc",
+  "currentStep": "R6-A4-MOBILE-SHELL-MOBILE-PERF submitted. Initial hosted carrier run 31215306655 exposed a deterministic test-oracle error: Chromium emitted native orientationchange events in addition to the fixture injection. The smallest repair removed the injected duplicate and made viewport geometry the oracle. Repair carrier 31215517114 then passed base, lint, full unit, focused Send/route/lease safety, exact Blue and A3 Red Team baselines, and the A4 Chromium+Firefox mobile/accessibility/performance fixture. A5 audit is ready; live ChatGPT binding remains UNKNOWN pending A1X.",
+  "nextAction": "Execute R6-A5-MOBILE-SHELL-AUDIT before any research. Independently audit exact A2/A3/A4 source and run bindings, preserve all explicit physical/live-host limits, and expose the next required structural expansion or smallest recovery.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 5,
-    "assignmentId": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+    "nominalWorker": 6,
+    "assignmentId": "R6-A5-MOBILE-SHELL-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "A3 is submitted and A4 mobile/accessibility/performance is executable; research may not compete with ready certification work.",
+    "reason": "A4 is submitted and A5 independent audit is executable; research may not compete with ready release certification work.",
     "reenableCondition": "Already satisfied by A2 prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec; onlyWhenNoExecutableAssignment still governs selection.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,17 +72,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "redteam-repair-pass-mobile-perf-ready",
+    "checkpointStatus": "mobile-perf-pass-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+    "nextArtifactAssignment": "R6-A5-MOBILE-SHELL-AUDIT",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched before this A2X recovery wake",
     "lastDeliveryReviewAt": "2026-08-07T19:48:22Z",
-    "lastTestableArtifactAt": "2026-08-07T20:09:57Z",
-    "lastDeliveryDecision": "Red Team converted a real clipping false positive into the smallest fail-closed repair and all deterministic Chromium+Firefox gates passed; advance to A4.",
-    "evidence": ".gitl/evidence/round-6/worker-4.md",
-    "evidenceCommit": "6e3a5bcb45a9690335c60c2f648733648976c0b3"
+    "lastTestableArtifactAt": "2026-08-07T20:22:52Z",
+    "lastDeliveryDecision": "A4 passed after a smallest test-oracle repair; advance directly to independent A5 audit.",
+    "evidence": ".gitl/evidence/round-6/worker-5.md",
+    "evidenceCommit": "c173205e1a7373de7065509a2053e26a108d50dc"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-prototype-redteam-submitted-mobile-perf-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-prototype-mobile-perf-submitted-audit-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -187,6 +187,10 @@
     {
       "type": "round-6-a3-redteam-overflow-repair-pass",
       "result": "Initial A3 run 31213429856/job 92981355836 found overflow-clipped structural false positive in Chromium+Firefox. Repair run 31214560411 passed all gates with prototype blob 53cc902428a3fc1496a83ad1bf0bd1bbe6752c84 and Red blob b8b5048dbc042626294423e28b337eb27d6c6b63."
+    },
+    {
+      "type": "round-6-a4-mobile-perf-orientation-oracle-repair-pass",
+      "result": "A4 initial run 31215306655/job 92987347838/artifact 9008274458 failed only on an exact orientation-event-count oracle because Chromium emitted native orientationchange plus the fixture injection. Repair commit 096722a6688a3b5ff3dc1e20aa22ec799cafabdb removed the injected duplicate and asserted geometry. Repair run 31215517114/job 92988007587/artifact 9008352875/digest 08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297 passed base/lint/unit/focused safety, Blue, Red Team, and A4 hosted Chromium+Firefox gates."
     }
   ],
   "findings": [
@@ -314,6 +318,11 @@
       "worker": 4,
       "type": "mobile-shell-blue-overflow-fail-closed",
       "finding": "Red Team proved that in-flow alone is insufficient when a verified action row clips overflow: a Blue mount can remain structurally attached yet be unreachable. The repaired deterministic contract rejects structural mode when a clipping container would clip exact Send or the Ghost mount, using only a 1 CSS px deterministic rounding tolerance."
+    },
+    {
+      "worker": 5,
+      "type": "mobile-shell-a4-hosted-mobile-perf-pass",
+      "finding": "The exact repaired deterministic Blue candidate passed hosted Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape viewport geometry, deterministic VisualViewport signal, desktop Firefox semantics, resource cleanup, zero passive Send actuation, and Chromium 1x/4x/6x CPU invariant stress. The first carrier revealed and repaired only a double-counting orientation oracle. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT insertion remain uncertified."
     }
   ],
   "briefs": [
@@ -340,24 +349,16 @@
     ".gitl/evidence/round-6/a2x-verification-15.md",
     ".gitl/evidence/round-6/a2x-carrier-v2-result.md",
     ".gitl/evidence/round-6/worker-4.md",
-    ".gitl/evidence/round-6/a3-overflow-repair-result.md"
+    ".gitl/evidence/round-6/a3-overflow-repair-result.md",
+    ".gitl/evidence/round-6/worker-5.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-2-r6-a4-mobile-perf-17",
-    "assignmentId": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
-    "nominalWorker": 2,
-    "executedRole": "successor-mobile-browser-accessibility-performance",
-    "acquiredAt": "2026-08-07T20:14:00Z",
-    "expiresAt": "2026-08-07T20:59:00Z",
-    "inspectedStateBlob": "b3ebf8efcfb205acf59a3d1153646b71ce81e152",
-    "activeWorkCheck": "State lease was null; A3 was submitted; the A3 repair carrier self-removed; branch head remained 64568d2cce0b6078219c252da70ddba0a63fa655 across repeated checks; no conflicting branch movement was observed before claim."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "prototype-redteam-submitted-mobile-perf-ready-live-certification-pending",
+    "verdict": "prototype-mobile-perf-submitted-audit-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -397,7 +398,7 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+    "nextAssignment": "R6-A5-MOBILE-SHELL-AUDIT",
     "selectedFirstArchitecture": "ChatGPT-only Blue remains the smallest architecture to test first. A fixture-gated deterministic structural primitive now exists and its five semantic case families passed an independent Chromium runtime carrier; the exact current live insertion slot remains UNKNOWN and live ChatGPT adapter binding/certification is forbidden until A1X exact evidence passes.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -409,11 +410,11 @@
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. The deterministic prototype uses DOM-created Shadow nodes and textContent, not shadowRoot.innerHTML. Preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
-    "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. The deterministic prototype keeps delegatesFocus false, does not autofocus on mount/repair, and creates explicit type=button controls with local accessible names. The independent Chromium semantic harness passed the direct-callback and zero Send/submit side-effect case, but repository Playwright/Firefox accessibility semantics remain pending exact A2X execution.",
+    "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. The deterministic prototype keeps delegatesFocus false, does not autofocus on mount/repair, uses explicit type=button controls with local names, and A4 hosted Chromium+desktop-Firefox semantic/focus checks passed with exact Send identity and zero passive actuation. Physical AT mappings remain separately uncertified.",
     "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. The A2 prototype encodes fixed-position and unverified/hidden-container mutant rejection, and those mutant cases passed the independent Chromium semantic harness; broader oracle mutation coverage remains for exact A2X/Red Team. A surviving mutant invalidates the oracle, not the safeguard. Deterministic prototype success still does not certify the live ChatGPT insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
-    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, exact current live ChatGPT structural insertion, repository Playwright wrapper/full-suite behavior, and desktop Firefox behavior for the current A2 prototype remain separately uncertified until executed/tested.",
+    "platformClaimLimits": "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, calibrated low-end-device performance, and exact current live ChatGPT structural insertion remain uncertified. Hosted deterministic desktop Firefox A2/A4 behavior is tested only at fixture scope and is not GeckoView certification.",
     "a2xStatus": "submitted",
     "a2xTestedHead": "e9712e2e6c0945befb531d65b1a4468bbd05a4f1",
     "a2xRun": 31212815306,
@@ -431,7 +432,17 @@
     "a3RepairArtifact": 9008001890,
     "a3RepairArtifactDigest": "0da54eefef64cc4ae4ccacc3b20ffe8488f0e3daea80706c2378d57d9fce31e9",
     "a3RepairPrototypeBlob": "53cc902428a3fc1496a83ad1bf0bd1bbe6752c84",
-    "a3RepairRedTeamBlob": "b8b5048dbc042626294423e28b337eb27d6c6b63"
+    "a3RepairRedTeamBlob": "b8b5048dbc042626294423e28b337eb27d6c6b63",
+    "a4Status": "submitted",
+    "a4Evidence": ".gitl/evidence/round-6/worker-5.md",
+    "a4TestedHead": "096722a6688a3b5ff3dc1e20aa22ec799cafabdb",
+    "a4InitialFailureRun": 31215306655,
+    "a4InitialFailureJob": 92987347838,
+    "a4RepairRun": 31215517114,
+    "a4RepairJob": 92988007587,
+    "a4RepairArtifact": 9008352875,
+    "a4RepairArtifactSha256": "08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297",
+    "a4HostedResult": "PASS: Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape geometry, deterministic VisualViewport signal, portable desktop Firefox, exact Send/zero-actuation, cleanup/resources, and Chromium 1x/4x/6x invariant stress. Timing descriptive only."
   },
   "priorRoundVerification": {
     "round": 5,

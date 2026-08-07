@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "redteam-repair-pass-mobile-perf-ready",
+    "checkpointStatus": "mobile-perf-pass-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Satisfied by the A2 executable prototype artifact; normal research fallback remains lower priority than any ready implementation/test/verification assignment.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket prototype-development gate",
-    "checkpointDecision": "A3 found and repaired a deterministic overflow-clipping false positive; all repair gates passed, so A4 mobile/accessibility/performance is the next release-moving artifact."
+    "checkpointDecision": "A4 deterministic hosted mobile/accessibility/performance PASS after correcting an orientation-oracle double count; A5 independent audit is the next release-moving assignment."
   },
   "requiredPrograms": [
     {
@@ -188,11 +188,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 5,
-    "assignmentId": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+    "nominalWorker": 6,
+    "assignmentId": "R6-A5-MOBILE-SHELL-AUDIT",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Execute mobile/browser/accessibility/performance certification against the Red-Team-surviving Blue prototype. Preserve live-host and physical-platform claim limits; do not return to research."
+    "instruction": "Execute the independent bounded Round-6 structural audit. Inspect exact A2/A3/A4 source and CI evidence, preserve live-host and physical-platform limits, and do not return to research while A5 is executable."
   },
   "assignments": [
     {
@@ -611,7 +611,7 @@
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Measure the surviving structural candidate under narrow/mobile, keyboard, orientation, large-text, reduced-motion, browser, and constrained-runtime conditions without promoting emulation to physical-device or live-host certification.",
       "dependencies": [
@@ -649,14 +649,27 @@
         "exact head/run/job/artifact"
       ],
       "fallbackWork": "A deterministic mobile/layout failure creates the smallest repair; preserve failure and platform limits.",
-      "evidencePath": ".gitl/evidence/round-6/worker-5.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-5.md",
+      "executedBy": "scheduled-worker-2-r6-a4-mobile-perf-17",
+      "testedHead": "096722a6688a3b5ff3dc1e20aa22ec799cafabdb",
+      "resultCommit": "c173205e1a7373de7065509a2053e26a108d50dc",
+      "initialFailureRun": 31215306655,
+      "initialFailureJob": 92987347838,
+      "initialFailureArtifact": 9008274458,
+      "initialFailureArtifactDigest": "43205f30b8082b09f6aff801c3a4d090531d9676ea50e909cc1a582e31e49db9",
+      "repairCommit": "096722a6688a3b5ff3dc1e20aa22ec799cafabdb",
+      "runId": 31215517114,
+      "jobId": 92988007587,
+      "artifactId": 9008352875,
+      "artifactSha256": "08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297",
+      "blockedReason": null
     },
     {
       "id": "R6-A5-MOBILE-SHELL-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "waiting",
+      "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Independently audit the bounded structural prototype and decide whether the deterministic candidate is sound, while refusing live ChatGPT certification until A1X exact evidence exists.",
       "dependencies": [
