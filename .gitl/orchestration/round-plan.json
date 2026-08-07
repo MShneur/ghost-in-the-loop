@@ -1,95 +1,133 @@
 {
-  "schema":"gitl-round-plan-v2",
-  "project":"ghost-in-the-loop",
-  "releaseTarget":"8.8.0",
-  "mode":"review-after-round",
-  "round":3,
-  "status":"in-progress",
-  "supervisorWorker":1,
-  "schedule":[
-    {"worker":1,"minute":0,"role":"supervisor-integrator"},
-    {"worker":2,"minute":10,"role":"researcher-architect"},
-    {"worker":3,"minute":20,"role":"builder"},
-    {"worker":4,"minute":30,"role":"test-engineer-red-team"},
-    {"worker":5,"minute":40,"role":"mobile-browser-accessibility-performance"},
-    {"worker":6,"minute":50,"role":"devils-advocate-release-auditor"}
+  "schema": "gitl-round-plan-v2",
+  "project": "ghost-in-the-loop",
+  "releaseTarget": "8.8.0",
+  "mode": "review-after-round",
+  "round": 3,
+  "status": "in-progress",
+  "supervisorWorker": 1,
+  "schedule": [
+    {"worker": 1, "minute": 0, "role": "supervisor-integrator"},
+    {"worker": 2, "minute": 10, "role": "researcher-architect"},
+    {"worker": 3, "minute": 20, "role": "builder"},
+    {"worker": 4, "minute": 30, "role": "test-engineer-red-team"},
+    {"worker": 5, "minute": 40, "role": "mobile-browser-accessibility-performance"},
+    {"worker": 6, "minute": 50, "role": "devils-advocate-release-auditor"}
   ],
-  "planningPolicy":{
-    "supervisorOwnsOfficialRoadmap":true,
-    "oneBoundedAssignmentPerWake":true,
-    "dependenciesMustBeSatisfied":true,
-    "productWorkRequiresEvidence":true,
-    "workerEvidenceRequired":true,
-    "userRequiredProgramsMayNotBeDropped":true,
-    "blockedWorkMustHandOff":true,
-    "missedSlotMayBeClaimedByNextEligibleAgent":true,
-    "failedAttemptCreatesReadyRecovery":true,
-    "staleCompletedLeaseMayBeRepaired":true,
-    "scheduleIsWakeCadenceNotTaskOwnership":true,
-    "automaticEarliestReadyDispatch":true,
-    "roleMismatchMayNotCauseHold":true,
-    "agentSuccessionRule":".gitl/orchestration/agent-succession-rule.md"
+  "planningPolicy": {
+    "supervisorOwnsOfficialRoadmap": true,
+    "oneBoundedAssignmentPerWake": true,
+    "dependenciesMustBeSatisfied": true,
+    "productWorkRequiresEvidence": true,
+    "workerEvidenceRequired": true,
+    "userRequiredProgramsMayNotBeDropped": true,
+    "blockedWorkMustHandOff": true,
+    "missedSlotMayBeClaimedByNextEligibleAgent": true,
+    "failedAttemptCreatesReadyRecovery": true,
+    "staleCompletedLeaseMayBeRepaired": true,
+    "scheduleIsWakeCadenceNotTaskOwnership": true,
+    "automaticEarliestReadyDispatch": true,
+    "roleMismatchMayNotCauseHold": true,
+    "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md"
   },
-  "requiredPrograms":[
-    {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"in-progress","releaseCritical":true},
-    {"id":"LIFECYCLE-FROZEN-DISCARDED","title":"Frozen and discarded page lifecycle research and recovery","status":"backlog","releaseCritical":true},
-    {"id":"LONG-CHAT-PERF","title":"Long-conversation observation, scanning, rendering, timer, and constrained-device performance","status":"backlog","releaseCritical":true},
-    {"id":"MOBILE-SHELL-STRUCTURAL","title":"Host-affixed mobile Ghost shell research, implementation, and certification","status":"backlog","releaseCritical":true,"userRequired":true},
-    {"id":"BUILD-IDENTITY","title":"Canonical build, candidate, and release-channel identity","status":"backlog","releaseCritical":true},
-    {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, and protocol reconciliation","status":"backlog","releaseCritical":true},
-    {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"backlog","releaseCritical":true}
+  "requiredPrograms": [
+    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "in-progress", "releaseCritical": true},
+    {"id": "LIFECYCLE-FROZEN-DISCARDED", "title": "Frozen and discarded page lifecycle research and recovery", "status": "backlog", "releaseCritical": true},
+    {"id": "LONG-CHAT-PERF", "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance", "status": "backlog", "releaseCritical": true},
+    {"id": "MOBILE-SHELL-STRUCTURAL", "title": "Host-affixed mobile Ghost shell research, implementation, and certification", "status": "backlog", "releaseCritical": true, "userRequired": true},
+    {"id": "BUILD-IDENTITY", "title": "Canonical build, candidate, and release-channel identity", "status": "backlog", "releaseCritical": true},
+    {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, and protocol reconciliation", "status": "backlog", "releaseCritical": true},
+    {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
   ],
-  "priorityOrder":["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
-  "dispatch":{
-    "nextWake":"2026-08-06T18:20:00-04:00",
-    "nominalWorker":3,
-    "assignmentId":"R3-A1-RR-CI-RECOVERY",
-    "automatic":true,
-    "instruction":"The 6:20 PM EDT invocation must claim and execute R3-A1-RR-CI-RECOVERY. It must not HOLD because Worker 2 missed 6:10, because the assignment's intended role differs, or because an earlier test failed. Every proven failure must activate R3-A2 with exact evidence."
+  "priorityOrder": [
+    "RR-E2E-FAULTS",
+    "LIFECYCLE-FROZEN-DISCARDED",
+    "LONG-CHAT-PERF",
+    "MOBILE-SHELL-STRUCTURAL",
+    "BUILD-IDENTITY",
+    "DOCS-RECONCILIATION",
+    "FINAL-CERT-PACKAGE"
+  ],
+  "dispatch": {
+    "nextWake": "2026-08-06T21:20:00-04:00",
+    "nominalWorker": 3,
+    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
+    "automatic": true,
+    "instruction": "The next eligible wake must claim R3-A2-RR-PROVEN-FAILURE-REPAIR regardless of worker number. Treat the proven blocker as exact-head CI carrier dispatch/observability. Obtain connected-GitHub-visible run/job IDs and logs for the required Firefox, Chromium, and Pixel 7 Chromium commands. Do not change product code unless those results reproduce a product defect."
   },
-  "assignments":[
+  "assignments": [
     {
-      "id":"R3-A1-RR-CI-RECOVERY",
-      "worker":3,
-      "nominalWakeMinute":20,
-      "claimableByAnyEligibleWorker":true,
-      "intendedRole":"builder-test-recovery",
-      "status":"ready",
-      "program":"RR-E2E-FAULTS",
-      "goal":"Verify the Firefox matrix repair and obtain authoritative exact-head desktop Chromium and Pixel 7 Chromium production-path Repair and Resume results.",
-      "dependencies":[],
-      "mandatoryAction":"Claim the lease and execute now. Do not return HOLD for missed prior slots, nominal-role mismatch, or an earlier failed test.",
-      "allowedFiles":["tests/e2e/**","playwright.config.*",".github/workflows/**",".gitl/evidence/round-3/**",".gitl/orchestration/round-plan.json",".gitl/autopilot-state.json"],
-      "prohibitedActions":["main/merge/tag/release/publish","weakening assertions","accepting stale-head CI","broad product implementation without a reproduced defect"],
-      "acceptanceCriteria":["Firefox no longer executes Chromium-only isMobile context","Firefox-safe narrow viewport coverage remains","production-path fixture runs on exact-head Chromium","production-path fixture runs on Pixel 7 Chromium","zero Send actuation and restart assertions are recorded","failure creates the next ready repair assignment rather than stopping"],
-      "requiredTests":["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox","npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium","npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile","relevant exact-head CI"],
-      "requiredEvidence":["exact head","commands","CI run and job IDs","logs or traces","criterion results","next recovery assignment for every failure"],
-      "fallbackWork":"If workflow dispatch is unavailable, add a guarded temporary exact-head workflow, record the run, and remove temporary machinery after authoritative clean-head execution."
+      "id": "R3-A1-RR-CI-RECOVERY",
+      "worker": 3,
+      "nominalWakeMinute": 20,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder-test-recovery",
+      "status": "blocked",
+      "program": "RR-E2E-FAULTS",
+      "goal": "Verify the Firefox matrix repair and obtain authoritative exact-head desktop Chromium and Pixel 7 Chromium production-path Repair and Resume results.",
+      "dependencies": [],
+      "mandatoryAction": "Claim the lease and execute now. Do not return HOLD for missed prior slots, nominal-role mismatch, or an earlier failed test.",
+      "allowedFiles": ["tests/e2e/**", "playwright.config.*", ".github/workflows/**", ".gitl/evidence/round-3/**", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["main/merge/tag/release/publish", "weakening assertions", "accepting stale-head CI", "broad product implementation without a reproduced defect"],
+      "acceptanceCriteria": ["Firefox no longer executes Chromium-only isMobile context", "Firefox-safe narrow viewport coverage remains", "production-path fixture runs on exact-head Chromium", "production-path fixture runs on Pixel 7 Chromium", "zero Send actuation and restart assertions are recorded", "failure creates the next ready repair assignment rather than stopping"],
+      "requiredTests": ["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile", "relevant exact-head CI"],
+      "requiredEvidence": ["exact head", "commands", "CI run and job IDs", "logs or traces", "criterion results", "next recovery assignment for every failure"],
+      "fallbackWork": "If workflow dispatch is unavailable, add a guarded temporary exact-head workflow, record the run, and remove temporary machinery after authoritative clean-head execution.",
+      "executedBy": "scheduled-agent-1-successor",
+      "startingInspectedHead": "a17099d5a17e8f7d313196635ae587a4bac6f440",
+      "leaseClaimCommit": "acf3696f266bdd0620321b7e5e1d62c8c6a6918f",
+      "hardenedCarrierCommit": "e7311f273fcb95c9e72f37623fa1fae83e9fa19f",
+      "evidencePath": ".gitl/evidence/round-3/worker-3.md",
+      "evidenceCommit": "f48332719e9841b89af97b3b76444233686cd957",
+      "blocker": {
+        "type": "ci-carrier-dispatch-observability",
+        "finishedAt": "2026-08-07T01:18:12Z",
+        "detail": "The hardened push-triggered carrier produced no durable handoff while the branch remained at its carrier head. Connected GitHub exposed no combined status and its available commit-workflow lookup exposed no run; that lookup is limited to pull-request-triggered runs, so authoritative push run/job IDs and logs are unavailable to this worker.",
+        "unproven": ["Firefox exact execution", "desktop Chromium exact execution", "Pixel 7 Chromium exact execution", "zero Send actuation", "restart assertions"]
+      }
     },
     {
-      "id":"R3-A2-RR-PROVEN-FAILURE-REPAIR",
-      "claimableByAnyEligibleWorker":true,
-      "intendedRole":"builder",
-      "status":"waiting-on-predecessor",
-      "program":"RR-E2E-FAULTS",
-      "goal":"Repair only defects proven by R3-A1, rerun focused exact-head tests, and preserve safety invariants.",
-      "dependencies":["R3-A1-RR-CI-RECOVERY:failed-or-submitted"],
-      "activationRule":"If A1 passes fully, mark this not-needed and activate A3. If A1 fails, rewrite this assignment with the exact failing test, head, run/job IDs, logs, and reproduction command, then make it ready before releasing the lease."
+      "id": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder",
+      "status": "ready",
+      "program": "RR-E2E-FAULTS",
+      "goal": "Repair the proven exact-head CI carrier dispatch/observability blocker, obtain authoritative connected-GitHub-visible browser evidence, and change product code only if the browser results reproduce a real defect.",
+      "dependencies": ["R3-A1-RR-CI-RECOVERY:blocked"],
+      "mandatoryAction": "Use an execution path whose relevant run/job IDs and logs are observable through connected GitHub. Preserve exact-head binding. Run all three A1 browser commands. If the matrix passes, submit A2 and activate A3. If execution or a browser command fails, commit exact evidence and keep the earliest bounded repair ready.",
+      "allowedFiles": ["tests/e2e/**", "playwright.config.*", ".github/workflows/**", ".gitl/evidence/round-3/**", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["main/merge/tag/release/publish", "weakening assertions", "accepting stale-head CI", "product changes without a reproduced browser defect", "inventing or inferring run/job IDs"],
+      "requiredTests": ["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile"],
+      "requiredEvidence": ["exact tested head", "connected GitHub run ID", "connected GitHub job ID", "command logs or traces", "setup/install outcome", "criterion results", "next recovery assignment for every failure"],
+      "failureEvidence": {
+        "predecessorEvidence": ".gitl/evidence/round-3/worker-3.md",
+        "startingInspectedHead": "a17099d5a17e8f7d313196635ae587a4bac6f440",
+        "leaseClaimCommit": "acf3696f266bdd0620321b7e5e1d62c8c6a6918f",
+        "carrierCommit": "e7311f273fcb95c9e72f37623fa1fae83e9fa19f",
+        "failureType": "carrier-dispatch-observability",
+        "observedThrough": "2026-08-07T01:18:12Z",
+        "connectedGithubCombinedStatuses": "none",
+        "connectedGithubCommitWorkflowRuns": "none returned; connector endpoint is pull-request-triggered only",
+        "branchMovementAfterCarrier": "none before blocking handoff",
+        "reproduction": ["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile"]
+      },
+      "activationRule": "A1 is blocked on execution observability, so A2 is ready. Resolve this blocker and obtain exact browser evidence before A3."
     },
     {
-      "id":"R3-A3-RR-REDTEAM-CERT",
-      "claimableByAnyEligibleWorker":true,
-      "intendedRole":"red-team-auditor",
-      "status":"waiting-on-predecessor",
-      "program":"RR-E2E-FAULTS",
-      "goal":"Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
-      "dependencies":["R3-A1-RR-CI-RECOVERY:submitted","R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted-or-not-needed"]
+      "id": "R3-A3-RR-REDTEAM-CERT",
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "red-team-auditor",
+      "status": "waiting-on-predecessor",
+      "program": "RR-E2E-FAULTS",
+      "goal": "Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
+      "dependencies": ["R3-A1-RR-CI-RECOVERY:submitted", "R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted-or-not-needed"]
     }
   ],
-  "evidence":[
-    {"worker":1,"path":".gitl/evidence/round-3/worker-1.md","status":"submitted"}
+  "evidence": [
+    {"worker": 1, "path": ".gitl/evidence/round-3/worker-1.md", "status": "submitted"},
+    {"worker": 3, "assignment": "R3-A1-RR-CI-RECOVERY", "executedBy": "scheduled-agent-1-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "blocked"}
   ],
-  "roundDecision":null,
-  "humanReviewRequired":true,
-  "publishReadyRequiresAllRequiredPrograms":true
+  "roundDecision": null,
+  "humanReviewRequired": true,
+  "publishReadyRequiresAllRequiredPrograms": true
 }
