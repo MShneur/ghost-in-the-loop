@@ -8,7 +8,7 @@ on:
       - '.github/workflows/r4-a3-lifecycle-redteam.yml'
   pull_request:
     branches:
-      - gitl/r4-a3-ci-base
+      - gitl/r4-a3-ci-base2
     types:
       - opened
       - reopened
