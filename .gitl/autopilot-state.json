@@ -28,8 +28,8 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "a68465c811115993a07202aedb157932f853cf37",
-  "currentStep": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02 completed one bounded non-conflicting research step. Primary standards evidence favors an ordinary in-flow span/div with one open ShadowRoot plus an external Ghost mount manager over an autonomous custom element for the first structural prototype, because it removes custom-element registry/lifecycle state while preserving style isolation. The exact current ChatGPT Blue insertion row remains UNKNOWN; A1X stays blocked locally on DQ-R6-LIVE-STRUCTURE-CAPTURE and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written. Otherwise the next eligible wake must use a materially different bounded research fallback such as mobile keyboard/footer reflow, orientation/large-text/narrow-width failure modes, or constrained-hardware evidence. Do not repeat the permission-gated live capture, adoption-drift search, deterministic probe, or Shadow/custom-element lifecycle research without changed evidence.",
+  "currentStep": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03 in progress: one bounded non-conflicting research step on mobile virtual-keyboard/footer reflow, orientation/large-text/narrow-width failure modes, and falsifiable structural-shell constraints that do not require current authenticated ChatGPT DOM.",
+  "nextAction": "Complete one materially different mobile/reflow research fallback, write durable evidence and falsifiable A2/Red-Team/mobile constraints, update state, and release the lease. Do not modify product code, authorize a live insertion slot, or repeat prior adoption-drift/Shadow-lifecycle/live-capture work.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -185,7 +185,15 @@
     ".gitl/evidence/round-6/research-fallback-01.md",
     ".gitl/evidence/round-6/research-fallback-02.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-research-fallback-mobile-reflow",
+    "assignmentId": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03",
+    "intendedRole": "mobile-browser-accessibility-performance with researcher-architect and reliability dissent lens",
+    "acquiredAt": "2026-08-07T14:26:10Z",
+    "expiresAt": "2026-08-07T15:11:10Z",
+    "inspectedHead": "bcd845c457de5abb15b71f17647acca362ae599f",
+    "purpose": "One bounded non-conflicting research fallback on mobile virtual-keyboard/footer reflow, orientation/large-text/narrow-width failure modes; no product changes."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
