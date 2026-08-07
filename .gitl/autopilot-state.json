@@ -352,7 +352,16 @@
     ".gitl/evidence/round-6/a3-overflow-repair-result.md",
     ".gitl/evidence/round-6/worker-5.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-5-r6-a5-audit-18",
+    "assignmentId": "R6-A5-MOBILE-SHELL-AUDIT",
+    "nominalWorker": 5,
+    "executedRole": "successor-devils-advocate-release-auditor",
+    "acquiredAt": "2026-08-07T20:41:12Z",
+    "expiresAt": "2026-08-07T21:26:12Z",
+    "inspectedStateBlob": "b57e57df48a068f3cbc305ddaa253f1e1700568a",
+    "activeWorkCheck": "State lease was null; A5 was ready; worker-6 evidence was absent; branch remained at b193fb9072a2a3d0daeada3ac0e9e9380c708bfb across repeated checks with no conflicting movement before claim."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
