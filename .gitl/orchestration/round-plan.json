@@ -45,15 +45,7 @@
     {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation", "status": "backlog", "releaseCritical": true},
     {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
   ],
-  "priorityOrder": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
+  "priorityOrder": ["RR-E2E-FAULTS", "LIFECYCLE-FROZEN-DISCARDED", "LONG-CHAT-PERF", "MOBILE-SHELL-STRUCTURAL", "BUILD-IDENTITY", "DOCS-RECONCILIATION", "FINAL-CERT-PACKAGE"],
   "priorRound": {
     "round": 5,
     "program": "LONG-CHAT-PERF",
@@ -74,34 +66,18 @@
     "sequencingDecision": "DQ-R4-LIFECYCLE-REVIEW and DQ-R5-LONGCHAT-REVIEW remain local under canonical Policy B. Independent reversible MOBILE-SHELL-STRUCTURAL work may continue."
   },
   "roundHypotheses": [
-    {
-      "id": "H1-adapter-contract",
-      "claim": "An adapter-owned explicit structural mount contract can add one Ghost child/sibling to a verified host row or stack with lower safety and maintenance risk than generic DOM inference.",
-      "prediction": "A deterministic ChatGPT host fixture and current live DOM mapping can identify stable header/composer/footer anchors, preserve the original Send node, and survive host-control insertion/rerender using only scoped observation."
-    },
-    {
-      "id": "H2-generic-structural-inference",
-      "claim": "A reusable ancestor-climb and layout-classification algorithm may reduce per-adapter selector maintenance while still discovering safe flex/grid/block/table mount points.",
-      "prediction": "The same inference rules should select the intended container across materially different fixture structures without wrapping, reordering, hiding, or overlapping host controls; otherwise the approach is rejected for first implementation."
-    },
-    {
-      "id": "H3-fallback-first",
-      "claim": "The existing fixed composer rail should remain a compatibility fallback rather than being rewritten until structural verification succeeds.",
-      "prediction": "When a structural contract cannot prove normal-flow insertion and Send-node preservation, the attempted mount can cleanly unmount and the existing rail can continue without new actuation authority."
-    },
-    {
-      "id": "H4-shadow-dom-boundary",
-      "claim": "A standard custom element with Shadow DOM can isolate Ghost internals while the host element itself remains an in-flow child or sibling.",
-      "prediction": "Isolation can be achieved without scoped CustomElementRegistry dependencies, fixed/absolute positioning for the structural mount, or duplicated Ghost state/action authority."
-    }
+    {"id": "H1-adapter-contract", "claim": "An adapter-owned explicit structural mount contract can add one Ghost child/sibling to a verified host row or stack with lower safety and maintenance risk than generic DOM inference.", "prediction": "A deterministic ChatGPT fixture plus live DOM capture can identify stable composer/action/footer anchors, preserve original Send identity, and survive host rerender with scoped observation."},
+    {"id": "H2-generic-structural-inference", "claim": "A reusable ancestor-climb and layout-classification algorithm may reduce adapter selector maintenance.", "prediction": "The same inference must choose the intended container despite hidden/secondary composers and nested control clusters; otherwise reject it for the first implementation."},
+    {"id": "H3-fallback-first", "claim": "The existing fixed composer rail remains a compatibility fallback until structural verification succeeds.", "prediction": "Verification failure cleanly unmounts the structural attempt and leaves rail behavior intact without new actuation authority."},
+    {"id": "H4-shadow-dom-boundary", "claim": "A standard custom element with Shadow DOM may isolate Ghost internals while its host remains an in-flow child/sibling.", "prediction": "Isolation must not require fixed/absolute primary positioning, duplicate state/action authority, or scoped CustomElementRegistry dependencies."}
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
     "nominalWorker": 2,
-    "assignmentId": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "assignmentId": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R6-A1-MOBILE-SHELL-STRUCTURE-MAP regardless of timer number. Map current ChatGPT mobile/desktop host structure, compare explicit adapter contracts against generic structural inference and the rail fallback, gather upstream/adoption/user evidence, create deterministic structure fixtures when useful, and predeclare the smallest first structural candidate plus falsification gate. Do not change product behavior."
+    "instruction": "Recover A1 by obtaining a durable read-only current ChatGPT structure capture at desktop and narrow/mobile. Bind the active editor, composer, exact Send node, action-row/header/footer-stack candidates, computed layout and rerender evidence without actuating Send. Do not authorize product selectors or A2 until the live capture confirms a container and exact insertion rule."
   },
   "assignments": [
     {
@@ -111,39 +87,10 @@
       "intendedRole": "supervisor-integrator",
       "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Open the next evidence-competitive round for the user-required host-affixed mobile Ghost shell without treating deferred Round-4 or Round-5 reviews as global freezes.",
+      "goal": "Open the evidence-competitive Round-6 mobile structural-shell chain while keeping prior human reviews local.",
       "dependencies": ["R5-A5-LONGCHAT-AUDIT:submitted"],
-      "mandatoryReads": [
-        "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
-        ".gitl/briefs/mobile-shell-concepts.md",
-        ".gitl/deferred-questions.md",
-        ".gitl/evidence/round-5/worker-6.md",
-        ".gitl/orchestration/agent-succession-rule.md"
-      ],
-      "allowedFiles": [".gitl/**"],
-      "prohibitedActions": [
-        "product implementation during supervisor planning",
-        "silently accepting or rejecting DQ-R4-LIFECYCLE-REVIEW",
-        "silently accepting or rejecting DQ-R5-LONGCHAT-REVIEW",
-        "dropping BUILD-IDENTITY, DOCS-RECONCILIATION, or FINAL-CERT-PACKAGE",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Read the mobile-shell brief and current implementation before defining work",
-        "Preserve Round-5 bounded certification and its explicit linear/physical-platform limits",
-        "Keep DQ-R4-LIFECYCLE-REVIEW and DQ-R5-LONGCHAT-REVIEW local under Policy B",
-        "Open Round 6 on MOBILE-SHELL-STRUCTURAL with an evidence-competitive research/build/Red-Team/mobile/audit chain",
-        "Only the earliest dependency-ready Round-6 assignment is activated",
-        "All remaining release-critical programs remain present"
-      ],
-      "requiredEvidence": [
-        "maker and mobile-shell brief",
-        "starting head and lease",
-        "current shell/source observations",
-        "competing implementation philosophies",
-        "Round-6 dependency plan",
-        "explicit handoff"
-      ],
+      "prohibitedActions": ["product implementation during supervisor planning", "silently resolving deferred Round-4/Round-5 reviews", "dropping later required programs", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["read mobile-shell brief/current source", "preserve Round-5 bounded limits", "keep deferred reviews local", "open research/build/Red-Team/mobile/audit chain", "activate only earliest ready work", "preserve all release-critical programs"],
       "evidencePath": ".gitl/evidence/round-6/worker-1.md",
       "executedBy": "scheduled-successor-r6-supervisor-plan",
       "claimCommit": "6ff72ded1b2d57010ddd2f87a46da8ddb40d7622"
@@ -153,55 +100,48 @@
       "worker": 2,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "researcher-architect",
+      "status": "blocked",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Map real ChatGPT structural rows/columns, falsify competing discovery strategies, and define the smallest one-platform/one-mode structural candidate without product changes.",
+      "dependencies": ["R6-SUPERVISOR-PLAN:submitted"],
+      "allowedFiles": ["tests/**", "docs/**", "scripts/**test**", ".github/workflows/**", ".gitl/evidence/round-6/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
+      "prohibitedActions": ["production shell implementation before reproduced live map/falsification gate", "moving/wrapping/cloning/replacing/intercepting Send", "viewport overlay as blue/red success", "document-wide high-frequency structural observer", "new Send/Play authority", "weakening CHOICE/route/lease/uncertainty", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["map desktop/narrow ChatGPT header/composer/footer structure with live evidence or deterministic fallback", "record Ghost fixed/rail baseline", "compare explicit adapter contracts vs generic inference", "evaluate teal/blue/red", "gather primary/adoption/community evidence where useful", "create deterministic no-actuation probe", "predeclare smallest candidate/falsification gate", "no product changes"],
+      "requiredTests": ["branch/state/lease inspection", "source inspection", "deterministic host-structure probe when live evidence unavailable", "exact command/head/run/job/artifact for any CI execution"],
+      "requiredEvidence": ["host structure map", "Ghost baseline", "competing architecture table", "user/upstream/adoption findings", "smallest candidate", "predeclared falsification gate"],
+      "fallbackWork": "If live structure cannot be reliably mapped, commit only deterministic capture/probe evidence and create the smallest exact-evidence recovery; do not guess selectors or authorize product implementation.",
+      "evidencePath": ".gitl/evidence/round-6/worker-2.md",
+      "executedBy": "scheduled-agent-6-r6-a1-successor",
+      "claimCommit": "62e12b24ea584ff639f8e20c919353ca5d9cb435",
+      "probeCommits": ["431670c5951cd9790b8f8e430aa2edf4f3958911", "ed0c23ffcb68c2964139eb094db363f9156e36e7"],
+      "evidenceCommit": "4d094ad761c0d731bcd73c71c58750b0af3b291a",
+      "blockedReason": "Live authenticated ChatGPT DOM inspection was unavailable in the non-interactive browser connector. A deterministic no-actuation capture oracle and architecture/falsification evidence are durable, but current header/action/footer signatures and exact insertion slot remain UNKNOWN."
+    },
+    {
+      "id": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE",
+      "worker": 2,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "researcher-architect",
       "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Map real host structural rows/columns for ChatGPT first, falsify competing discovery strategies, and define the smallest one-platform/one-mode structural candidate without changing product behavior.",
-      "dependencies": ["R6-SUPERVISOR-PLAN:submitted"],
-      "mandatoryAction": "Use repository source plus current authoritative platform/web standards and relevant user/community/adoption evidence where available. Compare at least explicit adapter-owned mount contracts, generic structural inference, and the existing rail fallback. Evaluate teal, blue, and red for the first ChatGPT implementation; do not preselect based only on the brief sketch.",
-      "allowedFiles": [
-        "tests/**",
-        "docs/**",
-        "scripts/**test**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-6/worker-2.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json",
-        ".gitl/deferred-questions.md"
-      ],
-      "prohibitedActions": [
-        "production shell implementation before a reproduced structural map and falsification gate",
-        "moving, wrapping, cloning, replacing, or intercepting host Send",
-        "viewport overlay as success for blue or red",
-        "document-wide high-frequency MutationObserver for the proposed structural mount",
-        "new Send/Play authority",
-        "weakening CHOICE/route/lease/uncertainty behavior",
-        "main/merge/tag/release/publish"
-      ],
+      "goal": "Obtain the missing durable current ChatGPT desktop+narrow structural map using the A1 read-only probe contract; select or reject an exact composer-local insertion rule without product behavior changes.",
+      "dependencies": ["R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"],
+      "mandatoryReads": [".gitl/evidence/round-6/worker-2.md", "tests/e2e/mobile-shell-structure-probe.spec.js", ".gitl/briefs/mobile-shell-concepts.md"],
+      "allowedFiles": ["tests/**", "docs/**", "scripts/**test**", ".github/workflows/**", ".gitl/evidence/round-6/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
+      "prohibitedActions": ["production shell implementation", "clicking/submitting/typing into host Send path", "moving/wrapping/cloning/replacing Send", "guessing live selectors from deterministic fixtures/adoption examples", "document-wide high-frequency structural observer", "main/merge/tag/release/publish"],
       "acceptanceCriteria": [
-        "Record current ChatGPT header action row, composer action row, composer/footer stack, layout type, stable anchors, and replacement/rerender behavior at desktop and narrow mobile breakpoints using live evidence or a clearly labeled deterministic fixture when live inspection is unavailable",
-        "Record current Ghost baseline: fixed #gitl panel/rail geometry, document-body rail observer/polling, platform adapter fields, and absence/presence of existing custom-element/Shadow-DOM structural infrastructure",
-        "Compare explicit adapter-owned contracts versus generic structural inference with measurable failure predictions, maintenance cost, and safety consequences",
-        "Evaluate teal, blue, and red as the first implementation candidate using reach/usability, Send proximity, layout reflow, narrow-width, rerender, and reversibility evidence",
-        "Gather primary/upstream/adoption evidence and aggregate user/community evidence when it can discriminate; mark unavailable evidence UNKNOWN",
-        "Create deterministic host-structure fixtures or probes sufficient to reproduce the selected mount assumptions without actuating Send",
-        "Predeclare the smallest build candidate plus exact structural/safety/performance falsification criteria for A2",
-        "No product behavior changes"
+        "Capture current authenticated ChatGPT at desktop and <=500 CSS px or equivalent narrow/mobile viewport using read-only DOM/computed-style inspection",
+        "Record sanitized signatures and layout types for visible editor, its composer root, exact reviewed Send, candidate composer action row, header action row, composer/footer stack, and relevant ancestor relationships",
+        "Record whether a hidden/secondary composer exists and prove Send/action lookup is scoped to the active visible composer",
+        "Preserve exact Send JS node identity throughout capture and record zero submit/click/input/keydown actuation attributable to the probe",
+        "Record at least one rerender/replacement observation if safely obtainable without actuating Send; otherwise mark rerender behavior UNKNOWN for A2/Red Team",
+        "Compare live evidence against explicit adapter-owned and generic-inference predictions and the deterministic fixture",
+        "Select an exact Blue insertion rule only if the live action-row evidence supports it; otherwise reject Blue-first and route the smallest alternative/research recovery",
+        "Append exact evidence to Worker-2 and update state/plan; no product behavior changes"
       ],
-      "requiredTests": [
-        "current branch/state/lease inspection",
-        "source inspection of #gitl positioning, rail tracking, platform adapters, and Send selectors",
-        "deterministic host-structure probe/fixture if live host evidence cannot be made durable",
-        "exact command/head/run/job/artifact for any CI execution"
-      ],
-      "requiredEvidence": [
-        "host structure map",
-        "current Ghost shell baseline",
-        "competing architecture table",
-        "user/upstream/adoption findings",
-        "selected smallest candidate",
-        "predeclared falsification gate"
-      ],
-      "fallbackWork": "If current ChatGPT structure cannot be reliably mapped, commit only a deterministic capture/probe fixture and create the smallest exact-evidence recovery assignment; do not guess selectors or authorize product implementation.",
+      "requiredTests": ["read-only live structure probe desktop+narrow", "deterministic probe fixture syntax/execution where executable", "exact head/run/job/artifact for any CI carrier", "zero actuation ledger"],
+      "requiredEvidence": ["live desktop+narrow structure capture", "exact active composer/Send relationship", "layout signatures", "rerender observation or explicit UNKNOWN", "strategy comparison", "exact insertion rule or rejection", "execution bindings"],
+      "fallbackWork": "If browser permission remains unavailable, use the smallest safe exact-evidence carrier or current user-provided DOM/screenshot capture without Send actuation. If no durable current host evidence can be obtained, keep A2 waiting and expose another bounded capture recovery rather than guessing.",
       "evidencePath": ".gitl/evidence/round-6/worker-2.md"
     },
     {
@@ -211,58 +151,13 @@
       "intendedRole": "builder",
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Implement only the A1-selected one-platform/one-mode structural mount primitive behind an experimental path, preserving the existing rail as fail-closed compatibility fallback.",
-      "dependencies": ["R6-A1-MOBILE-SHELL-STRUCTURE-MAP:submitted"],
-      "allowedFiles": [
-        "ghost-in-the-loop.user.js",
-        "extension/content.js",
-        "scripts/build-extension.js",
-        "tests/**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-6/worker-3.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "implementing more than one platform and one mount mode unless A1 evidence makes them inseparable",
-        "fixed or absolute positioning for the structural mount element",
-        "moving/wrapping/cloning/replacing the host Send node",
-        "document-wide high-frequency structural observer",
-        "unrecorded host style mutation",
-        "new Send/Play authority or second state store",
-        "weakening CHOICE/route/lease/uncertainty safeguards",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Implement the smallest A1-selected adapter-owned structural mount and only its required registry/verification infrastructure",
-        "The structural host element is an in-flow child or sibling; blue/red may not be viewport overlays",
-        "Any custom element/Shadow DOM interior reuses existing Ghost state and reviewed action handlers",
-        "Host Send remains the exact same connected node before and after mount and stays operable",
-        "One data-gitl-mount identity prevents duplicates across rerender/repair",
-        "Only the nearest verified structural container is observed for repair; all observers/timers are cleaned on unmount",
-        "Every host style mutation is minimal, reversible, and restored exactly",
-        "Verification failure removes the attempted structural mount and preserves the existing rail fallback",
-        "Generated userscript/extension parity remains exact",
-        "A1 falsification gates pass without weakening thresholds or assertions"
-      ],
-      "requiredTests": [
-        "syntax/lint",
-        "generated extension parity",
-        "focused Send/CHOICE/route/lease/uncertainty regressions",
-        "A1 structural fixture/probe on exact candidate head",
-        "full unit suite when product source changes",
-        "record exact command/head/run/job/artifact when CI is used"
-      ],
-      "requiredEvidence": [
-        "product diff",
-        "exact mount contract",
-        "Send node identity before/after",
-        "observer/timer inventory",
-        "host style mutation ledger",
-        "fallback result",
-        "exact test/CI bindings"
-      ],
-      "fallbackWork": "Any structural, Send-identity, duplicate, cleanup, or falsification failure must block A2 and create the smallest ready A2X repair/execution recovery rather than weakening the contract.",
+      "goal": "Implement only the A1/A1X-selected ChatGPT one-mode structural mount behind an experimental path while preserving the existing rail fallback.",
+      "dependencies": ["R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE:submitted"],
+      "allowedFiles": ["ghost-in-the-loop.user.js", "extension/content.js", "scripts/build-extension.js", "tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["more than one platform/mount mode unless evidence makes inseparable", "fixed/absolute primary structural mount", "moving/wrapping/cloning/replacing Send", "document-wide high-frequency structural observer", "unrecorded host style mutation", "new Send/Play authority or second state store", "weakening CHOICE/route/lease/uncertainty", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["implement smallest verified adapter-owned mount", "in-flow child/sibling", "reuse existing Ghost state/action handlers", "exact same connected operable Send node", "one data-gitl-mount identity", "scoped repair observer/timer cleanup", "minimal reversible host style ledger", "verification failure -> rail fallback", "generated parity exact", "A1/A1X gates pass unchanged"],
+      "requiredTests": ["syntax/lint", "generated parity", "focused Send/CHOICE/route/lease/uncertainty regressions", "structural fixture/probe exact candidate head", "full unit suite", "exact CI bindings when used"],
+      "fallbackWork": "Any structural, Send-identity, duplicate, cleanup, or falsification failure blocks A2 and creates smallest ready A2X recovery.",
       "evidencePath": ".gitl/evidence/round-6/worker-3.md"
     },
     {
@@ -272,45 +167,13 @@
       "intendedRole": "test-engineer-red-team",
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Falsify the structural mount under host control insertion, subtree replacement, route changes, layout pressure, verification failure, and cleanup while proving Send/CHOICE/route/lease/uncertainty remain fail closed.",
+      "goal": "Falsify the mount under host-control insertion, subtree replacement, route/layout pressure, verification failure, and cleanup while preserving fail-closed Send/CHOICE/route/lease/uncertainty.",
       "dependencies": ["R6-A2-MOBILE-SHELL-BUILD:submitted-or-blocked"],
-      "allowedFiles": [
-        "tests/**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-6/worker-4.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "accepting a blocked builder as a pass",
-        "product changes except a supervisor-created bounded recovery",
-        "weakening structural or Send identity assertions",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Insert native host controls before and after Ghost and verify host controls remain present, ordered, visible, and operable",
-        "Replace the relevant host subtree repeatedly and verify exactly one Ghost mount with the same Ghost state",
-        "Verify original Send node identity and event behavior are unchanged; zero Ghost test instrumentation may submit/click/input/keydown the host Send path unless the existing reviewed regression explicitly requires it",
-        "Force missing/malformed/fixed-grid/overflow structural candidates and verify structural verification fails closed to clean unmount/rail fallback rather than overlap",
-        "Exercise route changes and stale-node replacement without duplicate observers/mounts",
-        "Verify unmount restores every recorded host inline style/value exactly",
-        "For red-like expansion if selected, prove content reflows and latest message/composer remain reachable rather than covered",
-        "Record observer callback/resource accumulation and any reattachment race"
-      ],
-      "requiredTests": [
-        "adversarial deterministic Chromium structural fixture",
-        "focused existing Send transaction and answer/route/lease regressions",
-        "unchanged A1/A2 falsification gate where applicable",
-        "record exact head/run/job/artifact"
-      ],
-      "requiredEvidence": [
-        "falsification matrix",
-        "host control and Send identity results",
-        "duplicate/cleanup/resource results",
-        "fallback behavior",
-        "exact CI/artifact binding"
-      ],
-      "fallbackWork": "Every reproducible failure creates the smallest ready repair assignment with exact fixture state and reproduction command. Do not skip directly to mobile certification.",
+      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["accepting blocked builder as pass", "product changes except bounded recovery", "weakening structural/Send assertions", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["host controls remain present/ordered/visible/operable around insertion", "repeated subtree replacement -> exactly one Ghost mount/state", "Send identity/event behavior unchanged and zero unintended actuation", "malformed/fixed/overflow candidates fail closed to rail", "route/stale-node changes produce no duplicate observers", "unmount restores host styles exactly", "red expansion reflows if selected", "record observer/resource accumulation"],
+      "requiredTests": ["adversarial deterministic Chromium fixture", "focused Send/route/lease regressions", "unchanged structural gates", "exact head/run/job/artifact"],
+      "fallbackWork": "Each reproducible failure creates the smallest ready repair assignment; do not skip to mobile certification.",
       "evidencePath": ".gitl/evidence/round-6/worker-4.md"
     },
     {
@@ -322,44 +185,11 @@
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Measure the surviving structural candidate under narrow/mobile, keyboard, orientation, large-text, reduced-motion, browser, and constrained-runtime conditions without promoting emulation to physical-device certification.",
       "dependencies": ["R6-A3-MOBILE-SHELL-REDTEAM:submitted"],
-      "allowedFiles": [
-        "tests/**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-6/worker-5.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "physical-device certification from Playwright emulation",
-        "Firefox-Android/GeckoView certification from desktop Firefox",
-        "inventing a low-end hardware budget after seeing results",
-        "weakening Send or structural assertions for timing",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Exercise Pixel-class Chromium emulation plus a portable Firefox project without Chromium-only mobile options",
-        "Test narrow widths including <=500 CSS px, portrait/landscape transitions, visualViewport/keyboard-like changes, browser toolbar movement fixtures, 200% text or equivalent large-text pressure, and prefers-reduced-motion",
-        "Verify structural mount remains in flow, host composer/Send/latest message remain reachable, and no host control overlap or clipping is introduced",
-        "Measure mount/repair latency, observer callbacks, ResizeObserver activity, layout-shift or geometry deltas, active timers/observers, and duplicate mounts across repeated changes",
-        "Use throttled or otherwise constrained CI evidence when useful but label hosted timing descriptive rather than calibrated physical hardware",
-        "Preserve zero unintended Send-adjacent actuation and exact fallback behavior",
-        "Record physical-device/GeckoView evidence as UNKNOWN unless actually executed"
-      ],
-      "requiredTests": [
-        "Pixel-class Chromium emulation structural fixture",
-        "desktop Firefox structural fixture",
-        "large-text/reduced-motion/narrow-width/keyboard-orientation scenarios",
-        "focused Send safety regressions",
-        "record exact head/run/job/artifact"
-      ],
-      "requiredEvidence": [
-        "raw geometry/resource/timing tables",
-        "accessibility and large-text result",
-        "keyboard/orientation result",
-        "browser matrix",
-        "explicit physical-platform limits"
-      ],
-      "fallbackWork": "A deterministic mobile/layout failure creates the smallest ready repair assignment; preserve the failure and do not convert emulation into a physical-platform claim.",
+      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["physical-device certification from emulation", "GeckoView certification from desktop Firefox", "post-hoc low-end budget", "weakening Send/structural assertions for timing", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["Pixel-class Chromium emulation plus portable Firefox", "<=500px/orientation/visualViewport/large-text/reduced-motion scenarios", "mount remains in flow and host UI reachable", "measure latency/observer/layout/resource deltas", "label hosted timing descriptive", "zero unintended Send actuation/fallback exact", "physical Android/GeckoView UNKNOWN unless run"],
+      "requiredTests": ["Pixel-class Chromium fixture", "desktop Firefox fixture", "large-text/reduced-motion/narrow/keyboard-orientation scenarios", "focused Send safety", "exact head/run/job/artifact"],
+      "fallbackWork": "A deterministic mobile/layout failure creates the smallest repair; preserve failure and platform limits.",
       "evidencePath": ".gitl/evidence/round-6/worker-5.md"
     },
     {
@@ -369,38 +199,13 @@
       "intendedRole": "devils-advocate-release-auditor",
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Independently audit the bounded Round-6 one-platform/one-mode structural prototype, source/evidence bindings, fail-closed behavior, mobile/accessibility limits, and maintenance cost before deciding whether a cross-adapter expansion round is justified.",
+      "goal": "Independently audit the bounded ChatGPT structural prototype and decide whether cross-adapter expansion is justified.",
       "dependencies": ["R6-A4-MOBILE-SHELL-MOBILE-PERF:submitted"],
-      "allowedFiles": [
-        ".gitl/evidence/round-6/worker-6.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json",
-        ".gitl/deferred-questions.md"
-      ],
-      "prohibitedActions": [
-        "marking MOBILE-SHELL-STRUCTURAL fully complete before required cross-adapter expansion/final program audit",
-        "accepting overlay behavior as structural success",
-        "accepting replaced/cloned/moved Send controls",
-        "promoting emulation to physical Android/GeckoView certification",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Independently inspect exact source diff and prove the structural mount is in normal host flow",
-        "Verify exact-head CI/run/job/artifact bindings for A1/A2/A3/A4 and reject chat-only claims",
-        "Verify original Send node identity, CHOICE/route/lease/uncertainty fail-closed behavior, unique mount identity, clean unmount, scoped observation, and exact host-style restoration",
-        "Challenge maintenance risk against the current rail fallback and the user-accessibility benefit",
-        "Reject unsupported physical-device, GeckoView, universal-selector, or cross-adapter claims",
-        "If the bounded ChatGPT prototype is supported, keep MOBILE-SHELL-STRUCTURAL active and expose the next cross-adapter expansion supervisor/research assignment; otherwise expose the smallest recovery",
-        "Do not silently resolve DQ-R4-LIFECYCLE-REVIEW or DQ-R5-LONGCHAT-REVIEW"
-      ],
-      "requiredEvidence": [
-        "independent source and CI audit",
-        "each assignment verdict",
-        "accepted/rejected structural claims",
-        "maintenance/usability dissent",
-        "explicit next cross-adapter or recovery action"
-      ],
-      "fallbackWork": "Any missing or contradictory evidence creates the smallest ready recovery assignment; do not certify the bounded prototype merely because all scheduled slots fired.",
+      "allowedFiles": [".gitl/evidence/round-6/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
+      "prohibitedActions": ["marking MOBILE-SHELL-STRUCTURAL fully complete before cross-adapter/final audit", "accepting overlay as structural success", "accepting moved/cloned/replaced Send", "promoting emulation to physical Android/GeckoView", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["inspect exact source and normal-flow mount", "verify exact-head CI bindings", "verify Send identity and all fail-closed safeguards", "challenge maintenance vs usability", "reject unsupported universal/physical claims", "expose cross-adapter expansion or smallest recovery", "do not resolve prior deferred reviews"],
+      "requiredEvidence": ["independent source/CI audit", "each assignment verdict", "accepted/rejected claims", "maintenance/usability dissent", "next expansion/recovery"],
+      "fallbackWork": "Missing or contradictory evidence creates the smallest recovery; do not certify because schedule slots fired.",
       "evidencePath": ".gitl/evidence/round-6/worker-6.md"
     }
   ],
