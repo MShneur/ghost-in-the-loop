@@ -28,8 +28,8 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "28b313e2bc2283d63e8e04a578dc9f4919c98434",
-  "currentStep": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03 completed one bounded non-conflicting research step. Browser and accessibility standards now require the eventual structural shell to treat keyboard/VisualViewport geometry as a verification signal rather than placement authority, survive both visual-only and layout-resize keyboard models, avoid changing host viewport/VirtualKeyboard policy, and add explicit 320-CSS-pixel-equivalent and 200%-text falsification gates. The exact current ChatGPT Blue insertion row remains UNKNOWN; A1X stays blocked locally and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry forward the new mobile/reflow gates. Otherwise the next eligible wake must use another materially different bounded research fallback such as physical/constrained-device methodology, CSP/ShadowRoot/browser compatibility, cross-adapter structural-contract evidence, or a new deterministic test-design artifact. Do not repeat live-capture permission attempts, adoption-drift, Shadow/custom-element lifecycle, or mobile keyboard/reflow research without changed evidence.",
+  "currentStep": "Bounded Round-6 research fallback in progress: define a deterministic constrained-runtime methodology for the future structural-shell candidate using Playwright plus Chromium CDP CPU throttling, while preserving physical-device claim limits and avoiding post-hoc latency thresholds. No product implementation is authorized.",
+  "nextAction": "Complete one non-conflicting constrained-runtime methodology research note, convert primary browser/tooling evidence into falsifiable A2/Red-Team/A4 test constraints, update durable state, and release the lease. Keep A1X blocked locally and A2 waiting; do not repeat live-capture, adoption-drift, Shadow-lifecycle, or keyboard/reflow research.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -195,7 +195,15 @@
     ".gitl/evidence/round-6/research-fallback-02.md",
     ".gitl/evidence/round-6/research-fallback-03.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-r6-constrained-runtime-research",
+    "assignmentId": "R6-RESEARCH-FALLBACK-CONSTRAINED-RUNTIME-04",
+    "intendedRole": "devils-advocate release auditor executing bounded performance-methodology research fallback",
+    "acquiredAt": "2026-08-07T14:54:26Z",
+    "expiresAt": "2026-08-07T15:39:26Z",
+    "inspectedHead": "UNKNOWN-CONNECTOR-TIP; compare verified agent/8.8-repair-resume exactly one state-only commit ahead of 28b313e2bc2283d63e8e04a578dc9f4919c98434 immediately before claim; no open PR used the isolated branch as head",
+    "purpose": "One bounded non-conflicting research fallback on deterministic Chromium CPU-throttled structural-shell verification methodology; no product changes and no physical-device claim promotion."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
