@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "b5d0047b238d45243c8b589a3f4e9168a0326556",
-  "currentStep": "R6-RESEARCH-FALLBACK-A11Y-TREE-09 completed one bounded non-conflicting cross-browser accessibility-verification research step. It defines a three-tier evidence contract: one locator-scoped Playwright ARIA semantic contract plus focus/Send/zero-actuation invariants across hosted Chromium and desktop Firefox; Chromium CDP AX-tree data only as optional engine diagnostics; and separate physical assistive-technology/platform evidence when those claims become release-critical. It also rejects Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. A1X remains locally blocked and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance plus three-tier accessibility contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably Red expansion scroll-anchoring/layout-measurement design or later state-machine/fault-sequence methodology. Do not repeat the nine completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
+  "headAtLastHandoff": "cb7e8ddf550802e3954e28418ac43230252f6e85",
+  "currentStep": "R6-RESEARCH-FALLBACK-RED-SCROLL-ANCHOR-10 completed one bounded non-conflicting Red expansion scroll/reflow research step. The first Red certification contract is now scroll-intent-preserving and observational rather than corrective: distinguish FOLLOWING_LATEST from READING_HISTORY, prohibit new Ghost scroll writes during passive mount/expand/collapse, verify tail/anchor/composer geometry directly, treat native scroll events separately from Ghost write authority, and fail Red for an adapter rather than hiding a bad structural mount with scrollIntoView/scrollTop. A1X remains locally blocked and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance, accessibility, and Red R1-R10 scroll/reflow contracts into A2/A3/A4. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably state-machine/fault-sequence methodology for structural mount/repair/route/keyboard/rerender interleavings. Do not repeat the ten completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -62,7 +62,7 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first three wakes of the new novelty round produced actionable event/focus/accessibility, structural-conformance/oracle-validation, and cross-browser accessibility-verification contracts, so exhaustion has not begun."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first four wakes of the new novelty round produced actionable event/focus/accessibility, structural-conformance/oracle-validation, cross-browser accessibility-verification, and Red scroll-intent/reflow contracts, so exhaustion has not begun."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -143,6 +143,10 @@
     {
       "type": "round-6-research-fallback-a11y-tree-09",
       "result": "The third wake of the new novelty round defined a three-tier accessibility verification method. Tier A uses one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus/Send/zero-actuation invariants; Tier B keeps Chromium CDP AX-tree capture diagnostic-only; Tier C reserves real assistive-technology/platform claims for separate evidence. The method also rejects ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. Evidence commit b5d0047b238d45243c8b589a3f4e9168a0326556; claim commit a268e8f8652d98f57de260ae69ab00ed20490ade."
+    },
+    {
+      "type": "round-6-research-fallback-red-scroll-anchor-10",
+      "result": "The fourth wake of the new novelty round defined a Red scroll-intent/reflow contract without product changes. It separates FOLLOWING_LATEST from READING_HISTORY, prohibits new Ghost scrollTop/scrollTo/scrollBy/scrollIntoView writes in passive Red mount/expand/collapse, uses direct scroll-owner/tail/anchor/composer geometry as the primary oracle, treats native scroll events separately from Ghost write authority, rejects CLS as the primary gate for intentional expansion, and preserves adapter-specific spacer/layout mutation only as a later evidence-dependent alternative. Evidence commit cb7e8ddf550802e3954e28418ac43230252f6e85; claim commit dc0f026762fd2adc1710ca9aadb545517ddeabdf."
     }
   ],
   "findings": [
@@ -235,6 +239,11 @@
       "worker": 5,
       "type": "mobile-shell-cross-browser-accessibility-verification",
       "finding": "Hosted deterministic accessibility should use one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus, Send-node, role/name/state, and zero-actuation invariants. Chromium CDP AX-tree capture is optional diagnostic evidence only, while TalkBack/VoiceOver/NVDA/JAWS/WebView/GeckoView mappings remain separate certification surfaces. Playwright ARIA snapshots do not provide sufficient documented evidence to certify peer-ShadowRoot aria-controls relationships, so the first candidate must not depend on that relation without higher-tier proof."
+    },
+    {
+      "worker": 6,
+      "type": "mobile-shell-red-scroll-intent-contract",
+      "finding": "Future Red structural certification must preserve two pre-existing user states: FOLLOWING_LATEST and READING_HISTORY. Passive Red mount/expand/collapse gains no new scrollTop/scrollBy/scrollTo/scrollIntoView authority; tests instrument Ghost scroll writes separately from browser/native scroll events, use direct scroll-owner/tail/history-anchor/composer geometry, predeclare only a 1 CSS-pixel rounding tolerance for deterministic scroll arithmetic, reject CLS as the primary intentional-expansion oracle, detect ResizeObserver feedback loops, and fail to rail if the live scroll owner or natural reachability cannot be proven. Adapter-owned spacer/layout mutation remains a later separately authorized alternative, not an implicit repair."
     }
   ],
   "briefs": [
@@ -253,17 +262,10 @@
     ".gitl/evidence/round-6/research-fallback-06.md",
     ".gitl/evidence/round-6/research-fallback-07.md",
     ".gitl/evidence/round-6/research-fallback-08.md",
-    ".gitl/evidence/round-6/research-fallback-09.md"
+    ".gitl/evidence/round-6/research-fallback-09.md",
+    ".gitl/evidence/round-6/research-fallback-10.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-red-scroll-10",
-    "assignmentId": "R6-RESEARCH-FALLBACK-RED-SCROLL-ANCHOR-10",
-    "nominalWorker": 6,
-    "executedRole": "devils-advocate-release-auditor-with-mobile-layout-research",
-    "acquiredAt": "2026-08-07T16:51:16Z",
-    "expiresAt": "2026-08-07T17:36:16Z",
-    "inspectedHead": "d72b4039887b3b9cc4dae81ad7b330c95e7907be"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -289,8 +291,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-09.md",
-    "latestResearchFallbackCommit": "b5d0047b238d45243c8b589a3f4e9168a0326556",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-10.md",
+    "latestResearchFallbackCommit": "cb7e8ddf550802e3954e28418ac43230252f6e85",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -308,6 +310,7 @@
     "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
     "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a real candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. A1X live structure remains a prerequisite for the actual ChatGPT insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
+    "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
     "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
