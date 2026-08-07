@@ -39,15 +39,7 @@
     {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, and protocol reconciliation", "status": "backlog", "releaseCritical": true},
     {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
   ],
-  "priorityOrder": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
+  "priorityOrder": ["RR-E2E-FAULTS", "LIFECYCLE-FROZEN-DISCARDED", "LONG-CHAT-PERF", "MOBILE-SHELL-STRUCTURAL", "BUILD-IDENTITY", "DOCS-RECONCILIATION", "FINAL-CERT-PACKAGE"],
   "priorRound": {
     "round": 3,
     "program": "RR-E2E-FAULTS",
@@ -61,9 +53,9 @@
   "dispatch": {
     "nextWake": "next eligible scheduled or manual agent",
     "nominalWorker": 5,
-    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
+    "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
     "automatic": true,
-    "instruction": "Execute the bounded A4 mobile/performance exact-head recovery. Use a temporary guarded connected-GitHub-visible carrier if needed, run the Pixel-7 chromium-mobile lifecycle fixture, preserve metrics/run/job/artifact evidence, remove temporary machinery, and on PASS activate the independent lifecycle audit."
+    "instruction": "Repair only the deterministic synthetic mobile viewport contract proven by A4X: add standards-correct device-width viewport metadata rather than loosening the width assertion, then rerun the same exact-head Pixel-7 chromium-mobile fixture with all lifecycle/resource/Send/accessibility assertions preserved."
   },
   "assignments": [
     {
@@ -95,26 +87,13 @@
       "mandatoryAction": "Use repository evidence plus authoritative primary browser/platform sources. Distinguish supported lifecycle signals from assumptions. Add only fixture/specification tests or docs unless a production change is explicitly required by a reproduced contract failure.",
       "allowedFiles": ["tests/**", "docs/**", ".gitl/evidence/round-4/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["broad production changes", "inventing unsupported lifecycle events", "new Send path", "weakening CHOICE/route/lease/uncertainty behavior", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": [
-        "Inventory current recoverAfterWake listeners and service rebuild behavior in userscript and generated extension",
-        "Define expected behavior for background/foreground, pageshow persisted/BFCache restoration, frozen/resumed execution where observable, and discarded-document restart where detectable",
-        "Define RUNNING, PAUSED, and CHOICE-safe recovery outcomes with uncertain-Send fail-closed behavior",
-        "Identify deterministic Playwright/Jest injection points that do not add a persistent production debug API",
-        "Define exactly-once timer/observer/heartbeat/lock recovery assertions and zero Send actuation assertions",
-        "Add a focused specification or failing fixture test when feasible",
-        "Cite authoritative primary sources for every browser/platform lifecycle claim"
-      ],
+      "acceptanceCriteria": ["Inventory current recoverAfterWake listeners and service rebuild behavior in userscript and generated extension", "Define expected behavior for background/foreground, pageshow persisted/BFCache restoration, frozen/resumed execution where observable, and discarded-document restart where detectable", "Define RUNNING, PAUSED, and CHOICE-safe recovery outcomes with uncertain-Send fail-closed behavior", "Identify deterministic Playwright/Jest injection points that do not add a persistent production debug API", "Define exactly-once timer/observer/heartbeat/lock recovery assertions and zero Send actuation assertions", "Add a focused specification or failing fixture test when feasible", "Cite authoritative primary sources for every browser/platform lifecycle claim"],
       "requiredTests": ["npm test -- --runInBand tests/wake-recovery.test.js or repository-equivalent focused Jest command", "run any added focused lifecycle specification test"],
       "requiredEvidence": ["lifecycle fault matrix", "repository call graph", "primary-source implications", "implementation-ready acceptance criteria", "files/commit", "commands and results"],
       "fallbackWork": "If browser execution is unavailable, produce the deterministic contract and failing/fixture tests with exact commands, then mark submitted or blocked and activate the next dependency-safe assignment.",
       "evidencePath": ".gitl/evidence/round-4/worker-2.md",
       "evidenceCommit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06",
-      "executionEvidence": {
-        "testedHead": "79de931a689c731a680ae4c1e1360f0ec4ad9ce7",
-        "runId": 31143832068,
-        "jobId": 92759102485,
-        "result": "2 suites passed; 12 tests passed; 3 explicit TODOs; zero failures"
-      }
+      "executionEvidence": {"testedHead": "79de931a689c731a680ae4c1e1360f0ec4ad9ce7", "runId": 31143832068, "jobId": 92759102485, "result": "2 suites passed; 12 tests passed; 3 explicit TODOs; zero failures"}
     },
     {
       "id": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
@@ -127,26 +106,13 @@
       "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:blocked"],
       "allowedFiles": ["tests/**", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["product implementation", "weakening lifecycle assertions", "using stale-product-head CI as proof of branch-head tests", "new Send authority", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": [
-        "Run tests/wake-recovery.test.js and tests/lifecycle-recovery-contract.test.js on the exact current branch head",
-        "Bind evidence to exact commit/run/job IDs or an equivalent direct command result",
-        "If a temporary workflow carrier is required, guard the expected head and remove the carrier after execution",
-        "On PASS mark both A1 and A1X submitted and activate R4-A2-LIFECYCLE-BUILD",
-        "On FAIL preserve the exact failure and activate the smallest correction rather than weakening the test"
-      ],
+      "acceptanceCriteria": ["Run tests/wake-recovery.test.js and tests/lifecycle-recovery-contract.test.js on the exact current branch head", "Bind evidence to exact commit/run/job IDs or an equivalent direct command result", "If a temporary workflow carrier is required, guard the expected head and remove the carrier after execution", "On PASS mark both A1 and A1X submitted and activate R4-A2-LIFECYCLE-BUILD", "On FAIL preserve the exact failure and activate the smallest correction rather than weakening the test"],
       "requiredTests": ["npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand"],
       "requiredEvidence": ["exact branch head", "command", "run/job IDs when applicable", "test counts/results", "carrier cleanup", "handoff result"],
       "fallbackWork": "If exact-head execution is still unavailable, retain A1 blocked, document the infrastructure reason precisely, release the lease, and keep this recovery assignment ready for the next execution-capable agent.",
       "evidencePath": ".gitl/evidence/round-4/worker-2.md",
       "evidenceCommit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06",
-      "executionEvidence": {
-        "testedHead": "79de931a689c731a680ae4c1e1360f0ec4ad9ce7",
-        "runId": 31143832068,
-        "jobId": 92759102485,
-        "command": "npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand",
-        "result": "PASS: 2/2 suites; 12 passed; 3 todo; 15 total",
-        "carrierCleanupCommit": "20cb29497a6e8b4ca897c08f88f7ebfae4c288bd"
-      }
+      "executionEvidence": {"testedHead": "79de931a689c731a680ae4c1e1360f0ec4ad9ce7", "runId": 31143832068, "jobId": 92759102485, "command": "npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand", "result": "PASS: 2/2 suites; 12 passed; 3 todo; 15 total", "carrierCleanupCommit": "20cb29497a6e8b4ca897c08f88f7ebfae4c288bd"}
     },
     {
       "id": "R4-A2-LIFECYCLE-BUILD",
@@ -168,12 +134,7 @@
       "evidenceCommit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23",
       "fixtureCommit": "10bece4cef59c13f17ad97882aafcbfe15597b84",
       "recoveredBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
-      "executionEvidence": {
-        "testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6",
-        "runId": 31147614614,
-        "jobId": 92770260104,
-        "result": "PASS after contract adjudication: production Chromium lifecycle fixture 7/7; no product change required"
-      }
+      "executionEvidence": {"testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6", "runId": 31147614614, "jobId": 92770260104, "result": "PASS after contract adjudication: production Chromium lifecycle fixture 7/7; no product change required"}
     },
     {
       "id": "R4-A3-LIFECYCLE-REDTEAM",
@@ -193,14 +154,7 @@
       "evidencePath": ".gitl/evidence/round-4/worker-4.md",
       "evidenceCommit": "7222107f0fab244d35bf947af3ba30400b6fdf46",
       "resolvedBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
-      "executionEvidence": {
-        "testedHead": "7e8dfda0e22143bdea17f34cd9a37490d0ad8236",
-        "runId": 31145488389,
-        "jobId": 92763921605,
-        "artifactId": 8981325698,
-        "artifactSha256": "acbaae68856146ac2693ff1e27290c1ab6252b331ecb46d426ca74353d4e131e",
-        "result": "Focused lifecycle Jest PASS 2/2 suites, 12 passed, 3 todo; adversarial Chromium PASS 4/4; production lifecycle Chromium exposed only the cache-helper cardinality mismatch subsequently resolved by A3X."
-      }
+      "executionEvidence": {"testedHead": "7e8dfda0e22143bdea17f34cd9a37490d0ad8236", "runId": 31145488389, "jobId": 92763921605, "artifactId": 8981325698, "artifactSha256": "acbaae68856146ac2693ff1e27290c1ab6252b331ecb46d426ca74353d4e131e", "result": "Focused lifecycle Jest PASS 2/2 suites, 12 passed, 3 todo; adversarial Chromium PASS 4/4; production lifecycle Chromium exposed only the cache-helper cardinality mismatch subsequently resolved by A3X."}
     },
     {
       "id": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
@@ -215,31 +169,14 @@
       "mandatoryAction": "Use two opposing interpretations: strict exactly-once invalidation versus bounded idempotent invalidation. Cross-check the accepted lifecycle contract before changing any assertion. Instrument semantic runtime-service counts separately from cache invalidation. Correct the test only if the accepted contract proves the assertion over-specified; otherwise preserve the failure and create a separate builder repair.",
       "allowedFiles": ["tests/**", "docs/lifecycle-recovery-contract.md", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["production implementation", "weakening exactly-once ticker/heartbeat/bus/observer/lock semantics", "weakening Send/CHOICE/route/lease/uncertainty assertions", "accepting stale-head/cancelled CI", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": [
-        "Show from the accepted A1 contract whether exact-once applies to runtime-service rebuilds, cache-helper invocations, or both",
-        "Show from source why cacheClear is 2 and whether any DOM-cache consumer exists between the direct clear and reDetect",
-        "Preserve an explicit bounded cache-invalidation assertion so future unbounded churn still fails",
-        "Keep ticker, heartbeat, bus/redetect and Send-safety assertions exact and unchanged",
-        "Run focused lifecycle Jest and both production/adversarial Chromium lifecycle fixtures on an exact guarded head",
-        "If corrected tests pass, mark A3/A3X submitted and activate A4; if a product defect remains, block A3X and create the smallest builder repair"
-      ],
+      "acceptanceCriteria": ["Show from the accepted A1 contract whether exact-once applies to runtime-service rebuilds, cache-helper invocations, or both", "Show from source why cacheClear is 2 and whether any DOM-cache consumer exists between the direct clear and reDetect", "Preserve an explicit bounded cache-invalidation assertion so future unbounded churn still fails", "Keep ticker, heartbeat, bus/redetect and Send-safety assertions exact and unchanged", "Run focused lifecycle Jest and both production/adversarial Chromium lifecycle fixtures on an exact guarded head", "If corrected tests pass, mark A3/A3X submitted and activate A4; if a product defect remains, block A3X and create the smallest builder repair"],
       "requiredTests": ["npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand", "npx playwright test tests/e2e/lifecycle-redteam.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium"],
       "requiredEvidence": ["accepted-contract comparison", "source call graph", "opposing interpretations", "test change or no-change rationale", "exact tested head", "run/job/artifact IDs", "carrier cleanup", "handoff result"],
       "fallbackWork": "If exact-head execution cannot be obtained, keep A3X blocked on execution evidence only and preserve the exact guarded command/carrier requirement.",
       "evidencePath": ".gitl/evidence/round-4/worker-4.md",
       "evidenceCommit": "7222107f0fab244d35bf947af3ba30400b6fdf46",
       "testCommit": "531263f41ee6c416eecafcf5f8ac0f8d74a0dd27",
-      "executionEvidence": {
-        "testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6",
-        "runId": 31147614614,
-        "jobId": 92770260104,
-        "result": "PASS: focused lifecycle Jest 2/2 suites, 12 passed + 3 todo; adversarial Chromium 4/4; production lifecycle Chromium 7/7",
-        "artifact": null,
-        "artifactReason": "All Playwright cases passed, so no playwright-report/test-results files existed; upload step completed with if-no-files-found=ignore.",
-        "carrierCleanupCommit": "d215e136a20082fc2ec320396a8ef9773bad52d9",
-        "carrierPr": 17,
-        "carrierPrMerged": false
-      }
+      "executionEvidence": {"testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6", "runId": 31147614614, "jobId": 92770260104, "result": "PASS: focused lifecycle Jest 2/2 suites, 12 passed + 3 todo; adversarial Chromium 4/4; production lifecycle Chromium 7/7", "artifact": null, "artifactReason": "All Playwright cases passed, so no playwright-report/test-results files existed; upload step completed with if-no-files-found=ignore.", "carrierCleanupCommit": "d215e136a20082fc2ec320396a8ef9773bad52d9", "carrierPr": 17, "carrierPrMerged": false}
     },
     {
       "id": "R4-A4-LIFECYCLE-MOBILE-PERF",
@@ -257,15 +194,15 @@
       "requiredEvidence": ["device/emulation profile", "measurements", "commands and CI IDs", "Android/lower-end risk conclusion", "browser gaps"],
       "fallbackWork": "If exact mobile execution is unavailable, add instrumentation assertions against the real lifecycle seam and provide the exact guarded CI command required.",
       "evidencePath": ".gitl/evidence/round-4/worker-5.md",
-      "evidenceCommit": "c9e265a703cdc7b976315a9654e0ceff0de83212",
-      "blocker": "The Pixel-7 chromium-mobile fixture and instrumentation are committed, but exact observable execution evidence is unavailable through the current A4 connector surface. Ordinary push CI is configured but cannot be certified by inference; A4X is required for connected-GitHub-visible exact-head execution."
+      "evidenceCommit": "95e1a47b5abc68c4173e91ae0e9ed3f9b10dc40b",
+      "blocker": "Exact Pixel-7 execution now exists, but the synthetic test page reported layout width 981 and failed the required <=500 viewport assertion on both attempts. A4Y must repair the fixture's mobile viewport contract without weakening the assertion."
     },
     {
       "id": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance-execution-recovery",
-      "status": "ready",
+      "status": "blocked",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Obtain exact-head connected-GitHub-visible execution evidence for the committed Pixel-7 mobile lifecycle/performance fixture without changing product behavior.",
       "rationale": "A4 produced deterministic mobile/resource/accessibility instrumentation but its ordinary push-run result is not observable through the available connector query. Certification requires an exact guarded run rather than inference from workflow configuration.",
@@ -273,18 +210,30 @@
       "mandatoryAction": "Use the smallest temporary guarded CI carrier necessary to expose exact-head Pixel-7 chromium-mobile execution. Preserve raw metric attachment/results and distinguish emulation from physical-device evidence. Do not alter the fixture merely to obtain green CI.",
       "allowedFiles": ["tests/**", "playwright.config.*", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["product implementation", "weakening resource/restart/Send/accessibility assertions", "inventing real-device or Firefox-Android evidence", "accepting stale-head/cancelled CI", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": [
-        "Guard and print expected versus actual exact head",
-        "Run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile",
-        "Preserve the mobile/performance JSON attachment or equivalent raw measurements plus logs/traces when available",
-        "Record run/job/artifact IDs and exact metric conclusions",
-        "Remove temporary carrier machinery and close any isolated draft PR unmerged",
-        "On PASS mark A4 and A4X submitted and activate R4-A5-LIFECYCLE-AUDIT",
-        "On FAIL preserve the exact failure and create only the smallest evidence-driven repair"
-      ],
+      "acceptanceCriteria": ["Guard and print expected versus actual exact head", "Run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile", "Preserve the mobile/performance JSON attachment or equivalent raw measurements plus logs/traces when available", "Record run/job/artifact IDs and exact metric conclusions", "Remove temporary carrier machinery and close any isolated draft PR unmerged", "On PASS mark A4 and A4X submitted and activate R4-A5-LIFECYCLE-AUDIT", "On FAIL preserve the exact failure and create only the smallest evidence-driven repair"],
       "requiredTests": ["npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile"],
       "requiredEvidence": ["exact tested head", "device/emulation profile", "raw measurements", "run/job/artifact IDs", "criterion verdicts", "carrier cleanup", "handoff result"],
-      "fallbackWork": "If connected-GitHub-visible execution still cannot be obtained, keep A4/A4X blocked on observability only, record the infrastructure reason precisely, release the lease, and leave A4X retry-ready."
+      "fallbackWork": "If connected-GitHub-visible execution still cannot be obtained, keep A4/A4X blocked on observability only, record the infrastructure reason precisely, release the lease, and leave A4X retry-ready.",
+      "executionEvidence": {"testedHead": "cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75", "runId": 31152568300, "jobId": 92785122646, "artifactId": 8983863803, "artifactSha256": "54ce80517b04843f213cf8766de5aff63c2f6b3fc2cabbaa3f97613cbd7efcb6", "result": "FAIL on initial attempt and retry: Pixel 7 UA/touch/DPR present, but synthetic page layout width was 981 and violated width <=500 at lifecycle-mobile-perf.spec.js:231. All 12 semantic restart/resource/zero-Send measurements were captured before the final viewport assertion."},
+      "blocker": "Deterministic fixture/environment-contract failure: the synthetic data page lacks device-width viewport metadata while asserting a <=500 CSS layout viewport. Do not relax the assertion; A4Y is the bounded repair."
+    },
+    {
+      "id": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
+      "worker": 5,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "mobile-browser-test-fixture-repair",
+      "status": "ready",
+      "program": "LIFECYCLE-FROZEN-DISCARDED",
+      "goal": "Repair the synthetic mobile document contract exposed by A4X and obtain exact-head Pixel-7 execution without changing product behavior or weakening the mobile/resource/Send/accessibility assertions.",
+      "rationale": "A4X proved Playwright Pixel 7 emulation was active (Android Pixel 7 UA, DPR 2.625, touch=1) while the synthetic data page reported width 981. Repository inspection shows the page lacks mobile viewport metadata, so the smallest repair is standards-correct device-width metadata rather than loosening the <=500 assertion.",
+      "dependencies": ["R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC:blocked"],
+      "mandatoryAction": "Confirm the synthetic PAGE lacks a viewport meta tag, add <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"> or the equivalent standards-correct fixture metadata, preserve width<=500 and every lifecycle/resource/Send/accessibility assertion unchanged, then rerun on an exact guarded head.",
+      "allowedFiles": ["tests/e2e/lifecycle-mobile-perf.spec.js", "playwright.config.*", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["product implementation", "relaxing width<=500 merely to get green", "weakening runtime-service/resource/Send/accessibility assertions", "inventing physical-device or Firefox-Android evidence", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["Show the A4X exact failure and the missing viewport metadata from repository source", "Make only the smallest synthetic-page viewport correction", "Run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile on an exact guarded head", "Prove Pixel-class width<=500 and touch>0 while preserving all 12 wake-window semantic cardinality and bounded-resource checks", "Preserve zero Send-adjacent actuation and original host input/Send/latest-message usability/accessibility", "Preserve raw metric attachment plus run/job/artifact IDs", "Remove temporary carrier and close isolated draft PR unmerged", "On PASS mark A4/A4X/A4Y submitted and activate R4-A5-LIFECYCLE-AUDIT; on FAIL create only the next smallest evidence-driven recovery"],
+      "requiredTests": ["npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile"],
+      "requiredEvidence": ["source-level root cause", "fixture-only commit", "exact tested head", "device/emulation profile", "raw measurements", "run/job/artifact IDs", "assertion verdicts", "carrier cleanup", "handoff result"],
+      "fallbackWork": "If the viewport correction does not resolve the deterministic failure, preserve the exact new failure and route the smallest further fixture/configuration diagnosis; do not modify product code or weaken the safety assertions."
     },
     {
       "id": "R4-A5-LIFECYCLE-AUDIT",
@@ -294,7 +243,7 @@
       "status": "waiting",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Independently audit Round 4 and decide whether frozen/discarded lifecycle recovery is certified, rejected, or still needs evidence.",
-      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked", "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC:submitted-or-blocked"],
+      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked", "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC:submitted-or-blocked", "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE:submitted-or-blocked"],
       "allowedFiles": [".gitl/evidence/round-4/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["product implementation", "accepting chat-only or stale-head claims", "main/merge/tag/release/publish"],
       "acceptanceCriteria": ["Verify source claims against authoritative browser/platform sources", "Verify exact-head tests and generated parity where claimed", "Verify no Send/CHOICE/route/lease/uncertainty regression", "Verify discarded/frozen cases are tested only to the extent supported by actual platform/harness evidence", "Mark each assignment accepted/rejected/needs-more-evidence", "Close the round to human verification only if the bounded lifecycle objective has been fully audited"],
@@ -310,7 +259,8 @@
     {"worker": 3, "assignment": "R4-A2-LIFECYCLE-BUILD", "path": ".gitl/evidence/round-4/worker-3.md", "status": "submitted", "commit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23", "executionRecoveredBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE"},
     {"worker": 4, "assignment": "R4-A3-LIFECYCLE-REDTEAM", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"},
     {"worker": 4, "assignment": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"},
-    {"worker": 5, "assignment": "R4-A4-LIFECYCLE-MOBILE-PERF", "path": ".gitl/evidence/round-4/worker-5.md", "status": "blocked", "commit": "c9e265a703cdc7b976315a9654e0ceff0de83212", "executionRecovery": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC"}
+    {"worker": 5, "assignment": "R4-A4-LIFECYCLE-MOBILE-PERF", "path": ".gitl/evidence/round-4/worker-5.md", "status": "blocked", "commit": "95e1a47b5abc68c4173e91ae0e9ed3f9b10dc40b", "executionRecovery": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC"},
+    {"worker": 5, "assignment": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC", "path": ".gitl/evidence/round-4/worker-5.md", "status": "blocked", "commit": "95e1a47b5abc68c4173e91ae0e9ed3f9b10dc40b", "executionRecovery": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
