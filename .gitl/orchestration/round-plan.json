@@ -49,11 +49,11 @@
     "FINAL-CERT-PACKAGE"
   ],
   "dispatch": {
-    "nextWake": "2026-08-06T21:20:00-04:00",
+    "nextWake": "next eligible scheduled wake",
     "nominalWorker": 3,
-    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
+    "assignmentId": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
     "automatic": true,
-    "instruction": "The next eligible wake must claim R3-A2-RR-PROVEN-FAILURE-REPAIR regardless of worker number. Treat the proven blocker as exact-head CI carrier dispatch/observability. Obtain connected-GitHub-visible run/job IDs and logs for the required Firefox, Chromium, and Pixel 7 Chromium commands. Do not change product code unless those results reproduce a product defect."
+    "instruction": "The next eligible wake must claim R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR regardless of worker number. Repair only the proven duplicate ticker restart defect from run 31137892852/job 92741313903, preserve Send/CHOICE/route/lease/uncertainty safeguards, rerun desktop Chromium, Pixel 7 Chromium, and Firefox focused coverage, and hand off to A3 only on durable green evidence."
   },
   "assignments": [
     {
@@ -90,7 +90,7 @@
       "id": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "ready",
+      "status": "submitted",
       "program": "RR-E2E-FAULTS",
       "goal": "Repair the proven exact-head CI carrier dispatch/observability blocker, obtain authoritative connected-GitHub-visible browser evidence, and change product code only if the browser results reproduce a real defect.",
       "dependencies": ["R3-A1-RR-CI-RECOVERY:blocked"],
@@ -111,7 +111,66 @@
         "branchMovementAfterCarrier": "none before blocking handoff",
         "reproduction": ["npx playwright test tests/e2e/repair-resume.spec.js --project=firefox", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile"]
       },
-      "activationRule": "A1 is blocked on execution observability, so A2 is ready. Resolve this blocker and obtain exact browser evidence before A3."
+      "activationRule": "A1 is blocked on execution observability, so A2 is ready. Resolve this blocker and obtain exact browser evidence before A3.",
+      "executedBy": "scheduled-agent-3",
+      "leaseClaimCommit": "1b61f554a91d036c9ef2c334a6d4557fc7efd5b7",
+      "testedHead": "65a5b94c8e31644b56a614fa1c404873451798ce",
+      "workflowRunId": 31137892852,
+      "workflowJobId": 92741313903,
+      "artifactId": 8978698975,
+      "artifactSha256": "b52e8c5b28329f12a2e9575050ac66bc5c8d17a9c40566761802aedf33c31157",
+      "result": {
+        "setup": "pass",
+        "browserInstall": "pass",
+        "firefox": "pass",
+        "chromium": "fail",
+        "chromiumMobile": "fail",
+        "productDefectReproduced": true,
+        "failureSummary": "Second same-task repair restarts the ticker again (expected delta 0, received 1); twelve rapid same-task repairs start it twelve times (expected delta 1, received 12) on desktop Chromium and Pixel 7 Chromium."
+      },
+      "evidencePath": ".gitl/evidence/round-3/worker-3.md",
+      "evidenceCommit": "afb2287571a03fa1396c2a4e04e2b38d36a91f0f"
+    },
+    {
+      "id": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder",
+      "status": "ready",
+      "program": "RR-E2E-FAULTS",
+      "goal": "Repair only the proven Repair & Resume ticker restart idempotence/single-flight defect reproduced on desktop Chromium and Pixel 7 Chromium, without changing Send, CHOICE, route, lease, composer-staleness, or uncertainty safeguards.",
+      "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted"],
+      "mandatoryAction": "Claim the lease before product writes. Use run 31137892852/job 92741313903 and artifact 8978698975 as the reproduction source. Make the smallest product repair that coalesces same-task repair restarts, regenerate/check generated extension artifacts if source parity requires it, rerun both failing Chromium production commands and the Firefox focused regression, then submit or create the next exact failure repair.",
+      "allowedFiles": ["ghost-in-the-loop.user.js", "src/**", "extension/**", "scripts/**", "tests/e2e/repair-resume*.spec.js", "playwright.config.*", ".github/workflows/**", ".gitl/evidence/round-3/**", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["main/merge/tag/release/publish", "weakening restart assertions", "weakening Send assertions", "bypassing CHOICE", "relaxing route or lease gates", "treating skipped or stale-head tests as passes"],
+      "acceptanceCriteria": [
+        "First repair of a paused ticker fault starts the ticker exactly once",
+        "Second same-task repair adds zero ticker starts",
+        "Twelve rapid same-task repair requests add exactly one ticker start total",
+        "Desktop Chromium production-path Repair and Resume command passes",
+        "Pixel 7 Chromium production-path Repair and Resume command passes",
+        "Firefox focused Repair and Resume command remains green",
+        "No submit, click, input, or keydown Send actuation occurs in the repaired production paths",
+        "Composer value and stale composer nodes remain untouched",
+        "Route, lease, and uncertain-Send blockers remain fail closed",
+        "Userscript and generated extension source remain in parity if either is changed"
+      ],
+      "requiredTests": [
+        "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium",
+        "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile",
+        "npx playwright test tests/e2e/repair-resume.spec.js --project=firefox",
+        "relevant unit/parity/build checks for every changed product source"
+      ],
+      "requiredEvidence": ["starting head", "changed files", "root cause", "commands and exit results", "exact head after repair", "CI run/job/log or direct command evidence", "Send/CHOICE/route/lease/uncertainty criterion results"],
+      "failureEvidence": {
+        "testedHead": "65a5b94c8e31644b56a614fa1c404873451798ce",
+        "workflowRunId": 31137892852,
+        "workflowJobId": 92741313903,
+        "artifactId": 8978698975,
+        "chromiumAssertion1": "tests/e2e/repair-resume-production.spec.js:117 expected second repair tickerStart delta 0, received 1",
+        "chromiumAssertion2": "tests/e2e/repair-resume-production.spec.js:142 expected twelve rapid repairs tickerStart delta 1, received 12",
+        "chromiumMobile": "same two failures reproduced",
+        "firefox": "focused command passed: 5 passed, 1 intended mobile-only skip"
+      }
     },
     {
       "id": "R3-A3-RR-REDTEAM-CERT",
@@ -120,12 +179,13 @@
       "status": "waiting-on-predecessor",
       "program": "RR-E2E-FAULTS",
       "goal": "Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
-      "dependencies": ["R3-A1-RR-CI-RECOVERY:submitted", "R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted-or-not-needed"]
+      "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted", "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR:submitted"]
     }
   ],
   "evidence": [
     {"worker": 1, "path": ".gitl/evidence/round-3/worker-1.md", "status": "submitted"},
-    {"worker": 3, "assignment": "R3-A1-RR-CI-RECOVERY", "executedBy": "scheduled-agent-1-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "blocked"}
+    {"worker": 3, "assignment": "R3-A1-RR-CI-RECOVERY", "executedBy": "scheduled-agent-1-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "blocked"},
+    {"worker": 3, "assignment": "R3-A2-RR-PROVEN-FAILURE-REPAIR", "executedBy": "scheduled-agent-3", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31137892852, "jobId": 92741313903, "artifactId": 8978698975}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
