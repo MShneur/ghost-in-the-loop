@@ -94,6 +94,7 @@ async function installPrototype(page) {
       const resource = {
         generation: 0,
         mutations: 0,
+        ignoredOwnMutations: 0,
         resizes: 0,
         repairs: 0,
         pendingRepair: false,
@@ -107,6 +108,7 @@ async function installPrototype(page) {
       let resizeObserver = null;
       let raf = 0;
       let closedReason = null;
+      let suppressNextMutation = false;
       const hostStyleBefore = container instanceof Element ? container.getAttribute('style') : null;
 
       const contractReason = () => {
@@ -141,10 +143,16 @@ async function installPrototype(page) {
         resource.resizeObserverConnected = false;
       };
 
+      const dropMount = () => {
+        if (mount?.isConnected) mount.remove();
+        mount = null;
+        resource.listenerCount = 0;
+      };
+
       const failClosed = (reason) => {
         closedReason = reason;
         disconnectResources();
-        if (mount?.isConnected) mount.remove();
+        dropMount();
         resource.cleanupCount++;
         return { status: 'rejected', reason, fallback: 'rail', attemptedStructural: true };
       };
@@ -160,10 +168,12 @@ async function installPrototype(page) {
           const contractFailure = contractReason();
           if (contractFailure) return void failClosed(contractFailure);
           if (!mount?.isConnected || mount.parentElement !== container) {
+            suppressNextMutation = true;
             container.append(mount);
           } else if (container.lastElementChild !== mount) {
             // Blue repair may move only the Ghost-owned host. Native controls,
             // including Send, are never moved or wrapped.
+            suppressNextMutation = true;
             container.append(mount);
           }
           resource.repairs++;
@@ -230,6 +240,11 @@ async function installPrototype(page) {
 
         mutationObserver = new MutationObserver(() => {
           resource.mutations++;
+          if (suppressNextMutation) {
+            suppressNextMutation = false;
+            resource.ignoredOwnMutations++;
+            return;
+          }
           scheduleRepair();
         });
         mutationObserver.observe(container, { childList: true });
@@ -249,7 +264,7 @@ async function installPrototype(page) {
       const unmount = () => {
         resource.generation++;
         disconnectResources();
-        if (mount?.isConnected) mount.remove();
+        dropMount();
         resource.cleanupCount++;
         closedReason = 'unmounted';
         return {
@@ -309,8 +324,8 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     await setup(page, 1280);
     await page.focus('#prompt-textarea');
     const before = await page.evaluate(() => ({
-      send: window.__fixtureSend,
       activeId: document.activeElement?.id,
+      sendParent: window.__fixtureSend?.parentElement?.getAttribute('data-testid'),
       events: { ...window.__probeEvents },
       railConnected: document.querySelector('[data-fixture="existing-rail"]')?.isConnected,
       hostStyle: document.querySelector('[data-testid="composer-actions"]')?.getAttribute('style'),
@@ -324,6 +339,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
         activeId: document.activeElement?.id,
         sendSame: window.__fixtureSend === document.querySelector('form[data-type="unified-composer"] button[data-testid="send-button"]'),
         sendConnected: window.__fixtureSend?.isConnected,
+        sendParent: window.__fixtureSend?.parentElement?.getAttribute('data-testid'),
         mountParent: host?.parentElement?.getAttribute('data-testid'),
         mountPosition: host ? getComputedStyle(host).position : null,
         shadowOpen: !!host?.shadowRoot,
@@ -333,6 +349,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
         events: { ...window.__probeEvents },
         railConnected: document.querySelector('[data-fixture="existing-rail"]')?.isConnected,
         hostStyle: document.querySelector('[data-testid="composer-actions"]')?.getAttribute('style'),
+        prototypeHasHtmlSink: String(window.__gitlBluePrototype.createManager).includes('innerHTML'),
       };
     });
     const resources = await snapshot(page);
@@ -342,6 +359,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     expect(after.activeId).toBe('prompt-textarea');
     expect(after.sendSame).toBe(true);
     expect(after.sendConnected).toBe(true);
+    expect(after.sendParent).toBe(before.sendParent);
     expect(after.mountParent).toBe('composer-actions');
     expect(['static', 'relative']).toContain(after.mountPosition);
     expect(after.shadowOpen).toBe(true);
@@ -351,6 +369,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     expect(after.events).toEqual(before.events);
     expect(after.railConnected).toBe(true);
     expect(after.hostStyle).toBe(before.hostStyle);
+    expect(after.prototypeHasHtmlSink).toBe(false);
     expect(resources.mountCount).toBe(1);
     expect(resources.sendIdentityPreserved).toBe(true);
     expect(resources.hostStyleUnchanged).toBe(true);
@@ -363,8 +382,6 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     await createApprovedManager(page);
 
     const identitiesBefore = await page.evaluate(() => ({
-      send: window.__fixtureSend,
-      mount: document.querySelector('[data-gitl-mount="blue-prototype"]'),
       hostStyle: document.querySelector('[data-testid="composer-actions"]')?.getAttribute('style'),
     }));
 
@@ -378,9 +395,9 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     });
 
     await expect.poll(async () => (await snapshot(page)).mountIsFinalChild).toBe(true);
+    await expect.poll(async () => (await snapshot(page)).pendingRepair).toBe(false);
     const afterRepair = await page.evaluate(() => ({
       sameSend: window.__fixtureSend === document.querySelector('form[data-type="unified-composer"] button[data-testid="send-button"]'),
-      sameMount: window.__activeBlueManager && document.querySelector('[data-gitl-mount="blue-prototype"]'),
       mountCount: document.querySelectorAll('[data-gitl-mount="blue-prototype"]').length,
       newNativeConnected: document.querySelector('[data-testid="new-native-control"]')?.isConnected,
       events: { ...window.__probeEvents },
@@ -411,6 +428,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     expect(final.mutationObserverConnected).toBe(false);
     expect(final.resizeObserverConnected).toBe(false);
     expect(final.pendingRepair).toBe(false);
+    expect(final.listenerCount).toBe(0);
     expect(final.hostStyleUnchanged).toBe(true);
   });
 
@@ -442,6 +460,7 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     expect(fixed).toEqual({ status: 'rejected', reason: 'mount-not-in-flow', fallback: 'rail', attemptedStructural: true });
     expect(fixedSnapshot.mountCount).toBe(0);
     expect(fixedSnapshot.closedReason).toBe('mount-not-in-flow');
+    expect(fixedSnapshot.listenerCount).toBe(0);
     expect(fixedSnapshot.sendIdentityPreserved).toBe(true);
 
     await page.evaluate(() => {
@@ -467,7 +486,6 @@ test.describe('Round-6 A2 deterministic Blue prototype', () => {
     await setup(page, 1280);
     const before = await page.evaluate(() => ({
       childCount: document.querySelector('[data-testid="composer-actions"]').children.length,
-      send: window.__fixtureSend,
       events: { ...window.__probeEvents },
     }));
     const result = await createApprovedManager(page, { enabled: false });
