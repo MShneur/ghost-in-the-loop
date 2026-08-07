@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "triggered-and-reconciled",
-    "researchOnlyWakesSinceLastProductTestPackageArtifact": 10,
-    "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "At least one implementation/test/package attempt is recorded after this checkpoint, or the prototype attempt proves a specific invariant cannot be exercised deterministically.",
+    "checkpointStatus": "artifact-produced-verification-recovery-ready",
+    "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
+    "researchFallbackTemporarilyIneligible": false,
+    "reenableCondition": "Satisfied by the A2 executable prototype artifact; normal research fallback remains lower priority than any ready implementation/test/verification assignment.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket prototype-development gate",
-    "checkpointDecision": "A safe reversible falsifiable artifact exists: build the smallest prototype-only Blue structural mount path against deterministic fixtures, keep real ChatGPT binding fail-closed/uncertified until A1X passes, and immediately follow with independent falsification."
+    "checkpointDecision": "A deterministic Blue prototype now exists. The next delivery step is exact-head execution/verification, not another research fallback."
   },
   "requiredPrograms": [
     {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "completed", "releaseCritical": true, "certifiedRound": 3, "humanAccepted": true},
@@ -85,10 +85,10 @@
   "dispatch": {
     "nextWake": "earliest eligible wake",
     "nominalWorker": 3,
-    "assignmentId": "R6-A2-MOBILE-SHELL-BUILD",
+    "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Delivery-pressure checkpoint is active. Execute R6-A2 as a prototype-only build on the isolated branch. Live authenticated ChatGPT structural capture remains UNKNOWN and is a later hard certification/live-binding gate, not permission to guess a live insertion slot. Build the smallest reversible fail-closed artifact that deterministic fixtures can falsify; preserve exact Send identity, zero unintended actuation, CHOICE/route/lease/uncertainty, and rail fallback. Research fallback is temporarily ineligible until an implementation/test/package attempt is recorded."
+    "instruction": "Execute the smallest exact-head verification recovery for the already-created deterministic Blue prototype. Do not add more research or broaden product semantics. Obtain an observable carrier for the current candidate/evidence descendants, run base/generated/lint/unit plus the new deterministic Blue browser cases and applicable safety regressions, and bind every conclusion to exact head/run/job/artifact evidence. A failing test creates the smallest code repair; a clean pass submits A2 and exposes Red Team immediately."
   },
   "assignments": [
     {
@@ -192,7 +192,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "ready",
+      "status": "blocked",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "prototypeOnly": true,
       "goal": "Implement the smallest reversible fail-closed Blue structural-shell prototype that can be exercised against deterministic fixtures and existing reviewed adapter assumptions, while leaving live ChatGPT adapter binding uncertified until A1X passes.",
@@ -204,7 +204,30 @@
       "acceptanceCriteria": ["implement one smallest Blue prototype path behind an experimental/fail-closed gate", "exercise the mount against deterministic fixture-owned verified container rather than inventing a live slot", "in-flow child/sibling only", "reuse existing Ghost state/action handlers", "exact same connected operable Send node in the fixture", "one data-gitl-mount identity", "scoped repair observer/timer cleanup", "DOM-built open-Shadow internals with no new HTML-string sink", "minimal reversible host style ledger", "strict verification failure -> existing rail/no structural mutation", "unsafe synthetic choices fail visibly rather than passing because rail fallback hid them", "generated parity exact", "focused Send/CHOICE/route/lease/uncertainty regressions unchanged", "record live ChatGPT structural certification as UNKNOWN, not PASS"],
       "requiredTests": ["syntax/lint", "generated parity", "focused Send/CHOICE/route/lease/uncertainty regressions", "deterministic Blue prototype fixture on exact candidate head", "applicable structural-conformance oracle/mutant kills", "full unit suite", "exact CI bindings when used"],
       "fallbackWork": "Any structural, Send-identity, duplicate, cleanup, Trusted-Types, focus/form, oracle-sensitivity, or generated-parity failure blocks A2 and creates the smallest ready A2X recovery. Missing live capture alone is not a valid reason to skip the deterministic prototype attempt.",
-      "evidencePath": ".gitl/evidence/round-6/worker-3.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-3.md",
+      "executedBy": "scheduled-successor-r6-a2-prototype-11",
+      "claimCommit": "37869851a67c4da7fb9ee434f5d3a24c4065c710",
+      "prototypeCommits": ["305e430abc51f8b49a0e76e74687eb18014951c1", "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec"],
+      "evidenceCommit": "29dcd503974580588b6009710e564e567445a992",
+      "blockedReason": "The deterministic executable prototype artifact is durable, but required exact-head test execution is not yet evidenced by an observable carrier. Connected workflow lookup exposes PR-triggered runs only; commit status has no classic contexts; unattended browser access requires interaction; local clone failed DNS resolution. No test PASS is claimed."
+    },
+    {
+      "id": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+      "worker": 3,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder-test-verifier",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Verify the existing deterministic Blue prototype on an observable exact-head carrier without broadening semantics, then either submit A2 or expose the smallest code repair from a concrete failure.",
+      "dependencies": ["R6-A2-MOBILE-SHELL-BUILD:blocked"],
+      "candidateHead": "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec",
+      "evidenceHead": "29dcd503974580588b6009710e564e567445a992",
+      "mandatoryReads": [".gitl/evidence/round-6/worker-3.md", "tests/e2e/mobile-shell-blue-prototype.spec.js", ".github/workflows/test.yml"],
+      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["changing live ChatGPT selectors", "broadening product semantics without a reproduced test failure", "weakening any Send/CHOICE/route/lease/uncertainty or structural assertion", "counting unexecuted source assertions as PASS", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": ["obtain observable exact-head test carrier", "run syntax/lint and generated/base certification", "run full unit suite", "execute new deterministic Blue prototype cases in Chromium and portable Firefox where configured", "run focused safety regressions", "record exact commands/head/run/job/artifact/log conclusions", "if all gates pass mark A2 submitted and make R6-A3 ready", "if any gate fails preserve failure and create smallest A2 repair"],
+      "requiredTests": ["npm run cert:base", "npm run lint", "npm run test:unit", "Playwright mobile-shell-blue-prototype exact-head", "focused Send/CHOICE/route/lease/uncertainty regressions", "exact CI bindings"],
+      "fallbackWork": "A carrier failure that is unrelated to candidate semantics remains an evidence blocker and must be repaired as infrastructure, not converted into candidate PASS/FAIL. A real candidate test failure creates the smallest source/test repair."
     },
     {
       "id": "R6-A3-MOBILE-SHELL-REDTEAM",
@@ -214,7 +237,7 @@
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Falsify the prototype under host-control insertion, subtree replacement, route/layout pressure, verification failure, and cleanup while preserving fail-closed Send/CHOICE/route/lease/uncertainty; do not promote deterministic success to live ChatGPT certification.",
-      "dependencies": ["R6-A2-MOBILE-SHELL-BUILD:submitted-or-blocked"],
+      "dependencies": ["R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY:submitted"],
       "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["accepting blocked builder as pass", "product changes except bounded recovery", "weakening structural/Send assertions", "allowing rail fallback to mask an unsafe prototype choice", "main/merge/tag/release/publish"],
       "acceptanceCriteria": ["host controls remain present/ordered/visible/operable around insertion", "repeated subtree replacement -> exactly one Ghost mount/state", "Send identity/event behavior unchanged and zero unintended actuation", "malformed/fixed/overflow candidates fail visibly and fail closed", "route/stale-node changes produce no duplicate observers", "unmount restores host styles exactly", "red expansion reflows if selected later", "record observer/resource accumulation", "live-host insertion remains UNKNOWN until A1X"],
