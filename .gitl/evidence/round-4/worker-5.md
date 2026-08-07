@@ -153,3 +153,154 @@ Create and execute the smallest recovery assignment `R4-A4X-LIFECYCLE-MOBILE-PER
 
 ## Assignment Status
 - `R4-A4-LIFECYCLE-MOBILE-PERF`: **blocked — exact observable Pixel-7 execution evidence missing**.
+
+---
+
+# A4X Exact-Execution Recovery Addendum
+
+## Identity
+- Round: 4
+- Worker evidence slot: 5
+- Intended assignment role: `mobile-browser-accessibility-performance-execution-recovery`
+- Executing successor nominal worker: 6 (`devils-advocate-release-auditor` lens applied in addition)
+- Assignment ID: `R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC`
+- Started at: `2026-08-07T05:51:41Z`
+- Observable CI execution: `2026-08-07T06:02:20Z` through `2026-08-07T06:03:03Z`
+- Program: `LIFECYCLE-FROZEN-DISCARDED`
+
+## State Read
+- Branch: `agent/8.8-repair-resume`
+- Inspected exact pre-claim branch head: `6ece1c011f3df5305cc9564e6e576108b7ea3277`
+- Lease claim commit: `216e752a555743991edc75308042381ac29c79f0`
+- Deferred-human queue: absent; no human decision blocked execution.
+- No active PR-visible run or open carrier PR existed before the claim.
+
+## Step Performed
+A4X used the same evidence-preserving pattern previously proven by A3X:
+
+1. claimed the shared lease;
+2. created isolated CI base branch `gitl/r4-a4x-ci-base` from the lease-claim head, never from or into `main`;
+3. added temporary carrier `.github/workflows/r4-a4x-lifecycle-mobile-perf.yml` in commit `cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75`;
+4. opened draft PR #18 from `agent/8.8-repair-resume` to isolated base `gitl/r4-a4x-ci-base`;
+5. ran the exact required Playwright command on the exact PR head;
+6. preserved logs, traces, JSON reporter output, and artifact evidence;
+7. removed the temporary workflow in cleanup commit `f1745d18f32018f23fc747b219e4727e7d9c56d2`;
+8. closed PR #18 unmerged.
+
+No product source changed.
+
+## Exact-Head Execution Evidence
+- Tested head: `cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75`
+- Workflow run: `31152568300`
+- Job: `92785122646`
+- Command: `npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile`
+- Exact-head guard: **PASS** — expected and actual both `cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75`.
+- Device profile evidence from attachment: Android 14 / Pixel 7 user agent, `devicePixelRatio=2.625`, `maxTouchPoints=1`.
+- Result: **FAIL**, reproducibly on original attempt and retry.
+- Exact failure: `expect(result.profile.width).toBeLessThanOrEqual(500)` received `981` at `tests/e2e/lifecycle-mobile-perf.spec.js:231`.
+
+### Preserved artifact
+- Artifact name: `r4-a4x-lifecycle-mobile-perf-evidence`
+- Artifact ID: `8983863803`
+- Artifact SHA-256: `54ce80517b04843f213cf8766de5aff63c2f6b3fc2cabbaa3f97613cbd7efcb6`
+- Artifact size: 724424 bytes
+- Contents include `e2e-results.json`, error contexts, and traces for both attempts.
+
+The metric attachment was embedded inline in Playwright's JSON reporter rather than emitted as a standalone JSON file. It is nevertheless preserved in the artifact and was decoded from that reporter output.
+
+## Raw Measurement Conclusions
+Both the original attempt and retry produced the same semantic lifecycle/resource result before the final viewport assertion failed.
+
+### Emulation/profile
+- CSS layout viewport reported by the fixture: `981 x 1996`
+- DPR: `2.625`
+- touch points: `1`
+- user agent: Android 14 / Pixel 7 / Chrome 148 mobile
+
+### Repeated-wake semantic cardinality
+Across all 12 separated wake windows in both attempts:
+- ticker starts per window: exactly `1`
+- heartbeat starts per window: exactly `1`
+- GhostBus init per window: exactly `1`
+- route re-detect per window: exactly `1`
+- cache invalidations per window: exactly `2`, inside the accepted bounded `1..2` contract
+
+### Resource accumulation proxies
+Both attempts:
+- active intervals: `4 -> 5`, satisfying the fixture's `before + 1` bound
+- active MutationObservers: `3 -> 3`
+- interval creates/clears: `5/1 -> 29/24`, leaving a net bounded active count
+- lock records: `1`
+- Ghost panel count: `1`
+
+### Safety and host usability
+Both attempts:
+- submit events: `0`
+- click events: `0`
+- input events: `0`
+- keydown events: `0`
+- loop state: `RUNNING`
+- original input remains connected with value `unchanged`
+- original Send remains connected with label `Send message`
+- latest rendered answer remains `Latest answer 179`
+
+### Timing observations — descriptive, not a calibrated performance budget
+Attempt 1, 12 wake samples:
+- elapsed min/median/max: about `7.7 / 8.2 / 11.4 ms`
+- mean: about `8.525 ms`
+- cumulative measured cache-clear time: about `0.1 ms`
+
+Retry, 12 wake samples:
+- elapsed min/median/max: about `7.8 / 8.55 / 15.6 ms`
+- mean: about `9.192 ms`
+- cumulative measured cache-clear time: about `0.1 ms`
+
+These are GitHub-hosted emulation measurements, not physical Android performance claims.
+
+## Failure Analysis — Evidence-Competitive
+
+### Interpretation A — Pixel 7 project configuration failed
+This is contradicted by the attachment: the browser reports an Android 14 Pixel 7 mobile user agent, DPR `2.625`, and touch support. The Playwright project is therefore materially applying Pixel-class emulation.
+
+### Interpretation B — the synthetic test page lacks mobile viewport metadata
+Repository inspection shows the fixture constructs `<!doctype html><html><body>...` without a viewport `<meta>` element, while the assertion treats `window.innerWidth <= 500` as a required Pixel-class CSS layout viewport fact. The observed combination — Pixel 7 UA/touch/DPR with layout width `981` — is consistent with a synthetic page whose mobile viewport metadata does not request device-width layout.
+
+### Resolution
+The failure is preserved as a **fixture/environment-contract defect**, not reclassified as a product lifecycle defect and not masked by relaxing the width assertion. The smallest evidence-driven repair is to make the synthetic page represent a normal mobile document by adding explicit device-width viewport metadata, then rerun the same assertion and every existing resource/Send/accessibility check unchanged.
+
+This conclusion is limited to the deterministic harness. It does not claim physical Android-device behavior.
+
+## Acceptance Criteria — A4X
+- Guard and print expected versus actual exact head: **PASS**.
+- Run exact required Pixel-7 command: **PASS — command executed; test failed**.
+- Preserve raw measurements plus traces/logs: **PASS**.
+- Record run/job/artifact IDs and exact metric conclusions: **PASS**.
+- Remove temporary carrier and close isolated draft PR unmerged: **PASS** — cleanup commit `f1745d18f32018f23fc747b219e4727e7d9c56d2`, PR #18 closed unmerged.
+- On PASS submit A4/A4X and activate A5: **NOT APPLICABLE — run failed**.
+- On FAIL preserve exact failure and create only smallest evidence-driven repair: **PASS — route to `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`**.
+
+## Safety Checks — A4X
+- Product implementation changed: **NO**.
+- Send authority changed: **NO**.
+- CHOICE behavior changed: **NO**.
+- Route/lease/uncertainty safeguards changed: **NO**.
+- Assertions weakened to manufacture green CI: **NO**.
+- `main` modified: **NO**.
+- PR merged: **NO**.
+- Auto-merge/tag/publish/release: **NONE**.
+
+## Recommended Next Action — A4Y
+Create and execute `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE` as the smallest recovery:
+
+1. confirm the synthetic `PAGE` lacks device-width viewport metadata;
+2. add `<meta name="viewport" content="width=device-width, initial-scale=1">` to the synthetic mobile page rather than loosening `width <= 500`;
+3. rerun the exact guarded Pixel-7 `chromium-mobile` fixture;
+4. preserve all semantic service, bounded cache, resource accumulation, zero-Send-actuation, host-node identity/usability, and accessibility assertions unchanged;
+5. preserve raw metrics/run/job/artifact evidence;
+6. remove temporary carrier and close the isolated draft PR unmerged;
+7. on PASS submit A4/A4X/A4Y and activate `R4-A5-LIFECYCLE-AUDIT`; on FAIL preserve the next exact failure and create only the next smallest repair.
+
+## Assignment Status — A4X
+- `R4-A4-LIFECYCLE-MOBILE-PERF`: **blocked — execution now exists, but the synthetic mobile viewport contract failed before certification**.
+- `R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC`: **blocked — exact-head reproducible viewport assertion failure preserved**.
+- Next recovery: `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`.
