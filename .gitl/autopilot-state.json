@@ -27,14 +27,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "77c017cb0f3aaad1aa71e765f92c1325835bb8da",
-  "currentStep": "R6-DP-RECONCILE-01 applied the explicit release-pressure directive. Round-4 and Round-5 bounded certifications are human-accepted under delegated authority; Round-6 read-only live inspection is authorized but the actual authenticated structure capture remains UNKNOWN. The delivery-pressure checkpoint found ten consecutive research-only wakes and a safe falsifiable artifact path, so research fallback is temporarily ineligible and R6-A2 is ready as a prototype-only deterministic structural build. Live ChatGPT adapter binding/certification remains a later hard A1X gate.",
-  "nextAction": "Claim R6-A2-MOBILE-SHELL-BUILD on the isolated branch and perform one prototype-only implementation/test attempt. Build the smallest reversible fail-closed Blue structural primitive against a deterministic fixture-owned verified container, keep unverified live ChatGPT binding dormant/fail-closed, preserve exact Send identity and all CHOICE/route/lease/uncertainty safeguards, and run the focused structural oracle/mutant, generated-parity, and safety regressions. A concrete failure creates the smallest A2X repair. Missing live capture alone is no longer a reason to skip the deterministic attempt.",
+  "headAtLastHandoff": "8c80df40616b49cff64bc5dc534c20539d9a4b58",
+  "currentStep": "R6-A2-MOBILE-SHELL-BUILD produced the first executable deterministic Blue structural prototype instead of another research fallback. The fixture-only candidate uses an in-flow open-Shadow host, exact caller-supplied Send identity, scoped/coalesced repair, direct Ghost callbacks, explicit fail-closed rejection reasons, and no production live binding. A self-audit hardened cleanup and observer self-mutation handling. A2 is truthfully blocked only because required exact-head tests are not yet evidenced by an observable carrier; R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY is ready. Live ChatGPT binding/certification remains separately gated on A1X current-host evidence.",
+  "nextAction": "Execute R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY before any new research. Obtain an observable exact-head carrier for the existing prototype/evidence descendants, run base/generated/lint/unit plus the deterministic Blue browser cases and focused Send/CHOICE/route/lease/uncertainty regressions, and bind conclusions to exact head/run/job/artifact evidence. A real test failure creates the smallest code repair; a clean pass submits A2 and exposes R6-A3 Red Team immediately.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 3,
-    "assignmentId": "R6-A2-MOBILE-SHELL-BUILD",
+    "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -42,7 +42,8 @@
       "local or already-answered human question",
       "previous failed test with a ready recovery",
       "previous blocked assignment with dependency-safe continuation",
-      "missing live capture when a prototype-only deterministic build is ready"
+      "missing live capture when deterministic prototype verification is ready",
+      "research opportunity while an executable verification assignment is ready"
     ],
     "holdRequiredReasons": [
       "valid lease plus active evidence on conflicting work",
@@ -52,10 +53,10 @@
     ]
   },
   "researchFallback": {
-    "enabled": false,
-    "temporarilyIneligible": true,
-    "reason": "Delivery-pressure checkpoint found a safe reversible executable artifact. At least one implementation/test/package attempt must be recorded before another research-only fallback is eligible.",
-    "reenableCondition": "R6-A2 or a direct recovery records an implementation/test/package attempt, or demonstrates a specific invariant that cannot be exercised deterministically.",
+    "enabled": true,
+    "temporarilyIneligible": false,
+    "reason": "The delivery-pressure artifact requirement was satisfied by the A2 executable prototype. Normal research fallback is available only when no executable non-conflicting assignment exists; A2X verification is currently ready and therefore outranks research.",
+    "reenableCondition": "Already satisfied by A2 prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec; onlyWhenNoExecutableAssignment still governs selection.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "topics": [
@@ -66,19 +67,22 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion still requires a complete six-wake no-novelty round plus canonical criteria, but delivery pressure now takes precedence because a safe executable artifact is ready."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion still requires a complete six-wake no-novelty round plus canonical criteria. Delivery-pressure checkpoints take precedence whenever a safe executable artifact or verification path exists."
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "triggered-and-reconciled",
-    "researchOnlyWakesSinceLastProductTestPackageArtifact": 10,
-    "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-A2-MOBILE-SHELL-BUILD",
+    "checkpointStatus": "artifact-produced-verification-recovery-ready",
+    "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
+    "researchFallbackTemporarilyIneligible": false,
+    "nextArtifactAssignment": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
-    "makerVersionObserved": "v1.0 at canonical path; user directive references v1.1 but v1.1 was not retrievable during reconciliation",
-    "evidence": ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
-    "evidenceCommit": "77c017cb0f3aaad1aa71e765f92c1325835bb8da"
+    "makerVersionObserved": "v1.1 canonical maker fetched before this A2 wake",
+    "lastDeliveryReviewAt": "2026-08-07T17:35:25Z",
+    "lastTestableArtifactAt": "2026-08-07T17:31:00Z",
+    "lastDeliveryDecision": "A deterministic Blue prototype exists; stop research-only looping and verify the executable candidate on an observable exact-head carrier before Red Team.",
+    "evidence": ".gitl/evidence/round-6/worker-3.md",
+    "evidenceCommit": "29dcd503974580588b6009710e564e567445a992"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -94,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-prototype-build-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-prototype-artifact-created-verification-recovery-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -166,7 +170,11 @@
     },
     {
       "type": "round-6-delivery-pressure-reconcile-01",
-      "result": "Explicit user directive 84237df815ef56f779434db130d24d4ffbe14666 resolved R4/R5 bounded reviews, authorized read-only R6 live inspection, and required an anti-loop delivery checkpoint. Reconciliation evidence 77c017cb0f3aaad1aa71e765f92c1325835bb8da records that canonical maker v1.0 was retrievable while the directive references unavailable v1.1, ten research-only wakes triggered delivery pressure, and A2 is now ready prototype-only with live certification still gated on A1X."
+      "result": "Explicit user directive 84237df815ef56f779434db130d24d4ffbe14666 resolved R4/R5 bounded reviews, authorized read-only R6 live inspection, and required an anti-loop delivery checkpoint. Reconciliation evidence 77c017cb0f3aaad1aa71e765f92c1325835bb8da recorded ten research-only wakes and exposed A2 prototype-only work with live certification still gated on A1X."
+    },
+    {
+      "type": "round-6-a2-blue-prototype-artifact",
+      "result": "Delivery-pressure A2 created tests/e2e/mobile-shell-blue-prototype.spec.js as a fixture-gated executable Blue candidate. Prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec implement/harden in-flow open-Shadow mounting, exact supplied Send identity, scoped/coalesced repair, zero new live binding, explicit unsafe-mutant rejection, and cleanup. Worker-3 evidence commit 29dcd503974580588b6009710e564e567445a992. Required exact-head execution remains unverified because no observable test carrier was available, so A2 is blocked and A2X verification is ready rather than falsely submitted."
     }
   ],
   "findings": [
@@ -238,7 +246,7 @@
     {
       "worker": 2,
       "type": "mobile-shell-cross-adapter-structural-capability-boundary",
-      "finding": "Existing reviewed input/Send profiles are not structural-mount authorization. Future structural capability must fail closed when absent, reuse shared invariant/repair machinery, and keep adapter-owned discovery/insertion rules. Anchor-smoke selector health is lower evidence than authenticated structural capture, which is lower than mount certification. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy."
+      "finding": "Existing reviewed input/Send profiles are not structural-mount authorization. Future structural capability must fail closed when absent, reuse shared invariant/repair/teardown machinery, and keep adapter-owned discovery/insertion rules. Anchor-smoke selector health is lower evidence than authenticated structural capture, which is lower than mount certification. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy."
     },
     {
       "worker": 6,
@@ -268,7 +276,17 @@
     {
       "worker": 2,
       "type": "delivery-pressure-prototype-path",
-      "finding": "Ten research-only fallbacks after the last executable structural artifact triggered the explicit user delivery-pressure checkpoint. The safe next artifact is a prototype-only deterministic Blue structural primitive: live capture is now a certification/live-binding gate rather than a blanket development gate. Research fallback is temporarily ineligible until an implementation/test/package attempt is recorded."
+      "finding": "Ten research-only fallbacks after the last executable structural artifact triggered the explicit user delivery-pressure checkpoint. The safe next artifact is a prototype-only deterministic Blue structural primitive: live capture is now a certification/live-binding gate rather than a blanket development gate."
+    },
+    {
+      "worker": 3,
+      "type": "mobile-shell-blue-prototype-artifact",
+      "finding": "A real executable deterministic Blue candidate now exists at tests/e2e/mobile-shell-blue-prototype.spec.js. It is fixture-token-gated so it cannot silently become a live ChatGPT binding; source uses one in-flow open Shadow host, exact supplied Send identity, scoped MutationObserver/ResizeObserver, coalesced generation-guarded Ghost-only repair, direct type=button callbacks, no host style mutation, and explicit fixed/unverified mutant rejection. The self-audit corrected cross-context DOM serialization and self-generated observer-repair risks before handoff."
+    },
+    {
+      "worker": 3,
+      "type": "mobile-shell-a2-test-carrier-blocker",
+      "finding": "Required exact-head execution is not yet evidenced. The connected workflow lookup exposes PR-triggered runs only and returned none for the push; classic commit statuses are empty; unattended browser navigation requires user interaction; local clone failed DNS resolution. This is an evidence-carrier blocker, not candidate PASS/FAIL. A2X verification is ready and must run before Red Team or research fallback."
     }
   ],
   "briefs": [
@@ -289,24 +307,16 @@
     ".gitl/evidence/round-6/research-fallback-08.md",
     ".gitl/evidence/round-6/research-fallback-09.md",
     ".gitl/evidence/round-6/research-fallback-10.md",
-    ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md"
+    ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
+    ".gitl/evidence/round-6/worker-3.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-a2-prototype-11",
-    "assignmentId": "R6-A2-MOBILE-SHELL-BUILD",
-    "nominalWorker": 3,
-    "executedRole": "builder-with-test-first-delivery-pressure-lens",
-    "acquiredAt": "2026-08-07T17:24:09Z",
-    "expiresAt": "2026-08-07T18:09:09Z",
-    "inspectedStateBlob": "565f85d71b96cd1a24cf5abfc2dd3db5aee36297",
-    "activeWorkCheck": "no competing lease; no open PR head for agent/8.8-repair-resume; compare from delivery-pressure evidence head showed only the completed reconciliation state handoff"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "prototype-build-ready-live-certification-pending",
+    "verdict": "prototype-artifact-created-exact-head-verification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -329,28 +339,36 @@
     "liveCaptureAuthorization": "AUTHORIZED-READ-ONLY-ZERO-ACTUATION",
     "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-10.md",
     "latestResearchFallbackCommit": "cb7e8ddf550802e3954e28418ac43230252f6e85",
-    "deliveryPressureEvidence": ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
-    "deliveryPressureEvidenceCommit": "77c017cb0f3aaad1aa71e765f92c1325835bb8da",
+    "deliveryPressureEvidence": ".gitl/evidence/round-6/worker-3.md",
+    "deliveryPressureEvidenceCommit": "29dcd503974580588b6009710e564e567445a992",
     "resolvedRound4Review": "DQ-R4-LIFECYCLE-REVIEW:accepted-bounded",
     "resolvedRound5Review": "DQ-R5-LONGCHAT-REVIEW:accepted-bounded",
     "resolvedRound6CaptureAuthorization": "DQ-R6-LIVE-STRUCTURE-CAPTURE:read-only-authorized-live-evidence-not-obtained",
-    "nextAssignment": "R6-A2-MOBILE-SHELL-BUILD",
-    "selectedFirstArchitecture": "ChatGPT-only Blue remains the smallest architecture to test first. A prototype-only deterministic structural primitive is now authorized for development/falsification; the exact current live insertion slot remains UNKNOWN and live ChatGPT adapter binding/certification is forbidden until A1X exact evidence passes.",
+    "a2Assignment": "R6-A2-MOBILE-SHELL-BUILD",
+    "a2Status": "blocked-exact-head-verification-pending",
+    "a2ClaimCommit": "37869851a67c4da7fb9ee434f5d3a24c4065c710",
+    "a2PrototypeInitialCommit": "305e430abc51f8b49a0e76e74687eb18014951c1",
+    "a2PrototypeHardenedCommit": "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec",
+    "a2EvidenceCommit": "29dcd503974580588b6009710e564e567445a992",
+    "a2PrototypePath": "tests/e2e/mobile-shell-blue-prototype.spec.js",
+    "a2ExecutionEvidence": "UNKNOWN-NOT-OBSERVABLE-YET",
+    "nextAssignment": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "selectedFirstArchitecture": "ChatGPT-only Blue remains the smallest architecture to test first. A fixture-gated deterministic structural primitive now exists; the exact current live insertion slot remains UNKNOWN and live ChatGPT adapter binding/certification is forbidden until A1X exact evidence passes.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "Prototype development and deterministic falsification may proceed now. Current-host structural capture remains a hard gate on exact live adapter binding/certification, not on the prototype build. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, live evidence where claimed, cross-adapter expansion, and final audit.",
-    "deliveryPressureConstraints": "Research-only fallback is temporarily ineligible until an implementation/test/package attempt is recorded. Do not add new release-critical requirements merely because more research is possible; record nonessential unproven claims as limits and move through the required release programs once Round 6 is complete.",
-    "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; prototype may exercise this against a deterministic fixture-owned verified container while unverified live binding remains fail-closed/dormant.",
-    "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
+    "roundScope": "Prototype development and deterministic falsification may proceed now. Current-host structural capture remains a hard gate on exact live adapter binding/certification, not on prototype development. Full MOBILE-SHELL-STRUCTURAL completion still requires exact-head prototype verification, Red Team, mobile/accessibility/performance, live evidence where claimed, cross-adapter expansion, and final audit.",
+    "deliveryPressureConstraints": "The implementation/test artifact requirement is satisfied. Do not return to research while A2X exact-head verification or later executable assignments are ready. Do not add new release-critical requirements merely because more research is possible; record nonessential unproven claims as limits and move through the required release programs once Round 6 is complete.",
+    "structuralHostPrimitive": "Current deterministic prototype: ordinary in-flow div with one open ShadowRoot plus an external mount-manager closure, fixture-only verified-container token, exact caller-supplied Send node, no live selector binding, direct callback controls, scoped MutationObserver/ResizeObserver, coalesced generation-guarded repair, no host style mutation, and explicit rejection/fallback reasons.",
+    "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; callbacks schedule/coalesce rather than synchronously resize; the implementation suppresses its own Ghost-only reposition mutation to avoid self-repair loops; Shadow controls bind directly to supplied reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
-    "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
-    "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
-    "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. Deterministic prototype success still does not certify the live ChatGPT insertion rule.",
+    "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. The deterministic prototype uses DOM-created Shadow nodes and textContent, not shadowRoot.innerHTML. Preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
+    "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. The deterministic prototype keeps delegatesFocus false, does not autofocus on mount/repair, and creates explicit type=button controls with local accessible names; its encoded activation oracle requires direct Ghost callbacks and zero Send/submit side effects. These claims remain unexecuted until A2X provides exact-head browser evidence.",
+    "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. The A2 prototype already encodes fixed-position and unverified/hidden-container mutant rejection; broader oracle mutation coverage remains for A2X/Red Team. A surviving mutant invalidates the oracle, not the safeguard. Deterministic prototype success still does not certify the live ChatGPT insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
-    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, and exact current live ChatGPT structural insertion remain separately uncertified until tested."
+    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, exact current live ChatGPT structural insertion, and the current A2 prototype runtime behavior remain separately uncertified until executed/tested."
   },
   "priorRoundVerification": {
     "round": 5,
