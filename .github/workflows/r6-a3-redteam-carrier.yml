@@ -1,0 +1,142 @@
+name: Round 6 A3 Blue Red Team Carrier
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/a3-redteam-trigger.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-a3-redteam-carrier
+  cancel-in-progress: false
+
+jobs:
+  redteam:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Guard Red Team test ancestry and branch scope
+        id: guard
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_REDTEAM: 12a1f81fdf07890cdc3f0f8b7ce0475784d6ef70
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          git merge-base --is-ancestor "$EXPECTED_REDTEAM" HEAD
+          git diff --name-only "$EXPECTED_REDTEAM"..HEAD | tee /tmp/a3-descendants.txt
+          if grep -Ev '^(\.gitl/|\.github/workflows/r6-a3-redteam-carrier\.yml$)' /tmp/a3-descendants.txt; then
+            echo 'Unexpected descendant files after A3 Red Team test commit.' >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        id: npmci
+        continue-on-error: true
+        run: npm ci
+
+      - name: Base certification
+        id: base
+        continue-on-error: true
+        run: npm run cert:base
+
+      - name: Syntax and lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Focused Send / route / lease regressions
+        id: safety
+        continue-on-error: true
+        run: npx jest tests/sendtransaction.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand
+
+      - name: Install Chromium and Firefox
+        id: browsers
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Re-run verified Blue structural gates
+        id: blue
+        continue-on-error: true
+        run: npx playwright test tests/e2e/mobile-shell-blue-prototype.spec.js --project=chromium --project=firefox
+
+      - name: Run A3 Red Team in Chromium and Firefox
+        id: red
+        continue-on-error: true
+        run: npx playwright test tests/e2e/mobile-shell-blue-redteam.spec.js --project=chromium --project=firefox
+
+      - name: Upload Red Team evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-a3-redteam-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            e2e-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Record durable Red Team result and self-remove
+        if: always()
+        shell: bash
+        env:
+          O_GUARD: ${{ steps.guard.outcome }}
+          O_NPMCI: ${{ steps.npmci.outcome }}
+          O_BASE: ${{ steps.base.outcome }}
+          O_LINT: ${{ steps.lint.outcome }}
+          O_SAFETY: ${{ steps.safety.outcome }}
+          O_BROWSERS: ${{ steps.browsers.outcome }}
+          O_BLUE: ${{ steps.blue.outcome }}
+          O_RED: ${{ steps.red.outcome }}
+        run: |
+          set -euo pipefail
+          RESULT=PASS
+          for value in "$O_GUARD" "$O_NPMCI" "$O_BASE" "$O_LINT" "$O_SAFETY" "$O_BROWSERS" "$O_BLUE" "$O_RED"; do
+            if [ "$value" != "success" ]; then RESULT=FAIL; fi
+          done
+          mkdir -p .gitl/evidence/round-6
+          cat > .gitl/evidence/round-6/a3-redteam-carrier-result.md <<EOF
+          # Round 6 A3 Blue Red Team Carrier Result
+
+          - Result: **$RESULT**
+          - Tested head: \`${GITHUB_SHA}\`
+          - Red Team test ancestor: \`12a1f81fdf07890cdc3f0f8b7ce0475784d6ef70\`
+          - GitHub Actions run ID: \`${GITHUB_RUN_ID}\`
+          - GitHub Actions run attempt: \`${GITHUB_RUN_ATTEMPT}\`
+          - Job: \`${GITHUB_JOB}\`
+          - Branch: \`${GITHUB_REF_NAME}\`
+          - Actor: \`${GITHUB_ACTOR}\`
+          - Guard: **$O_GUARD**
+          - npm ci: **$O_NPMCI**
+          - cert:base: **$O_BASE**
+          - lint: **$O_LINT**
+          - focused Send/route/lease safety: **$O_SAFETY**
+          - browser install: **$O_BROWSERS**
+          - existing Blue structural gates Chromium+Firefox: **$O_BLUE**
+          - A3 Red Team Chromium+Firefox: **$O_RED**
+
+          The Red Team artifact \`r6-a3-redteam-${GITHUB_RUN_ID}\` preserves browser/test output where available. A FAIL is not a release verdict by itself; inspect the exact failed Red assertion and open the smallest repair if it is a candidate semantic failure.
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-a3-redteam-carrier.yml .gitl/evidence/round-6/a3-redteam-trigger.md || true
+          git add .gitl/evidence/round-6/a3-redteam-carrier-result.md
+          git commit -m 'test(gitl): record Round 6 A3 Red Team carrier result'
+          git push origin HEAD:agent/8.8-repair-resume
+          if [ "$RESULT" != "PASS" ]; then exit 1; fi
