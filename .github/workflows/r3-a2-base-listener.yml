@@ -1,0 +1,119 @@
+name: R3 A2 Base Listener
+
+on:
+  pull_request:
+    branches: [gitl/r3-a2-ci-base]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r3-a2-base-listener-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  exact-head-matrix:
+    name: R3 A2 exact-head Firefox Chromium Pixel7
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Guard exact head branch and lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "${{ github.event.pull_request.head.ref }}" = "agent/8.8-repair-resume"
+          node - <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json', 'utf8'));
+          if (state.lease?.holder !== 'scheduled-agent-3') throw new Error(`unexpected lease holder: ${state.lease?.holder}`);
+          if (state.lease?.assignmentId !== 'R3-A2-RR-PROVEN-FAILURE-REPAIR') throw new Error(`unexpected assignment: ${state.lease?.assignmentId}`);
+          if (Date.parse(state.lease?.expiresAt || '') <= Date.now()) throw new Error(`expired lease: ${state.lease?.expiresAt}`);
+          NODE
+          printf 'tested_head=%s\n' "$(git rev-parse HEAD)"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        id: npmci
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npm ci 2>&1 | tee r3-a2-npm-ci.log
+
+      - name: Install Playwright browsers
+        id: browsers
+        if: always() && steps.npmci.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright install --with-deps chromium firefox 2>&1 | tee r3-a2-browser-install.log
+
+      - name: Firefox Repair and Resume
+        id: firefox
+        if: always() && steps.npmci.outcome == 'success' && steps.browsers.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test tests/e2e/repair-resume.spec.js --project=firefox 2>&1 | tee r3-a2-firefox.log
+
+      - name: Chromium production Repair and Resume
+        id: chromium
+        if: always() && steps.npmci.outcome == 'success' && steps.browsers.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium 2>&1 | tee r3-a2-chromium.log
+
+      - name: Pixel 7 Chromium production Repair and Resume
+        id: mobile
+        if: always() && steps.npmci.outcome == 'success' && steps.browsers.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile 2>&1 | tee r3-a2-chromium-mobile.log
+
+      - name: Upload focused logs and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r3-a2-exact-head-evidence
+          path: |
+            r3-a2-*.log
+            test-results/
+            playwright-report/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce matrix result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'exact_head=%s\n' "$(git rev-parse HEAD)"
+          printf 'npm_ci=%s\n' "${{ steps.npmci.outcome }}"
+          printf 'browser_install=%s\n' "${{ steps.browsers.outcome }}"
+          printf 'firefox=%s\n' "${{ steps.firefox.outcome }}"
+          printf 'chromium=%s\n' "${{ steps.chromium.outcome }}"
+          printf 'chromium_mobile=%s\n' "${{ steps.mobile.outcome }}"
+          test "${{ steps.npmci.outcome }}" = success
+          test "${{ steps.browsers.outcome }}" = success
+          test "${{ steps.firefox.outcome }}" = success
+          test "${{ steps.chromium.outcome }}" = success
+          test "${{ steps.mobile.outcome }}" = success
