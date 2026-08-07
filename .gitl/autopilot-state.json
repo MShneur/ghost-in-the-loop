@@ -134,7 +134,7 @@
     },
     {
       "type": "round-6-research-fallback-scoped-repair-02",
-      "result": "A second bounded post-A1X fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
+      "result": "A second bounded post-A1X research fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
     },
     {
       "type": "round-6-research-fallback-mobile-reflow-03",
@@ -342,7 +342,16 @@
     ".gitl/evidence/round-6/worker-4.md",
     ".gitl/evidence/round-6/a3-overflow-repair-result.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-2-r6-a4-mobile-perf-17",
+    "assignmentId": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+    "nominalWorker": 2,
+    "executedRole": "successor-mobile-browser-accessibility-performance",
+    "acquiredAt": "2026-08-07T20:14:00Z",
+    "expiresAt": "2026-08-07T20:59:00Z",
+    "inspectedStateBlob": "b3ebf8efcfb205acf59a3d1153646b71ce81e152",
+    "activeWorkCheck": "State lease was null; A3 was submitted; the A3 repair carrier self-removed; branch head remained 64568d2cce0b6078219c252da70ddba0a63fa655 across repeated checks; no conflicting branch movement was observed before claim."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
