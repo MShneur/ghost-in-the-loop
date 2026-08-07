@@ -1,0 +1,46 @@
+name: R4 A1X Lifecycle Exact Head
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.github/workflows/r4-a1x-lifecycle-exact-head.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPECTED_HEAD: ${{ github.sha }}
+    steps:
+      - name: Checkout exact event head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+
+      - name: Guard exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          echo "expected=${EXPECTED_HEAD}"
+          echo "actual=${actual}"
+          test "${actual}" = "${EXPECTED_HEAD}"
+          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused lifecycle contract tests
+        run: npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand
