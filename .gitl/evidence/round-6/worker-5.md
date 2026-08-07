@@ -7,32 +7,27 @@
 - Executed by: `scheduled-worker-2-r6-a4-mobile-perf-17`
 - Assignment ID: `R6-A4-MOBILE-SHELL-MOBILE-PERF`
 - Started at: 2026-08-07T20:14:00Z
-- Finished at: 2026-08-07T20:19:59Z
+- Finished at: 2026-08-07T20:22:52Z
 
 ## State Read
 - Branch: `agent/8.8-repair-resume`
-- Lease claim commit: `9bd26aee6b15a7cd07eb104fca94ceb0fdced6ad`
-- A4 test-artifact commit: `0716a99d4afa4ffb0c3b038fdae56604fe2bd881`
-- Trigger/tested head: `c34b6a9dd0af078dbd79363fe0475b4a02aeb43a`
-- A3 predecessor: submitted after overflow-clipping repair PASS.
+- Lease claim: `9bd26aee6b15a7cd07eb104fca94ceb0fdced6ad`
+- Initial A4 artifact: `0716a99d4afa4ffb0c3b038fdae56604fe2bd881`
+- Initial carrier result: run `31215306655`, job `92987347838`, artifact `9008274458`, digest `43205f30b8082b09f6aff801c3a4d090531d9676ea50e909cc1a582e31e49db9` — FAIL only because the fixture expected exactly two orientationchange events while Chromium emitted native events in addition to the fixture's manual events.
+- Smallest repair commit: `096722a6688a3b5ff3dc1e20aa22ec799cafabdb`.
 
 ## Step Performed
-Added and executed a deterministic A4 mobile/browser/accessibility/performance fixture against the exact repaired Blue browser-side candidate blob. The fixture exercises Pixel-class Chromium emulation, a portable desktop-Firefox lane, 320 CSS px reflow, 200% text, reduced motion, deterministic VisualViewport resize signalling, orientation changes, native-control insertion/repair, ARIA semantics, cleanup/resource invariants, and Chromium-only 1x/4x/6x CPU-throttled stress. Hosted timing is descriptive only; the tests contain no post-hoc latency budget.
-
-## Research Sources
-- Repository mobile-shell brief and A4 assignment define host-flow, narrow/mobile, keyboard/orientation, accessibility and performance gates.
-- Round-6 mobile-reflow evidence predeclares 320 CSS px, 200% text, VisualViewport-as-signal, and platform-claim limits.
-- Round-6 constrained-runtime evidence predeclares Chromium-only 1x/4x/6x CPU throttling with invariant-based PASS and descriptive timing only.
-- A3 evidence fixes the exact repaired candidate blob at `53cc902428a3fc1496a83ad1bf0bd1bbe6752c84`.
+A4 added a deterministic mobile/browser/accessibility/performance fixture that executes the exact repaired Blue candidate blob `53cc902428a3fc1496a83ad1bf0bd1bbe6752c84`. The first carrier exposed an oracle bug, not a candidate safety failure: emulated Chromium emitted orientationchange on viewport shape changes while the helper also injected orientationchange, producing four events instead of the synthetic expected two. The recovery removed the injected event and made viewport geometry the orientation oracle. No product behavior was weakened or changed.
 
 ## Changes
-- Added `tests/e2e/mobile-shell-blue-mobile-perf.spec.js` in commit `0716a99d4afa4ffb0c3b038fdae56604fe2bd881`.
-- The test pins and executes the exact repaired Blue candidate browser body; it does not add live ChatGPT selectors or production binding.
-- Temporary workflow and trigger are removed by this result transaction.
-- Production userscript/extension behavior: unchanged.
+- `tests/e2e/mobile-shell-blue-mobile-perf.spec.js`: Pixel-class Chromium, desktop Firefox, 320 CSS px, 200% text, reduced motion, deterministic VisualViewport signal, portrait/landscape transitions, native-control repair, ARIA semantics, resource cleanup, and Chromium 1x/4x/6x CPU stress.
+- Repair: do not inject duplicate orientationchange; assert final portrait geometry directly after landscape/portrait transitions.
+- Production userscript/extension: unchanged.
+- Temporary carrier and trigger: removed by this transaction.
 
 ## Tests
 - Guard: **success**
+- Repair application: **success**
 - npm ci: **success**
 - cert:base/generated parity: **success**
 - lint: **success**
@@ -41,36 +36,33 @@ Added and executed a deterministic A4 mobile/browser/accessibility/performance f
 - browser install: **success**
 - exact Blue Chromium+Firefox baseline: **success**
 - A3 Red Team Chromium+Firefox baseline: **success**
-- A4 mobile/accessibility/performance Chromium+Firefox: **failure**
-- Carrier run: `31215306655`
-- Job ID: `92987347838`
-- Artifact: `9008274458`
-- Artifact digest: `43205f30b8082b09f6aff801c3a4d090531d9676ea50e909cc1a582e31e49db9`
-- Overall: **FAIL**
+- repaired A4 Chromium+Firefox fixture: **success**
+- Repair carrier run: `31215517114`
+- Job ID: `92988007587`
+- Artifact: `9008352875`
+- Artifact digest: `08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297`
+- Overall: **PASS**
 
 ## Acceptance Criteria
-- Pixel-class Chromium emulation: **FAIL_OR_BLOCKED** — included in A4 fixture Chromium lane.
-- Portable desktop Firefox: **FAIL_OR_BLOCKED** — desktop Firefox only; not GeckoView.
-- <=500 px / 320 CSS px / 200% text / reduced motion: **FAIL_OR_BLOCKED**.
-- VisualViewport signal + orientation transitions: **FAIL_OR_BLOCKED** — deterministic signal/viewport fixture, not a real IME claim.
-- In-flow mount, native controls reachable, exact Send identity, zero passive Send actuation: **FAIL_OR_BLOCKED**.
-- Observer/listener/pending-repair cleanup and bounded resource counts: **FAIL_OR_BLOCKED**.
-- Chromium CPU stress 1x/4x/6x with descriptive timing only: **FAIL_OR_BLOCKED**.
-- Physical Android / Android WebView / GeckoView / real assistive technology / calibrated low-end hardware: **NOT TESTED / NOT CLAIMED**.
-- Live authenticated ChatGPT structural insertion: **NOT TESTED / UNKNOWN pending A1X**.
+- Pixel-class Chromium emulation plus 320 CSS px / 200% text / reduced motion: **PASS**.
+- Deterministic VisualViewport resize signalling and portrait/landscape viewport geometry: **PASS**.
+- Portable desktop Firefox semantic/focus/narrow contract: **PASS** — not GeckoView.
+- In-flow mount, native controls reachable, exact Send identity, zero passive Send actuation: **PASS**.
+- Scoped observer/listener/pending-repair counts and clean teardown: **PASS**.
+- Chromium 1x/4x/6x CPU stress: **PASS** with timing descriptive only.
+- Physical Android / Android WebView / GeckoView / real IME / real assistive technology / calibrated low-end hardware: **NOT TESTED / NOT CLAIMED**.
+- Live authenticated ChatGPT insertion: **UNKNOWN / NOT TESTED pending A1X current-host evidence**.
 
 ## Safety Checks
-- Send authority unchanged: YES.
-- CHOICE behavior unchanged: YES.
-- Route and lease safety unchanged: YES.
-- Uncertainty/fail-closed fallback unchanged: YES.
-- No `main`, merge, auto-merge, tag, publish, or release action: YES.
+- Send / CHOICE / route / lease / uncertainty authority weakened: NO.
+- Host viewport or VirtualKeyboard placement policy mutated: NO.
+- Main / merge / auto-merge / tag / publish / release action: NO.
 
 ## Risks and Limits
-Pixel 7 here is Playwright/Chromium emulation, not a physical Android device. Firefox is desktop Playwright Firefox, not Firefox-Android/GeckoView. The VisualViewport case dispatches a deterministic resize signal and the orientation case changes hosted viewport geometry; neither certifies a real mobile IME/browser-toolbar combination. CPU throttling is Chromium-only and relative to the hosted runner. Live ChatGPT binding remains UNKNOWN until A1X current-host evidence is actually obtained.
+Hosted Pixel emulation is not a physical Android device. The VisualViewport case is deterministic signal evidence, not a real keyboard/IME claim. Desktop Firefox is not GeckoView. CDP CPU throttling is Chromium-only and relative to the hosted runner. Current authenticated ChatGPT structural binding remains UNKNOWN.
 
 ## Recommended Next Action
-Keep A4 retry-ready. Inspect this run and make the smallest test/candidate repair for the concrete failure; do not skip to A5 or research.
+Submit A4 and expose `R6-A5-MOBILE-SHELL-AUDIT`. Do not return to research while A5 is executable.
 
 ## Assignment Status
-- retry-ready
+- submitted
