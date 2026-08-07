@@ -7,7 +7,9 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [
+    1
+  ],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "d116a0917b1465bc90882b64809a827c4329f3f4",
-  "currentStep": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02 in progress: bounded non-conflicting research on scoped Custom Element/Shadow DOM mount lifecycle and repair semantics that can narrow A2 without guessing current ChatGPT structure.",
-  "nextAction": "Complete one materially different research fallback, write durable evidence and any falsifiable mount/repair constraints, update state, and release the lease. Do not modify product code or repeat the permission-gated live capture/adoption-drift search.",
+  "headAtLastHandoff": "a68465c811115993a07202aedb157932f853cf37",
+  "currentStep": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02 completed one bounded non-conflicting research step. Primary standards evidence favors an ordinary in-flow span/div with one open ShadowRoot plus an external Ghost mount manager over an autonomous custom element for the first structural prototype, because it removes custom-element registry/lifecycle state while preserving style isolation. The exact current ChatGPT Blue insertion row remains UNKNOWN; A1X stays blocked locally on DQ-R6-LIVE-STRUCTURE-CAPTURE and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written. Otherwise the next eligible wake must use a materially different bounded research fallback such as mobile keyboard/footer reflow, orientation/large-text/narrow-width failure modes, or constrained-hardware evidence. Do not repeat the permission-gated live capture, adoption-drift search, deterministic probe, or Shadow/custom-element lifecycle research without changed evidence.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -82,43 +84,108 @@
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
-    {"type": "round-3-rr-certified-human-accepted", "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."},
-    {"type": "round-4-lifecycle-certified", "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."},
-    {"type": "round-5-longchat-certified", "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."},
-    {"type": "round-6-supervisor-plan", "result": "R6-SUPERVISOR-PLAN read the mobile-shell brief/current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."},
-    {"type": "round-6-a1-deterministic-structure-probe", "result": "R6-A1 committed a read-only desktop+narrow host-structure capture oracle and evidence, compared adapter-owned vs generic inference, and selected ChatGPT Blue only as the smallest architecture to test first. Live authenticated DOM capture was unavailable, so exact current action/header/footer signatures and insertion slot remain UNKNOWN. Probe commits 431670c5951cd9790b8f8e430aa2edf4f3958911 and ed0c23ffcb68c2964139eb094db363f9156e36e7; Worker-2 evidence commit 4d094ad761c0d731bcd73c71c58750b0af3b291a; recovery plan commit ee7f74dc8b3591be67261c665f1c9ff74252492e."},
-    {"type": "round-6-a1x-exact-probe-blocked-live-capture", "result": "R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Worker-2 addendum commit 7bb9b4b66d4749821f64c7f3f29a8ab87a30106e; local deferred question commit 3b2fd56825f98e78024bbc3c92214ae73e38b601; blocked-plan commit 561cabe0b80a341c94900e493e1a6dcb6cef0b71."},
-    {"type": "round-6-research-fallback-adoption-drift-01", "result": "One bounded non-conflicting research fallback compared fresh maintained/adoption evidence after A1X's local live-capture block. Ophel's 2026 redesign fixes and control migration plus independent VoiceType composer anchors strengthen explicit composer-local discovery while also increasing Blue crowding/width risk; Context-Sync proves toolbar injection/rerender repair exists but is rejected as a Ghost safety precedent because it auto-submits. Evidence commit 37f8f32cc4cb69fe2d7e6bfacbccdd811f3ad559; deferred-capture guidance narrowed in d116a0917b1465bc90882b64809a827c4329f3f4."}
+    {
+      "type": "round-3-rr-certified-human-accepted",
+      "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."
+    },
+    {
+      "type": "round-4-lifecycle-certified",
+      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."
+    },
+    {
+      "type": "round-5-longchat-certified",
+      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."
+    },
+    {
+      "type": "round-6-supervisor-plan",
+      "result": "R6-SUPERVISOR-PLAN read the mobile-shell brief/current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."
+    },
+    {
+      "type": "round-6-a1-deterministic-structure-probe",
+      "result": "R6-A1 committed a read-only desktop+narrow host-structure capture oracle and evidence, compared adapter-owned vs generic inference, and selected ChatGPT Blue only as the smallest architecture to test first. Live authenticated DOM capture was unavailable, so exact current action/header/footer signatures and insertion slot remain UNKNOWN. Probe commits 431670c5951cd9790b8f8e430aa2edf4f3958911 and ed0c23ffcb68c2964139eb094db363f9156e36e7; Worker-2 evidence commit 4d094ad761c0d731bcd73c71c58750b0af3b291a; recovery plan commit ee7f74dc8b3591be67261c665f1c9ff74252492e."
+    },
+    {
+      "type": "round-6-a1x-exact-probe-blocked-live-capture",
+      "result": "R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Worker-2 addendum commit 7bb9b4b66d4749821f64c7f3f29a8ab87a30106e; local deferred question commit 3b2fd56825f98e78024bbc3c92214ae73e38b601; blocked-plan commit 561cabe0b80a341c94900e493e1a6dcb6cef0b71."
+    },
+    {
+      "type": "round-6-research-fallback-adoption-drift-01",
+      "result": "One bounded non-conflicting research fallback compared fresh maintained/adoption evidence after A1X's local live-capture block. Ophel's 2026 redesign fixes and control migration plus independent VoiceType composer anchors strengthen explicit composer-local discovery while also increasing Blue crowding/width risk; Context-Sync proves toolbar injection/rerender repair exists but is rejected as a Ghost safety precedent because it auto-submits. Evidence commit 37f8f32cc4cb69fe2d7e6bfacbccdd811f3ad559; deferred-capture guidance narrowed in d116a0917b1465bc90882b64809a827c4329f3f4."
+    },
+    {
+      "type": "round-6-research-fallback-scoped-repair-02",
+      "result": "A second bounded post-A1X research fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
+    }
   ],
   "findings": [
-    {"worker": 6, "type": "long-chat-explicit-uncertified-limits", "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."},
-    {"worker": 1, "type": "mobile-shell-current-baseline", "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."},
-    {"worker": 1, "type": "mobile-shell-round6-architecture-dissent", "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."},
-    {"worker": 2, "type": "mobile-shell-a1-live-capture-gap", "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT without user permission. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed."},
-    {"worker": 2, "type": "mobile-shell-a1-smallest-candidate", "finding": "Blue composer action-cell is the smallest architecture/mode to test first because composer/editor/Send anchors have the strongest independent adoption convergence and thumb reach is high. It is not authorized for product implementation until A1X confirms the exact current action row and insertion rule with original Send identity preserved."},
-    {"worker": 2, "type": "mobile-shell-a1-strategy-dissent", "finding": "Explicit ChatGPT adapter-owned discovery is provisionally favored over generic global structural inference because errors near Send have asymmetric consequence and hidden/secondary composers are a reproducible failure class. Teal has weaker current header evidence; Red needs an unverified footer stack and carries greater keyboard/scroll reflow complexity."},
-    {"worker": 2, "type": "mobile-shell-a1x-permission-boundary", "finding": "A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but browser_tabs(list) and a direct read-only location/title evaluation both required interactive permission in this scheduled runtime. Therefore current authenticated ChatGPT structure, live Send identity, rerender behavior, and an exact Blue insertion slot remain UNKNOWN. Repeating the unchanged permission call is not discriminating work; DQ-R6-LIVE-STRUCTURE-CAPTURE is local and A2 remains waiting."},
-    {"worker": 6, "type": "mobile-shell-adoption-drift-composer-locality", "finding": "Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required."},
-    {"worker": 6, "type": "mobile-shell-capture-evidence-narrowing", "finding": "A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. DQ-R6 was narrowed to prefer sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."},
-    {"worker": 1, "type": "orchestration-policy-drift", "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."}
+    {
+      "worker": 6,
+      "type": "long-chat-explicit-uncertified-limits",
+      "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."
+    },
+    {
+      "worker": 1,
+      "type": "mobile-shell-current-baseline",
+      "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."
+    },
+    {
+      "worker": 1,
+      "type": "mobile-shell-round6-architecture-dissent",
+      "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-a1-live-capture-gap",
+      "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT without user permission. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-a1-smallest-candidate",
+      "finding": "Blue composer action-cell is the smallest architecture/mode to test first because composer/editor/Send anchors have the strongest independent adoption convergence and thumb reach is high. It is not authorized for product implementation until A1X confirms the exact current action row and insertion rule with original Send identity preserved."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-a1-strategy-dissent",
+      "finding": "Explicit ChatGPT adapter-owned discovery is provisionally favored over generic global structural inference because errors near Send have asymmetric consequence and hidden/secondary composers are a reproducible failure class. Teal has weaker current header evidence; Red needs an unverified footer stack and carries greater keyboard/scroll reflow complexity."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-a1x-permission-boundary",
+      "finding": "A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but browser_tabs(list) and a direct read-only location/title evaluation both required interactive permission in this scheduled runtime. Therefore current authenticated ChatGPT structure, live Send identity, rerender behavior, and an exact Blue insertion slot remain UNKNOWN. Repeating the unchanged permission call is not discriminating work; DQ-R6-LIVE-STRUCTURE-CAPTURE is local and A2 remains waiting."
+    },
+    {
+      "worker": 6,
+      "type": "mobile-shell-adoption-drift-composer-locality",
+      "finding": "Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required."
+    },
+    {
+      "worker": 6,
+      "type": "mobile-shell-capture-evidence-narrowing",
+      "finding": "A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. DQ-R6 was narrowed to prefer sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."
+    },
+    {
+      "worker": 1,
+      "type": "orchestration-policy-drift",
+      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-plain-shadow-host-preferred",
+      "finding": "Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state but does not authorize any current ChatGPT insertion slot. Repair must revalidate generation/current container before DOM writes, coalesce ResizeObserver-driven repair, bind Shadow controls directly to reviewed Ghost handlers, and fail closed to the rail."
+    }
   ],
-  "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
+  "briefs": [
+    ".gitl/briefs/mobile-shell-concepts.md"
+  ],
   "testEvidence": [
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-6.md",
     ".gitl/evidence/round-6/worker-1.md",
     ".gitl/evidence/round-6/worker-2.md",
-    ".gitl/evidence/round-6/research-fallback-01.md"
+    ".gitl/evidence/round-6/research-fallback-01.md",
+    ".gitl/evidence/round-6/research-fallback-02.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-r6-research-fallback-scoped-repair",
-    "assignmentId": "R6-RESEARCH-FALLBACK-SCOPED-REPAIR-02",
-    "intendedRole": "researcher-architect with reliability/mobile dissent lens",
-    "acquiredAt": "2026-08-07T14:09:27Z",
-    "expiresAt": "2026-08-07T14:54:27Z",
-    "inspectedHead": "a616bff210920f9b941e8ff82c56d155764a2aa9",
-    "purpose": "One bounded non-conflicting research fallback on scoped structural mount lifecycle/repair semantics; no product changes."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -133,7 +200,10 @@
     "researchStatus": "blocked-on-live-current-structure-capture",
     "researchEvidence": ".gitl/evidence/round-6/worker-2.md",
     "researchEvidenceCommit": "7bb9b4b66d4749821f64c7f3f29a8ab87a30106e",
-    "probeCommits": ["431670c5951cd9790b8f8e430aa2edf4f3958911", "ed0c23ffcb68c2964139eb094db363f9156e36e7"],
+    "probeCommits": [
+      "431670c5951cd9790b8f8e430aa2edf4f3958911",
+      "ed0c23ffcb68c2964139eb094db363f9156e36e7"
+    ],
     "a1xClaimCommit": "2eed7b903de00abe5a22c5afc652550e5010f157",
     "a1xExactRun": 31181719403,
     "a1xExactJob": 92876348475,
@@ -141,8 +211,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-01.md",
-    "latestResearchFallbackCommit": "37f8f32cc4cb69fe2d7e6bfacbccdd811f3ad559",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-02.md",
+    "latestResearchFallbackCommit": "a68465c811115993a07202aedb157932f853cf37",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -150,7 +220,9 @@
     "selectedFirstArchitecture": "ChatGPT-only Blue composer action cell via explicit adapter-owned structural contract remains only the smallest architecture to test first; exact insertion slot UNKNOWN and product implementation unauthorized until A1X live evidence passes.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback.",
     "captureEvidenceGuidance": "Interactive read-only capture is preferred. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "Current-host structural capture is a local gate on A2. Independent reversible work and bounded non-conflicting research remain eligible. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, cross-adapter expansion, and final audit."
+    "roundScope": "Current-host structural capture is a local gate on A2. Independent reversible work and bounded non-conflicting research remain eligible. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, cross-adapter expansion, and final audit.",
+    "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; autonomous custom element and moveBefore/connectedMoveCallback remain later evidence-dependent options.",
+    "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail."
   },
   "priorRoundVerification": {
     "round": 5,
@@ -159,7 +231,11 @@
     "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
     "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
     "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW",
-    "limits": ["History-linear grouped assistant query remains.", "Send-observation remains 8004 matches/sample at 2000 turns.", "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."]
+    "limits": [
+      "History-linear grouped assistant query remains.",
+      "Send-observation remains 8004 matches/sample at 2000 turns.",
+      "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."
+    ]
   },
   "priorPriorRoundVerification": {
     "round": 4,
