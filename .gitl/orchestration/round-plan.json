@@ -81,8 +81,11 @@
     {
       "id": "LONG-CHAT-PERF",
       "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance",
-      "status": "active",
-      "releaseCritical": true
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 5,
+      "humanReview": "deferred-local",
+      "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW"
     },
     {
       "id": "MOBILE-SHELL-STRUCTURAL",
@@ -157,11 +160,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R5-A5-LONGCHAT-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R6-SUPERVISOR-PLAN",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R5-A5-LONGCHAT-AUDIT regardless of timer number. Independently audit A1/A2X/A3/A4 raw evidence, exact-head bindings, benchmark discrimination, mobile/Firefox limitations, and Send/CHOICE/route/lease/uncertainty safeguards. Certify only the bounded objective supported by evidence."
+    "instruction": "Claim R6-SUPERVISOR-PLAN regardless of timer number. Read the canonical maker plus .gitl/briefs/mobile-shell-concepts.md, preserve the bounded Round-5 certification and both local deferred questions, and open the dependency-safe MOBILE-SHELL-STRUCTURAL research/build/Red-Team/mobile/audit chain without pre-authorizing a product change."
   },
   "assignments": [
     {
@@ -630,7 +633,7 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "ready",
+      "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Independently audit Round-5 source claims, benchmark design, exact-head evidence, performance scaling, cross-browser/mobile limits, and Send/CHOICE/route/lease safety before certifying the bounded long-chat objective.",
       "dependencies": [
@@ -676,10 +679,86 @@
       ],
       "fallbackWork": "Any missing or contradictory evidence creates the smallest ready recovery assignment; do not close the round as certified merely because all scheduled slots fired.",
       "evidencePath": ".gitl/evidence/round-5/worker-6.md",
-      "activationReason": "R5-A4 exact run 31173733483/job 92851027653 passed Pixel-7 Chromium emulation and desktop Firefox long-chat correctness/resource/usability evidence on tested head 290c5e8b1a3d16948db61875c9199cca0792ede3, with physical-device and linear Send-observation limits preserved."
+      "activationReason": "R5-A4 exact run 31173733483/job 92851027653 passed Pixel-7 Chromium emulation and desktop Firefox long-chat correctness/resource/usability evidence on tested head 290c5e8b1a3d16948db61875c9199cca0792ede3, with physical-device and linear Send-observation limits preserved.",
+      "executedBy": "scheduled-agent-6-longchat-auditor",
+      "claimCommit": "1c71812f89c1948a885037f2902603f397b85f2e",
+      "evidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
+      "deferredQuestionCommit": "3f5f737de6d493f51b68a8602682ae5929126cb8",
+      "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
+      "conclusion": "PASS at bounded scope. Exact source diff, workflow bindings, artifact hashes/heads, raw before/after benchmark output, adversarial mutation/selector-tail tests, and Pixel-7 Chromium-emulation plus desktop-Firefox evidence are mutually consistent. The grouped answer collector achieved the predeclared deterministic improvement without weakening fail-closed safeguards. History-linear union scanning and the 8004-match/sample Send-observation path remain explicit limits; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over total host-page lag are not certified."
+    },
+    {
+      "id": "R6-SUPERVISOR-PLAN",
+      "worker": 1,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "supervisor-integrator",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Open the next evidence-competitive round for the user-required host-affixed mobile Ghost shell without treating the deferred Round-4 or Round-5 human reviews as global freezes.",
+      "dependencies": [
+        "R5-A5-LONGCHAT-AUDIT:submitted"
+      ],
+      "mandatoryReads": [
+        "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
+        ".gitl/briefs/mobile-shell-concepts.md",
+        ".gitl/deferred-questions.md",
+        ".gitl/evidence/round-5/worker-6.md",
+        ".gitl/orchestration/agent-succession-rule.md"
+      ],
+      "allowedFiles": [
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product implementation during supervisor planning",
+        "silently accepting or rejecting DQ-R4-LIFECYCLE-REVIEW",
+        "silently accepting or rejecting DQ-R5-LONGCHAT-REVIEW",
+        "dropping BUILD-IDENTITY, DOCS-RECONCILIATION, or FINAL-CERT-PACKAGE",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Read the mobile-shell brief and current implementation before defining work",
+        "Preserve Round-5 bounded certification and its explicit linear/physical-platform limits",
+        "Keep DQ-R4-LIFECYCLE-REVIEW and DQ-R5-LONGCHAT-REVIEW local under Policy B",
+        "Open Round 6 on MOBILE-SHELL-STRUCTURAL with an evidence-competitive research/build/Red-Team/mobile/audit chain",
+        "Only the earliest dependency-ready Round-6 assignment is activated",
+        "All remaining release-critical programs remain present"
+      ],
+      "requiredEvidence": [
+        "maker and mobile-shell brief",
+        "starting head and lease",
+        "current shell/source observations",
+        "competing implementation philosophies",
+        "Round-6 dependency plan",
+        "explicit handoff"
+      ],
+      "fallbackWork": "If the brief conflicts with current implementation or platform constraints, preserve the conflict in supervisor evidence and create a research-first Round-6 plan rather than guessing or rewriting the brief.",
+      "evidencePath": ".gitl/evidence/round-6/worker-1.md"
     }
   ],
-  "roundDecision": null,
+  "roundDecision": {
+    "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
+    "auditAssignment": "R5-A5-LONGCHAT-AUDIT",
+    "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
+    "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
+    "deferredHumanQuestion": "DQ-R5-LONGCHAT-REVIEW",
+    "acceptedCandidate": "stateless grouped-selector reverse-tail collector with exact legacy fallback",
+    "acceptedEvidence": {
+      "a1": "head 747031cc8160ba6febdd6fecb03d597fae36cd66 / run 31165679128 / job 92825797473 / artifact 8988876017",
+      "a2x": "head 9d49e34af07015f8064ac66398004180216efb08 / run 31169354385 / job 92837396863 / artifact 8990318746",
+      "a3": "head 73ec20832e6ae125fd38dd137f315ee695e186b6 / run 31171939489 / job 92845452541 / artifact 8991319478",
+      "a4": "head 290c5e8b1a3d16948db61875c9199cca0792ede3 / run 31173733483 / job 92851027653 / artifact 8992007971"
+    },
+    "explicitLimits": [
+      "The grouped assistant query still scales linearly with retained matching history; the program does not certify constant-time lookup.",
+      "The safety-critical begin-Send and send-evidence observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns and is not optimized by this round.",
+      "The program does not prove Ghost is the dominant cause of total real ChatGPT long-thread lag.",
+      "Pixel-7 Playwright evidence is emulation, not physical Android CPU/memory/battery/thermal/scheduler certification.",
+      "Desktop Firefox evidence is not Firefox-Android/GeckoView certification.",
+      "Hosted-CI timing is descriptive rather than a calibrated low-end hardware budget.",
+      "Synthetic retained DOM may differ from future ChatGPT virtualization or markup."
+    ],
+    "sequencingDecision": "Under canonical Personal-Forge Policy B, DQ-R5-LONGCHAT-REVIEW is local. MOBILE-SHELL-STRUCTURAL is the next independent release-critical program and R6-SUPERVISOR-PLAN is ready."
+  },
   "humanReviewRequired": false,
   "humanReviewPolicy": "local-deferred-queue",
   "publishReadyRequiresAllRequiredPrograms": true
