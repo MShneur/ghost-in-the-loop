@@ -304,3 +304,83 @@ Create and execute `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE` as the smallest re
 - `R4-A4-LIFECYCLE-MOBILE-PERF`: **blocked — execution now exists, but the synthetic mobile viewport contract failed before certification**.
 - `R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC`: **blocked — exact-head reproducible viewport assertion failure preserved**.
 - Next recovery: `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`.
+
+---
+
+# A4Y Mobile Viewport Fixture Recovery Addendum
+
+## Identity
+- Round: 4
+- Worker evidence slot: 5
+- Intended role: `mobile-browser-test-fixture-repair`
+- Executing successors: `automation-successor-a4y`; handoff recovery by scheduled successor after two failed carrier attempts
+- Assignment ID: `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`
+- Program: `LIFECYCLE-FROZEN-DISCARDED`
+
+## Step Performed
+A4Y changed only the synthetic mobile test document by adding standards-correct device-width viewport metadata. The deliberate `width <= 500` assertion and all lifecycle/resource/Send/accessibility assertions remained unchanged.
+
+The technical execution completed successfully, but two later handoff-carrier attempts failed before updating durable evidence/state because the embedded Python addendum used an unterminated triple-quoted string. Recovery therefore repaired bookkeeping only and did not rerun or reinterpret the successful exact-head test.
+
+## Changes
+- Fixture-only commit: `c2b2372ce961a5045810445c6184e9e2804babb4`.
+- Exact-test carrier head: `53497095439feaff586454ca778560db287ff2aa`.
+- Temporary test carrier cleanup commit: `cb2f622f2249409c25cb97ced691c36aa1d353ff`.
+- Draft PR #19 was closed unmerged after evidence collection.
+- Broken handoff PR #20 remained unmerged; its workflow is removed by this recovery transaction.
+
+## Tests and CI
+- Workflow run: `31153444356`.
+- Job: `92787723447` (`lifecycle-mobile-viewport`).
+- Exact tested head: `53497095439feaff586454ca778560db287ff2aa`.
+- Exact-head checkout/guard: PASS.
+- Command: `npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile`.
+- Result: PASS — `1 passed (2.0s)`; test duration `556 ms`.
+- Artifact ID: `8984194701`, size `3655` bytes, SHA-256 `19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce`.
+
+## Verified Mobile Result
+- CSS layout viewport: `412 x 839`.
+- Device pixel ratio: `2.625`.
+- Touch points: `1`.
+- User agent: Android 14 / Pixel 7 / Chrome 148 mobile.
+- 12/12 wake windows kept ticker, heartbeat, GhostBus initialization, and route re-detect at exactly one semantic restart each.
+- Cache invalidations remained exactly `2` per window, inside the accepted bounded `1..2` contract.
+- Active intervals remained within the fixture bound (`4 -> 5`); MutationObservers remained `3 -> 3`; lock records remained `1`; Ghost panel count remained `1`.
+- Recovery caused zero submit/click/input/keydown events; the original input and Send node remained connected and unchanged; loop state remained `RUNNING`.
+
+## Evidence-Competitive Resolution
+- Interpretation A, "Pixel 7 emulation was not applied," is rejected by the exact run evidence: Pixel 7 UA, DPR 2.625, touch=1.
+- Interpretation B, "the synthetic page lacked mobile viewport metadata," is supported by source and the corrected observed width of 412 after adding device-width metadata.
+- This certifies the fixture correction under Playwright Chromium mobile emulation only; it does not create physical-Android or Firefox-Android evidence.
+
+## Acceptance Criteria — A4Y
+- Source-level root cause and prior exact failure preserved: PASS.
+- Smallest fixture-only viewport correction: PASS.
+- `width <= 500` preserved and observed at 412: PASS.
+- Touch/mobile profile preserved: PASS.
+- All 12 semantic restart/resource bounds preserved: PASS.
+- Zero Send-adjacent actuation and host-node usability preserved: PASS.
+- Exact guarded head/run/job/artifact evidence preserved: PASS.
+- Temporary test carrier cleaned and PR #19 closed unmerged: PASS.
+- Handoff carrier failure preserved rather than treated as a test failure: PASS.
+
+## Safety Checks
+- Product implementation changed: NO.
+- Send / CHOICE / route / lease / uncertainty safeguards weakened: NO.
+- `main` modified: NO.
+- Merge / auto-merge / tag / publish / release: NONE.
+
+## Risks and Limits
+- Evidence is Playwright Pixel 7 Chromium emulation, not a physical Android device.
+- Firefox Android / GeckoView remains untested here.
+- Timing observations are descriptive GitHub-hosted measurements, not a calibrated low-end-device performance budget.
+- `npm ci` reported two pre-existing high-severity dependency findings; this assignment changed no dependencies.
+- GitHub Actions Node-action deprecation warnings remain maintenance signals, not lifecycle-test failures.
+
+## Recommended Next Action
+Activate `R4-A5-LIFECYCLE-AUDIT` for independent audit of all Round-4 lifecycle source claims, exact-head CI bindings, mobile-emulation limitations, and safety invariants.
+
+## Assignment Status
+- `R4-A4-LIFECYCLE-MOBILE-PERF`: submitted after exact execution recovery.
+- `R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC`: submitted after A4Y correction.
+- `R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE`: submitted.
