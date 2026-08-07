@@ -1,0 +1,191 @@
+name: R5 A2X guarded exact execution
+
+on:
+  pull_request:
+    branches:
+      - gitl/r5-a2x-exec-base
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  a2x-exact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout authoritative isolated branch
+        uses: actions/checkout@v4
+        with:
+          ref: agent/8.8-repair-resume
+          fetch-depth: 0
+
+      - name: Guard expected lease head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='d01c510660fd2d3fa2ac9857d33d0939ff97aa72'
+          actual="$(git rev-parse HEAD)"
+          echo "expected=$expected"
+          echo "actual=$actual"
+          test "$actual" = "$expected"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Materialize stateless grouped-selector candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('ghost-in-the-loop.user.js')
+          text = path.read_text()
+          old = '''function _collectAnswerCandidates(selectors, tier) {
+            const byElement = new Map();
+            for (const [selectorIndex, sel] of (selectors || []).entries()) {
+              let matches = [];
+              try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+              const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+              for (let i = start; i < matches.length; i++) {
+                const el = matches[i];
+                if (!_answerNodeUsable(el)) continue;
+                const text = _answerText(el);
+                if (!_answerLooksLikeContent(el, text, tier)) continue;
+                const prior = byElement.get(el);
+                if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+              }
+            }
+            return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
+          }'''
+          new = '''function _collectAnswerCandidates(selectors, tier) {
+            const selectorList = [...(selectors || [])];
+            const byElement = new Map();
+            if (!selectorList.length) return [];
+            try {
+              const matches = [...document.querySelectorAll(selectorList.join(','))];
+              const remaining = selectorList.map(() => ANSWER_SCAN_LIMIT);
+              let pending = remaining.length;
+              for (let i = matches.length - 1; i >= 0 && pending > 0; i--) {
+                const el = matches[i];
+                let selectorIndex = -1;
+                for (let s = 0; s < selectorList.length; s++) {
+                  if (remaining[s] <= 0) continue;
+                  if (!el.matches(selectorList[s])) continue;
+                  remaining[s]--;
+                  if (remaining[s] === 0) pending--;
+                  if (selectorIndex < 0) selectorIndex = s;
+                }
+                if (selectorIndex < 0 || !_answerNodeUsable(el)) continue;
+                const text = _answerText(el);
+                if (!_answerLooksLikeContent(el, text, tier)) continue;
+                const prior = byElement.get(el);
+                if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+              }
+            } catch(_) {
+              byElement.clear();
+              for (const [selectorIndex, sel] of selectorList.entries()) {
+                let matches = [];
+                try { matches = [...document.querySelectorAll(sel)]; } catch(_) { matches = []; }
+                const start = Math.max(0, matches.length - ANSWER_SCAN_LIMIT);
+                for (let i = start; i < matches.length; i++) {
+                  const el = matches[i];
+                  if (!_answerNodeUsable(el)) continue;
+                  const text = _answerText(el);
+                  if (!_answerLooksLikeContent(el, text, tier)) continue;
+                  const prior = byElement.get(el);
+                  if (!prior || selectorIndex < prior.selectorIndex) byElement.set(el, { el, text, tier, selectorIndex });
+                }
+              }
+            }
+            return [...byElement.values()].sort((a, b) => _answerDomOrder(a.el, b.el));
+          }'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one legacy collector, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          node scripts/build-extension.js
+          git diff --check
+          changed="$(git diff --name-only | sort)"
+          expected=$'extension/content.js\nghost-in-the-loop.user.js'
+          printf 'changed files:\n%s\n' "$changed"
+          test "$changed" = "$expected"
+
+      - name: Commit candidate to isolated branch
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'gitl-a2x-bot'
+          git config user.email 'gitl-a2x-bot@users.noreply.github.com'
+          git add ghost-in-the-loop.user.js extension/content.js
+          git commit -m 'perf: bound long-chat assistant selector work'
+          candidate="$(git rev-parse HEAD)"
+          git push origin HEAD:agent/8.8-repair-resume
+          remote="$(git ls-remote origin refs/heads/agent/8.8-repair-resume | awk '{print $1}')"
+          echo "candidate=$candidate"
+          echo "remote=$remote"
+          test "$candidate" = "$remote"
+          echo "head=$candidate" >> "$GITHUB_OUTPUT"
+          mkdir -p test-results/r5-a2x
+          printf '%s\n' "$candidate" > test-results/r5-a2x/candidate-head.txt
+
+      - name: Exact syntax and lint gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ghost-in-the-loop.user.js | tee test-results/r5-a2x/node-check-userscript.log
+          node --check extension/content.js | tee test-results/r5-a2x/node-check-extension.log
+          npm run lint 2>&1 | tee test-results/r5-a2x/lint.log
+
+      - name: Generated parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:generated 2>&1 | tee test-results/r5-a2x/generated.log
+
+      - name: Focused answer-selection and Send journal Jest
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx jest tests/issuefixes.test.js tests/sendtransaction.test.js --runInBand 2>&1 | tee test-results/r5-a2x/focused-jest.log
+
+      - name: Full unit suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run test:unit -- --runInBand 2>&1 | tee test-results/r5-a2x/full-unit.log
+
+      - name: Exact A2 Chromium benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx playwright test tests/e2e/long-chat-perf-a2.spec.js --project=chromium 2>&1 | tee test-results/r5-a2x/playwright-a2.log
+
+      - name: Record final exact head
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p test-results/r5-a2x
+          git rev-parse HEAD > test-results/r5-a2x/final-head.txt
+          git status --short > test-results/r5-a2x/git-status.txt
+
+      - name: Upload exact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r5-a2x-long-chat-build-exec
+          path: |
+            test-results/r5-a2x
+            test-results/**/long-chat-a2.json
+          if-no-files-found: warn
+          retention-days: 14
