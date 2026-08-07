@@ -1,0 +1,188 @@
+name: R5 A4 Handoff
+
+on:
+  pull_request:
+    types: [opened]
+    branches:
+      - gitl/r5-a4-mobile-perf-base
+
+permissions:
+  contents: write
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Guard exact isolated head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha }}'
+          actual="$(git rev-parse HEAD)"
+          remote="$(git ls-remote origin refs/heads/agent/8.8-repair-resume | awk '{print $1}')"
+          echo "expected=$expected"
+          echo "actual=$actual"
+          echo "remote=$remote"
+          test "$actual" = "$expected"
+          test "$remote" = "$expected"
+
+      - name: Apply durable A4 handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'gitl-automation'
+          git config user.email 'gitl-automation@users.noreply.github.com'
+
+          node <<'NODE'
+          const fs = require('fs');
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+          const a4 = plan.assignments.find(a => a.id === 'R5-A4-LONGCHAT-MOBILE-PERF');
+          const a5 = plan.assignments.find(a => a.id === 'R5-A5-LONGCHAT-AUDIT');
+          if (!a4 || !a5) throw new Error('A4/A5 assignment missing');
+          if (a4.status !== 'ready') throw new Error(`unexpected A4 status ${a4.status}`);
+          a4.status = 'submitted';
+          a4.executedBy = 'scheduled-successor-r5-a4-mobile-perf';
+          a4.claimCommit = 'a2f3f0a3837e6170ae1a7a9d2d2160cc83d882c0';
+          a4.testCommit = '290c5e8b1a3d16948db61875c9199cca0792ede3';
+          a4.testedHead = '290c5e8b1a3d16948db61875c9199cca0792ede3';
+          a4.runId = 31173733483;
+          a4.jobId = 92851027653;
+          a4.artifactId = 8992007971;
+          a4.artifactSha256 = 'fd3baa72e9e4bcc18938e2a497536d7b5d28f1d92bb13be908d3151c7b810d83';
+          a4.temporaryPr = 26;
+          a4.metrics = {
+            chromiumMobile: {
+              profile: { width: 412, height: 839, devicePixelRatio: 2.625, maxTouchPoints: 1 },
+              answer180P95Ms: 0.4,
+              answer2000P95Ms: 1.7,
+              answer2000QsaMatchesPerSample: 2001,
+              beginSend2000P95Ms: 4.9,
+              sendEvidence2000P95Ms: 4.1,
+              sendObservationMatchesPerSample: 8004,
+              activeIntervalsBeforeAfter: [4, 4],
+              activeObserversBeforeAfter: [3, 3],
+              safetyEvents: { submit: 0, click: 0, input: 0, keydown: 0 }
+            },
+            desktopFirefox: {
+              profile: { width: 412, height: 915, devicePixelRatio: 1, maxTouchPoints: 0 },
+              answer180P95Ms: 1,
+              answer2000P95Ms: 2,
+              answer2000QsaMatchesPerSample: 2001,
+              beginSend2000P95Ms: 3,
+              sendEvidence2000P95Ms: 3,
+              sendObservationMatchesPerSample: 8004,
+              activeIntervalsBeforeAfter: [4, 4],
+              activeObserversBeforeAfter: [3, 3],
+              safetyEvents: { submit: 0, click: 0, input: 0, keydown: 0 }
+            }
+          };
+          a4.conclusion = 'PASS at bounded Playwright scope. Exact Pixel-7 Chromium emulation and desktop Firefox preserved newest-answer correctness, stable resource proxies, visible host composer/Send, and zero actuation through 2000 turns. The grouped answer query and safety-critical Send-observation path remain history-linear; no physical Android or Firefox-Android/GeckoView claim is made.';
+          a5.status = 'ready';
+          a5.activationReason = 'R5-A4 exact run 31173733483/job 92851027653 passed Pixel-7 Chromium emulation and desktop Firefox long-chat correctness/resource/usability evidence on tested head 290c5e8b1a3d16948db61875c9199cca0792ede3, with physical-device and linear Send-observation limits preserved.';
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: 6,
+            assignmentId: 'R5-A5-LONGCHAT-AUDIT',
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: 'Claim R5-A5-LONGCHAT-AUDIT regardless of timer number. Independently audit A1/A2X/A3/A4 raw evidence, exact-head bindings, benchmark discrimination, mobile/Firefox limitations, and Send/CHOICE/route/lease/uncertainty safeguards. Certify only the bounded objective supported by evidence.'
+          };
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          NODE
+
+          git add .gitl/orchestration/round-plan.json
+          git commit -m 'chore: hand off R5 A4 mobile performance'
+          plan_commit="$(git rev-parse HEAD)"
+
+          PLAN_COMMIT="$plan_commit" node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+          const planCommit = process.env.PLAN_COMMIT;
+          if (!state.lease || state.lease.holder !== 'scheduled-successor-r5-a4-mobile-perf') {
+            throw new Error('A4 lease not held by expected successor');
+          }
+          state.completedWorkers = [...new Set([...(state.completedWorkers || []), 5])].sort((a,b) => a-b);
+          state.headAtLastHandoff = planCommit;
+          state.currentStep = 'R5-A4-LONGCHAT-MOBILE-PERF submitted. Exact tested head 290c5e8b1a3d16948db61875c9199cca0792ede3 passed Pixel-7 Chromium emulation plus desktop Firefox long-chat scaling/resource/usability evidence with zero Send-adjacent actuation. R5-A5-LONGCHAT-AUDIT is ready.';
+          state.nextAction = 'Next eligible wake claims R5-A5-LONGCHAT-AUDIT regardless of timer number and independently audits Round-5 source claims, raw benchmark/artifact evidence, exact-head bindings, mobile/Firefox limitations, remaining linear Send-observation cost, and Send/CHOICE/route/lease/uncertainty safeguards before any bounded certification.';
+          state.automaticDispatch = {
+            enabled: true,
+            scheduledFor: 'next eligible wake',
+            nominalWorker: 6,
+            assignmentId: 'R5-A5-LONGCHAT-AUDIT',
+            claimableByAnyEligibleWorker: true,
+            holdForbiddenReasons: [
+              'missed prior worker slot',
+              'nominal role mismatch',
+              'local deferred human question',
+              'previous failed test with a ready recovery',
+              'previous blocked assignment with dependency-safe continuation'
+            ],
+            holdRequiredReasons: [
+              'valid lease plus active evidence on conflicting work',
+              'active branch-changing workflow on the relevant head',
+              'consistent branch movement proving current conflicting work',
+              'true project-wide human decision or irreversible/publication/security gate'
+            ]
+          };
+          state.completedSteps = state.completedSteps || [];
+          if (!state.completedSteps.some(s => s.type === 'round-5-a4-longchat-mobile-perf')) {
+            state.completedSteps.push({
+              type: 'round-5-a4-longchat-mobile-perf',
+              result: 'Exact head 290c5e8b1a3d16948db61875c9199cca0792ede3 passed run 31173733483/job 92851027653/artifact 8992007971. Pixel-7 Chromium emulation and desktop Firefox both preserved newest-answer correctness, stable intervals/observers, panel/composer/Send usability, and zero actuation through 2000 turns. Answer matching remained 2001/sample at 2000 turns; Send observation remained 8004/sample. Worker-5 evidence commit b529e15e174eac4695201afaeda63e1ab9733800; A5 audit activated.'
+            });
+          }
+          state.findings = state.findings || [];
+          if (!state.findings.some(f => f.type === 'long-chat-mobile-cross-browser-pass')) {
+            state.findings.push({
+              worker: 5,
+              executedByNominalWorker: 2,
+              type: 'long-chat-mobile-cross-browser-pass',
+              finding: 'Exact A4 evidence on Pixel-7 Chromium emulation and desktop Firefox preserved answer-selection correctness, stable resource proxies, host composer/Send usability, and zero actuation through 2000 turns. Pixel-7 answer p95 was 1.70 ms at 2000 turns; desktop Firefox p95 was 2 ms. These are hosted Playwright measurements, not physical-device certification.'
+            });
+          }
+          if (!state.findings.some(f => f.type === 'long-chat-send-observation-mobile-limit')) {
+            state.findings.push({
+              worker: 5,
+              executedByNominalWorker: 2,
+              type: 'long-chat-send-observation-mobile-limit',
+              finding: 'At 2000 turns both Pixel-7 Chromium emulation and desktop Firefox still returned 8004 qSA matches/sample for begin-Send and send-evidence observation. The safety-critical path remains history-linear and was not weakened.'
+            });
+          }
+          state.testEvidence = state.testEvidence || [];
+          if (!state.testEvidence.includes('.gitl/evidence/round-5/worker-5.md')) state.testEvidence.push('.gitl/evidence/round-5/worker-5.md');
+          state.lease = null;
+          state.blockedReason = null;
+          state.publishReady = false;
+          state.verificationSummary = state.verificationSummary || {};
+          Object.assign(state.verificationSummary, {
+            nextAssignment: 'R5-A5-LONGCHAT-AUDIT',
+            performanceWinner: 'The stateless grouped-selector candidate remains provisionally accepted after exact desktop-Chromium Red Team plus Pixel-7 Chromium-emulation and desktop-Firefox evidence. It preserves correctness and bounded resource proxies but remains history-linear; the 8004-match/sample Send-observation path is an explicit unresolved performance limit pending independent audit.',
+            mobileAssignment: 'R5-A4-LONGCHAT-MOBILE-PERF',
+            mobileEvidence: '.gitl/evidence/round-5/worker-5.md',
+            mobileEvidenceCommit: 'b529e15e174eac4695201afaeda63e1ab9733800',
+            mobileTestedHead: '290c5e8b1a3d16948db61875c9199cca0792ede3',
+            mobileRunId: 31173733483,
+            mobileJobId: 92851027653,
+            mobileArtifactId: 8992007971,
+            mobileArtifactSha256: 'fd3baa72e9e4bcc18938e2a497536d7b5d28f1d92bb13be908d3151c7b810d83',
+            mobileVerdict: 'submitted-pass-pending-independent-audit'
+          });
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          NODE
+
+          git add .gitl/autopilot-state.json
+          git commit -m 'chore: finalize R5 A4 mobile handoff'
+          final_head="$(git rev-parse HEAD)"
+          git push origin HEAD:agent/8.8-repair-resume
+          echo "plan_commit=$plan_commit"
+          echo "final_head=$final_head"
