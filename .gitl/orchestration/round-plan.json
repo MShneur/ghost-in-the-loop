@@ -7,12 +7,36 @@
   "status": "active",
   "supervisorWorker": 1,
   "schedule": [
-    {"worker": 1, "minute": 0, "role": "supervisor-integrator"},
-    {"worker": 2, "minute": 10, "role": "researcher-architect"},
-    {"worker": 3, "minute": 20, "role": "builder"},
-    {"worker": 4, "minute": 30, "role": "test-engineer-red-team"},
-    {"worker": 5, "minute": 40, "role": "mobile-browser-accessibility-performance"},
-    {"worker": 6, "minute": 50, "role": "devils-advocate-release-auditor"}
+    {
+      "worker": 1,
+      "minute": 0,
+      "role": "supervisor-integrator"
+    },
+    {
+      "worker": 2,
+      "minute": 10,
+      "role": "researcher-architect"
+    },
+    {
+      "worker": 3,
+      "minute": 20,
+      "role": "builder"
+    },
+    {
+      "worker": 4,
+      "minute": 30,
+      "role": "test-engineer-red-team"
+    },
+    {
+      "worker": 5,
+      "minute": 40,
+      "role": "mobile-browser-accessibility-performance"
+    },
+    {
+      "worker": 6,
+      "minute": 50,
+      "role": "devils-advocate-release-auditor"
+    }
   ],
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
@@ -40,23 +64,87 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "artifact-produced-verification-recovery-ready",
+    "checkpointStatus": "exact-repository-pass-redteam-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
-    "researchFallbackTemporarilyIneligible": false,
+    "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Satisfied by the A2 executable prototype artifact; normal research fallback remains lower priority than any ready implementation/test/verification assignment.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket prototype-development gate",
-    "checkpointDecision": "A deterministic Blue prototype now exists. The next delivery step is exact-head execution/verification, not another research fallback."
+    "checkpointDecision": "A2X exact repository gates passed. Red Team is now the smallest release-moving falsification artifact and outranks research."
   },
   "requiredPrograms": [
-    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "completed", "releaseCritical": true, "certifiedRound": 3, "humanAccepted": true},
-    {"id": "LIFECYCLE-FROZEN-DISCARDED", "title": "Frozen and discarded page lifecycle research and recovery", "status": "completed", "releaseCritical": true, "certifiedRound": 4, "humanReview": "accepted-bounded", "humanAccepted": true, "resolvedQuestion": "DQ-R4-LIFECYCLE-REVIEW"},
-    {"id": "LONG-CHAT-PERF", "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance", "status": "completed", "releaseCritical": true, "certifiedRound": 5, "humanReview": "accepted-bounded", "humanAccepted": true, "resolvedQuestion": "DQ-R5-LONGCHAT-REVIEW"},
-    {"id": "MOBILE-SHELL-STRUCTURAL", "title": "Host-affixed mobile Ghost shell research, implementation, and certification", "status": "active", "releaseCritical": true, "userRequired": true, "brief": ".gitl/briefs/mobile-shell-concepts.md", "completionRequires": ["research", "structural mount infrastructure", "implementation", "adversarial testing", "mobile/accessibility/performance certification", "cross-adapter expansion", "final audit"]},
-    {"id": "BUILD-IDENTITY", "title": "Canonical build, candidate, and release-channel identity", "status": "backlog", "releaseCritical": true},
-    {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation", "status": "backlog", "releaseCritical": true},
-    {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
+    {
+      "id": "RR-E2E-FAULTS",
+      "title": "Browser-level Repair and Resume fault injection",
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 3,
+      "humanAccepted": true
+    },
+    {
+      "id": "LIFECYCLE-FROZEN-DISCARDED",
+      "title": "Frozen and discarded page lifecycle research and recovery",
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 4,
+      "humanReview": "accepted-bounded",
+      "humanAccepted": true,
+      "resolvedQuestion": "DQ-R4-LIFECYCLE-REVIEW"
+    },
+    {
+      "id": "LONG-CHAT-PERF",
+      "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance",
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 5,
+      "humanReview": "accepted-bounded",
+      "humanAccepted": true,
+      "resolvedQuestion": "DQ-R5-LONGCHAT-REVIEW"
+    },
+    {
+      "id": "MOBILE-SHELL-STRUCTURAL",
+      "title": "Host-affixed mobile Ghost shell research, implementation, and certification",
+      "status": "active",
+      "releaseCritical": true,
+      "userRequired": true,
+      "brief": ".gitl/briefs/mobile-shell-concepts.md",
+      "completionRequires": [
+        "research",
+        "structural mount infrastructure",
+        "implementation",
+        "adversarial testing",
+        "mobile/accessibility/performance certification",
+        "cross-adapter expansion",
+        "final audit"
+      ]
+    },
+    {
+      "id": "BUILD-IDENTITY",
+      "title": "Canonical build, candidate, and release-channel identity",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "DOCS-RECONCILIATION",
+      "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "FINAL-CERT-PACKAGE",
+      "title": "Full certification, release audit, package, and SHA-256 verification",
+      "status": "backlog",
+      "releaseCritical": true
+    }
   ],
-  "priorityOrder": ["RR-E2E-FAULTS", "LIFECYCLE-FROZEN-DISCARDED", "LONG-CHAT-PERF", "MOBILE-SHELL-STRUCTURAL", "BUILD-IDENTITY", "DOCS-RECONCILIATION", "FINAL-CERT-PACKAGE"],
+  "priorityOrder": [
+    "RR-E2E-FAULTS",
+    "LIFECYCLE-FROZEN-DISCARDED",
+    "LONG-CHAT-PERF",
+    "MOBILE-SHELL-STRUCTURAL",
+    "BUILD-IDENTITY",
+    "DOCS-RECONCILIATION",
+    "FINAL-CERT-PACKAGE"
+  ],
   "priorRound": {
     "round": 5,
     "program": "LONG-CHAT-PERF",
@@ -77,18 +165,34 @@
     "sequencingDecision": "Round-4 and Round-5 bounded certifications are human-accepted under delegated authority. Their excluded physical/asymptotic claims remain explicit limits and do not block Round-6 delivery."
   },
   "roundHypotheses": [
-    {"id": "H1-adapter-contract", "claim": "An adapter-owned explicit structural mount contract can add one Ghost child/sibling to a verified host row or stack with lower safety and maintenance risk than generic DOM inference.", "prediction": "A deterministic ChatGPT fixture plus later live DOM capture can identify stable composer/action/footer anchors, preserve original Send identity, and survive host rerender with scoped observation."},
-    {"id": "H2-generic-structural-inference", "claim": "A reusable ancestor-climb and layout-classification algorithm may reduce adapter selector maintenance.", "prediction": "The same inference must choose the intended container despite hidden/secondary composers and nested control clusters; otherwise reject it for the first implementation."},
-    {"id": "H3-fallback-first", "claim": "The existing fixed composer rail remains a compatibility fallback until structural verification succeeds.", "prediction": "Verification failure cleanly unmounts the structural attempt and leaves rail behavior intact without new actuation authority."},
-    {"id": "H4-shadow-dom-boundary", "claim": "A plain in-flow host with open Shadow DOM can isolate Ghost internals while its host remains an in-flow child/sibling.", "prediction": "Isolation must not require fixed/absolute primary positioning, duplicate state/action authority, new Trusted-Types HTML sinks, or MAIN-world/unsafeWindow authority."}
+    {
+      "id": "H1-adapter-contract",
+      "claim": "An adapter-owned explicit structural mount contract can add one Ghost child/sibling to a verified host row or stack with lower safety and maintenance risk than generic DOM inference.",
+      "prediction": "A deterministic ChatGPT fixture plus later live DOM capture can identify stable composer/action/footer anchors, preserve original Send identity, and survive host rerender with scoped observation."
+    },
+    {
+      "id": "H2-generic-structural-inference",
+      "claim": "A reusable ancestor-climb and layout-classification algorithm may reduce adapter selector maintenance.",
+      "prediction": "The same inference must choose the intended container despite hidden/secondary composers and nested control clusters; otherwise reject it for the first implementation."
+    },
+    {
+      "id": "H3-fallback-first",
+      "claim": "The existing fixed composer rail remains a compatibility fallback until structural verification succeeds.",
+      "prediction": "Verification failure cleanly unmounts the structural attempt and leaves rail behavior intact without new actuation authority."
+    },
+    {
+      "id": "H4-shadow-dom-boundary",
+      "claim": "A plain in-flow host with open Shadow DOM can isolate Ghost internals while its host remains an in-flow child/sibling.",
+      "prediction": "Isolation must not require fixed/absolute primary positioning, duplicate state/action authority, new Trusted-Types HTML sinks, or MAIN-world/unsafeWindow authority."
+    }
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "nominalWorker": 4,
+    "assignmentId": "R6-A3-MOBILE-SHELL-REDTEAM",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Execute the smallest exact-head verification recovery for the already-created deterministic Blue prototype. Do not add more research or broaden product semantics. Obtain an observable carrier for the current candidate/evidence descendants, run base/generated/lint/unit plus the new deterministic Blue browser cases and applicable safety regressions, and bind every conclusion to exact head/run/job/artifact evidence. A failing test creates the smallest code repair; a clean pass submits A2 and exposes Red Team immediately."
+    "instruction": "Execute Red Team falsification against the exact repository-verified Blue prototype. Do not return to research. Preserve live-host certification as UNKNOWN until A1X actual capture passes. Each real failure creates the smallest repair; a clean Red submission exposes mobile/accessibility/performance certification."
   },
   "assignments": [
     {
@@ -99,9 +203,23 @@
       "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Open the evidence-competitive Round-6 mobile structural-shell chain while keeping prior human reviews local.",
-      "dependencies": ["R5-A5-LONGCHAT-AUDIT:submitted"],
-      "prohibitedActions": ["product implementation during supervisor planning", "silently resolving deferred Round-4/Round-5 reviews", "dropping later required programs", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["read mobile-shell brief/current source", "preserve Round-5 bounded limits", "keep deferred reviews local until explicit authority resolves them", "open research/build/Red-Team/mobile/audit chain", "activate only earliest ready work", "preserve all release-critical programs"],
+      "dependencies": [
+        "R5-A5-LONGCHAT-AUDIT:submitted"
+      ],
+      "prohibitedActions": [
+        "product implementation during supervisor planning",
+        "silently resolving deferred Round-4/Round-5 reviews",
+        "dropping later required programs",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "read mobile-shell brief/current source",
+        "preserve Round-5 bounded limits",
+        "keep deferred reviews local until explicit authority resolves them",
+        "open research/build/Red-Team/mobile/audit chain",
+        "activate only earliest ready work",
+        "preserve all release-critical programs"
+      ],
       "evidencePath": ".gitl/evidence/round-6/worker-1.md",
       "executedBy": "scheduled-successor-r6-supervisor-plan",
       "claimCommit": "6ff72ded1b2d57010ddd2f87a46da8ddb40d7622"
@@ -114,17 +232,60 @@
       "status": "blocked",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Map real ChatGPT structural rows/columns, falsify competing discovery strategies, and define the smallest one-platform/one-mode structural candidate without product changes.",
-      "dependencies": ["R6-SUPERVISOR-PLAN:submitted"],
-      "allowedFiles": ["tests/**", "docs/**", "scripts/**test**", ".github/workflows/**", ".gitl/evidence/round-6/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
-      "prohibitedActions": ["production shell implementation before reproduced live map/falsification gate", "moving/wrapping/cloning/replacing/intercepting Send", "viewport overlay as blue/red success", "document-wide high-frequency structural observer", "new Send/Play authority", "weakening CHOICE/route/lease/uncertainty", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["map desktop/narrow ChatGPT header/composer/footer structure with live evidence or deterministic fallback", "record Ghost fixed/rail baseline", "compare explicit adapter contracts vs generic inference", "evaluate teal/blue/red", "gather primary/adoption/community evidence where useful", "create deterministic no-actuation probe", "predeclare smallest candidate/falsification gate", "no product changes"],
-      "requiredTests": ["branch/state/lease inspection", "source inspection", "deterministic host-structure probe when live evidence unavailable", "exact command/head/run/job/artifact for any CI execution"],
-      "requiredEvidence": ["host structure map", "Ghost baseline", "competing architecture table", "user/upstream/adoption findings", "smallest candidate", "predeclared falsification gate"],
+      "dependencies": [
+        "R6-SUPERVISOR-PLAN:submitted"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        "docs/**",
+        "scripts/**test**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-2.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "production shell implementation before reproduced live map/falsification gate",
+        "moving/wrapping/cloning/replacing/intercepting Send",
+        "viewport overlay as blue/red success",
+        "document-wide high-frequency structural observer",
+        "new Send/Play authority",
+        "weakening CHOICE/route/lease/uncertainty",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "map desktop/narrow ChatGPT header/composer/footer structure with live evidence or deterministic fallback",
+        "record Ghost fixed/rail baseline",
+        "compare explicit adapter contracts vs generic inference",
+        "evaluate teal/blue/red",
+        "gather primary/adoption/community evidence where useful",
+        "create deterministic no-actuation probe",
+        "predeclare smallest candidate/falsification gate",
+        "no product changes"
+      ],
+      "requiredTests": [
+        "branch/state/lease inspection",
+        "source inspection",
+        "deterministic host-structure probe when live evidence unavailable",
+        "exact command/head/run/job/artifact for any CI execution"
+      ],
+      "requiredEvidence": [
+        "host structure map",
+        "Ghost baseline",
+        "competing architecture table",
+        "user/upstream/adoption findings",
+        "smallest candidate",
+        "predeclared falsification gate"
+      ],
       "fallbackWork": "If live structure cannot be reliably mapped, commit only deterministic capture/probe evidence and create the smallest exact-evidence recovery; do not guess selectors or authorize live certification.",
       "evidencePath": ".gitl/evidence/round-6/worker-2.md",
       "executedBy": "scheduled-agent-6-r6-a1-successor",
       "claimCommit": "62e12b24ea584ff639f8e20c919353ca5d9cb435",
-      "probeCommits": ["431670c5951cd9790b8f8e430aa2edf4f3958911", "ed0c23ffcb68c2964139eb094db363f9156e36e7"],
+      "probeCommits": [
+        "431670c5951cd9790b8f8e430aa2edf4f3958911",
+        "ed0c23ffcb68c2964139eb094db363f9156e36e7"
+      ],
       "evidenceCommit": "4d094ad761c0d731bcd73c71c58750b0af3b291a",
       "blockedReason": "Live authenticated ChatGPT DOM inspection was unavailable in the non-interactive browser connector. A deterministic no-actuation capture oracle and architecture/falsification evidence are durable, but current header/action/footer signatures and exact insertion slot remain UNKNOWN."
     },
@@ -136,10 +297,33 @@
       "status": "blocked",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Obtain the missing durable current ChatGPT desktop+narrow structural map using the A1 read-only probe contract; select or reject an exact composer-local insertion rule without product behavior changes.",
-      "dependencies": ["R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"],
-      "mandatoryReads": [".gitl/evidence/round-6/worker-2.md", "tests/e2e/mobile-shell-structure-probe.spec.js", ".gitl/briefs/mobile-shell-concepts.md", ".gitl/user-directives/2026-08-07-release-pressure.md"],
-      "allowedFiles": ["tests/**", "docs/**", "scripts/**test**", ".github/workflows/**", ".gitl/evidence/round-6/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
-      "prohibitedActions": ["production live shell binding", "clicking/submitting/typing into host Send path", "moving/wrapping/cloning/replacing Send", "guessing live selectors from deterministic fixtures/adoption examples", "document-wide high-frequency structural observer", "main/merge/tag/release/publish"],
+      "dependencies": [
+        "R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"
+      ],
+      "mandatoryReads": [
+        ".gitl/evidence/round-6/worker-2.md",
+        "tests/e2e/mobile-shell-structure-probe.spec.js",
+        ".gitl/briefs/mobile-shell-concepts.md",
+        ".gitl/user-directives/2026-08-07-release-pressure.md"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        "docs/**",
+        "scripts/**test**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-2.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "production live shell binding",
+        "clicking/submitting/typing into host Send path",
+        "moving/wrapping/cloning/replacing Send",
+        "guessing live selectors from deterministic fixtures/adoption examples",
+        "document-wide high-frequency structural observer",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Capture current authenticated ChatGPT at desktop and <=500 CSS px or equivalent narrow/mobile viewport using read-only DOM/computed-style inspection",
         "Record sanitized signatures and layout types for visible editor, its composer root, exact reviewed Send, candidate composer action row, header action row, composer/footer stack, and relevant ancestor relationships",
@@ -150,8 +334,21 @@
         "Select an exact Blue insertion rule only if the live action-row evidence supports it; otherwise reject Blue-first for live binding",
         "Append exact evidence to Worker-2 and update state/plan; no product behavior changes"
       ],
-      "requiredTests": ["read-only live structure probe desktop+narrow", "deterministic probe fixture syntax/execution where executable", "exact head/run/job/artifact for any CI carrier", "zero actuation ledger"],
-      "requiredEvidence": ["live desktop+narrow structure capture", "exact active composer/Send relationship", "layout signatures", "rerender observation or explicit UNKNOWN", "strategy comparison", "exact insertion rule or rejection", "execution bindings"],
+      "requiredTests": [
+        "read-only live structure probe desktop+narrow",
+        "deterministic probe fixture syntax/execution where executable",
+        "exact head/run/job/artifact for any CI carrier",
+        "zero actuation ledger"
+      ],
+      "requiredEvidence": [
+        "live desktop+narrow structure capture",
+        "exact active composer/Send relationship",
+        "layout signatures",
+        "rerender observation or explicit UNKNOWN",
+        "strategy comparison",
+        "exact insertion rule or rejection",
+        "execution bindings"
+      ],
       "fallbackWork": "If browser permission/carrier remains unavailable, keep live adapter binding and live certification pending. Do not repeat unchanged permission calls. Prototype-only deterministic A2 work may proceed under the release-pressure directive without promoting fixtures into live-host proof.",
       "evidencePath": ".gitl/evidence/round-6/worker-2.md",
       "executedBy": "scheduled-worker-2-r6-a1x-live-capture",
@@ -178,11 +375,35 @@
       "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Apply the explicit release-pressure directive, resolve delegated human reviews, separate prototype development from live certification, and expose the smallest executable artifact path.",
-      "dependencies": ["user-directive:84237df815ef56f779434db130d24d4ffbe14666"],
-      "allowedFiles": [".gitl/**"],
-      "prohibitedActions": ["product implementation", "live selector invention", "main/merge/auto-merge/tag/publish/release", "weakening Send/CHOICE/route/lease/uncertainty"],
-      "acceptanceCriteria": ["R4 accepted bounded", "R5 accepted bounded", "R6 read-only inspection authorization recorded while live capture remains UNKNOWN", "delivery-pressure counters recorded", "A2 prototype-only path ready", "research fallback temporarily ineligible", "live certification gate preserved", "lease released in final handoff"],
-      "requiredEvidence": ["user directive commit", "maker version observed", "delivery-pressure multi-lens decision", "exact coordination commits", "next assignment"],
+      "dependencies": [
+        "user-directive:84237df815ef56f779434db130d24d4ffbe14666"
+      ],
+      "allowedFiles": [
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product implementation",
+        "live selector invention",
+        "main/merge/auto-merge/tag/publish/release",
+        "weakening Send/CHOICE/route/lease/uncertainty"
+      ],
+      "acceptanceCriteria": [
+        "R4 accepted bounded",
+        "R5 accepted bounded",
+        "R6 read-only inspection authorization recorded while live capture remains UNKNOWN",
+        "delivery-pressure counters recorded",
+        "A2 prototype-only path ready",
+        "research fallback temporarily ineligible",
+        "live certification gate preserved",
+        "lease released in final handoff"
+      ],
+      "requiredEvidence": [
+        "user directive commit",
+        "maker version observed",
+        "delivery-pressure multi-lens decision",
+        "exact coordination commits",
+        "next assignment"
+      ],
       "evidencePath": ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
       "executedBy": "scheduled-worker-2-r6-delivery-pressure-reconcile",
       "claimCommit": "b6382b83bce91a66476356253c62839897c31db8"
@@ -192,56 +413,188 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "blocked",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "prototypeOnly": true,
       "goal": "Implement the smallest reversible fail-closed Blue structural-shell prototype that can be exercised against deterministic fixtures and existing reviewed adapter assumptions, while leaving live ChatGPT adapter binding uncertified until A1X passes.",
-      "dependencies": ["R6-DP-RECONCILE-01:submitted", "R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"],
+      "dependencies": [
+        "R6-DP-RECONCILE-01:submitted",
+        "R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"
+      ],
       "certificationDependency": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE:submitted before any live ChatGPT structural certification or release claim depending on the exact insertion rule",
-      "mandatoryReads": [".gitl/user-directives/2026-08-07-release-pressure.md", ".gitl/evidence/round-6/worker-2.md", ".gitl/evidence/round-6/research-fallback-08.md", ".gitl/evidence/round-6/research-fallback-10.md", ".gitl/briefs/mobile-shell-concepts.md"],
-      "allowedFiles": ["ghost-in-the-loop.user.js", "extension/content.js", "scripts/build-extension.js", "tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["claiming a guessed live ChatGPT insertion slot as certified", "enabling live structural mutation when strict verification cannot prove the approved target", "more than one platform/mount mode unless evidence makes inseparable", "fixed/absolute primary structural mount", "moving/wrapping/cloning/replacing Send", "document-wide high-frequency structural observer", "unrecorded host style mutation", "new Send/Play authority or second state store", "new Trusted-Types HTML sink", "MAIN-world/unsafeWindow prerequisite", "weakening CHOICE/route/lease/uncertainty", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["implement one smallest Blue prototype path behind an experimental/fail-closed gate", "exercise the mount against deterministic fixture-owned verified container rather than inventing a live slot", "in-flow child/sibling only", "reuse existing Ghost state/action handlers", "exact same connected operable Send node in the fixture", "one data-gitl-mount identity", "scoped repair observer/timer cleanup", "DOM-built open-Shadow internals with no new HTML-string sink", "minimal reversible host style ledger", "strict verification failure -> existing rail/no structural mutation", "unsafe synthetic choices fail visibly rather than passing because rail fallback hid them", "generated parity exact", "focused Send/CHOICE/route/lease/uncertainty regressions unchanged", "record live ChatGPT structural certification as UNKNOWN, not PASS"],
-      "requiredTests": ["syntax/lint", "generated parity", "focused Send/CHOICE/route/lease/uncertainty regressions", "deterministic Blue prototype fixture on exact candidate head", "applicable structural-conformance oracle/mutant kills", "full unit suite", "exact CI bindings when used"],
+      "mandatoryReads": [
+        ".gitl/user-directives/2026-08-07-release-pressure.md",
+        ".gitl/evidence/round-6/worker-2.md",
+        ".gitl/evidence/round-6/research-fallback-08.md",
+        ".gitl/evidence/round-6/research-fallback-10.md",
+        ".gitl/briefs/mobile-shell-concepts.md"
+      ],
+      "allowedFiles": [
+        "ghost-in-the-loop.user.js",
+        "extension/content.js",
+        "scripts/build-extension.js",
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-3.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "claiming a guessed live ChatGPT insertion slot as certified",
+        "enabling live structural mutation when strict verification cannot prove the approved target",
+        "more than one platform/mount mode unless evidence makes inseparable",
+        "fixed/absolute primary structural mount",
+        "moving/wrapping/cloning/replacing Send",
+        "document-wide high-frequency structural observer",
+        "unrecorded host style mutation",
+        "new Send/Play authority or second state store",
+        "new Trusted-Types HTML sink",
+        "MAIN-world/unsafeWindow prerequisite",
+        "weakening CHOICE/route/lease/uncertainty",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "implement one smallest Blue prototype path behind an experimental/fail-closed gate",
+        "exercise the mount against deterministic fixture-owned verified container rather than inventing a live slot",
+        "in-flow child/sibling only",
+        "reuse existing Ghost state/action handlers",
+        "exact same connected operable Send node in the fixture",
+        "one data-gitl-mount identity",
+        "scoped repair observer/timer cleanup",
+        "DOM-built open-Shadow internals with no new HTML-string sink",
+        "minimal reversible host style ledger",
+        "strict verification failure -> existing rail/no structural mutation",
+        "unsafe synthetic choices fail visibly rather than passing because rail fallback hid them",
+        "generated parity exact",
+        "focused Send/CHOICE/route/lease/uncertainty regressions unchanged",
+        "record live ChatGPT structural certification as UNKNOWN, not PASS"
+      ],
+      "requiredTests": [
+        "syntax/lint",
+        "generated parity",
+        "focused Send/CHOICE/route/lease/uncertainty regressions",
+        "deterministic Blue prototype fixture on exact candidate head",
+        "applicable structural-conformance oracle/mutant kills",
+        "full unit suite",
+        "exact CI bindings when used"
+      ],
       "fallbackWork": "Any structural, Send-identity, duplicate, cleanup, Trusted-Types, focus/form, oracle-sensitivity, or generated-parity failure blocks A2 and creates the smallest ready A2X recovery. Missing live capture alone is not a valid reason to skip the deterministic prototype attempt.",
       "evidencePath": ".gitl/evidence/round-6/worker-3.md",
       "executedBy": "scheduled-successor-r6-a2-prototype-11",
       "claimCommit": "37869851a67c4da7fb9ee434f5d3a24c4065c710",
-      "prototypeCommits": ["305e430abc51f8b49a0e76e74687eb18014951c1", "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec"],
+      "prototypeCommits": [
+        "305e430abc51f8b49a0e76e74687eb18014951c1",
+        "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec"
+      ],
       "evidenceCommit": "29dcd503974580588b6009710e564e567445a992",
-      "blockedReason": "The deterministic executable prototype artifact is durable, but required exact-head test execution is not yet evidenced by an observable carrier. Connected workflow lookup exposes PR-triggered runs only; commit status has no classic contexts; unattended browser access requires interaction; local clone failed DNS resolution. No test PASS is claimed."
+      "verificationEvidence": ".gitl/evidence/round-6/a2x-verification-15.md",
+      "verificationRun": 31212815306,
+      "verificationJob": 92979379882,
+      "verificationArtifact": 9007360537
     },
     {
       "id": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-test-verifier",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Verify the existing deterministic Blue prototype on an observable exact-head carrier without broadening semantics, then either submit A2 or expose the smallest code repair from a concrete failure.",
-      "dependencies": ["R6-A2-MOBILE-SHELL-BUILD:blocked"],
+      "dependencies": [
+        "R6-A2-MOBILE-SHELL-BUILD:blocked"
+      ],
       "candidateHead": "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec",
       "evidenceHead": "29dcd503974580588b6009710e564e567445a992",
-      "mandatoryReads": [".gitl/evidence/round-6/worker-3.md", "tests/e2e/mobile-shell-blue-prototype.spec.js", ".github/workflows/test.yml"],
-      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["changing live ChatGPT selectors", "broadening product semantics without a reproduced test failure", "weakening any Send/CHOICE/route/lease/uncertainty or structural assertion", "counting unexecuted source assertions as PASS", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["obtain observable exact-head test carrier", "run syntax/lint and generated/base certification", "run full unit suite", "execute new deterministic Blue prototype cases in Chromium and portable Firefox where configured", "run focused safety regressions", "record exact commands/head/run/job/artifact/log conclusions", "if all gates pass mark A2 submitted and make R6-A3 ready", "if any gate fails preserve failure and create smallest A2 repair"],
-      "requiredTests": ["npm run cert:base", "npm run lint", "npm run test:unit", "Playwright mobile-shell-blue-prototype exact-head", "focused Send/CHOICE/route/lease/uncertainty regressions", "exact CI bindings"],
-      "fallbackWork": "A carrier failure that is unrelated to candidate semantics remains an evidence blocker and must be repaired as infrastructure, not converted into candidate PASS/FAIL. A real candidate test failure creates the smallest source/test repair."
+      "mandatoryReads": [
+        ".gitl/evidence/round-6/worker-3.md",
+        "tests/e2e/mobile-shell-blue-prototype.spec.js",
+        ".github/workflows/test.yml"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-3.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "changing live ChatGPT selectors",
+        "broadening product semantics without a reproduced test failure",
+        "weakening any Send/CHOICE/route/lease/uncertainty or structural assertion",
+        "counting unexecuted source assertions as PASS",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "obtain observable exact-head test carrier",
+        "run syntax/lint and generated/base certification",
+        "run full unit suite",
+        "execute new deterministic Blue prototype cases in Chromium and portable Firefox where configured",
+        "run focused safety regressions",
+        "record exact commands/head/run/job/artifact/log conclusions",
+        "if all gates pass mark A2 submitted and make R6-A3 ready",
+        "if any gate fails preserve failure and create smallest A2 repair"
+      ],
+      "requiredTests": [
+        "npm run cert:base",
+        "npm run lint",
+        "npm run test:unit",
+        "Playwright mobile-shell-blue-prototype exact-head",
+        "focused Send/CHOICE/route/lease/uncertainty regressions",
+        "exact CI bindings"
+      ],
+      "fallbackWork": "A carrier failure that is unrelated to candidate semantics remains an evidence blocker and must be repaired as infrastructure, not converted into candidate PASS/FAIL. A real candidate test failure creates the smallest source/test repair.",
+      "executedBy": "scheduled-successor-r6-a2x-exact-repository-15",
+      "testedHead": "e9712e2e6c0945befb531d65b1a4468bbd05a4f1",
+      "resultCommit": "6e3a5bcb45a9690335c60c2f648733648976c0b3",
+      "evidencePath": ".gitl/evidence/round-6/a2x-verification-15.md",
+      "runId": 31212815306,
+      "jobId": 92979379882,
+      "artifactId": 9007360537,
+      "artifactSha256": "9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb"
     },
     {
       "id": "R6-A3-MOBILE-SHELL-REDTEAM",
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "waiting",
+      "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Falsify the prototype under host-control insertion, subtree replacement, route/layout pressure, verification failure, and cleanup while preserving fail-closed Send/CHOICE/route/lease/uncertainty; do not promote deterministic success to live ChatGPT certification.",
-      "dependencies": ["R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY:submitted"],
-      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["accepting blocked builder as pass", "product changes except bounded recovery", "weakening structural/Send assertions", "allowing rail fallback to mask an unsafe prototype choice", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["host controls remain present/ordered/visible/operable around insertion", "repeated subtree replacement -> exactly one Ghost mount/state", "Send identity/event behavior unchanged and zero unintended actuation", "malformed/fixed/overflow candidates fail visibly and fail closed", "route/stale-node changes produce no duplicate observers", "unmount restores host styles exactly", "red expansion reflows if selected later", "record observer/resource accumulation", "live-host insertion remains UNKNOWN until A1X"],
-      "requiredTests": ["adversarial deterministic Chromium fixture", "focused Send/route/lease regressions", "unchanged structural gates", "oracle mutation kills", "exact head/run/job/artifact"],
+      "dependencies": [
+        "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY:submitted"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-4.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "accepting blocked builder as pass",
+        "product changes except bounded recovery",
+        "weakening structural/Send assertions",
+        "allowing rail fallback to mask an unsafe prototype choice",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "host controls remain present/ordered/visible/operable around insertion",
+        "repeated subtree replacement -> exactly one Ghost mount/state",
+        "Send identity/event behavior unchanged and zero unintended actuation",
+        "malformed/fixed/overflow candidates fail visibly and fail closed",
+        "route/stale-node changes produce no duplicate observers",
+        "unmount restores host styles exactly",
+        "red expansion reflows if selected later",
+        "record observer/resource accumulation",
+        "live-host insertion remains UNKNOWN until A1X"
+      ],
+      "requiredTests": [
+        "adversarial deterministic Chromium fixture",
+        "focused Send/route/lease regressions",
+        "unchanged structural gates",
+        "oracle mutation kills",
+        "exact head/run/job/artifact"
+      ],
       "fallbackWork": "Each reproducible failure creates the smallest ready repair assignment; do not skip to mobile certification.",
       "evidencePath": ".gitl/evidence/round-6/worker-4.md"
     },
@@ -253,11 +606,40 @@
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Measure the surviving structural candidate under narrow/mobile, keyboard, orientation, large-text, reduced-motion, browser, and constrained-runtime conditions without promoting emulation to physical-device or live-host certification.",
-      "dependencies": ["R6-A3-MOBILE-SHELL-REDTEAM:submitted"],
-      "allowedFiles": ["tests/**", ".github/workflows/**", ".gitl/evidence/round-6/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["physical-device certification from emulation", "GeckoView certification from desktop Firefox", "live ChatGPT certification without A1X", "post-hoc low-end budget", "weakening Send/structural assertions for timing", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["Pixel-class Chromium emulation plus portable Firefox", "<=500px/orientation/visualViewport/large-text/reduced-motion scenarios", "mount remains in flow and host UI reachable", "measure latency/observer/layout/resource deltas", "label hosted timing descriptive", "zero unintended Send actuation/fallback exact", "physical Android/GeckoView/live-host exact insertion UNKNOWN unless run"],
-      "requiredTests": ["Pixel-class Chromium fixture", "desktop Firefox fixture", "large-text/reduced-motion/narrow/keyboard-orientation scenarios", "focused Send safety", "exact head/run/job/artifact"],
+      "dependencies": [
+        "R6-A3-MOBILE-SHELL-REDTEAM:submitted"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-5.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "physical-device certification from emulation",
+        "GeckoView certification from desktop Firefox",
+        "live ChatGPT certification without A1X",
+        "post-hoc low-end budget",
+        "weakening Send/structural assertions for timing",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Pixel-class Chromium emulation plus portable Firefox",
+        "<=500px/orientation/visualViewport/large-text/reduced-motion scenarios",
+        "mount remains in flow and host UI reachable",
+        "measure latency/observer/layout/resource deltas",
+        "label hosted timing descriptive",
+        "zero unintended Send actuation/fallback exact",
+        "physical Android/GeckoView/live-host exact insertion UNKNOWN unless run"
+      ],
+      "requiredTests": [
+        "Pixel-class Chromium fixture",
+        "desktop Firefox fixture",
+        "large-text/reduced-motion/narrow/keyboard-orientation scenarios",
+        "focused Send safety",
+        "exact head/run/job/artifact"
+      ],
       "fallbackWork": "A deterministic mobile/layout failure creates the smallest repair; preserve failure and platform limits.",
       "evidencePath": ".gitl/evidence/round-6/worker-5.md"
     },
@@ -269,11 +651,39 @@
       "status": "waiting",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Independently audit the bounded structural prototype and decide whether the deterministic candidate is sound, while refusing live ChatGPT certification until A1X exact evidence exists.",
-      "dependencies": ["R6-A4-MOBILE-SHELL-MOBILE-PERF:submitted"],
-      "allowedFiles": [".gitl/evidence/round-6/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
-      "prohibitedActions": ["marking MOBILE-SHELL-STRUCTURAL fully complete before required cross-adapter/final audit", "accepting overlay as structural success", "accepting moved/cloned/replaced Send", "promoting emulation to physical Android/GeckoView", "promoting deterministic prototype to live ChatGPT structural certification without A1X", "main/merge/tag/release/publish"],
-      "acceptanceCriteria": ["inspect exact source and normal-flow mount", "verify exact-head CI bindings", "verify Send identity and all fail-closed safeguards", "challenge maintenance vs usability", "preserve bounded human-accepted R4/R5 limits", "reject unsupported universal/physical/live-host claims", "expose live-capture/cross-adapter expansion or smallest recovery"],
-      "requiredEvidence": ["independent source/CI audit", "each assignment verdict", "accepted/rejected claims", "maintenance/usability dissent", "next expansion/recovery"],
+      "dependencies": [
+        "R6-A4-MOBILE-SHELL-MOBILE-PERF:submitted"
+      ],
+      "allowedFiles": [
+        ".gitl/evidence/round-6/worker-6.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "marking MOBILE-SHELL-STRUCTURAL fully complete before required cross-adapter/final audit",
+        "accepting overlay as structural success",
+        "accepting moved/cloned/replaced Send",
+        "promoting emulation to physical Android/GeckoView",
+        "promoting deterministic prototype to live ChatGPT structural certification without A1X",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "inspect exact source and normal-flow mount",
+        "verify exact-head CI bindings",
+        "verify Send identity and all fail-closed safeguards",
+        "challenge maintenance vs usability",
+        "preserve bounded human-accepted R4/R5 limits",
+        "reject unsupported universal/physical/live-host claims",
+        "expose live-capture/cross-adapter expansion or smallest recovery"
+      ],
+      "requiredEvidence": [
+        "independent source/CI audit",
+        "each assignment verdict",
+        "accepted/rejected claims",
+        "maintenance/usability dissent",
+        "next expansion/recovery"
+      ],
       "fallbackWork": "Missing or contradictory evidence creates the smallest recovery; do not certify because schedule slots fired.",
       "evidencePath": ".gitl/evidence/round-6/worker-6.md"
     }

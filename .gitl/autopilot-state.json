@@ -28,13 +28,13 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "9f16ea9c605280893a713abf3395677740c0a3b1",
-  "currentStep": "R6-A2X successor recovery retired the non-reporting temporary GitHub Actions carrier and obtained a materially different dependency-free Chromium 144 runtime check. A CDP harness derived from the current deterministic Blue prototype contract executed all five predeclared semantic case families with 5/5 PASS: in-flow/passive-safety, narrow repair/cleanup, intentional Ghost actions with zero Send/submit, unsafe mutant rejection, and disabled-gate no-mutation. This is partial A2X evidence only: repository Playwright wrappers, cert:base, lint, full unit/focused safety regressions, and Firefox remain unexecuted, so A2X stays ready and no full PASS is claimed.",
-  "nextAction": "Continue R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY before any research. Preserve the new Chromium 5/5 semantic runtime evidence and obtain the remaining exact repository gates: Playwright wrapper execution, npm run cert:base, npm run lint, npm run test:unit, focused Send/CHOICE/route/lease/uncertainty regressions, and portable Firefox where configured. A real semantic failure creates the smallest repair; a clean completion submits A2/A2X and exposes R6-A3 Red Team immediately.",
+  "currentStep": "R6-A2X exact-repository verification completed PASS. Guarded carrier run 31212815306 / job 92979379882 verified candidate ancestor 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec at tested head e9712e2e6c0945befb531d65b1a4468bbd05a4f1: cert:base PASS, lint PASS, full unit 43/43 suites with 477 passed and 3 TODO, focused Send/CHOICE/route/lease/uncertainty 69/69 PASS, and Blue Playwright 10/10 PASS across Chromium+Firefox. A2/A2X are submitted and A3 Red Team is ready. Live ChatGPT structural binding remains UNKNOWN pending A1X actual capture.",
+  "nextAction": "Execute R6-A3-MOBILE-SHELL-REDTEAM before any research. Falsify the repository-verified Blue prototype under host-control insertion, subtree replacement, route/layout pressure, verification failure, cleanup, observer/resource accumulation, and unsafe-mutant/oracle tests while preserving zero unintended Send actuation and fail-closed safeguards. A real failure creates the smallest repair; a clean submission exposes R6-A4 mobile/accessibility/performance certification.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "nominalWorker": 4,
+    "assignmentId": "R6-A3-MOBILE-SHELL-REDTEAM",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -54,8 +54,8 @@
   },
   "researchFallback": {
     "enabled": true,
-    "temporarilyIneligible": false,
-    "reason": "The delivery-pressure artifact requirement was satisfied by the A2 executable prototype and A2X now has partial Chromium runtime evidence. Normal research fallback is available only when no executable non-conflicting assignment exists; remaining A2X repository verification still outranks research.",
+    "temporarilyIneligible": true,
+    "reason": "A2X exact repository verification passed and R6-A3 Red Team is executable; research may not compete with ready falsification work.",
     "reenableCondition": "Already satisfied by A2 prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec; onlyWhenNoExecutableAssignment still governs selection.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,17 +72,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "partial-runtime-pass-exact-repository-gates-pending",
+    "checkpointStatus": "exact-repository-pass-redteam-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
-    "researchFallbackTemporarilyIneligible": false,
-    "nextArtifactAssignment": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "researchFallbackTemporarilyIneligible": true,
+    "nextArtifactAssignment": "R6-A3-MOBILE-SHELL-REDTEAM",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched before this A2X recovery wake",
-    "lastDeliveryReviewAt": "2026-08-07T19:28:58Z",
-    "lastTestableArtifactAt": "2026-08-07T19:28:58Z",
-    "lastDeliveryDecision": "Independent Chromium 144 semantic runtime verification passed all five deterministic Blue case families. Do not research; finish the remaining exact repository/base/unit/Playwright/Firefox gates before Red Team.",
-    "evidence": ".gitl/evidence/round-6/a2x-verification-14.md",
-    "evidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1"
+    "lastDeliveryReviewAt": "2026-08-07T19:48:22Z",
+    "lastTestableArtifactAt": "2026-08-07T19:48:22Z",
+    "lastDeliveryDecision": "A2X exact repository verification passed all required remaining gates; advance immediately to Red Team rather than research.",
+    "evidence": ".gitl/evidence/round-6/a2x-verification-15.md",
+    "evidenceCommit": "6e3a5bcb45a9690335c60c2f648733648976c0b3"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-prototype-chromium-runtime-partial-pass-exact-repository-verification-pending-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-prototype-exact-repository-verified-redteam-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -179,6 +179,10 @@
     {
       "type": "round-6-a2x-chromium-runtime-partial-14",
       "result": "After the self-reporting GitHub Actions carrier produced no durable result through its lease window, successor recovery used a dependency-free Chromium 144 CDP carrier on about:blank. The five deterministic Blue semantic case families passed 5/5. Evidence: .gitl/evidence/round-6/a2x-verification-14.md commit 9f16ea9c605280893a713abf3395677740c0a3b1. The inactive temporary carrier workflow was removed in 2d61780f48af58eeecfce86964c6cddda4b3691b. Full A2X remains pending exact repository Playwright/base/lint/unit/focused-safety/Firefox gates."
+    },
+    {
+      "type": "round-6-a2x-exact-repository-pass-15",
+      "result": "A2X exact repository carrier PASS at e9712e2e6c0945befb531d65b1a4468bbd05a4f1: run 31212815306, job 92979379882, artifact 9007360537, SHA-256 9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb. Base certification, lint, full unit 43/43 suites (477 pass, 3 TODO), focused safety 69/69, and Blue Chromium+Firefox 10/10 passed. A2/A2X submitted; A3 Red Team ready."
     }
   ],
   "findings": [
@@ -296,6 +300,11 @@
       "worker": 3,
       "type": "mobile-shell-a2x-chromium-runtime-partial",
       "finding": "A dependency-free Chromium 144 CDP recovery carrier executed the five predeclared deterministic Blue semantic case families and passed 5/5. This validates runtime behavior for in-flow mounting, Send identity/passive safety, narrow repair/cleanup, direct Ghost callbacks with zero Send/submit, mutant rejection, and disabled-gate behavior in Chromium. It does not replace repository Playwright/base/lint/unit/focused-safety or Firefox gates, which remain ready work."
+    },
+    {
+      "worker": 3,
+      "type": "mobile-shell-a2x-exact-repository-pass",
+      "finding": "Guarded exact repository carrier run 31212815306/job 92979379882 passed candidate ancestry/scope, cert:base, lint, full unit, focused Send/CHOICE/route/lease/uncertainty, and all five Blue prototype cases in both Chromium and Firefox. Live-host binding remains separately uncertified."
     }
   ],
   "briefs": [
@@ -318,7 +327,9 @@
     ".gitl/evidence/round-6/research-fallback-10.md",
     ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
     ".gitl/evidence/round-6/worker-3.md",
-    ".gitl/evidence/round-6/a2x-verification-14.md"
+    ".gitl/evidence/round-6/a2x-verification-14.md",
+    ".gitl/evidence/round-6/a2x-verification-15.md",
+    ".gitl/evidence/round-6/a2x-carrier-v2-result.md"
   ],
   "lease": null,
   "blockedReason": null,
@@ -326,7 +337,7 @@
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "prototype-chromium-semantic-runtime-pass-exact-repository-verification-pending",
+    "verdict": "prototype-exact-repository-verified-redteam-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -355,18 +366,18 @@
     "resolvedRound5Review": "DQ-R5-LONGCHAT-REVIEW:accepted-bounded",
     "resolvedRound6CaptureAuthorization": "DQ-R6-LIVE-STRUCTURE-CAPTURE:read-only-authorized-live-evidence-not-obtained",
     "a2Assignment": "R6-A2-MOBILE-SHELL-BUILD",
-    "a2Status": "blocked-exact-repository-verification-pending",
+    "a2Status": "submitted-exact-repository-verified",
     "a2ClaimCommit": "37869851a67c4da7fb9ee434f5d3a24c4065c710",
     "a2PrototypeInitialCommit": "305e430abc51f8b49a0e76e74687eb18014951c1",
     "a2PrototypeHardenedCommit": "64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec",
     "a2EvidenceCommit": "29dcd503974580588b6009710e564e567445a992",
     "a2PrototypePath": "tests/e2e/mobile-shell-blue-prototype.spec.js",
-    "a2ExecutionEvidence": "PARTIAL-CHROMIUM-144-CDP-SEMANTIC-5OF5-PASS-PLAYWRIGHT-BASE-LINT-UNIT-FOCUSED-SAFETY-FIREFOX-PENDING",
+    "a2ExecutionEvidence": "PASS-EXACT-REPOSITORY-BASE-LINT-UNIT-FOCUSED-SAFETY-CHROMIUM-FIREFOX",
     "a2xPartialEvidence": ".gitl/evidence/round-6/a2x-verification-14.md",
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "nextAssignment": "R6-A3-MOBILE-SHELL-REDTEAM",
     "selectedFirstArchitecture": "ChatGPT-only Blue remains the smallest architecture to test first. A fixture-gated deterministic structural primitive now exists and its five semantic case families passed an independent Chromium runtime carrier; the exact current live insertion slot remains UNKNOWN and live ChatGPT adapter binding/certification is forbidden until A1X exact evidence passes.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -382,7 +393,17 @@
     "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. The A2 prototype encodes fixed-position and unverified/hidden-container mutant rejection, and those mutant cases passed the independent Chromium semantic harness; broader oracle mutation coverage remains for exact A2X/Red Team. A surviving mutant invalidates the oracle, not the safeguard. Deterministic prototype success still does not certify the live ChatGPT insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
-    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, exact current live ChatGPT structural insertion, repository Playwright wrapper/full-suite behavior, and desktop Firefox behavior for the current A2 prototype remain separately uncertified until executed/tested."
+    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, exact current live ChatGPT structural insertion, repository Playwright wrapper/full-suite behavior, and desktop Firefox behavior for the current A2 prototype remain separately uncertified until executed/tested.",
+    "a2xStatus": "submitted",
+    "a2xTestedHead": "e9712e2e6c0945befb531d65b1a4468bbd05a4f1",
+    "a2xRun": 31212815306,
+    "a2xJob": 92979379882,
+    "a2xArtifact": 9007360537,
+    "a2xArtifactSha256": "9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb",
+    "a2xCarrierResultCommit": "6e3a5bcb45a9690335c60c2f648733648976c0b3",
+    "a2xUnit": "43/43 suites PASS; 477 passed; 3 TODO; 480 total",
+    "a2xFocusedSafety": "5/5 suites PASS; 69/69 tests PASS",
+    "a2xBluePlaywright": "10/10 PASS across Chromium and Firefox"
   },
   "priorRoundVerification": {
     "round": 5,
