@@ -7,7 +7,13 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3, 4],
+  "completedWorkers": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,14 +31,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "8fd6517abcd39c022d8d6ce3503c71fcd4035b09",
-  "currentStep": "R5-A3-LONGCHAT-REDTEAM submitted. Exact head 73ec20832e6ae125fd38dd137f315ee695e186b6 passed mixed-selector-tail, heavy DOM replacement, route/lease/uncertain-Send fail-closed, unchanged A2 performance, and focused Send-journal gates. R5-A4-LONGCHAT-MOBILE-PERF is ready.",
-  "nextAction": "Next eligible wake claims R5-A4-LONGCHAT-MOBILE-PERF regardless of timer number and executes exact-head Pixel-7 Chromium-emulation plus desktop-Firefox long-chat evidence where portable, measures resource/usability trends, carries the linear Send-observation cost as a limit, and does not promote emulation into physical-device certification.",
+  "headAtLastHandoff": "79ec28da291f05334e424e717eeea18005676b87",
+  "currentStep": "R5-A4-LONGCHAT-MOBILE-PERF submitted. Exact tested head 290c5e8b1a3d16948db61875c9199cca0792ede3 passed Pixel-7 Chromium emulation plus desktop Firefox long-chat scaling/resource/usability evidence with zero Send-adjacent actuation. R5-A5-LONGCHAT-AUDIT is ready.",
+  "nextAction": "Next eligible wake claims R5-A5-LONGCHAT-AUDIT regardless of timer number and independently audits Round-5 source claims, raw benchmark/artifact evidence, exact-head bindings, mobile/Firefox limitations, remaining linear Send-observation cost, and Send/CHOICE/route/lease/uncertainty safeguards before any bounded certification.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 5,
-    "assignmentId": "R5-A4-LONGCHAT-MOBILE-PERF",
+    "nominalWorker": 6,
+    "assignmentId": "R5-A5-LONGCHAT-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -121,6 +127,10 @@
     {
       "type": "round-5-a3-longchat-redteam",
       "result": "Exact head 73ec20832e6ae125fd38dd137f315ee695e186b6 passed run 31171939489/job 92845452541/artifact 8991319478. Mixed selector tails, 12-pass DOM replacement churn, route changes, uncertain Send, and foreign lease conditions preserved newest-answer and fail-closed safety with zero actuation. After churn, 2000-turn answer selection remained 2001 matches/sample with p95 about 2.20 ms; timer/observer counts remained unchanged. Worker-4 evidence commit c332a00f468d6b99529611cfa9d19a20964a9b6e; plan handoff commit 8fd6517abcd39c022d8d6ce3503c71fcd4035b09 activated A4."
+    },
+    {
+      "type": "round-5-a4-longchat-mobile-perf",
+      "result": "Exact head 290c5e8b1a3d16948db61875c9199cca0792ede3 passed run 31173733483/job 92851027653/artifact 8992007971. Pixel-7 Chromium emulation and desktop Firefox both preserved newest-answer correctness, stable intervals/observers, panel/composer/Send usability, and zero actuation through 2000 turns. Answer matching remained 2001/sample at 2000 turns; Send observation remained 8004/sample. Worker-5 evidence commit b529e15e174eac4695201afaeda63e1ab9733800; A5 audit activated."
     }
   ],
   "findings": [
@@ -186,6 +196,18 @@
       "executedByNominalWorker": 6,
       "type": "long-chat-send-observation-limit-confirmed",
       "finding": "The same A3 exact-head repeat measured 8004 qSA matches/sample at 2000 turns for begin-Send and send-evidence observation, with p95 about 6.40 ms and 3.60 ms respectively. This remains a safety-critical performance limit and is not authorization to weaken independent Send confirmation evidence."
+    },
+    {
+      "worker": 5,
+      "executedByNominalWorker": 2,
+      "type": "long-chat-mobile-cross-browser-pass",
+      "finding": "Exact A4 evidence on Pixel-7 Chromium emulation and desktop Firefox preserved answer-selection correctness, stable resource proxies, host composer/Send usability, and zero actuation through 2000 turns. Pixel-7 answer p95 was 1.70 ms at 2000 turns; desktop Firefox p95 was 2 ms. These are hosted Playwright measurements, not physical-device certification."
+    },
+    {
+      "worker": 5,
+      "executedByNominalWorker": 2,
+      "type": "long-chat-send-observation-mobile-limit",
+      "finding": "At 2000 turns both Pixel-7 Chromium emulation and desktop Firefox still returned 8004 qSA matches/sample for begin-Send and send-evidence observation. The safety-critical path remains history-linear and was not weakened."
     }
   ],
   "briefs": [
@@ -217,17 +239,10 @@
     ".gitl/evidence/round-5/worker-1.md",
     ".gitl/evidence/round-5/worker-2.md",
     ".gitl/evidence/round-5/worker-3.md",
-    ".gitl/evidence/round-5/worker-4.md"
+    ".gitl/evidence/round-5/worker-4.md",
+    ".gitl/evidence/round-5/worker-5.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r5-a4-mobile-perf",
-    "assignmentId": "R5-A4-LONGCHAT-MOBILE-PERF",
-    "role": "mobile-browser-accessibility-performance",
-    "nominalWorker": 2,
-    "acquiredAt": "2026-08-07T11:16:45Z",
-    "expiresAt": "2026-08-07T12:01:45Z",
-    "inspectedHead": "8fd6517abcd39c022d8d6ce3503c71fcd4035b09"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -238,8 +253,8 @@
     "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
     "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
-    "nextAssignment": "R5-A4-LONGCHAT-MOBILE-PERF",
-    "performanceWinner": "The stateless grouped-selector candidate remains provisionally accepted at the current deterministic desktop-Chromium oracle after A3 adversarial falsification. It removes redundant overlapping selector streams but does not eliminate history-size scaling; Send-observation scanning remains a known linear limit pending mobile/cross-browser and final audit.",
+    "nextAssignment": "R5-A5-LONGCHAT-AUDIT",
+    "performanceWinner": "The stateless grouped-selector candidate remains provisionally accepted after exact desktop-Chromium Red Team plus Pixel-7 Chromium-emulation and desktop-Firefox evidence. It preserves correctness and bounded resource proxies but remains history-linear; the 8004-match/sample Send-observation path is an explicit unresolved performance limit pending independent audit.",
     "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
     "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
     "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
@@ -265,7 +280,16 @@
     "redteamJobId": 92845452541,
     "redteamArtifactId": 8991319478,
     "redteamArtifactSha256": "eb54291a2aa50868b9281982422c548025f77130f1338d671a83094fae4273e3",
-    "redteamVerdict": "submitted-pass-pending-mobile-audit"
+    "redteamVerdict": "submitted-pass-pending-mobile-audit",
+    "mobileAssignment": "R5-A4-LONGCHAT-MOBILE-PERF",
+    "mobileEvidence": ".gitl/evidence/round-5/worker-5.md",
+    "mobileEvidenceCommit": "b529e15e174eac4695201afaeda63e1ab9733800",
+    "mobileTestedHead": "290c5e8b1a3d16948db61875c9199cca0792ede3",
+    "mobileRunId": 31173733483,
+    "mobileJobId": 92851027653,
+    "mobileArtifactId": 8992007971,
+    "mobileArtifactSha256": "fd3baa72e9e4bcc18938e2a497536d7b5d28f1d92bb13be908d3151c7b810d83",
+    "mobileVerdict": "submitted-pass-pending-independent-audit"
   },
   "priorRoundVerification": {
     "round": 4,
