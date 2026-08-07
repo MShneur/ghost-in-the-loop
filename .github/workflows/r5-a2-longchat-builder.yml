@@ -1,30 +1,33 @@
 name: R5 A2 Long Chat Builder
 
 on:
-  pull_request:
+  push:
     branches:
-      - gitl/r5-a2-ci-base
+      - agent/8.8-repair-resume
+    paths:
+      - .github/workflows/r5-a2-longchat-builder.yml
+      - ghost-in-the-loop.user.js
+      - extension/content.js
 
 permissions:
   contents: write
 
 jobs:
   build-and-falsify:
-    if: github.event.pull_request.head.ref == 'agent/8.8-repair-resume'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout exact isolated-branch head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 2
 
       - name: Guard assignment lease and head
         shell: bash
         run: |
           actual="$(git rev-parse HEAD)"
-          expected='${{ github.event.pull_request.head.sha }}'
+          expected='${{ github.sha }}'
           test "$actual" = "$expected"
           node - <<'NODE'
           const fs = require('fs');
@@ -32,7 +35,7 @@ jobs:
           if (!state.lease || state.lease.assignmentId !== 'R5-A2-LONGCHAT-BUILD') throw new Error('A2 lease missing');
           if (state.lease.holder !== 'scheduled-agent-6-longchat-builder-successor') throw new Error('unexpected lease holder');
           if (state.branch !== 'agent/8.8-repair-resume') throw new Error('unexpected branch');
-          console.log('lease/head guard PASS', actual = process.env.GITHUB_SHA || 'event-head-guarded');
+          console.log('lease/head guard PASS', process.env.GITHUB_SHA);
           NODE
 
       - name: Install dependencies
@@ -115,7 +118,7 @@ jobs:
             test -n "$(git status --short)"
             git commit -m 'perf: bound long-chat assistant selector collection'
             git push origin HEAD:agent/8.8-repair-resume
-            echo 'candidate committed; next PR synchronization will perform exact-head gates'
+            echo 'candidate committed; next isolated-branch push will perform exact-head gates'
             exit 0
           fi
 
