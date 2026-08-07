@@ -7,10 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [
-    1,
-    2
-  ],
+  "completedWorkers": [1, 2],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -28,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "79217b1fa692f9eff627754ec45a5623089dc98f",
-  "currentStep": "R5-A2-LONGCHAT-BUILD claimed by scheduled Worker 6 successor using the Builder role; implement and falsify the A1-selected stateless grouped-selector tail collector only.",
-  "nextAction": "Lease holder executes R5-A2-LONGCHAT-BUILD on the isolated branch, preserves selector priority/fallback and all fail-closed safeguards, runs the exact long-chat benchmark plus focused correctness/parity gates, writes Worker-3 evidence, then submits or routes the smallest recovery and releases the lease.",
+  "headAtLastHandoff": "4fa971db464c0a1037f8656073be0e64fd6d860c",
+  "currentStep": "R5-A2-LONGCHAT-BUILD completed one bounded Builder step but is blocked on exact candidate materialization/execution. The A2 falsification fixture and Worker-3 evidence are durable; no product candidate was accepted. R5-A2X-LONGCHAT-BUILD-EXEC is ready.",
+  "nextAction": "Next eligible wake claims R5-A2X-LONGCHAT-BUILD-EXEC regardless of timer number, materializes only the stateless grouped-selector candidate in an execution-capable environment, regenerates extension/content.js, and runs the unchanged A1/A2 performance, correctness, generated-parity, and Send-safety gates on one exact committed head.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 3,
-    "assignmentId": "R5-A2-LONGCHAT-BUILD",
+    "assignmentId": "R5-A2X-LONGCHAT-BUILD-EXEC",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -112,6 +109,10 @@
     {
       "type": "round-5-a1-longchat-baseline",
       "result": "Exact head 747031cc8160ba6febdd6fecb03d597fae36cd66 passed run 31165679128/job 92825797473. The 180/500/1000/2000-turn fixture preserved newest-answer and zero-actuation correctness while answer qSA returned-match work scaled 543 -> 6003 per sample. Artifact 8988876017 SHA-256 167fdef0bdfbb06a9f84f6a9a41bd3c4839ede6b0fa1bf698f87a933d9311952. R5-A2 activated for a grouped-selector tail-collector falsification."
+    },
+    {
+      "type": "round-5-a2-builder-bounded-step",
+      "result": "Nominal Worker 6 inherited the Builder role, committed exact A2 falsification fixture 81cb49e30a66cfefd796f56784f9327f80df71c0, prepared but did not accept the stateless grouped-selector candidate, and preserved Worker-3 evidence. Connector-authored workflow carriers did not execute and local git materialization was unavailable, so exact candidate evidence is absent. Temporary workflow was removed in 01013755837d3719dd924d1b8b8a2a322238118b, PR #23 was closed unmerged, and A2X is ready."
     }
   ],
   "findings": [
@@ -147,6 +148,12 @@
       "worker": 2,
       "type": "long-chat-minimal-falsifiable-repair",
       "finding": "A2 should first attempt a stateless grouped-selector tail collector that preserves per-selector last-48 semantics and selector priority while reducing full-document qSA returned-match work by at least 60% at 2000 turns. Persistent MutationObserver/cache state remains the competing fallback if the minimalist repair is falsified."
+    },
+    {
+      "worker": 3,
+      "executedByNominalWorker": 6,
+      "type": "long-chat-a2-execution-recovery",
+      "finding": "A2 committed a deterministic falsification fixture and retained unchanged A1 thresholds, but the product candidate could not be safely materialized and exactly executed in this bounded wake. The grouped-selector approach remains UNKNOWN, not accepted or rejected. A2X is the smallest ready recovery."
     }
   ],
   "briefs": [
@@ -176,17 +183,10 @@
     ".gitl/evidence/round-4/worker-5.md",
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-1.md",
-    ".gitl/evidence/round-5/worker-2.md"
+    ".gitl/evidence/round-5/worker-2.md",
+    ".gitl/evidence/round-5/worker-3.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-longchat-builder-successor",
-    "nominalWorker": 6,
-    "executedRole": "builder",
-    "assignmentId": "R5-A2-LONGCHAT-BUILD",
-    "acquiredAt": "2026-08-07T09:48:12Z",
-    "expiresAt": "2026-08-07T10:33:12Z",
-    "branchHead": "8c589cd716a82f7327ab48389c0e61c0a2e7c1d0"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -197,14 +197,18 @@
     "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
     "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
-    "nextAssignment": "R5-A2-LONGCHAT-BUILD",
-    "performanceWinner": "UNKNOWN until A2 grouped-selector implementation is measured against the A1 baseline",
+    "nextAssignment": "R5-A2X-LONGCHAT-BUILD-EXEC",
+    "performanceWinner": "UNKNOWN until A2X materializes and exactly measures the grouped-selector candidate against A1",
     "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
     "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
     "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
     "baselineRunId": 31165679128,
     "baselineJobId": 92825797473,
-    "baselineArtifactId": 8988876017
+    "baselineArtifactId": 8988876017,
+    "builderAssignment": "R5-A2-LONGCHAT-BUILD",
+    "builderEvidence": ".gitl/evidence/round-5/worker-3.md",
+    "builderFixtureCommit": "81cb49e30a66cfefd796f56784f9327f80df71c0",
+    "builderVerdict": "blocked-on-exact-materialization-and-execution"
   },
   "priorRoundVerification": {
     "round": 4,
