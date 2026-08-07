@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "6587d56325fb7fc26dbed742044c6aaee99a5305",
-  "currentStep": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC is actively executing under a successor lease. The bounded goal is exact-head connected-GitHub-visible Pixel-7 chromium-mobile lifecycle/performance evidence without product changes.",
-  "nextAction": "Guard the exact branch head, run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile through the smallest temporary PR-visible carrier if required, preserve metrics/run/job/artifact evidence, remove temporary machinery, then submit or block A4/A4X truthfully and hand off A5.",
+  "headAtLastHandoff": "17aceb26ff42644fe78a34a8f09b59597110fa64",
+  "currentStep": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC obtained exact-head connected GitHub evidence and preserved a deterministic fixture failure instead of manufacturing green CI. Run 31152568300/job 92785122646 on head cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75 failed both attempts only at the Pixel-class layout-width assertion: expected <=500, observed 981. Pixel 7 UA/DPR/touch and all 12 wake-window semantic/resource/zero-Send measurements were captured. Worker-5 evidence 95e1a47b5abc68c4173e91ae0e9ed3f9b10dc40b records the failure, artifact 8983863803, and cleanup. R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE is the earliest ready recovery.",
+  "nextAction": "The next eligible wake claims R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE. Confirm the synthetic data page lacks device-width viewport metadata, add only standards-correct mobile viewport metadata without relaxing width<=500 or any lifecycle/resource/Send/accessibility assertion, rerun the exact guarded Pixel-7 chromium-mobile fixture, preserve raw metrics/run/job/artifact evidence, clean up the carrier, and on PASS activate R4-A5-LIFECYCLE-AUDIT.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "active assignment",
+    "scheduledFor": "next eligible wake",
     "nominalWorker": 5,
-    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
+    "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -112,6 +112,10 @@
     {
       "type": "round-4-a4-fixture-blocked-on-execution",
       "result": "Recovered expired A4 lease after repeated no-movement checks. Existing A4 work added a Pixel-7 chromium-mobile lifecycle/performance fixture with 12 wake windows, exact runtime-service cardinality, bounded cache invalidation, interval/observer/lock accumulation proxies, zero Send-adjacent actuation, and host composer/latest-message accessibility assertions. Worker-5 evidence c9e265a703cdc7b976315a9654e0ceff0de83212 records that exact observable execution is still missing; A4X was activated instead of inferring PASS from push-workflow configuration."
+    },
+    {
+      "type": "round-4-a4x-exact-mobile-viewport-failure",
+      "result": "A4X guarded exact head cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75 in run 31152568300/job 92785122646. Pixel 7 UA, DPR 2.625, touch=1, exact service cardinality, bounded resources, zero Send-adjacent events, host-node integrity, and raw metrics were captured; both attempts failed only because the synthetic page reported layout width 981 against required <=500. Artifact 8983863803 SHA-256 54ce80517b04843f213cf8766de5aff63c2f6b3fc2cabbaa3f97613cbd7efcb6 preserves reporter output and traces. Temporary carrier was removed in f1745d18f32018f23fc747b219e4727e7d9c56d2 and draft PR #18 closed unmerged. A4Y was activated rather than weakening the assertion."
     }
   ],
   "findings": [
@@ -166,6 +170,12 @@
       "worker": 5,
       "type": "lifecycle-mobile-perf-fixture-and-observability-gap",
       "finding": "A4 now has deterministic Pixel-7 chromium-mobile instrumentation for repeated wake resource/restart/accessibility behavior. The fixture records timing but intentionally avoids an uncalibrated CI wall-clock budget. Exact connected-observable execution is still required; ordinary push CI configuration is not accepted as PASS evidence."
+    },
+    {
+      "worker": 5,
+      "executedByNominalWorker": 6,
+      "type": "lifecycle-mobile-viewport-fixture-failure",
+      "finding": "Exact-head A4X execution proves the Pixel 7 device profile is materially active (Android Pixel 7 UA, DPR 2.625, touch=1) and all 12 wake-window semantic/resource/zero-Send metrics were captured, but the synthetic HTML lacks mobile viewport metadata and reported width 981 against the deliberate <=500 assertion. The next bounded repair must correct the fixture metadata rather than loosen the assertion or change product code."
     }
   ],
   "briefs": [
@@ -194,15 +204,7 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6",
-    "nominalWorker": 6,
-    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
-    "intendedRole": "mobile-browser-accessibility-performance-execution-recovery",
-    "acquiredAt": "2026-08-07T05:51:41Z",
-    "expiresAt": "2026-08-07T06:36:41Z",
-    "inspectedHead": "6ece1c011f3df5305cc9564e6e576108b7ea3277"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
