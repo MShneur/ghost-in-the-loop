@@ -13,7 +13,7 @@
 ## Succession / stale lease recovery evidence
 Canonical state still recorded `manual-successor-r6-a2x-verify-13` with expiry `2026-08-07T19:18:36Z`. At this wake the lease had expired. The branch compared identical to carrier commit `095e0c6da6e856ed86fc8e574141e19a94486ff0`; `.gitl/evidence/round-6/a2x-carrier-result.md` did not exist; classic commit status contexts were empty; and no later branch movement evidenced a running holder. The temporary carrier therefore produced no durable terminal result during its full lease window.
 
-Because the connector requires whole-file replacement for `autopilot-state.json`, this successor did not overwrite the large state file merely to claim a short recovery lease. The branch was rechecked immediately before durable work, and this evidence commit itself is the first branch movement after the expired lease. Treat any subsequent wake seeing this commit as active/recent A2X recovery evidence. This coordination deviation must be repaired in canonical state on the next safe whole-state write; it does not grant concurrent product editing.
+Because the connector requires whole-file replacement for `autopilot-state.json`, this successor did not overwrite the large state file merely to claim a short recovery lease. The branch was rechecked immediately before durable work, and evidence commit `2110c19a95ea697e6e89ce07c7ef1db01c72cccf` was the first branch movement after the expired lease. Treat any subsequent wake seeing that commit or its descendants as A2X recovery activity rather than evidence that the expired holder remained active. This coordination deviation must be repaired in canonical state on the next safe whole-state write; it does not grant concurrent product editing.
 
 ## Carrier failure narrowed
 The temporary GitHub Actions carrier at `.github/workflows/r6-a2x-carrier.yml` did not self-report a result before the recorded lease expired. That is an infrastructure/non-observability failure, not candidate PASS or FAIL.
@@ -23,6 +23,8 @@ Additional carrier probes in this wake:
 - `Ghost_browser_tester` navigation remained unavailable in this non-interactive runtime: user input required.
 - Container network remained unavailable: `npm view @playwright/test` failed `EAI_AGAIN` resolving `registry.npmjs.org`.
 - Local environment does contain Chromium, enabling a materially different dependency-free browser-runtime check without network or Playwright.
+
+After branch-head safety was rechecked, the inactive temporary workflow was removed in commit `2d61780f48af58eeecfce86964c6cddda4b3691b`. No production file was changed by that cleanup.
 
 ## Chromium runtime falsification
 A dependency-free Chrome DevTools Protocol harness was constructed from the current branch prototype source contract and its five encoded deterministic cases. It did not navigate to ChatGPT or any external/local URL. Chromium was launched on `about:blank`, and the harness was injected through CDP `Runtime.evaluate`, preserving the prototype's fixture-only proof token, in-flow host, exact supplied Send identity, open ShadowRoot, MutationObserver/ResizeObserver repair, direct Ghost callbacks, explicit mutant rejection, and cleanup semantics.
@@ -72,10 +74,10 @@ This is not the repository Playwright suite and must not be promoted to full A2X
 - No `main`, merge, auto-merge, tag, publication, or release action occurred.
 
 ## Recommended next action
-Do not return to research. Treat the original self-reporting GitHub Actions carrier as failed infrastructure unless a late durable result appears. Remove that temporary workflow on the isolated branch once branch-head safety is rechecked. Keep A2X open, but narrow its remaining verification work to the exact repository gates not covered here: Playwright wrapper/base/lint/unit/focused safety and portable Firefox. If a future observable carrier can run those gates cleanly, submit A2/A2X and hand directly to `R6-A3-MOBILE-SHELL-REDTEAM`. If one of those gates produces a real semantic failure, open only the smallest repair.
+Do not return to research. The original self-reporting GitHub Actions carrier is now recorded as failed infrastructure and has been removed from the isolated branch. Keep A2X open, but narrow its remaining verification work to the exact repository gates not covered here: Playwright wrapper/base/lint/unit/focused safety and portable Firefox. If a future observable carrier can run those gates cleanly, submit A2/A2X and hand directly to `R6-A3-MOBILE-SHELL-REDTEAM`. If one of those gates produces a real semantic failure, open only the smallest repair.
 
 ## Assignment status
 **blocked — materially advanced: independent Chromium runtime 5/5 PASS; exact repository/base/unit/Firefox gates remain unexecuted**
 
 ## incompleteHandoff
-Canonical `autopilot-state.json` and `round-plan.json` still contain the expired lease / pre-partial-verification wording and must be reconciled on the next safe whole-file coordination write. The durable evidence in this file is authoritative for the new Chromium result; no full A2X PASS is claimed.
+Canonical `autopilot-state.json` and `round-plan.json` still contain the expired lease / pre-partial-verification wording and must be reconciled on the next safe whole-file coordination write. The durable evidence in this file is authoritative for the new Chromium result and carrier cleanup; no full A2X PASS is claimed.
