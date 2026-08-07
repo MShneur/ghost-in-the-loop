@@ -26,11 +26,11 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
-  "currentStep": "R6-SUPERVISOR-PLAN submitted. Round 6 is open on MOBILE-SHELL-STRUCTURAL with a research-first one-platform/one-mode structural prototype chain; no product change is pre-authorized. R6-A1-MOBILE-SHELL-STRUCTURE-MAP is ready.",
-  "nextAction": "Next eligible wake claims R6-A1-MOBILE-SHELL-STRUCTURE-MAP regardless of timer number, maps current ChatGPT header/composer/footer structure at desktop and narrow/mobile breakpoints, compares explicit adapter-owned contracts against generic structural inference and the rail fallback, evaluates teal/blue/red with primary/user evidence, and predeclares the smallest product candidate plus falsification gate without changing product behavior.",
+  "currentStep": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP claimed by a successor researcher/architect wake. Mapping ChatGPT structural mount assumptions and preparing a deterministic no-actuation probe; no product behavior is authorized in A1.",
+  "nextAction": "Complete one bounded R6-A1 research/fixture step, write Worker-2 evidence, mark A1 submitted or blocked truthfully, release the lease, and expose the next dependency-safe assignment.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current claimed wake",
     "nominalWorker": 2,
     "assignmentId": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
     "claimableByAnyEligibleWorker": true,
@@ -129,7 +129,16 @@
     ".gitl/evidence/round-5/worker-6.md",
     ".gitl/evidence/round-6/worker-1.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-r6-a1-successor",
+    "nominalWorker": 6,
+    "executedAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "intendedRole": "researcher-architect",
+    "acquiredAt": "2026-08-07T12:49:01Z",
+    "expiresAt": "2026-08-07T13:34:01Z",
+    "inspectedHead": "branch was one commit ahead of 5888efcdec6f8e4e05cfb93cd23b02b37272b64a; exact parent SHA to be bound from this claim commit",
+    "scope": "Round-6 A1 research, deterministic host-structure probe/fixture, Worker-2 evidence, plan/state handoff only"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
