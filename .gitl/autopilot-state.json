@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "b250f1d210936751306f80da52907a26e15a901d",
-  "currentStep": "R6-RESEARCH-FALLBACK-STRUCTURAL-CONFORMANCE-08 completed one bounded non-conflicting test-architecture research step. It rejects a single mega-fixture as the primary release oracle and defines a composable invariant ledger with S1-S11 orthogonal scenario families, five evidence-backed high-risk pairwise intersections, and a synthetic unsafe-candidate mutation suite that must prove the test oracle can detect wrong-composer selection, Send replacement/movement, overlays, duplicate/stale repair, unscoped resources, TT sinks, focus/form regressions, inaccessible cross-root assumptions, and incomplete cleanup before a real A2 candidate can use the harness as certification evidence. A1X remains locally blocked and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance plus oracle-mutation contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably cross-browser accessibility-tree verification methodology, Red expansion scroll-anchoring/layout-measurement design, or later state-machine/fault-sequence methodology. Do not repeat the eight completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
+  "headAtLastHandoff": "b5d0047b238d45243c8b589a3f4e9168a0326556",
+  "currentStep": "R6-RESEARCH-FALLBACK-A11Y-TREE-09 completed one bounded non-conflicting cross-browser accessibility-verification research step. It defines a three-tier evidence contract: one locator-scoped Playwright ARIA semantic contract plus focus/Send/zero-actuation invariants across hosted Chromium and desktop Firefox; Chromium CDP AX-tree data only as optional engine diagnostics; and separate physical assistive-technology/platform evidence when those claims become release-critical. It also rejects Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. A1X remains locally blocked and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance plus three-tier accessibility contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably Red expansion scroll-anchoring/layout-measurement design or later state-machine/fault-sequence methodology. Do not repeat the nine completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -62,7 +62,7 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first two wakes of the new novelty round produced actionable event/focus/accessibility and structural-conformance/oracle-validation contracts, so exhaustion has not begun."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first three wakes of the new novelty round produced actionable event/focus/accessibility, structural-conformance/oracle-validation, and cross-browser accessibility-verification contracts, so exhaustion has not begun."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -139,6 +139,10 @@
     {
       "type": "round-6-research-fallback-structural-conformance-08",
       "result": "The second wake of the new novelty round converted accumulated Round-6 constraints into a deterministic conformance architecture without product/test changes. It favors composable fixtures plus a machine-readable invariant ledger over one mega-fixture; defines S1-S11 orthogonal scenario families, five high-risk pairwise intersections, and an oracle mutation suite that must kill deliberately unsafe synthetic adapters before the harness can certify a real A2 candidate. Evidence commit b250f1d210936751306f80da52907a26e15a901d; claim commit 5197be030a59ad0adbb310b5a82353b262fcadfb."
+    },
+    {
+      "type": "round-6-research-fallback-a11y-tree-09",
+      "result": "The third wake of the new novelty round defined a three-tier accessibility verification method. Tier A uses one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus/Send/zero-actuation invariants; Tier B keeps Chromium CDP AX-tree capture diagnostic-only; Tier C reserves real assistive-technology/platform claims for separate evidence. The method also rejects ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. Evidence commit b5d0047b238d45243c8b589a3f4e9168a0326556; claim commit a268e8f8652d98f57de260ae69ab00ed20490ade."
     }
   ],
   "findings": [
@@ -226,6 +230,11 @@
       "worker": 4,
       "type": "mobile-shell-structural-conformance-oracle",
       "finding": "Future structural certification should use a composable invariant ledger plus S1-S11 orthogonal scenario families and a small set of high-risk pairwise intersections, not one mega-fixture. Before judging a real A2 candidate, the harness must prove its own sensitivity by rejecting deliberately unsafe synthetic adapters for wrong-composer selection, Send identity/movement, overlay mounting, duplicate/stale repair, unscoped observers, incomplete cleanup, new TT sinks, focus/form side effects, inaccessible cross-root claims, and viewport-placement authority. A surviving mutant means the oracle is too weak; fix the test architecture rather than weakening product safeguards."
+    },
+    {
+      "worker": 5,
+      "type": "mobile-shell-cross-browser-accessibility-verification",
+      "finding": "Hosted deterministic accessibility should use one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus, Send-node, role/name/state, and zero-actuation invariants. Chromium CDP AX-tree capture is optional diagnostic evidence only, while TalkBack/VoiceOver/NVDA/JAWS/WebView/GeckoView mappings remain separate certification surfaces. Playwright ARIA snapshots do not provide sufficient documented evidence to certify peer-ShadowRoot aria-controls relationships, so the first candidate must not depend on that relation without higher-tier proof."
     }
   ],
   "briefs": [
@@ -243,17 +252,10 @@
     ".gitl/evidence/round-6/research-fallback-05.md",
     ".gitl/evidence/round-6/research-fallback-06.md",
     ".gitl/evidence/round-6/research-fallback-07.md",
-    ".gitl/evidence/round-6/research-fallback-08.md"
+    ".gitl/evidence/round-6/research-fallback-08.md",
+    ".gitl/evidence/round-6/research-fallback-09.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-a11y-tree-09",
-    "assignmentId": "R6-RESEARCH-FALLBACK-A11Y-TREE-09",
-    "nominalWorker": 5,
-    "executedRole": "mobile-browser-accessibility-performance-with-release-audit-lens",
-    "acquiredAt": "2026-08-07T16:39:52Z",
-    "expiresAt": "2026-08-07T17:24:52Z",
-    "inspectedHead": "UNKNOWN-CONNECTOR-REF-TIP; stable one state-only commit ahead of b250f1d210936751306f80da52907a26e15a901d"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -279,8 +281,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-08.md",
-    "latestResearchFallbackCommit": "b250f1d210936751306f80da52907a26e15a901d",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-09.md",
+    "latestResearchFallbackCommit": "b5d0047b238d45243c8b589a3f4e9168a0326556",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -297,6 +299,7 @@
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
     "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
     "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a real candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. A1X live structure remains a prerequisite for the actual ChatGPT insertion rule.",
+    "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
