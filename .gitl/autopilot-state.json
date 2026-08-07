@@ -26,8 +26,8 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "4fa971db464c0a1037f8656073be0e64fd6d860c",
-  "currentStep": "R5-A2-LONGCHAT-BUILD completed one bounded Builder step but is blocked on exact candidate materialization/execution. The A2 falsification fixture and Worker-3 evidence are durable; no product candidate was accepted. R5-A2X-LONGCHAT-BUILD-EXEC is ready.",
-  "nextAction": "Next eligible wake claims R5-A2X-LONGCHAT-BUILD-EXEC regardless of timer number, materializes only the stateless grouped-selector candidate in an execution-capable environment, regenerates extension/content.js, and runs the unchanged A1/A2 performance, correctness, generated-parity, and Send-safety gates on one exact committed head.",
+  "currentStep": "R5-A2X-LONGCHAT-BUILD-EXEC claimed by scheduled successor using the builder-execution-recovery role on inspected head 522f287d2dfed2f2d876d0036e3d573fb34f81e0.",
+  "nextAction": "Lease holder materializes only the stateless grouped-selector union/reverse-tail candidate, regenerates extension/content.js, and executes the unchanged A1/A2 numerical, correctness, generated-parity, full-unit, and Send-safety gates on one exact committed head.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -186,7 +186,15 @@
     ".gitl/evidence/round-5/worker-2.md",
     ".gitl/evidence/round-5/worker-3.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-a2x-build-exec",
+    "nominalWorker": 2,
+    "executedRole": "builder-execution-recovery",
+    "assignmentId": "R5-A2X-LONGCHAT-BUILD-EXEC",
+    "acquiredAt": "2026-08-07T10:08:33Z",
+    "expiresAt": "2026-08-07T10:53:33Z",
+    "branchHead": "522f287d2dfed2f2d876d0036e3d573fb34f81e0"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
