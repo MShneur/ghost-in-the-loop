@@ -2,7 +2,7 @@ name: R3 A2 Observable Exact-Head Matrix
 
 on:
   pull_request:
-    branches: [main]
+    branches: [gitl/r3-a2-ci-base]
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
