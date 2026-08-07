@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "8cde19edb8325bf36dc40d2f31c9f1e38b3f2242",
-  "currentStep": "R4-A1-LIFECYCLE-CONTRACT claimed by scheduled-agent-6 as successor for the researcher/architect role.",
-  "nextAction": "Execute R4-A1-LIFECYCLE-CONTRACT: map recoverAfterWake, research authoritative lifecycle signals, add deterministic contract/specification coverage, write worker-2 evidence, submit or block, and activate R4-A2.",
+  "headAtLastHandoff": "b6fddcb9af98b99cf2272597664e6f9da1468d90",
+  "currentStep": "R4-A1-LIFECYCLE-CONTRACT produced the lifecycle contract and focused specification coverage but is blocked only on exact-branch-head execution of the newly added test. R4-A1X-LIFECYCLE-CONTRACT-EXEC is ready.",
+  "nextAction": "The next eligible agent claims R4-A1X-LIFECYCLE-CONTRACT-EXEC, runs wake-recovery and lifecycle-recovery-contract Jest on the exact branch head using a guarded temporary CI carrier if necessary, removes temporary machinery, then marks A1/A1X submitted and activates R4-A2 on PASS or preserves the exact failure on FAIL.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 2,
-    "assignmentId": "R4-A1-LIFECYCLE-CONTRACT",
+    "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -41,7 +41,7 @@
       "valid lease held by active agent",
       "active workflow on relevant head",
       "consistent branch movement proving current work",
-      "round awaiting human verification"
+      "true project-wide human decision or irreversible/publication/security gate"
     ]
   },
   "researchFallback": {
@@ -53,7 +53,8 @@
       "better Playwright or CI workflows",
       "safer scripts and deterministic fixtures",
       "architecture and performance concepts",
-      "next-update compatibility risks"
+      "next-update compatibility risks",
+      "real user and community feedback including Reddit when relevant"
     ],
     "releaseReadyMode": "Freeze the candidate and checksums; store research separately as next-update-research without changing publish-ready artifacts."
   },
@@ -82,11 +83,15 @@
     },
     {
       "type": "round-3-human-accepted",
-      "result": "On 2026-08-06 the user said 'Proceed with tasks', accepting the review-after-round gate and authorizing the next dependency-safe round."
+      "result": "On 2026-08-06 the user said 'Proceed with tasks', accepting the prior review gate and authorizing the next dependency-safe round."
     },
     {
       "type": "round-4-supervisor-plan",
-      "result": "Opened LIFECYCLE-FROZEN-DISCARDED as the active program with a research, build, Red Team, mobile/performance, and audit chain; only R4-A1 is ready."
+      "result": "Opened LIFECYCLE-FROZEN-DISCARDED as the active program with a research, build, Red Team, mobile/performance, and audit chain."
+    },
+    {
+      "type": "round-4-a1-contract-blocked-on-execution",
+      "result": "Committed lifecycle contract 03c67625255803ae3b0b0fd662af3bf407996e0d, focused source-contract test 44464967410f7c44a8f546fc189466a39fcd16a8, and worker-2 evidence 79ed6dca0e8a44ff3a63302ff2c67720ed070dc7. Contract criteria are mapped; exact branch-head execution of the new test remains required before A1 can be submitted."
     }
   ],
   "findings": [
@@ -104,6 +109,18 @@
       "worker": 6,
       "type": "nonblocking-observability-followup",
       "finding": "Healthy-running repair no-op diagnostics may remain visually stale; no safety consequence was reproduced and this does not reopen RR-E2E-FAULTS."
+    },
+    {
+      "worker": 2,
+      "executedByNominalWorker": 6,
+      "type": "lifecycle-contract",
+      "finding": "Primary-source and repository analysis favors keeping recoverAfterWake as the single reactivation seam; hidden is not proof of freeze/discard, pageshow.persisted is the portable BFCache discriminator, Chromium resume is optional, and discarded-document handling must be fresh-boot/fail-closed with document.wasDiscarded feature-detected only where exposed."
+    },
+    {
+      "worker": 2,
+      "executedByNominalWorker": 6,
+      "type": "ci-binding-gap",
+      "finding": "Push-triggered R3 A3 workflow run 31142660712/job 92755596910 succeeded but explicitly checked out old product head 5c057fe; it cannot certify new branch-head lifecycle tests. A1X is ready to obtain exact-head execution evidence."
     }
   ],
   "briefs": [
@@ -126,17 +143,10 @@
     ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
     ".gitl/evidence/round-3/worker-3.md",
     ".gitl/evidence/round-3/worker-6.md",
-    ".gitl/evidence/round-4/worker-1.md"
+    ".gitl/evidence/round-4/worker-1.md",
+    ".gitl/evidence/round-4/worker-2.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6",
-    "nominalWorker": 6,
-    "executedAssignmentRole": "researcher-architect",
-    "assignmentId": "R4-A1-LIFECYCLE-CONTRACT",
-    "acquiredAt": "2026-08-07T02:49:40Z",
-    "expiresAt": "2026-08-07T03:34:40Z",
-    "branchHead": "b8afdd034b5e355cd3bb81aef688d66b3b84c743"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
