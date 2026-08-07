@@ -7,14 +7,7 @@
   "roundPhase": "audited-transition-ready",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6
-  ],
+  "completedWorkers": [1, 2, 3, 4, 5, 6],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -33,11 +26,11 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "3529557cf8893300888acc69c767e231fc4f3a01",
-  "currentStep": "R5-A5-LONGCHAT-AUDIT submitted with bounded certification PASS. Independent audit verified exact A1/A2X/A3/A4 source, run/job/artifact and raw benchmark bindings; DQ-R5-LONGCHAT-REVIEW is queued locally. R6-SUPERVISOR-PLAN is ready for MOBILE-SHELL-STRUCTURAL.",
-  "nextAction": "Next eligible wake claims R6-SUPERVISOR-PLAN regardless of timer number, reads the canonical maker plus .gitl/briefs/mobile-shell-concepts.md, preserves DQ-R4-LIFECYCLE-REVIEW and DQ-R5-LONGCHAT-REVIEW as local questions, and opens the dependency-safe MOBILE-SHELL-STRUCTURAL research/build/Red-Team/mobile/audit chain without pre-authorizing a product change.",
+  "currentStep": "R6-SUPERVISOR-PLAN claimed for MOBILE-SHELL-STRUCTURAL planning. Round-5 bounded certification and both deferred local human questions remain preserved.",
+  "nextAction": "Complete one bounded supervisor planning step: inspect the existing rail/source, record competing structural-mount philosophies, write Round-6 evidence, and open only the earliest dependency-ready research assignment without pre-authorizing product implementation.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current holder",
     "nominalWorker": 1,
     "assignmentId": "R6-SUPERVISOR-PLAN",
     "claimableByAnyEligibleWorker": true,
@@ -60,19 +53,19 @@
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "topics": [
-      "long-conversation DOM observation and selector scaling",
-      "incremental MutationObserver patterns and invalidation risks",
-      "better Playwright or CI benchmark workflows",
-      "performance, memory, battery, latency, and constrained-device methods",
-      "upstream/browser platform changes",
-      "real user and community feedback including Reddit when relevant"
+      "adapter-specific host structural mount contracts",
+      "header/composer/footer layout discovery and verification",
+      "scoped MutationObserver and ResizeObserver repair patterns",
+      "mobile keyboard, orientation, large-text, and narrow-width behavior",
+      "physical-device or throttled constrained-hardware evidence",
+      "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
     "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
     "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZENDISCARDED",
+    "LIFECYCLE-FROZEN-DISCARDED",
     "LONG-CHAT-PERF",
     "MOBILE-SHELL-STRUCTURAL",
     "BUILD-IDENTITY",
@@ -90,166 +83,34 @@
   },
   "completedSteps": [
     {
-      "type": "round-1-complete",
-      "result": "Accepted the fault contract and retained browser/mobile scaffolding."
-    },
-    {
-      "type": "round-2-complete-with-gaps",
-      "result": "Added a production-path fixture and adversarial/mobile scaffolding; exact-head execution remained absent."
-    },
-    {
-      "type": "round-3-rr-certified",
-      "result": "RR-E2E-FAULTS certified on original run 31138679335/job 92743714584/artifact 8978979561 against product head 5c057fe2235da50c23c800f7c345bc3814f01b3c."
-    },
-    {
-      "type": "round-3-human-accepted",
-      "result": "User accepted the Round-3 review and authorized the next dependency-safe round."
+      "type": "round-3-rr-certified-human-accepted",
+      "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."
     },
     {
       "type": "round-4-lifecycle-certified",
-      "result": "LIFECYCLE-FROZEN-DISCARDED certified at bounded deterministic scope by R4-A5. Exact lifecycle and Pixel-7 emulation evidence is retained in Round-4 worker evidence; physical Android/Firefox-Android, actual scheduler freeze/discard, and calibrated low-end budgets remain explicitly uncertified."
+      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."
     },
     {
-      "type": "round-5-supervisor-plan-policy-b",
-      "result": "Canonical Personal-Forge Policy B converted the Round-4 human review into local deferred question DQ-R4-LIFECYCLE-REVIEW. Commit fe2053dac6241381b9b03835225ef8aea3d5ab23 created the queue; commit 94a98eb0e324bb4927df0c6243109af9d0f95d69 opened the LONG-CHAT-PERF chain; Worker-1 evidence commit f47d9bf5e699ff377321abd2424e766c0bd12c46 recorded the handoff."
-    },
-    {
-      "type": "round-5-a1-longchat-baseline",
-      "result": "Exact head 747031cc8160ba6febdd6fecb03d597fae36cd66 passed run 31165679128/job 92825797473. The 180/500/1000/2000-turn fixture preserved newest-answer and zero-actuation correctness while answer qSA returned-match work scaled 543 -> 6003 per sample. Artifact 8988876017 SHA-256 167fdef0bdfbb06a9f84f6a9a41bd3c4839ede6b0fa1bf698f87a933d9311952. R5-A2 activated for a grouped-selector tail-collector falsification."
-    },
-    {
-      "type": "round-5-a2-builder-bounded-step",
-      "result": "Nominal Worker 6 inherited the Builder role, committed exact A2 falsification fixture 81cb49e30a66cfefd796f56784f9327f80df71c0, prepared but did not accept the stateless grouped-selector candidate, and preserved Worker-3 evidence. Connector-authored workflow carriers did not execute and local git materialization was unavailable, so exact candidate evidence was absent. Temporary workflow was removed in 01013755837d3719dd924d1b8b8a2a322238118b, PR #23 was closed unmerged, and A2X was created as the smallest recovery."
-    },
-    {
-      "type": "round-5-a2x-longchat-build-exec",
-      "result": "Exact candidate head 9d49e34af07015f8064ac66398004180216efb08 passed run 31169354385/job 92837396863/artifact 8990318746. At 2000 turns answer qSA returned matches fell 6003 -> 2001/sample (66.67% reduction) and p95 2.30 -> 1.00 ms; at 180 turns p95 was 0.40 ms. Focused Jest passed 18/18, full unit passed 477 with 3 TODO, generated parity passed, and safety events were all zero. Worker-3 evidence commit 8465c3a3e470607dd40b62c7a26b4f64f45a0636; plan handoff commit 8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2 activated A3."
-    },
-    {
-      "type": "round-5-a3-longchat-redteam",
-      "result": "Exact head 73ec20832e6ae125fd38dd137f315ee695e186b6 passed run 31171939489/job 92845452541/artifact 8991319478. Mixed selector tails, 12-pass DOM replacement churn, route changes, uncertain Send, and foreign lease conditions preserved newest-answer and fail-closed safety with zero actuation. After churn, 2000-turn answer selection remained 2001 matches/sample with p95 about 2.20 ms; timer/observer counts remained unchanged. Worker-4 evidence commit c332a00f468d6b99529611cfa9d19a20964a9b6e; plan handoff commit 8fd6517abcd39c022d8d6ce3503c71fcd4035b09 activated A4."
-    },
-    {
-      "type": "round-5-a4-longchat-mobile-perf",
-      "result": "Exact head 290c5e8b1a3d16948db61875c9199cca0792ede3 passed run 31173733483/job 92851027653/artifact 8992007971. Pixel-7 Chromium emulation and desktop Firefox both preserved newest-answer correctness, stable intervals/observers, panel/composer/Send usability, and zero actuation through 2000 turns. Answer matching remained 2001/sample at 2000 turns; Send observation remained 8004/sample. Worker-5 evidence commit b529e15e174eac4695201afaeda63e1ab9733800; A5 audit activated."
-    },
-    {
-      "type": "round-5-a5-longchat-audit",
-      "result": "Independent A5 audit certified LONG-CHAT-PERF at bounded deterministic/hosted-Playwright scope. Exact A1/A2X/A3/A4 source, run/job/artifact, artifact-hash/head, raw benchmark, adversarial, and browser-matrix evidence was mutually consistent. The grouped selector achieved the predeclared 66.67% 2000-turn returned-match reduction without weakening fail-closed safeguards. History-linear union scanning, the 8004-match/sample Send-observation path, physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag remain explicitly uncertified. Worker-6 evidence commit 5740ccc418f90d18fab4c0cb8f645173c87efddb; DQ-R5-LONGCHAT-REVIEW commit 3f5f737de6d493f51b68a8602682ae5929126cb8; plan handoff commit 3529557cf8893300888acc69c767e231fc4f3a01 exposed R6-SUPERVISOR-PLAN."
+      "type": "round-5-longchat-certified",
+      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; grouped answer selection improved exact benchmark work while history-linear union and Send-observation limits remain explicit. DQ-R5-LONGCHAT-REVIEW remains deferred locally."
     }
   ],
   "findings": [
     {
       "worker": 6,
-      "type": "round4-lifecycle-certification-limit",
-      "finding": "Round-4 deterministic lifecycle evidence is accepted at its bounded scope but must not be promoted to physical Android, Firefox-Android/GeckoView, real scheduler freeze/discard, or calibrated low-end performance certification."
-    },
-    {
-      "worker": 1,
-      "executedByNominalWorker": 6,
-      "type": "long-chat-hotpath-hypothesis",
-      "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This was a concrete scaling hypothesis and A1 verified redundant full-selector enumeration."
-    },
-    {
-      "worker": 1,
-      "executedByNominalWorker": 6,
-      "type": "send-observation-performance-hypothesis",
-      "finding": "_beginSendAttempt and _sendEvidence collect assistant counts and last-answer text while dispatch is unresolved. Performance work must measure this cost without weakening the at-most-once Send journal or independent delivery evidence."
-    },
-    {
-      "worker": 1,
-      "executedByNominalWorker": 6,
-      "type": "orchestration-policy-drift",
-      "finding": "Project-local README/task prompt still describe the former global review-after-round freeze. The canonical Personal-Forge maker is authoritative for orchestration behavior and now governs Policy B, but the stale project documentation remains a reconciliation item."
-    },
-    {
-      "worker": 2,
-      "type": "long-chat-linear-selector-enumeration",
-      "finding": "Exact A1 measurement showed ChatGPT answer selection performed 3 full-document assistant selector queries whose returned matches grew approximately linearly with retained history: 543/sample at 180 turns and 6003/sample at 2000 turns. This was a measured Ghost hot path, not proof it dominated total host-page latency."
-    },
-    {
-      "worker": 2,
-      "type": "long-chat-minimal-falsifiable-repair",
-      "finding": "A1 selected a stateless grouped-selector tail collector that preserves per-selector last-48 semantics and selector priority, with a predeclared >=60% returned-match reduction gate before considering persistent MutationObserver/cache state."
-    },
-    {
-      "worker": 3,
-      "executedByNominalWorker": 6,
-      "type": "long-chat-a2-execution-recovery",
-      "finding": "A2 committed the deterministic falsification fixture but could not exactly materialize or execute the product candidate, so A2X was created rather than weakening or guessing the oracle."
-    },
-    {
-      "worker": 3,
-      "executedByNominalWorker": 2,
-      "type": "long-chat-grouped-selector-pass",
-      "finding": "A2X exact candidate 9d49e34af07015f8064ac66398004180216efb08 reduced 2000-turn answer-selection qSA returned matches from 6003 to 2001/sample (66.67%) and p95 from 2.30 to 1.00 ms while preserving 180-turn p95 at 0.40 ms, newest-answer semantics, generated parity, full unit tests, and zero Send-adjacent actuation. The one-union query still scales linearly with retained matching history."
-    },
-    {
-      "worker": 3,
-      "executedByNominalWorker": 2,
-      "type": "long-chat-send-observation-remains-linear",
-      "finding": "A2X recorded 8004 qSA matches/sample at 2000 turns in both begin-Send and send-evidence observations. A3 preserved fail-closed behavior without weakening that journal path; the remaining cost is carried forward as a bounded performance limit rather than treated as solved."
-    },
-    {
-      "worker": 4,
-      "executedByNominalWorker": 6,
-      "type": "long-chat-redteam-pass",
-      "finding": "A3 exact adversarial Chromium on head 73ec20832e6ae125fd38dd137f315ee695e186b6 preserved mixed per-selector tail semantics, newest unfinished-answer authority, unchanged A2 2000-turn performance gates after 12-pass DOM replacement churn, stable timer/observer counts, and fail-closed route/uncertain-Send/foreign-lease behavior with zero actuation."
-    },
-    {
-      "worker": 4,
-      "executedByNominalWorker": 6,
-      "type": "long-chat-send-observation-limit-confirmed",
-      "finding": "The same A3 exact-head repeat measured 8004 qSA matches/sample at 2000 turns for begin-Send and send-evidence observation, with p95 about 6.40 ms and 3.60 ms respectively. This remains a safety-critical performance limit and is not authorization to weaken independent Send confirmation evidence."
-    },
-    {
-      "worker": 5,
-      "executedByNominalWorker": 2,
-      "type": "long-chat-mobile-cross-browser-pass",
-      "finding": "Exact A4 evidence on Pixel-7 Chromium emulation and desktop Firefox preserved answer-selection correctness, stable resource proxies, host composer/Send usability, and zero actuation through 2000 turns. Pixel-7 answer p95 was 1.70 ms at 2000 turns; desktop Firefox p95 was 2 ms. These are hosted Playwright measurements, not physical-device certification."
-    },
-    {
-      "worker": 5,
-      "executedByNominalWorker": 2,
-      "type": "long-chat-send-observation-mobile-limit",
-      "finding": "At 2000 turns both Pixel-7 Chromium emulation and desktop Firefox still returned 8004 qSA matches/sample for begin-Send and send-evidence observation. The safety-critical path remains history-linear and was not weakened."
-    },
-    {
-      "worker": 6,
-      "type": "long-chat-bounded-certification",
-      "finding": "Independent A5 audit accepted the grouped-selector answer collector only at the deterministic 180/500/1000/2000-turn retained-DOM and hosted Playwright browser scope. It achieved the predeclared 66.67% returned-match reduction at 2000 turns and preserved exact-head correctness/safety through Red Team, Pixel-7 Chromium emulation, and desktop Firefox."
-    },
-    {
-      "worker": 6,
       "type": "long-chat-explicit-uncertified-limits",
-      "finding": "A5 rejected constant-time/asymptotic, Ghost-causal-dominance, physical Android, GeckoView, calibrated hardware-budget, and solved-Send-observation claims. The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; journal evidence may not be weakened for speed."
+      "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."
+    },
+    {
+      "worker": 1,
+      "type": "orchestration-policy-drift",
+      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."
     }
   ],
   "briefs": [
     ".gitl/briefs/mobile-shell-concepts.md"
   ],
   "testEvidence": [
-    ".gitl/evidence/round-1/worker-1.md",
-    ".gitl/evidence/round-1/worker-2.md",
-    ".gitl/evidence/round-1/worker-3.md",
-    ".gitl/evidence/round-1/worker-4.md",
-    ".gitl/evidence/round-1/worker-5.md",
-    ".gitl/evidence/round-1/worker-6.md",
-    ".gitl/evidence/round-2/worker-1.md",
-    ".gitl/evidence/round-2/worker-2.md",
-    ".gitl/evidence/round-2/worker-3.md",
-    ".gitl/evidence/round-2/worker-4.md",
-    ".gitl/evidence/round-2/worker-5.md",
-    ".gitl/evidence/round-2/worker-6.md",
-    ".gitl/evidence/round-3/worker-1.md",
-    ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
-    ".gitl/evidence/round-3/worker-3.md",
-    ".gitl/evidence/round-3/worker-6.md",
-    ".gitl/evidence/round-4/worker-1.md",
-    ".gitl/evidence/round-4/worker-2.md",
-    ".gitl/evidence/round-4/worker-3.md",
-    ".gitl/evidence/round-4/worker-4.md",
-    ".gitl/evidence/round-4/worker-5.md",
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-1.md",
     ".gitl/evidence/round-5/worker-2.md",
@@ -258,77 +119,41 @@
     ".gitl/evidence/round-5/worker-5.md",
     ".gitl/evidence/round-5/worker-6.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-supervisor-plan",
+    "assignmentId": "R6-SUPERVISOR-PLAN",
+    "role": "supervisor-integrator",
+    "nominalWorker": 6,
+    "acquiredAt": "2026-08-07T12:11:07Z",
+    "expiresAt": "2026-08-07T12:56:07Z",
+    "inspectedHead": "90ce760392c89c2816e80df65d8d08e84a5c2ca4"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 5,
     "program": "LONG-CHAT-PERF",
     "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
-    "supervisorAssignment": "R5-SUPERVISOR-PLAN",
-    "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
-    "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
-    "nextAssignment": "R6-SUPERVISOR-PLAN",
-    "nextProgram": "MOBILE-SHELL-STRUCTURAL",
-    "performanceWinner": "The stateless grouped-selector reverse-tail collector is accepted for the bounded deterministic/hosted-Playwright Long Chat objective. It reduced 2000-turn answer-selector returned matches from 6003 to 2001/sample under the predeclared oracle and survived exact Red Team plus Pixel-7 Chromium-emulation and desktop-Firefox evidence. It remains history-linear, and the 8004-match/sample safety-critical Send-observation path remains explicitly unsolved.",
-    "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
-    "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
-    "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
-    "baselineRunId": 31165679128,
-    "baselineJobId": 92825797473,
-    "baselineArtifactId": 8988876017,
-    "builderAssignment": "R5-A2-LONGCHAT-BUILD",
-    "builderRecoveryAssignment": "R5-A2X-LONGCHAT-BUILD-EXEC",
-    "builderEvidence": ".gitl/evidence/round-5/worker-3.md",
-    "builderEvidenceCommit": "8465c3a3e470607dd40b62c7a26b4f64f45a0636",
-    "builderFixtureCommit": "81cb49e30a66cfefd796f56784f9327f80df71c0",
-    "builderTestedHead": "9d49e34af07015f8064ac66398004180216efb08",
-    "builderRunId": 31169354385,
-    "builderJobId": 92837396863,
-    "builderArtifactId": 8990318746,
-    "builderArtifactSha256": "eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4",
-    "builderVerdict": "submitted-pass-audited-bounded",
-    "redteamAssignment": "R5-A3-LONGCHAT-REDTEAM",
-    "redteamEvidence": ".gitl/evidence/round-5/worker-4.md",
-    "redteamEvidenceCommit": "c332a00f468d6b99529611cfa9d19a20964a9b6e",
-    "redteamTestedHead": "73ec20832e6ae125fd38dd137f315ee695e186b6",
-    "redteamRunId": 31171939489,
-    "redteamJobId": 92845452541,
-    "redteamArtifactId": 8991319478,
-    "redteamArtifactSha256": "eb54291a2aa50868b9281982422c548025f77130f1338d671a83094fae4273e3",
-    "redteamVerdict": "submitted-pass-audited-bounded",
-    "mobileAssignment": "R5-A4-LONGCHAT-MOBILE-PERF",
-    "mobileEvidence": ".gitl/evidence/round-5/worker-5.md",
-    "mobileEvidenceCommit": "b529e15e174eac4695201afaeda63e1ab9733800",
-    "mobileTestedHead": "290c5e8b1a3d16948db61875c9199cca0792ede3",
-    "mobileRunId": 31173733483,
-    "mobileJobId": 92851027653,
-    "mobileArtifactId": 8992007971,
-    "mobileArtifactSha256": "fd3baa72e9e4bcc18938e2a497536d7b5d28f1d92bb13be908d3151c7b810d83",
-    "mobileVerdict": "submitted-pass-audited-bounded",
     "auditAssignment": "R5-A5-LONGCHAT-AUDIT",
     "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
     "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
     "auditPlanCommit": "3529557cf8893300888acc69c767e231fc4f3a01",
-    "auditDeferredQuestionCommit": "3f5f737de6d493f51b68a8602682ae5929126cb8",
-    "auditVerdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope"
+    "nextAssignment": "R6-SUPERVISOR-PLAN",
+    "nextProgram": "MOBILE-SHELL-STRUCTURAL",
+    "explicitLimits": [
+      "The grouped assistant query remains history-linear.",
+      "The safety-critical Send-observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns.",
+      "No physical Android or Firefox-Android/GeckoView certification.",
+      "No calibrated low-end hardware budget or proof that Ghost dominates total host-page lag."
+    ]
   },
   "priorRoundVerification": {
     "round": 4,
     "program": "LIFECYCLE-FROZEN-DISCARDED",
     "verdict": "certified-human-review-deferred-local",
-    "auditAssignment": "R4-A5-LIFECYCLE-AUDIT",
     "auditEvidence": ".gitl/evidence/round-4/worker-6.md",
-    "auditEvidenceCommit": "6ef0e260f48bf67a9c2b6f0ef7035cf965451e6e",
-    "stateCloseCommit": "a348cadb125a18712f11ea6de02d2a22233736b6",
-    "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW",
-    "limits": [
-      "No physical Android discard/freeze certification.",
-      "No Firefox-Android/GeckoView lifecycle certification.",
-      "No calibrated low-end performance budget.",
-      "Synthetic freeze and fixture-injected document.wasDiscarded remain deterministic harness evidence only."
-    ]
+    "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"
   }
 }
