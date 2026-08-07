@@ -73,11 +73,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 2,
-    "assignmentId": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE",
-    "automatic": true,
-    "claimableByAnyEligibleWorker": true,
-    "instruction": "Recover A1 by obtaining a durable read-only current ChatGPT structure capture at desktop and narrow/mobile. Bind the active editor, composer, exact Send node, action-row/header/footer-stack candidates, computed layout and rerender evidence without actuating Send. Do not authorize product selectors or A2 until the live capture confirms a container and exact insertion rule."
+    "nominalWorker": null,
+    "assignmentId": null,
+    "automatic": false,
+    "claimableByAnyEligibleWorker": false,
+    "instruction": "No dependency-ready Round-6 implementation assignment exists while DQ-R6-LIVE-STRUCTURE-CAPTURE is deferred. Do not repeat the same permission-gated browser call or deterministic probe without changed evidence. Follow the canonical maker research fallback for one bounded non-conflicting research step, or execute later supervisor-authorized independent work that does not depend on the missing current-host structure map."
   },
   "assignments": [
     {
@@ -122,7 +122,7 @@
       "worker": 2,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "researcher-architect",
-      "status": "ready",
+      "status": "blocked",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Obtain the missing durable current ChatGPT desktop+narrow structural map using the A1 read-only probe contract; select or reject an exact composer-local insertion rule without product behavior changes.",
       "dependencies": ["R6-A1-MOBILE-SHELL-STRUCTURE-MAP:blocked"],
@@ -142,7 +142,21 @@
       "requiredTests": ["read-only live structure probe desktop+narrow", "deterministic probe fixture syntax/execution where executable", "exact head/run/job/artifact for any CI carrier", "zero actuation ledger"],
       "requiredEvidence": ["live desktop+narrow structure capture", "exact active composer/Send relationship", "layout signatures", "rerender observation or explicit UNKNOWN", "strategy comparison", "exact insertion rule or rejection", "execution bindings"],
       "fallbackWork": "If browser permission remains unavailable, use the smallest safe exact-evidence carrier or current user-provided DOM/screenshot capture without Send actuation. If no durable current host evidence can be obtained, keep A2 waiting and expose another bounded capture recovery rather than guessing.",
-      "evidencePath": ".gitl/evidence/round-6/worker-2.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-2.md",
+      "executedBy": "scheduled-worker-2-r6-a1x-live-capture",
+      "claimCommit": "2eed7b903de00abe5a22c5afc652550e5010f157",
+      "evidenceCommit": "7bb9b4b66d4749821f64c7f3f29a8ab87a30106e",
+      "deferredQuestion": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
+      "exactEvidence": {
+        "testedHead": "2eed7b903de00abe5a22c5afc652550e5010f157",
+        "runId": 31181719403,
+        "jobId": 92876348475,
+        "artifactId": 8995048318,
+        "artifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
+        "deterministicProbe": "2/2 PASS",
+        "liveAuthenticatedCapture": "NOT_OBTAINED_BROWSER_PERMISSION_REQUIRED"
+      },
+      "blockedReason": "Two independent read-only browser-connector entry points required interactive user permission in the non-interactive scheduled runtime. The deterministic desktop+narrow capture oracle passed exact-head CI 2/2, but current authenticated ChatGPT editor/composer/Send/action/header/footer structure and exact Blue insertion slot remain UNKNOWN. Repeating the same permission call or deterministic probe without changed evidence would not discriminate the architecture."
     },
     {
       "id": "R6-A2-MOBILE-SHELL-BUILD",
