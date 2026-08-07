@@ -50,10 +50,10 @@
   ],
   "dispatch": {
     "nextWake": "next eligible scheduled wake",
-    "nominalWorker": 3,
-    "assignmentId": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
+    "nominalWorker": 4,
+    "assignmentId": "R3-A3-RR-REDTEAM-CERT",
     "automatic": true,
-    "instruction": "The next eligible wake must claim R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR regardless of worker number. Repair only the proven duplicate ticker restart defect from run 31137892852/job 92741313903, preserve Send/CHOICE/route/lease/uncertainty safeguards, rerun desktop Chromium, Pixel 7 Chromium, and Firefox focused coverage, and hand off to A3 only on durable green evidence."
+    "instruction": "The next eligible wake must claim R3-A3-RR-REDTEAM-CERT regardless of worker number. Independently falsify the clean exact-head result at 5c057fe2235da50c23c800f7c345bc3814f01b3c, verify run 31138679335/job 92743714584/artifact 8978979561 is current and genuine, challenge Send/CHOICE/route/lease/uncertainty boundaries, and certify or reopen the earliest concrete failure."
   },
   "assignments": [
     {
@@ -135,7 +135,7 @@
       "id": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "ready",
+      "status": "submitted",
       "program": "RR-E2E-FAULTS",
       "goal": "Repair only the proven Repair & Resume ticker restart idempotence/single-flight defect reproduced on desktop Chromium and Pixel 7 Chromium, without changing Send, CHOICE, route, lease, composer-staleness, or uncertainty safeguards.",
       "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted"],
@@ -170,13 +170,36 @@
         "chromiumAssertion2": "tests/e2e/repair-resume-production.spec.js:142 expected twelve rapid repairs tickerStart delta 1, received 12",
         "chromiumMobile": "same two failures reproduced",
         "firefox": "focused command passed: 5 passed, 1 intended mobile-only skip"
-      }
+      },
+      "executedBy": "scheduled-agent-4-successor",
+      "startingHead": "22b0894247048cd4cf70b3edaf9e61754b9a8295",
+      "leaseClaimCommit": "e560ff7f4e1d86ab2b7c47dac1a10d4c6cdc27a9",
+      "productCommit": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
+      "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
+      "workflowRunId": 31138679335,
+      "workflowJobId": 92743714584,
+      "artifactId": 8978979561,
+      "artifactSha256": "5571ab9e56cfc537a99bf6f6f488cdc10b44b9b13fefcb60128e6275f144bb66",
+      "result": {
+        "generatedParity": "pass",
+        "lint": "pass",
+        "unit": "pass: 42 suites, 471 tests",
+        "chromium": "pass: 4 passed",
+        "chromiumMobile": "pass: 4 passed",
+        "firefox": "pass: 5 passed, 1 intended mobile-only skip",
+        "sendActuation": "pass: production-path non-dispatching assertions green",
+        "composerStaleness": "pass",
+        "routeLeaseUncertainty": "pass",
+        "singleFlight": "pass"
+      },
+      "evidencePath": ".gitl/evidence/round-3/worker-3.md",
+      "evidenceCommit": "277f815467156d13ed7a74ffbcc15cb208739c06"
     },
     {
       "id": "R3-A3-RR-REDTEAM-CERT",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "red-team-auditor",
-      "status": "waiting-on-predecessor",
+      "status": "ready",
       "program": "RR-E2E-FAULTS",
       "goal": "Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
       "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted", "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR:submitted"]
@@ -185,7 +208,8 @@
   "evidence": [
     {"worker": 1, "path": ".gitl/evidence/round-3/worker-1.md", "status": "submitted"},
     {"worker": 3, "assignment": "R3-A1-RR-CI-RECOVERY", "executedBy": "scheduled-agent-1-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "blocked"},
-    {"worker": 3, "assignment": "R3-A2-RR-PROVEN-FAILURE-REPAIR", "executedBy": "scheduled-agent-3", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31137892852, "jobId": 92741313903, "artifactId": 8978698975}
+    {"worker": 3, "assignment": "R3-A2-RR-PROVEN-FAILURE-REPAIR", "executedBy": "scheduled-agent-3", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31137892852, "jobId": 92741313903, "artifactId": 8978698975},
+    {"worker": 3, "assignment": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR", "executedBy": "scheduled-agent-4-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31138679335, "jobId": 92743714584, "artifactId": 8978979561, "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
