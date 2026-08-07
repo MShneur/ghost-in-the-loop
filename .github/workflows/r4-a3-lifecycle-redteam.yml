@@ -1,8 +1,18 @@
 name: R4 A3 Lifecycle Red Team Exact Head
 
 on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.github/workflows/r4-a3-lifecycle-redteam.yml'
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches:
+      - gitl/r4-a3-ci-base
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: read
@@ -12,21 +22,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.EXPECTED_HEAD }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: Guard exact head
         shell: bash
         run: |
+          set -euo pipefail
           actual="$(git rev-parse HEAD)"
           echo "expected=${EXPECTED_HEAD}"
           echo "actual=${actual}"
           test "${actual}" = "${EXPECTED_HEAD}"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            test "${GITHUB_HEAD_REF}" = "agent/8.8-repair-resume"
+          else
+            test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          fi
 
       - name: Setup Node
         uses: actions/setup-node@v4
