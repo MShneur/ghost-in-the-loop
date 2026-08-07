@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2],
+  "completedWorkers": [1, 2, 3],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "4b694115a40d2803ed5179a5ecc1112a739f4cf4",
-  "currentStep": "R4-A2-LIFECYCLE-BUILD is in progress. The builder is adding deterministic production-path lifecycle coverage before any product change, per the accepted A1 contract.",
-  "nextAction": "scheduled-agent-3 executes R4-A2-LIFECYCLE-BUILD on the isolated branch; other workers must avoid conflicting writes while this lease is valid and active.",
+  "headAtLastHandoff": "2f8908ecb091a2877149acf1b854c266a99eab41",
+  "currentStep": "R4-A2-LIFECYCLE-BUILD committed deterministic production-path lifecycle coverage in tests/e2e/repair-resume-production.spec.js and is blocked only on exact-head browser execution. No product code changed. R4-A3-LIFECYCLE-REDTEAM is ready.",
+  "nextAction": "The next eligible agent claims R4-A3-LIFECYCLE-REDTEAM. Use an observable guarded execution path to run the lifecycle production fixture and focused Jest on the exact branch head; falsify repeated wake, stale DOM, route/lease, uncertain-Send, BFCache, freeze/resume, and discarded-fresh-document behavior. Preserve any exact failure and create the smallest recovery assignment rather than weakening assertions.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R4-A2-LIFECYCLE-BUILD",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 4,
+    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -96,6 +96,10 @@
     {
       "type": "round-4-a1x-exact-head-pass",
       "result": "Guarded connected-GitHub-visible run 31143832068/job 92759102485 checked out exact head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed both lifecycle source-contract suites: 12 tests passed, 3 explicit TODOs, zero failures. Temporary workflow carrier was removed in 20cb29497a6e8b4ca897c08f88f7ebfae4c288bd, A1/A1X were submitted, and A2 was activated."
+    },
+    {
+      "type": "round-4-a2-production-fixture-blocked-on-execution",
+      "result": "Builder commit 10bece4cef59c13f17ad97882aafcbfe15597b84 added BFCache/duplicate-wake, freeze/resume, and fixture-injected discarded-fresh-document coverage to the existing real userscript Playwright production fixture. No product source changed. Worker-3 evidence 805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23 marks A2 blocked only because exact-head browser execution is unavailable within A2's allowed files and activates A3."
     }
   ],
   "findings": [
@@ -130,6 +134,11 @@
       "worker": 2,
       "type": "lifecycle-contract-exact-head-pass",
       "finding": "A1X used a PR-visible isolated temporary carrier because the connector did not expose push-run evidence. Run 31143832068/job 92759102485 verified expected=actual head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed 2 suites / 12 tests with 3 explicit TODOs. Legacy R3 job 92758568585 was rejected as evidence because it checked out old product head 5c057fe."
+    },
+    {
+      "worker": 3,
+      "type": "lifecycle-production-fixture",
+      "finding": "A2 preserved the minimal central recovery seam and added deterministic production-copy Playwright coverage for pageshow.persisted duplicate wake coalescing, non-actuating freeze followed by resume recovery, and fresh boot with fixture-injected document.wasDiscarded=true. No product change is justified until A3 executes and falsifies this exact-head fixture."
     }
   ],
   "briefs": [
@@ -153,18 +162,10 @@
     ".gitl/evidence/round-3/worker-3.md",
     ".gitl/evidence/round-3/worker-6.md",
     ".gitl/evidence/round-4/worker-1.md",
-    ".gitl/evidence/round-4/worker-2.md"
+    ".gitl/evidence/round-4/worker-2.md",
+    ".gitl/evidence/round-4/worker-3.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-3",
-    "nominalWorker": 3,
-    "assignmentId": "R4-A2-LIFECYCLE-BUILD",
-    "intendedRole": "builder",
-    "acquiredAt": "2026-08-07T03:28:00Z",
-    "expiresAt": "2026-08-07T04:13:00Z",
-    "inspectedHead": "9527d70cc4f3072b9e0622a00b13cf7bbccfac75",
-    "activeWorkflowCheck": "Commit 9527d70cc4f3072b9e0622a00b13cf7bbccfac75 had no active workflow; visible run 31143996105 was completed successfully before lease claim."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
