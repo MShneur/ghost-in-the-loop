@@ -175,3 +175,110 @@ Create/activate `R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE` as the smallest rec
 
 ## Assignment Status
 - blocked
+
+---
+
+# R6-A1X Live Structure Capture Recovery Addendum
+
+## Identity
+- Round: 6
+- Worker evidence slot: 2
+- Intended role: Researcher / architect
+- Executed by: `scheduled-worker-2-r6-a1x-live-capture`
+- Assignment ID: `R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE`
+- Program: `MOBILE-SHELL-STRUCTURAL`
+- Lease claim commit: `2eed7b903de00abe5a22c5afc652550e5010f157`
+- Inspected pre-claim branch head: `04a6a67c98831116c1008b3742113627cc66a47c`
+
+## State and Active-Work Check
+- Canonical state was active, `publishReady: false`, and `lease: null` before claim.
+- `R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE` was the earliest ready dependency-safe assignment.
+- Current branch head was independently resolved as `04a6a67c98831116c1008b3742113627cc66a47c` before claim.
+- No pull-request workflow run was associated with that head before claim.
+- The lease was re-read after commit `2eed7b9...` and confirmed to belong to this assignment before further repository writes.
+
+## Step Performed
+A1X attempted the missing read-only authenticated ChatGPT capture through two independent browser-connector entry points:
+1. `browser_tabs(list)` to establish the current authenticated page/session.
+2. direct read-only JavaScript evaluation returning only `location.href` and `document.title`.
+
+Both were denied by the automation runtime with the same non-interactive permission boundary: `User input required but current turn is running in a non-interactive mode`.
+
+Because the current authenticated DOM could not be read, A1X did **not** infer or authorize an action-row selector, header selector, footer-stack selector, hidden-composer rule, or Blue insertion slot from fixtures/adoption examples.
+
+A1X then used the assignment's exact-evidence fallback to execute the existing deterministic read-only probe on the exact authoritative head. This removes the prior uncertainty that the A1 capture oracle itself had never been executed, while preserving the stronger live-evidence blocker.
+
+## Exact CI / Deterministic Probe Evidence
+Temporary carrier PR: `#28`.
+- PR was draft, targeted isolated base `gitl/r6-a1x-probe-base`, and was closed unmerged after execution.
+- Authoritative tested head: `2eed7b903de00abe5a22c5afc652550e5010f157`.
+- Workflow run: `31181719403`.
+- Job: `92876348475`.
+- Artifact: `8995048318` (`r6-a1x-deterministic-probe`).
+- Artifact SHA-256: `3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc`.
+- Artifact size: 372 bytes.
+
+Exact-head guard output:
+- expected = `2eed7b903de00abe5a22c5afc652550e5010f157`
+- actual = `2eed7b903de00abe5a22c5afc652550e5010f157`
+- remote `agent/8.8-repair-resume` = `2eed7b903de00abe5a22c5afc652550e5010f157`
+
+Command:
+`npx playwright test tests/e2e/mobile-shell-structure-probe.spec.js --project=chromium`
+
+Result:
+- 2 tests run with 1 worker.
+- desktop fixture read-only structure map: PASS (148 ms).
+- narrow 390 px fixture / hidden duplicate composer rejection: PASS (96 ms).
+- overall: **2 passed (2.4 s)**.
+- Fixture assertions preserve exact Send identity and zero click/submit/input/keydown actuation.
+
+The carrier artifact explicitly records `live_authenticated_capture=NOT_OBTAINED_BROWSER_PERMISSION_REQUIRED`; this is not represented as live-host evidence.
+
+## Cleanup
+- PR #28 was closed unmerged.
+- Temporary workflow `.github/workflows/r6-a1x-probe.yml` was removed from the isolated carrier base in commit `62a25216f1416bb4a7630481836bc8d269b390f4`.
+- The connected GitHub surface does not expose safe branch-ref deletion; `gitl/r6-a1x-probe-base` may remain as an inert temporary ref.
+- No temporary workflow was committed to `agent/8.8-repair-resume`.
+
+## Acceptance Criteria
+- Current authenticated ChatGPT desktop capture: **FAIL / BLOCKED BY INTERACTIVE PERMISSION**.
+- Current authenticated ChatGPT <=500 CSS px capture: **FAIL / BLOCKED BY INTERACTIVE PERMISSION**.
+- Visible editor/composer/exact Send live relationship: **UNKNOWN**.
+- Current action-row/header/footer-stack signatures: **UNKNOWN**.
+- Hidden/secondary live composer status: **UNKNOWN**.
+- Live Send JS identity preservation: **NOT TESTED** because no live page was accessible.
+- Live zero-actuation ledger: **NOT TESTED** because no live page was accessible.
+- Rerender/replacement observation: **UNKNOWN**.
+- Deterministic capture oracle exact execution: **PASS, 2/2**.
+- Exact CI head/run/job/artifact binding: **PASS**.
+- Exact Blue insertion rule: **NOT AUTHORIZED**.
+- Product behavior changes: **NONE**.
+
+## Expert-Lens Resolution
+- **Adapter-owned explicit contract:** remains the safer first implementation philosophy, but still lacks the live structural evidence needed to choose a concrete insertion slot.
+- **Generic structural inference:** remains rejected for first implementation because the hidden/secondary-composer failure mode is more consequential near Send and live falsification is still unavailable.
+- **Reliability/security:** repeated permission failure is a tooling boundary, not evidence that any guessed selector is safe. Fail closed and keep the rail fallback.
+- **Mobile/performance:** the deterministic 390 px probe passes, but it is synthetic and cannot establish current mobile ChatGPT structure, keyboard behavior, or physical-device behavior.
+- **Test lead:** the oracle is now executed and green; the only release-relevant missing discriminator is current authenticated host structure. Re-running the same deterministic probe without host evidence would be diminishing-return repetition.
+
+## Safety Checks
+- Send authority unchanged: PASS.
+- CHOICE behavior unchanged: PASS.
+- Route safety unchanged: PASS.
+- Lease semantics unchanged: PASS.
+- Uncertainty behavior unchanged: PASS.
+- Existing rail fallback unchanged: PASS.
+- `main`, merge, auto-merge, tag, publish, release: NONE.
+
+## Risks and Limits
+- The exact current authenticated ChatGPT DOM remains unavailable to non-interactive scheduled browser tools.
+- External/adoption examples and deterministic fixtures remain lower-ranked than the required live host capture and may not authorize production selectors.
+- Repeated unattended attempts against the same browser permission boundary would not discriminate between architecture candidates.
+- The human can unblock only the affected live-capture decision by granting browser-tool permission in an interactive session or supplying a current sanitized DOM/screenshot capture. This is a local gate; unrelated reversible work and research remain eligible under canonical Policy B.
+
+## Recommended Next Action
+Mark A1X blocked rather than submitted. Record a local deferred capture-permission question and keep A2 waiting. Do not create another unattended assignment whose only action is to retry the same permission-gated browser call. Until the permission state or supplied evidence changes, later wakes should use bounded non-conflicting research fallback or supervisor-authorized independent roadmap work. Once current host evidence is available, resume the same A1X acceptance criteria without changing the safety oracle.
+
+## Assignment Status
+- blocked
