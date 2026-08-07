@@ -245,7 +245,15 @@
     ".gitl/evidence/round-6/research-fallback-07.md",
     ".gitl/evidence/round-6/research-fallback-08.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-a11y-tree-09",
+    "assignmentId": "R6-RESEARCH-FALLBACK-A11Y-TREE-09",
+    "nominalWorker": 5,
+    "executedRole": "mobile-browser-accessibility-performance-with-release-audit-lens",
+    "acquiredAt": "2026-08-07T16:39:52Z",
+    "expiresAt": "2026-08-07T17:24:52Z",
+    "inspectedHead": "UNKNOWN-CONNECTOR-REF-TIP; stable one state-only commit ahead of b250f1d210936751306f80da52907a26e15a901d"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
