@@ -5,7 +5,7 @@ const fs = require('fs');
 /**
  * Playwright config for Ghost in the Loop e2e.
  *
- * Two engines, on purpose. The Gemini "panel never appears" saga (v8.1.0–8.1.5)
+ * Two engines, on purpose. The Gemini "panel never appears" saga (v8.1.0–v8.1.5)
  * happened because every test ran in Chromium while the field failure was
  * Firefox Android — so a whole class of engine-specific behaviour (Trusted
  * Types enforcement, in the end) went unexercised. We now run the suite in
@@ -52,6 +52,7 @@ const projects = [
     testMatch: [
       '**/send-evidence.spec.js',
       '**/repair-resume-production.spec.js',
+      '**/lifecycle-mobile-perf.spec.js',
     ],
     use: {
       ...devices['Pixel 7'],
