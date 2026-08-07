@@ -134,7 +134,7 @@
     },
     {
       "type": "round-6-research-fallback-scoped-repair-02",
-      "result": "A second bounded post-A1X research fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
+      "result": "A second bounded post-A1X fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
     },
     {
       "type": "round-6-research-fallback-mobile-reflow-03",
@@ -311,13 +311,13 @@
     ".gitl/evidence/round-6/worker-3.md"
   ],
   "lease": {
-    "holder": "manual-successor-r6-a2x-verify-12",
+    "holder": "manual-successor-r6-a2x-verify-13",
     "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
     "nominalWorker": 3,
     "executedRole": "builder-test-verifier-with-release-pressure",
-    "acquiredAt": "2026-08-07T17:40:30Z",
-    "expiresAt": "2026-08-07T18:25:30Z",
-    "inspectedHead": "UNKNOWN-PRECLAIM-BRANCH-TIP-RESOLVE-FROM-CLAIM-PARENT"
+    "acquiredAt": "2026-08-07T18:33:36Z",
+    "expiresAt": "2026-08-07T19:18:36Z",
+    "inspectedHead": "BRANCH-AHEAD-2-FROM-8c80df40616b49cff64bc5dc534c20539d9a4b58-STATE-ONLY-STABLE-THROUGH-2026-08-07T18:33:36Z"
   },
   "blockedReason": null,
   "publishReady": false,
