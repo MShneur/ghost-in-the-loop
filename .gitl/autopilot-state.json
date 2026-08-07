@@ -7,7 +7,10 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [
+    1,
+    2
+  ],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,14 +28,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
-  "currentStep": "R5-SUPERVISOR-PLAN applied the latest canonical Personal-Forge maker. Round-4 lifecycle certification remains bounded and its accept-vs-reopen decision is queued locally as DQ-R4-LIFECYCLE-REVIEW instead of freezing independent work. LONG-CHAT-PERF is now active with competing polling, event-driven, and outside-frame hypotheses preserved for exact measurement before any product optimization.",
-  "nextAction": "The next eligible wake claims R5-A1-LONGCHAT-BASELINE regardless of nominal timer number. Build and execute an exact-head long-chat benchmark/correctness fixture across materially different history sizes, measure scaling and query/scan hot paths, compare competing approaches with predeclared criteria, and recommend only the smallest falsifiable optimization supported by evidence.",
+  "headAtLastHandoff": "a29ee2088ebc080672a653d9a5dc3b91753001b6",
+  "currentStep": "R5-A1-LONGCHAT-BASELINE exact-head Chromium evidence passed at head 747031cc8160ba6febdd6fecb03d597fae36cd66 (run 31165679128/job 92825797473/artifact 8988876017). Across 180/500/1000/2000 assistant turns, answer-selection full-document query matches scaled from 543 to 6003 per sample while p95 rose 0.70ms to 2.30ms; begin-Send p95 rose 0.90ms to 3.70ms and Send-evidence p95 1.00ms to 3.80ms. Newest-answer correctness and zero Send-adjacent actuation held. A1 selected a stateless grouped-selector tail collector as the smallest next falsifiable implementation, not a persistent observer/cache.",
+  "nextAction": "The next eligible wake claims R5-A2-LONGCHAT-BUILD regardless of nominal timer number. Implement only the semantics-preserving grouped-selector tail collector proposed by Worker 2, preserve lowest selectorIndex/fallback behavior and all Send/CHOICE/route/lease/uncertainty safeguards, then rerun the exact long-chat benchmark plus generated parity/unit/browser gates. Reject the change if it fails the predeclared query-work/correctness criteria; do not weaken assertions.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 2,
-    "assignmentId": "R5-A1-LONGCHAT-BASELINE",
+    "nominalWorker": 3,
+    "assignmentId": "R5-A2-LONGCHAT-BUILD",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -82,20 +85,73 @@
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
-    {"type": "round-1-complete", "result": "Accepted the fault contract and retained browser/mobile scaffolding."},
-    {"type": "round-2-complete-with-gaps", "result": "Added a production-path fixture and adversarial/mobile scaffolding; exact-head execution remained absent."},
-    {"type": "round-3-rr-certified", "result": "RR-E2E-FAULTS certified on original run 31138679335/job 92743714584/artifact 8978979561 against product head 5c057fe2235da50c23c800f7c345bc3814f01b3c."},
-    {"type": "round-3-human-accepted", "result": "User accepted the Round-3 review and authorized the next dependency-safe round."},
-    {"type": "round-4-lifecycle-certified", "result": "LIFECYCLE-FROZEN-DISCARDED certified at bounded deterministic scope by R4-A5. Exact lifecycle and Pixel-7 emulation evidence is retained in Round-4 worker evidence; physical Android/Firefox-Android, actual scheduler freeze/discard, and calibrated low-end budgets remain explicitly uncertified."},
-    {"type": "round-5-supervisor-plan-policy-b", "result": "Canonical Personal-Forge Policy B converted the Round-4 human review into local deferred question DQ-R4-LIFECYCLE-REVIEW. Commit fe2053dac6241381b9b03835225ef8aea3d5ab23 created the queue; commit 94a98eb0e324bb4927df0c6243109af9d0f95d69 opened the LONG-CHAT-PERF chain; Worker-1 evidence commit f47d9bf5e699ff377321abd2424e766c0bd12c46 recorded the handoff."}
+    {
+      "type": "round-1-complete",
+      "result": "Accepted the fault contract and retained browser/mobile scaffolding."
+    },
+    {
+      "type": "round-2-complete-with-gaps",
+      "result": "Added a production-path fixture and adversarial/mobile scaffolding; exact-head execution remained absent."
+    },
+    {
+      "type": "round-3-rr-certified",
+      "result": "RR-E2E-FAULTS certified on original run 31138679335/job 92743714584/artifact 8978979561 against product head 5c057fe2235da50c23c800f7c345bc3814f01b3c."
+    },
+    {
+      "type": "round-3-human-accepted",
+      "result": "User accepted the Round-3 review and authorized the next dependency-safe round."
+    },
+    {
+      "type": "round-4-lifecycle-certified",
+      "result": "LIFECYCLE-FROZEN-DISCARDED certified at bounded deterministic scope by R4-A5. Exact lifecycle and Pixel-7 emulation evidence is retained in Round-4 worker evidence; physical Android/Firefox-Android, actual scheduler freeze/discard, and calibrated low-end budgets remain explicitly uncertified."
+    },
+    {
+      "type": "round-5-supervisor-plan-policy-b",
+      "result": "Canonical Personal-Forge Policy B converted the Round-4 human review into local deferred question DQ-R4-LIFECYCLE-REVIEW. Commit fe2053dac6241381b9b03835225ef8aea3d5ab23 created the queue; commit 94a98eb0e324bb4927df0c6243109af9d0f95d69 opened the LONG-CHAT-PERF chain; Worker-1 evidence commit f47d9bf5e699ff377321abd2424e766c0bd12c46 recorded the handoff."
+    },
+    {
+      "type": "round-5-a1-longchat-baseline",
+      "result": "Exact head 747031cc8160ba6febdd6fecb03d597fae36cd66 passed run 31165679128/job 92825797473. The 180/500/1000/2000-turn fixture preserved newest-answer and zero-actuation correctness while answer qSA returned-match work scaled 543 -> 6003 per sample. Artifact 8988876017 SHA-256 167fdef0bdfbb06a9f84f6a9a41bd3c4839ede6b0fa1bf698f87a933d9311952. R5-A2 activated for a grouped-selector tail-collector falsification."
+    }
   ],
   "findings": [
-    {"worker": 6, "type": "round4-lifecycle-certification-limit", "finding": "Round-4 deterministic lifecycle evidence is accepted at its bounded scope but must not be promoted to physical Android, Firefox-Android/GeckoView, real scheduler freeze/discard, or calibrated low-end performance certification."},
-    {"worker": 1, "executedByNominalWorker": 6, "type": "long-chat-hotpath-hypothesis", "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This is a concrete scaling hypothesis, not yet a proven dominant bottleneck."},
-    {"worker": 1, "executedByNominalWorker": 6, "type": "send-observation-performance-hypothesis", "finding": "_beginSendAttempt and _sendEvidence collect assistant counts and last-answer text while dispatch is unresolved. Performance work must measure this cost without weakening the at-most-once Send journal or independent delivery evidence."},
-    {"worker": 1, "executedByNominalWorker": 6, "type": "orchestration-policy-drift", "finding": "Project-local README/task prompt still describe the former global review-after-round freeze. The canonical Personal-Forge maker is authoritative for orchestration behavior and now governs Policy B, but the stale project documentation remains a reconciliation item."}
+    {
+      "worker": 6,
+      "type": "round4-lifecycle-certification-limit",
+      "finding": "Round-4 deterministic lifecycle evidence is accepted at its bounded scope but must not be promoted to physical Android, Firefox-Android/GeckoView, real scheduler freeze/discard, or calibrated low-end performance certification."
+    },
+    {
+      "worker": 1,
+      "executedByNominalWorker": 6,
+      "type": "long-chat-hotpath-hypothesis",
+      "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This is a concrete scaling hypothesis, not yet a proven dominant bottleneck."
+    },
+    {
+      "worker": 1,
+      "executedByNominalWorker": 6,
+      "type": "send-observation-performance-hypothesis",
+      "finding": "_beginSendAttempt and _sendEvidence collect assistant counts and last-answer text while dispatch is unresolved. Performance work must measure this cost without weakening the at-most-once Send journal or independent delivery evidence."
+    },
+    {
+      "worker": 1,
+      "executedByNominalWorker": 6,
+      "type": "orchestration-policy-drift",
+      "finding": "Project-local README/task prompt still describe the former global review-after-round freeze. The canonical Personal-Forge maker is authoritative for orchestration behavior and now governs Policy B, but the stale project documentation remains a reconciliation item."
+    },
+    {
+      "worker": 2,
+      "type": "long-chat-linear-selector-enumeration",
+      "finding": "Exact A1 measurement shows current ChatGPT answer selection performs 3 full-document assistant selector queries whose returned matches grow approximately linearly with retained history: 543/sample at 180 turns and 6003/sample at 2000 turns (11.06x). _beginSendAttempt and _sendEvidence each duplicate the expensive assistant-match enumeration. This is a measured Ghost hot path, not proof it dominates total host-page latency."
+    },
+    {
+      "worker": 2,
+      "type": "long-chat-minimal-falsifiable-repair",
+      "finding": "A2 should first attempt a stateless grouped-selector tail collector that preserves per-selector last-48 semantics and selector priority while reducing full-document qSA returned-match work by at least 60% at 2000 turns. Persistent MutationObserver/cache state remains the competing fallback if the minimalist repair is falsified."
+    }
   ],
-  "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
+  "briefs": [
+    ".gitl/briefs/mobile-shell-concepts.md"
+  ],
   "testEvidence": [
     ".gitl/evidence/round-1/worker-1.md",
     ".gitl/evidence/round-1/worker-2.md",
@@ -119,17 +175,10 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md",
     ".gitl/evidence/round-4/worker-6.md",
-    ".gitl/evidence/round-5/worker-1.md"
+    ".gitl/evidence/round-5/worker-1.md",
+    ".gitl/evidence/round-5/worker-2.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-2-longchat-baseline",
-    "nominalWorker": 2,
-    "assignmentId": "R5-A1-LONGCHAT-BASELINE",
-    "intendedRole": "researcher-architect",
-    "acquiredAt": "2026-08-07T09:14:12Z",
-    "expiresAt": "2026-08-07T09:59:12Z",
-    "inspectedHead": "2d40a1467e73890ba080b8071e7cd873d4fa45aa"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -140,8 +189,14 @@
     "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
     "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
-    "nextAssignment": "R5-A1-LONGCHAT-BASELINE",
-    "performanceWinner": "UNKNOWN until exact baseline measurement"
+    "nextAssignment": "R5-A2-LONGCHAT-BUILD",
+    "performanceWinner": "UNKNOWN until A2 grouped-selector implementation is measured against the A1 baseline",
+    "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
+    "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
+    "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
+    "baselineRunId": 31165679128,
+    "baselineJobId": 92825797473,
+    "baselineArtifactId": 8988876017
   },
   "priorRoundVerification": {
     "round": 4,

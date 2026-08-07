@@ -7,12 +7,36 @@
   "status": "active",
   "supervisorWorker": 1,
   "schedule": [
-    {"worker": 1, "minute": 0, "role": "supervisor-integrator"},
-    {"worker": 2, "minute": 10, "role": "researcher-architect"},
-    {"worker": 3, "minute": 20, "role": "builder"},
-    {"worker": 4, "minute": 30, "role": "test-engineer-red-team"},
-    {"worker": 5, "minute": 40, "role": "mobile-browser-accessibility-performance"},
-    {"worker": 6, "minute": 50, "role": "devils-advocate-release-auditor"}
+    {
+      "worker": 1,
+      "minute": 0,
+      "role": "supervisor-integrator"
+    },
+    {
+      "worker": 2,
+      "minute": 10,
+      "role": "researcher-architect"
+    },
+    {
+      "worker": 3,
+      "minute": 20,
+      "role": "builder"
+    },
+    {
+      "worker": 4,
+      "minute": 30,
+      "role": "test-engineer-red-team"
+    },
+    {
+      "worker": 5,
+      "minute": 40,
+      "role": "mobile-browser-accessibility-performance"
+    },
+    {
+      "worker": 6,
+      "minute": 50,
+      "role": "devils-advocate-release-auditor"
+    }
   ],
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
@@ -37,13 +61,55 @@
     "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md"
   },
   "requiredPrograms": [
-    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "completed", "releaseCritical": true, "certifiedRound": 3, "humanAccepted": true},
-    {"id": "LIFECYCLE-FROZEN-DISCARDED", "title": "Frozen and discarded page lifecycle research and recovery", "status": "completed", "releaseCritical": true, "certifiedRound": 4, "humanReview": "deferred-local", "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"},
-    {"id": "LONG-CHAT-PERF", "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance", "status": "active", "releaseCritical": true},
-    {"id": "MOBILE-SHELL-STRUCTURAL", "title": "Host-affixed mobile Ghost shell research, implementation, and certification", "status": "backlog", "releaseCritical": true, "userRequired": true, "brief": ".gitl/briefs/mobile-shell-concepts.md"},
-    {"id": "BUILD-IDENTITY", "title": "Canonical build, candidate, and release-channel identity", "status": "backlog", "releaseCritical": true},
-    {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation", "status": "backlog", "releaseCritical": true},
-    {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
+    {
+      "id": "RR-E2E-FAULTS",
+      "title": "Browser-level Repair and Resume fault injection",
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 3,
+      "humanAccepted": true
+    },
+    {
+      "id": "LIFECYCLE-FROZEN-DISCARDED",
+      "title": "Frozen and discarded page lifecycle research and recovery",
+      "status": "completed",
+      "releaseCritical": true,
+      "certifiedRound": 4,
+      "humanReview": "deferred-local",
+      "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"
+    },
+    {
+      "id": "LONG-CHAT-PERF",
+      "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance",
+      "status": "active",
+      "releaseCritical": true
+    },
+    {
+      "id": "MOBILE-SHELL-STRUCTURAL",
+      "title": "Host-affixed mobile Ghost shell research, implementation, and certification",
+      "status": "backlog",
+      "releaseCritical": true,
+      "userRequired": true,
+      "brief": ".gitl/briefs/mobile-shell-concepts.md"
+    },
+    {
+      "id": "BUILD-IDENTITY",
+      "title": "Canonical build, candidate, and release-channel identity",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "DOCS-RECONCILIATION",
+      "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation",
+      "status": "backlog",
+      "releaseCritical": true
+    },
+    {
+      "id": "FINAL-CERT-PACKAGE",
+      "title": "Full certification, release audit, package, and SHA-256 verification",
+      "status": "backlog",
+      "releaseCritical": true
+    }
   ],
   "priorityOrder": [
     "RR-E2E-FAULTS",
@@ -106,9 +172,18 @@
       "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Apply canonical Policy B to the completed Round-4 review, create the durable deferred-human queue, and open an evidence-competitive Round-5 long-chat performance chain without changing product behavior.",
-      "dependencies": ["R4-A5-LIFECYCLE-AUDIT:accepted"],
-      "allowedFiles": [".gitl/**"],
-      "prohibitedActions": ["product implementation", "main/merge/tag/release/publish", "silently accepting the deferred Round-4 human decision", "dropping remaining required programs"],
+      "dependencies": [
+        "R4-A5-LIFECYCLE-AUDIT:accepted"
+      ],
+      "allowedFiles": [
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product implementation",
+        "main/merge/tag/release/publish",
+        "silently accepting the deferred Round-4 human decision",
+        "dropping remaining required programs"
+      ],
       "acceptanceCriteria": [
         "Round-4 certification remains preserved at its exact bounded evidence scope and is queued for later human review",
         "The deferred human review is local and does not block independent LONG-CHAT-PERF work",
@@ -117,8 +192,20 @@
         "Competing performance hypotheses are preserved rather than preselecting an optimization",
         "All remaining required programs remain present"
       ],
-      "requiredTests": ["current branch/state/lease inspection", "Round-4 audit evidence inspection", "current answer-selection/engineTick source inspection", "existing lifecycle-mobile-perf fixture inspection"],
-      "requiredEvidence": ["maker authority", "starting head", "deferred question", "repository performance hypotheses", "assignment plan", "handoff state"],
+      "requiredTests": [
+        "current branch/state/lease inspection",
+        "Round-4 audit evidence inspection",
+        "current answer-selection/engineTick source inspection",
+        "existing lifecycle-mobile-perf fixture inspection"
+      ],
+      "requiredEvidence": [
+        "maker authority",
+        "starting head",
+        "deferred question",
+        "repository performance hypotheses",
+        "assignment plan",
+        "handoff state"
+      ],
       "evidencePath": ".gitl/evidence/round-5/worker-1.md"
     },
     {
@@ -126,19 +213,37 @@
       "worker": 2,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "researcher-architect",
-      "status": "ready",
+      "status": "submitted",
       "program": "LONG-CHAT-PERF",
       "goal": "Establish an exact-head long-conversation performance/correctness baseline, identify the dominant hot path, and compare materially different optimization philosophies before any production change.",
       "rationale": "Current answer selection caps post-processing to 48 candidates but still enumerates complete selector match sets; engineTick polls every 2.5s, and send confirmation performs additional assistant scans. The dominant cost must be measured rather than assumed.",
-      "dependencies": ["R5-SUPERVISOR-PLAN:submitted"],
+      "dependencies": [
+        "R5-SUPERVISOR-PLAN:submitted"
+      ],
       "mandatoryAction": "Use repository evidence plus current authoritative performance/testing sources and relevant real-user/community evidence when available. Resolve at least two opposing implementation philosophies and one outside-frame candidate. Convert each claim into a measurable prediction.",
       "candidateApproaches": [
         "Expert A / bounded-polling minimalist: preserve the current polling architecture and reduce hot-path work with tail-aware lookup, selector consolidation, cache validation, or other small read-only optimizations.",
         "Expert B / event-driven incremental observer: track the newest assistant-turn candidate through mutation events and use polling primarily as validation/recovery, accepting additional state complexity only if measurements justify it.",
         "Outside-frame candidate: reduce dependence on repeated conversation-DOM scanning through a portable observation signal or platform adapter capability, but reject any design that grants network telemetry or heuristics new Send authority."
       ],
-      "allowedFiles": ["tests/**", "docs/**", "scripts/**test**", ".github/workflows/**", ".gitl/evidence/round-5/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
-      "prohibitedActions": ["production optimization before a reproduced baseline", "new Send authority", "weakening newest-answer/terminal-marker correctness", "weakening CHOICE/route/lease/uncertainty safeguards", "inventing a millisecond budget after seeing results", "main/merge/tag/release/publish"],
+      "allowedFiles": [
+        "tests/**",
+        "docs/**",
+        "scripts/**test**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-5/worker-2.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "production optimization before a reproduced baseline",
+        "new Send authority",
+        "weakening newest-answer/terminal-marker correctness",
+        "weakening CHOICE/route/lease/uncertainty safeguards",
+        "inventing a millisecond budget after seeing results",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Create a deterministic long-chat fixture using the real userscript path at multiple conversation sizes, including the existing 180-message reference and materially larger histories such as 500, 1000, and 2000 assistant turns where CI capacity permits",
         "Measure per-operation or per-tick timing plus query/scan counts for answer selection, send-observation assistant counting, rendering or observer work when relevant, and record DOM size",
@@ -148,22 +253,56 @@
         "Predeclare candidate comparison criteria and identify the smallest fix whose predicted improvement can be falsified",
         "No lifecycle/performance measurement may actuate Send or change actuator authority"
       ],
-      "requiredTests": ["focused Jest or Playwright long-chat baseline fixture on exact branch head", "existing answer-selection correctness tests relevant to newest-answer semantics", "record exact command/head/run/job/artifact when CI is used"],
-      "requiredEvidence": ["source hot-path call graph", "fixture sizes and DOM counts", "raw timing/query measurements", "competing expert approaches", "user/upstream/adoption findings", "rejected options", "recommended smallest next implementation and falsification criterion"],
+      "requiredTests": [
+        "focused Jest or Playwright long-chat baseline fixture on exact branch head",
+        "existing answer-selection correctness tests relevant to newest-answer semantics",
+        "record exact command/head/run/job/artifact when CI is used"
+      ],
+      "requiredEvidence": [
+        "source hot-path call graph",
+        "fixture sizes and DOM counts",
+        "raw timing/query measurements",
+        "competing expert approaches",
+        "user/upstream/adoption findings",
+        "rejected options",
+        "recommended smallest next implementation and falsification criterion"
+      ],
       "fallbackWork": "If browser execution is unavailable, commit the deterministic benchmark/correctness fixture and exact execution command, mark A1 blocked only on execution, and activate a bounded A1X exact-head execution recovery rather than guessing the hot path.",
-      "evidencePath": ".gitl/evidence/round-5/worker-2.md"
+      "evidencePath": ".gitl/evidence/round-5/worker-2.md",
+      "executedBy": "scheduled-agent-2-longchat-baseline",
+      "testedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
+      "runId": 31165679128,
+      "jobId": 92825797473,
+      "artifactId": 8988876017,
+      "conclusion": "Exact deterministic 180/500/1000/2000-turn Chromium baseline passed. Full-document assistant-match enumeration scales approximately linearly with retained history; no Send-adjacent events occurred. A2 should falsify a stateless grouped-selector tail collector before considering persistent observer state."
     },
     {
       "id": "R5-A2-LONGCHAT-BUILD",
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "waiting",
+      "status": "ready",
       "program": "LONG-CHAT-PERF",
       "goal": "Implement the smallest evidence-selected long-chat optimization and preserve exact answer-selection and fail-closed Send semantics.",
-      "dependencies": ["R5-A1-LONGCHAT-BASELINE:submitted"],
-      "allowedFiles": ["ghost-in-the-loop.user.js", "extension/content.js", "scripts/build-extension.js", "tests/**", ".gitl/evidence/round-5/worker-3.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["broad UI rewrite", "new Send authority", "network-content dependence for control decisions", "weakening newest-answer/CHOICE/route/lease/uncertainty behavior", "main/merge/tag/release/publish"],
+      "dependencies": [
+        "R5-A1-LONGCHAT-BASELINE:submitted"
+      ],
+      "allowedFiles": [
+        "ghost-in-the-loop.user.js",
+        "extension/content.js",
+        "scripts/build-extension.js",
+        "tests/**",
+        ".gitl/evidence/round-5/worker-3.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "broad UI rewrite",
+        "new Send authority",
+        "network-content dependence for control decisions",
+        "weakening newest-answer/CHOICE/route/lease/uncertainty behavior",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Change is directly justified by A1 measurements and smaller than materially weaker alternatives",
         "Large-chat benchmark improves according to A1's predeclared discriminating metric without an unacceptable small-chat regression",
@@ -171,10 +310,23 @@
         "At-most-once Send journal evidence remains at least as strict as before",
         "Generated userscript/extension parity is preserved when product source changes"
       ],
-      "requiredTests": ["A1 exact benchmark/correctness fixture before and after", "focused answer-selection/send-journal Jest", "generated parity and full unit suite for product changes", "focused Chromium exact-head execution"],
-      "requiredEvidence": ["before/after measurements", "implementation rationale", "files/commit", "test commands/results", "rejected broader alternatives", "remaining limits"],
+      "requiredTests": [
+        "A1 exact benchmark/correctness fixture before and after",
+        "focused answer-selection/send-journal Jest",
+        "generated parity and full unit suite for product changes",
+        "focused Chromium exact-head execution"
+      ],
+      "requiredEvidence": [
+        "before/after measurements",
+        "implementation rationale",
+        "files/commit",
+        "test commands/results",
+        "rejected broader alternatives",
+        "remaining limits"
+      ],
       "fallbackWork": "If A1 shows no meaningful dominant problem, do not manufacture a product patch. Record no-change evidence and hand A3 the strongest remaining falsification target.",
-      "evidencePath": ".gitl/evidence/round-5/worker-3.md"
+      "evidencePath": ".gitl/evidence/round-5/worker-3.md",
+      "activationReason": "A1 exact baseline submitted with deterministic scaling evidence and a predeclared grouped-selector falsification criterion."
     },
     {
       "id": "R5-A3-LONGCHAT-REDTEAM",
@@ -184,9 +336,23 @@
       "status": "waiting",
       "program": "LONG-CHAT-PERF",
       "goal": "Attempt to falsify the long-chat optimization or no-change conclusion under adversarial DOM history, mutation churn, stale/hidden duplicates, route changes, and unresolved Send states.",
-      "dependencies": ["R5-A2-LONGCHAT-BUILD:submitted-or-blocked"],
-      "allowedFiles": ["tests/**", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-5/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["rewriting production implementation", "weakening assertions", "accepting stale-head/cancelled CI", "main/merge/tag/release/publish"],
+      "dependencies": [
+        "R5-A2-LONGCHAT-BUILD:submitted-or-blocked"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        "scripts/**test**",
+        ".gitl/evidence/round-5/worker-4.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "rewriting production implementation",
+        "weakening assertions",
+        "accepting stale-head/cancelled CI",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Stress at least one materially larger history than A1's smallest baseline",
         "Older HALT/PROCEED/CHOICE markers can never override a newer unfinished answer",
@@ -195,8 +361,18 @@
         "Route/lease/uncertain-Send behavior remains fail closed with zero duplicate Send",
         "Any performance claim is bound to exact head, fixture size, and raw measurements"
       ],
-      "requiredTests": ["exact-head adversarial long-chat Chromium", "focused answer-selection/send-journal tests", "repeat benchmark after adversarial mutation load"],
-      "requiredEvidence": ["falsification cases", "exact head/run/job/artifact", "raw measurements", "failures preserved", "smallest recovery if needed"],
+      "requiredTests": [
+        "exact-head adversarial long-chat Chromium",
+        "focused answer-selection/send-journal tests",
+        "repeat benchmark after adversarial mutation load"
+      ],
+      "requiredEvidence": [
+        "falsification cases",
+        "exact head/run/job/artifact",
+        "raw measurements",
+        "failures preserved",
+        "smallest recovery if needed"
+      ],
       "fallbackWork": "A deterministic failure must create a bounded ready recovery assignment before A4; do not weaken the performance or safety oracle.",
       "evidencePath": ".gitl/evidence/round-5/worker-4.md"
     },
@@ -208,9 +384,23 @@
       "status": "waiting",
       "program": "LONG-CHAT-PERF",
       "goal": "Measure the accepted long-chat path under Pixel-class Chromium emulation and cross-browser constraints without promoting emulation into physical-device certification.",
-      "dependencies": ["R5-A3-LONGCHAT-REDTEAM:submitted-or-blocked"],
-      "allowedFiles": ["tests/**", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-5/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
-      "prohibitedActions": ["arbitrary post-hoc wall-clock threshold", "claiming physical Android or Firefox-Android certification from Playwright", "product changes", "main/merge/tag/release/publish"],
+      "dependencies": [
+        "R5-A3-LONGCHAT-REDTEAM:submitted-or-blocked"
+      ],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        "scripts/**test**",
+        ".gitl/evidence/round-5/worker-5.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "arbitrary post-hoc wall-clock threshold",
+        "claiming physical Android or Firefox-Android certification from Playwright",
+        "product changes",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Run long-chat fixture under configured Pixel-7 chromium-mobile on exact head",
         "Measure scaling, active intervals/observers, panel count, host composer/latest-message usability, and zero Send-adjacent actuation",
@@ -218,8 +408,19 @@
         "Compare against the Round-4 180-message mobile reference without claiming identical hardware timing",
         "State whether the chosen approach is practical for lower-end/mobile use based on measured trend and resource accumulation proxies"
       ],
-      "requiredTests": ["exact-head chromium-mobile long-chat fixture", "desktop Firefox correctness where supported", "resource accumulation and accessibility/usability assertions"],
-      "requiredEvidence": ["device profile", "fixture size", "raw timing/resource metrics", "browser matrix", "limitations", "exact run/job/artifact"],
+      "requiredTests": [
+        "exact-head chromium-mobile long-chat fixture",
+        "desktop Firefox correctness where supported",
+        "resource accumulation and accessibility/usability assertions"
+      ],
+      "requiredEvidence": [
+        "device profile",
+        "fixture size",
+        "raw timing/resource metrics",
+        "browser matrix",
+        "limitations",
+        "exact run/job/artifact"
+      ],
       "fallbackWork": "If a browser-specific failure is reproducible, preserve it and create the smallest platform-scoped recovery rather than weakening shared correctness.",
       "evidencePath": ".gitl/evidence/round-5/worker-5.md"
     },
@@ -231,9 +432,24 @@
       "status": "waiting",
       "program": "LONG-CHAT-PERF",
       "goal": "Independently audit Round-5 source claims, benchmark design, exact-head evidence, performance scaling, cross-browser/mobile limits, and Send/CHOICE/route/lease safety before certifying the bounded long-chat objective.",
-      "dependencies": ["R5-A1-LONGCHAT-BASELINE:submitted", "R5-A2-LONGCHAT-BUILD:submitted-or-blocked", "R5-A3-LONGCHAT-REDTEAM:submitted", "R5-A4-LONGCHAT-MOBILE-PERF:submitted-or-blocked"],
-      "allowedFiles": [".gitl/evidence/round-5/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json", ".gitl/deferred-questions.md"],
-      "prohibitedActions": ["product implementation", "changing benchmark thresholds after results", "promoting emulation into physical-device claims", "main/merge/tag/release/publish"],
+      "dependencies": [
+        "R5-A1-LONGCHAT-BASELINE:submitted",
+        "R5-A2-LONGCHAT-BUILD:submitted-or-blocked",
+        "R5-A3-LONGCHAT-REDTEAM:submitted",
+        "R5-A4-LONGCHAT-MOBILE-PERF:submitted-or-blocked"
+      ],
+      "allowedFiles": [
+        ".gitl/evidence/round-5/worker-6.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "product implementation",
+        "changing benchmark thresholds after results",
+        "promoting emulation into physical-device claims",
+        "main/merge/tag/release/publish"
+      ],
       "acceptanceCriteria": [
         "Audit compares raw before/after measurements and verifies the benchmark actually discriminates candidate approaches",
         "No speed claim is accepted from stale-head or unbound CI",
@@ -243,8 +459,20 @@
         "Unsupported performance or hardware claims are rejected rather than rounded up into certification",
         "If the bounded objective is certified, any human review is queued locally and the next independent program remains discoverable under Policy B"
       ],
-      "requiredTests": ["independent source/test diff review", "exact run/job/artifact verification", "raw benchmark artifact inspection", "rerun only when it can discriminate an unresolved claim"],
-      "requiredEvidence": ["assignment verdicts", "accepted/rejected claims", "exact evidence bindings", "limits", "deferred questions", "next dependency-safe program"],
+      "requiredTests": [
+        "independent source/test diff review",
+        "exact run/job/artifact verification",
+        "raw benchmark artifact inspection",
+        "rerun only when it can discriminate an unresolved claim"
+      ],
+      "requiredEvidence": [
+        "assignment verdicts",
+        "accepted/rejected claims",
+        "exact evidence bindings",
+        "limits",
+        "deferred questions",
+        "next dependency-safe program"
+      ],
       "fallbackWork": "Any missing or contradictory evidence creates the smallest ready recovery assignment; do not close the round as certified merely because all scheduled slots fired.",
       "evidencePath": ".gitl/evidence/round-5/worker-6.md"
     }
