@@ -205,14 +205,14 @@
     ".gitl/evidence/round-4/worker-5.md"
   ],
   "lease": {
-    "holder": "automation-successor-a4y",
+    "holder": "scheduled-successor-a4y-handoff-recovery",
     "nominalWorker": null,
     "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
-    "intendedRole": "mobile-browser-test-fixture-repair",
-    "acquiredAt": "2026-08-07T06:14:30Z",
-    "expiresAt": "2026-08-07T06:59:30Z",
-    "inspectedHead": "UNKNOWN-via-connector",
-    "inspectedHeadEvidence": "At claim time canonical state had lease=null; the branch was one commit ahead of headAtLastHandoff 17aceb26ff42644fe78a34a8f09b59597110fa64 with only .gitl/autopilot-state.json changed, no open PR from agent/8.8-repair-resume existed, and R4-A4Y was the earliest ready recovery."
+    "intendedRole": "mobile-browser-test-fixture-repair-handoff-recovery",
+    "acquiredAt": "2026-08-07T07:05:12Z",
+    "expiresAt": "2026-08-07T07:50:12Z",
+    "inspectedHead": "355228b1742bfbcd60f2d13fc11ca1f2b250587d",
+    "inspectedHeadEvidence": "Prior A4Y lease expired at 2026-08-07T06:59:30Z. Branch remained identical to 355228b1742bfbcd60f2d13fc11ca1f2b250587d after expiry; PR #20 remained open at that head, and its only workflow run 31153684910 was completed with failure. No active workflow or later branch movement remained."
   },
   "blockedReason": null,
   "publishReady": false,
