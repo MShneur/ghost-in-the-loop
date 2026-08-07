@@ -3,11 +3,11 @@
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "status": "active",
-  "round": 5,
-  "roundPhase": "audited-transition-ready",
+  "round": 6,
+  "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3, 4, 5, 6],
+  "completedWorkers": [1],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -24,15 +24,15 @@
     ".gitl/orchestration/agent-succession-rule.md",
     ".gitl/deferred-questions.md"
   ],
-  "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "3529557cf8893300888acc69c767e231fc4f3a01",
-  "currentStep": "R6-SUPERVISOR-PLAN claimed for MOBILE-SHELL-STRUCTURAL planning. Round-5 bounded certification and both deferred local human questions remain preserved.",
-  "nextAction": "Complete one bounded supervisor planning step: inspect the existing rail/source, record competing structural-mount philosophies, write Round-6 evidence, and open only the earliest dependency-ready research assignment without pre-authorizing product implementation.",
+  "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
+  "headAtLastHandoff": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
+  "currentStep": "R6-SUPERVISOR-PLAN submitted. Round 6 is open on MOBILE-SHELL-STRUCTURAL with a research-first one-platform/one-mode structural prototype chain; no product change is pre-authorized. R6-A1-MOBILE-SHELL-STRUCTURE-MAP is ready.",
+  "nextAction": "Next eligible wake claims R6-A1-MOBILE-SHELL-STRUCTURE-MAP regardless of timer number, maps current ChatGPT header/composer/footer structure at desktop and narrow/mobile breakpoints, compares explicit adapter-owned contracts against generic structural inference and the rail fallback, evaluates teal/blue/red with primary/user evidence, and predeclares the smallest product candidate plus falsification gate without changing product behavior.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current holder",
-    "nominalWorker": 1,
-    "assignmentId": "R6-SUPERVISOR-PLAN",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 2,
+    "assignmentId": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -76,7 +76,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-review-deferred-local",
     "LONG-CHAT-PERF": "completed-certified-human-review-deferred-local",
-    "MOBILE-SHELL-STRUCTURAL": "backlog-next",
+    "MOBILE-SHELL-STRUCTURAL": "active-research-first",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -92,7 +92,11 @@
     },
     {
       "type": "round-5-longchat-certified",
-      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; grouped answer selection improved exact benchmark work while history-linear union and Send-observation limits remain explicit. DQ-R5-LONGCHAT-REVIEW remains deferred locally."
+      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."
+    },
+    {
+      "type": "round-6-supervisor-plan",
+      "result": "R6-SUPERVISOR-PLAN read the user mobile-shell brief and current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."
     }
   ],
   "findings": [
@@ -100,6 +104,16 @@
       "worker": 6,
       "type": "long-chat-explicit-uncertified-limits",
       "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."
+    },
+    {
+      "worker": 1,
+      "type": "mobile-shell-current-baseline",
+      "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."
+    },
+    {
+      "worker": 1,
+      "type": "mobile-shell-round6-architecture-dissent",
+      "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."
     },
     {
       "worker": 1,
@@ -112,44 +126,40 @@
   ],
   "testEvidence": [
     ".gitl/evidence/round-4/worker-6.md",
-    ".gitl/evidence/round-5/worker-1.md",
-    ".gitl/evidence/round-5/worker-2.md",
-    ".gitl/evidence/round-5/worker-3.md",
-    ".gitl/evidence/round-5/worker-4.md",
-    ".gitl/evidence/round-5/worker-5.md",
-    ".gitl/evidence/round-5/worker-6.md"
+    ".gitl/evidence/round-5/worker-6.md",
+    ".gitl/evidence/round-6/worker-1.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-supervisor-plan",
-    "assignmentId": "R6-SUPERVISOR-PLAN",
-    "role": "supervisor-integrator",
-    "nominalWorker": 6,
-    "acquiredAt": "2026-08-07T12:11:07Z",
-    "expiresAt": "2026-08-07T12:56:07Z",
-    "inspectedHead": "90ce760392c89c2816e80df65d8d08e84a5c2ca4"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
-    "round": 5,
-    "program": "LONG-CHAT-PERF",
-    "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
-    "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
+    "round": 6,
+    "program": "MOBILE-SHELL-STRUCTURAL",
+    "verdict": "planning-open-research-first",
+    "supervisorAssignment": "R6-SUPERVISOR-PLAN",
+    "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
+    "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
+    "supervisorPlanCommit": "7823a11d63b82531cb26f9e344f596c015fb4400",
+    "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
-    "auditAssignment": "R5-A5-LONGCHAT-AUDIT",
-    "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
-    "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
-    "auditPlanCommit": "3529557cf8893300888acc69c767e231fc4f3a01",
-    "nextAssignment": "R6-SUPERVISOR-PLAN",
-    "nextProgram": "MOBILE-SHELL-STRUCTURAL",
-    "explicitLimits": [
-      "The grouped assistant query remains history-linear.",
-      "The safety-critical Send-observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns.",
-      "No physical Android or Firefox-Android/GeckoView certification.",
-      "No calibrated low-end hardware budget or proof that Ghost dominates total host-page lag."
-    ]
+    "nextAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback.",
+    "roundScope": "Research and, only after A1 evidence, one-platform/one-mode experimental structural prototype plus Red-Team/mobile/audit. Full MOBILE-SHELL-STRUCTURAL completion remains blocked on later required cross-adapter expansion and final program audit."
   },
   "priorRoundVerification": {
+    "round": 5,
+    "program": "LONG-CHAT-PERF",
+    "verdict": "certified-human-review-deferred-local",
+    "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
+    "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
+    "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW",
+    "limits": [
+      "History-linear grouped assistant query remains.",
+      "Send-observation remains 8004 matches/sample at 2000 turns.",
+      "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."
+    ]
+  },
+  "priorPriorRoundVerification": {
     "round": 4,
     "program": "LIFECYCLE-FROZEN-DISCARDED",
     "verdict": "certified-human-review-deferred-local",
