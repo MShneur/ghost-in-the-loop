@@ -60,10 +60,10 @@
   },
   "dispatch": {
     "nextWake": "next eligible scheduled or manual agent",
-    "nominalWorker": 3,
-    "assignmentId": "R4-A2-LIFECYCLE-BUILD",
+    "nominalWorker": 4,
+    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
     "automatic": true,
-    "instruction": "Execute the earliest dependency-ready builder assignment. The lifecycle contract and its exact-head source-contract tests are submitted; determine whether executable production-path coverage proves a concrete product gap before making the smallest authorized lifecycle change."
+    "instruction": "Execute the earliest dependency-ready Red Team assignment. A2 committed deterministic production-path lifecycle coverage but is blocked only on exact-head browser execution; use an observable guarded execution path, falsify the new lifecycle assertions and existing safety invariants, and preserve any exact failure as a bounded recovery handoff."
   },
   "assignments": [
     {
@@ -153,7 +153,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "ready",
+      "status": "blocked",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Implement the smallest lifecycle recovery change required by R4-A1's accepted contract, or add executable production-path coverage only if current behavior already satisfies it.",
       "rationale": "Production changes must follow a verified lifecycle contract rather than speculative browser-event handling.",
@@ -163,14 +163,18 @@
       "acceptanceCriteria": ["Current or repaired lifecycle path follows R4-A1 contract", "recovery is idempotent/exactly-once for restarted runtime services", "no lifecycle event actuates Send", "CHOICE and uncertain prior dispatch remain fail closed", "discard/reload-like recovery does not resurrect stale in-memory work", "generated userscript/extension parity is preserved"],
       "requiredTests": ["focused lifecycle Jest", "focused Playwright Chromium when fixture exists", "generated parity for product changes", "full unit suite for product changes"],
       "requiredEvidence": ["reproduction before fix", "implementation or no-change rationale", "exact head", "commands/results", "remaining gaps"],
-      "fallbackWork": "If browser execution is unavailable, commit deterministic production-path fixture coverage and mark blocked only on execution evidence, handing exact commands to R4-A3."
+      "fallbackWork": "If browser execution is unavailable, commit deterministic production-path fixture coverage and mark blocked only on execution evidence, handing exact commands to R4-A3.",
+      "evidencePath": ".gitl/evidence/round-4/worker-3.md",
+      "evidenceCommit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23",
+      "fixtureCommit": "10bece4cef59c13f17ad97882aafcbfe15597b84",
+      "blockedReason": "Deterministic lifecycle production-path coverage is committed, but exact-head Chromium execution is unavailable within A2's allowed files. A3 is authorized to create an observable guarded carrier and must execute/falsify the fixture before any product repair."
     },
     {
       "id": "R4-A3-LIFECYCLE-REDTEAM",
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "waiting",
+      "status": "ready",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Attempt to falsify lifecycle recovery with repeated suspend/wake, route and lease changes, stale DOM replacement, uncertain Send state, rapid duplicate wake signals, and discarded-document restart semantics.",
       "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked"],
@@ -217,7 +221,8 @@
   "evidence": [
     {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "submitted", "commit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"},
     {"worker": 2, "assignment": "R4-A1-LIFECYCLE-CONTRACT", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"},
-    {"worker": 2, "assignment": "R4-A1X-LIFECYCLE-CONTRACT-EXEC", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"}
+    {"worker": 2, "assignment": "R4-A1X-LIFECYCLE-CONTRACT-EXEC", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"},
+    {"worker": 3, "assignment": "R4-A2-LIFECYCLE-BUILD", "path": ".gitl/evidence/round-4/worker-3.md", "status": "blocked", "commit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
