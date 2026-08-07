@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "61cfecae0b3af7e6260ded9c4c0b1e9e1102c46f",
-  "currentStep": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE completed the stale A3 handoff, adjudicated the duplicate cache-clear mismatch against the accepted lifecycle contract, corrected only the over-specified test helper cardinality to a bounded 1..2 assertion, and obtained exact-head PASS evidence for lifecycle Jest, adversarial Chromium, and the full 7-case production lifecycle Chromium fixture without changing product code. R4-A4-LIFECYCLE-MOBILE-PERF is now the earliest dependency-ready assignment.",
-  "nextAction": "The next eligible wake claims R4-A4-LIFECYCLE-MOBILE-PERF and measures mobile Chromium/background-return restart, scan, observer, lock, accessibility, and constrained-device costs. It must distinguish emulation from real-device evidence and test whether the bounded duplicate cache invalidation has measurable performance consequence rather than assuming either harmlessness or defect.",
+  "currentStep": "R4-A4-LIFECYCLE-MOBILE-PERF stale-lease recovery is active. The prior holder committed the mobile/performance fixture and Playwright Pixel-7 project wiring but left no Worker-5 evidence or handoff. Its lease expired at 2026-08-07T05:27:28Z. Repeated branch comparisons before recovery showed no movement beyond the same three A4 commits.",
+  "nextAction": "Recover R4-A4-LIFECYCLE-MOBILE-PERF without redoing its implementation: inspect the committed mobile fixture, obtain or truthfully mark missing execution evidence, write Worker-5 evidence, mark A4 submitted or blocked, activate the dependency-safe lifecycle audit, and release the lease.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -185,12 +185,13 @@
     ".gitl/evidence/round-4/worker-4.md"
   ],
   "lease": {
-    "holder": "manual-successor-a4",
+    "holder": "scheduled-successor-a4-recovery",
     "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
-    "intendedRole": "mobile-browser-accessibility-performance",
-    "acquiredAt": "2026-08-07T04:42:28Z",
-    "expiresAt": "2026-08-07T05:27:28Z",
-    "inspectedHead": "174e8f1a1ebc8864cd66167732cab3a87fe00639"
+    "intendedRole": "mobile-browser-accessibility-performance-recovery",
+    "acquiredAt": "2026-08-07T05:35:56Z",
+    "expiresAt": "2026-08-07T06:20:56Z",
+    "inspectedHead": "UNKNOWN-preclaim-sha-via-connector",
+    "preClaimBranchCompare": "agent/8.8-repair-resume was exactly 3 commits ahead of 174e8f1a1ebc8864cd66167732cab3a87fe00639 on two checks; changed files were .gitl/autopilot-state.json, playwright.config.js, tests/e2e/lifecycle-mobile-perf.spec.js; no Worker-5 evidence or A4 PR existed"
   },
   "blockedReason": null,
   "publishReady": false,
