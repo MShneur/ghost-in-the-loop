@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "28b313e2bc2283d63e8e04a578dc9f4919c98434",
-  "currentStep": "Bounded Round-6 research fallback in progress: define a deterministic constrained-runtime methodology for the future structural-shell candidate using Playwright plus Chromium CDP CPU throttling, while preserving physical-device claim limits and avoiding post-hoc latency thresholds. No product implementation is authorized.",
-  "nextAction": "Complete one non-conflicting constrained-runtime methodology research note, convert primary browser/tooling evidence into falsifiable A2/Red-Team/A4 test constraints, update durable state, and release the lease. Keep A1X blocked locally and A2 waiting; do not repeat live-capture, adoption-drift, Shadow-lifecycle, or keyboard/reflow research.",
+  "headAtLastHandoff": "925c8450b78371ffc2848eb03397d4900ce04002",
+  "currentStep": "R6-RESEARCH-FALLBACK-CONSTRAINED-RUNTIME-04 completed one bounded non-conflicting research step. Future structural-shell stress should use a two-tier evidence model: deterministic Chromium 1x/4x/6x CDP CPU-throttled invariant checks in CI, with wall-clock timing descriptive only, and separately labeled physical/AVD evidence when a real-device claim is required. CDP throttling is Chromium-only and relative to the CI host; Pixel device emulation is not physical-device certification. A1X remains blocked locally and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry forward the constrained-runtime matrix. Otherwise the next eligible wake must use another materially different bounded research fallback such as cross-adapter structural-contract evidence or CSP/ShadowRoot/browser-compatibility analysis. Do not repeat live-capture permission attempts, adoption-drift, Shadow lifecycle, keyboard/reflow, or CPU-throttling methodology without changed evidence.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -119,6 +119,10 @@
     {
       "type": "round-6-research-fallback-mobile-reflow-03",
       "result": "A third bounded post-A1X fallback used primary Chrome, MDN, and W3C evidence to define mobile keyboard/reflow constraints without guessing the live ChatGPT DOM. It requires keyboard/VisualViewport geometry to remain a verification signal rather than placement authority, covers visual-only versus layout-resize keyboard models, rejects host viewport/VirtualKeyboard policy mutation, makes VirtualKeyboard optional-only because it is not Baseline, distinguishes Chrome Android from WebView, and adds 320-CSS-pixel-equivalent plus 200%-text falsification gates. Evidence commit 28b313e2bc2283d63e8e04a578dc9f4919c98434."
+    },
+    {
+      "type": "round-6-research-fallback-constrained-runtime-04",
+      "result": "A fourth bounded post-A1X fallback used current Playwright and Chrome DevTools documentation plus repository Playwright configuration to define a two-tier constrained-runtime test method. Tier A uses Chromium-only CDP CPU rates 1x/4x/6x with invariant-based pass/fail gates and descriptive timing; Tier B remains separate physical/AVD evidence. Firefox remains a correctness lane because Playwright CDP is Chromium-only. Pixel emulation and hosted CPU throttling are explicitly not physical-device certification. Evidence commit 925c8450b78371ffc2848eb03397d4900ce04002."
     }
   ],
   "findings": [
@@ -181,6 +185,11 @@
       "worker": 5,
       "type": "mobile-shell-keyboard-reflow-contract",
       "finding": "The eventual structural shell must remain host-flow-first across virtual-keyboard models. VisualViewport resize may schedule bounded verification but may not become x/y/bottom placement authority; Ghost must not edit viewport interactive-widget policy or opt the host into VirtualKeyboard overlay behavior. Because VirtualKeyboard is limited-availability, it is optional-only. Certification should include 320-CSS-pixel-equivalent reflow, 200% text scaling, visual-only and layout-resize keyboard models, orientation, listener cleanup/coalescing, and separate Android WebView claim discipline."
+    },
+    {
+      "worker": 6,
+      "type": "mobile-shell-constrained-runtime-method",
+      "finding": "Future structural-shell performance stress should separate deterministic hosted evidence from physical-device claims. Use Playwright Chromium CDP at 1x/4x/6x CPU slowdown with invariant-based correctness/resource gates and descriptive median/p95 timing only; CPU throttling is relative to the host and cannot certify mobile CPU architecture. Firefox remains a separate correctness lane because Playwright CDP is Chromium-only. Physical Android/AVD/WebView/GeckoView remain separate evidence surfaces."
     }
   ],
   "briefs": [
@@ -193,17 +202,10 @@
     ".gitl/evidence/round-6/worker-2.md",
     ".gitl/evidence/round-6/research-fallback-01.md",
     ".gitl/evidence/round-6/research-fallback-02.md",
-    ".gitl/evidence/round-6/research-fallback-03.md"
+    ".gitl/evidence/round-6/research-fallback-03.md",
+    ".gitl/evidence/round-6/research-fallback-04.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-r6-constrained-runtime-research",
-    "assignmentId": "R6-RESEARCH-FALLBACK-CONSTRAINED-RUNTIME-04",
-    "intendedRole": "devils-advocate release auditor executing bounded performance-methodology research fallback",
-    "acquiredAt": "2026-08-07T14:54:26Z",
-    "expiresAt": "2026-08-07T15:39:26Z",
-    "inspectedHead": "UNKNOWN-CONNECTOR-TIP; compare verified agent/8.8-repair-resume exactly one state-only commit ahead of 28b313e2bc2283d63e8e04a578dc9f4919c98434 immediately before claim; no open PR used the isolated branch as head",
-    "purpose": "One bounded non-conflicting research fallback on deterministic Chromium CPU-throttled structural-shell verification methodology; no product changes and no physical-device claim promotion."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -229,8 +231,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-03.md",
-    "latestResearchFallbackCommit": "28b313e2bc2283d63e8e04a578dc9f4919c98434",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-04.md",
+    "latestResearchFallbackCommit": "925c8450b78371ffc2848eb03397d4900ce04002",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -242,6 +244,7 @@
     "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; autonomous custom element and moveBefore/connectedMoveCallback remain later evidence-dependent options.",
     "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
+    "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
