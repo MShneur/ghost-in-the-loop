@@ -23,11 +23,11 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "2f8908ecb091a2877149acf1b854c266a99eab41",
-  "currentStep": "R4-A2-LIFECYCLE-BUILD committed deterministic production-path lifecycle coverage in tests/e2e/repair-resume-production.spec.js and is blocked only on exact-head browser execution. No product code changed. R4-A3-LIFECYCLE-REDTEAM is ready.",
-  "nextAction": "The next eligible agent claims R4-A3-LIFECYCLE-REDTEAM. Use an observable guarded execution path to run the lifecycle production fixture and focused Jest on the exact branch head; falsify repeated wake, stale DOM, route/lease, uncertain-Send, BFCache, freeze/resume, and discarded-fresh-document behavior. Preserve any exact failure and create the smallest recovery assignment rather than weakening assertions.",
+  "currentStep": "R4-A3-LIFECYCLE-REDTEAM is claimed by scheduled-agent-5 as the earliest dependency-ready assignment. Red Team will execute the A2 production lifecycle fixture and focused lifecycle Jest on an exact guarded head, then falsify route/lease/stale-DOM/uncertain-Send wake behavior without changing production code.",
+  "nextAction": "scheduled-agent-5 executes R4-A3-LIFECYCLE-REDTEAM on the isolated branch; other workers must avoid conflicting writes while this lease is valid and active.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current eligible wake",
     "nominalWorker": 4,
     "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
     "claimableByAnyEligibleWorker": true,
@@ -165,7 +165,16 @@
     ".gitl/evidence/round-4/worker-2.md",
     ".gitl/evidence/round-4/worker-3.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-5",
+    "nominalWorker": 5,
+    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
+    "intendedRole": "test-engineer-red-team",
+    "acquiredAt": "2026-08-07T03:40:09Z",
+    "expiresAt": "2026-08-07T04:25:09Z",
+    "inspectedHead": "UNKNOWN-via-connector-before-claim",
+    "inspectedHeadEvidence": "Connected compare showed agent/8.8-repair-resume stable at exactly one commit ahead of recorded handoff 2f8908ecb091a2877149acf1b854c266a99eab41; current state blob was 6910fba52840869a7ab64fb1099b8df994c7c564 and lease was null. The conflict-safe lease claim commit is the exact known execution base."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
