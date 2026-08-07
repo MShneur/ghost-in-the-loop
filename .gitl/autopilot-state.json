@@ -28,7 +28,7 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "a29ee2088ebc080672a653d9a5dc3b91753001b6",
+  "headAtLastHandoff": "79217b1fa692f9eff627754ec45a5623089dc98f",
   "currentStep": "R5-A1-LONGCHAT-BASELINE exact-head Chromium evidence passed at head 747031cc8160ba6febdd6fecb03d597fae36cd66 (run 31165679128/job 92825797473/artifact 8988876017). Across 180/500/1000/2000 assistant turns, answer-selection full-document query matches scaled from 543 to 6003 per sample while p95 rose 0.70ms to 2.30ms; begin-Send p95 rose 0.90ms to 3.70ms and Send-evidence p95 1.00ms to 3.80ms. Newest-answer correctness and zero Send-adjacent actuation held. A1 selected a stateless grouped-selector tail collector as the smallest next falsifiable implementation, not a persistent observer/cache.",
   "nextAction": "The next eligible wake claims R5-A2-LONGCHAT-BUILD regardless of nominal timer number. Implement only the semantics-preserving grouped-selector tail collector proposed by Worker 2, preserve lowest selectorIndex/fallback behavior and all Send/CHOICE/route/lease/uncertainty safeguards, then rerun the exact long-chat benchmark plus generated parity/unit/browser gates. Reject the change if it fails the predeclared query-work/correctness criteria; do not weaken assertions.",
   "automaticDispatch": {
