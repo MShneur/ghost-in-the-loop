@@ -31,4 +31,36 @@ This queue follows the canonical Personal-Forge Automation Maker Policy B: human
   unblock_condition: >-
     Human answers accept or reopen; if reopen, identify which excluded lifecycle claim must become release-critical and what evidence level is required.
   status: deferred
+
+- id: DQ-R5-LONGCHAT-REVIEW
+  created_at: 2026-08-07T11:58:00Z
+  program: LONG-CHAT-PERF
+  assignment: R5-A5-LONGCHAT-AUDIT
+  question: >-
+    Do you accept the Round-5 Long Chat certification at its explicitly bounded deterministic and hosted-Playwright scope, or reopen the program with a named stronger release-critical requirement?
+  option_a: >-
+    Accept the bounded certification: the grouped-selector answer collector reduced the predeclared 2000-turn returned-match work from 6003 to 2001 per sample, preserved exact-head correctness and fail-closed safety, survived Red Team mutation/selector-tail attacks, and remained correct with stable resource proxies in Pixel-7 Chromium emulation and desktop Firefox through 2000 turns. Keep every stated limit non-certified.
+  option_b: >-
+    Reopen LONG-CHAT-PERF and make a stronger requirement release-critical before final certification, such as physical Android performance evidence, Firefox-Android/GeckoView evidence, a larger retained-history envelope, or optimization of the history-linear Send-observation path while preserving the at-most-once journal and independent delivery evidence.
+  other_options:
+    - Accept the bounded Round-5 certification for roadmap sequencing while carrying the linear Send-observation path and physical-device/larger-history work as nonblocking next-update research.
+  evidence_for_each:
+    - "Round-5 independent audit: .gitl/evidence/round-5/worker-6.md"
+    - "A1 baseline: run 31165679128 / job 92825797473 / artifact 8988876017"
+    - "A2X exact candidate: run 31169354385 / job 92837396863 / artifact 8990318746"
+    - "A3 Red Team: run 31171939489 / job 92845452541 / artifact 8991319478"
+    - "A4 Pixel-7 Chromium emulation + desktop Firefox: run 31173733483 / job 92851027653 / artifact 8992007971"
+  user_community_evidence:
+    - "Qualitative long-thread user reports support the value of reducing repeated retained-DOM work, but do not establish Ghost as the dominant cause of host-page lag."
+  unresolved_dissent:
+    - "The accepted grouped query remains history-linear: answer matches/sample still grow 181 -> 501 -> 1001 -> 2001."
+    - "The safety-critical Send-observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns and was deliberately not weakened."
+    - "Hosted Pixel-7 emulation is not physical Android; desktop Playwright Firefox is not GeckoView/Firefox-Android."
+  consequence_of_deferral: >-
+    Formal human acceptance/reopening of Round 5 remains pending. MOBILE-SHELL-STRUCTURAL and other independent reversible roadmap work may continue under Policy B. Final release certification must surface this question and cannot silently promote the excluded hardware, asymptotic, or Send-observation claims.
+  recommended_default: >-
+    Accept the bounded Round-5 certification for roadmap sequencing because the predeclared deterministic improvement and safety/correctness gates passed exact-head audit, while preserving the linear Send-observation and physical-platform limits for targeted future evidence unless later mobile-shell work exposes an interaction.
+  unblock_condition: >-
+    Human answers accept or reopen; if reopen, identify the specific stronger Long Chat claim that must become release-critical and the evidence level required.
+  status: deferred
 ```
