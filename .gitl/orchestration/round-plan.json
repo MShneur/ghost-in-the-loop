@@ -61,9 +61,9 @@
   "dispatch": {
     "nextWake": "next eligible scheduled or manual agent",
     "nominalWorker": 2,
-    "assignmentId": "R4-A1-LIFECYCLE-CONTRACT",
+    "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
     "automatic": true,
-    "instruction": "Execute the earliest dependency-ready assignment. R4-A1 is ready now. A missed nominal slot or role mismatch is not a reason to HOLD."
+    "instruction": "Execute the exact-head lifecycle-contract execution recovery. Do not advance to A2 until the newly added focused lifecycle contract test actually runs and passes on the branch head."
   },
   "assignments": [
     {
@@ -87,7 +87,7 @@
       "worker": 2,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "researcher-architect",
-      "status": "ready",
+      "status": "blocked",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Map Ghost's current wake-recovery path against frozen, resumed, persisted-page, and discarded-document lifecycle cases; produce an implementation-ready deterministic fault matrix and focused specification coverage before production changes.",
       "rationale": "The repository already centralizes visibility/pageshow/focus recovery through recoverAfterWake, but dedicated frozen/discarded lifecycle behavior is not yet certified.",
@@ -106,7 +106,32 @@
       ],
       "requiredTests": ["npm test -- --runInBand tests/wake-recovery.test.js or repository-equivalent focused Jest command", "run any added focused lifecycle specification test"],
       "requiredEvidence": ["lifecycle fault matrix", "repository call graph", "primary-source implications", "implementation-ready acceptance criteria", "files/commit", "commands and results"],
-      "fallbackWork": "If browser execution is unavailable, produce the deterministic contract and failing/fixture tests with exact commands, then mark submitted or blocked and activate the next dependency-safe assignment."
+      "fallbackWork": "If browser execution is unavailable, produce the deterministic contract and failing/fixture tests with exact commands, then mark submitted or blocked and activate the next dependency-safe assignment.",
+      "evidencePath": ".gitl/evidence/round-4/worker-2.md",
+      "evidenceCommit": "79ed6dca0e8a44ff3a63302ff2c67720ed070dc7",
+      "blockingReason": "The new tests/lifecycle-recovery-contract.test.js has not been executed on the exact branch head. A push-triggered legacy R3 workflow checked out old product head 5c057fe and is not evidence for the new test."
+    },
+    {
+      "id": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
+      "worker": 2,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "researcher-architect-execution-recovery",
+      "status": "ready",
+      "program": "LIFECYCLE-FROZEN-DISCARDED",
+      "goal": "Obtain exact-branch-head execution evidence for the A1 wake/lifecycle contract tests without changing product behavior.",
+      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:blocked"],
+      "allowedFiles": ["tests/**", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-2.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["product implementation", "weakening lifecycle assertions", "using stale-product-head CI as proof of branch-head tests", "new Send authority", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": [
+        "Run tests/wake-recovery.test.js and tests/lifecycle-recovery-contract.test.js on the exact current branch head",
+        "Bind evidence to exact commit/run/job IDs or an equivalent direct command result",
+        "If a temporary workflow carrier is required, guard the expected head and remove the carrier after execution",
+        "On PASS mark both A1 and A1X submitted and activate R4-A2-LIFECYCLE-BUILD",
+        "On FAIL preserve the exact failure and activate the smallest correction rather than weakening the test"
+      ],
+      "requiredTests": ["npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand"],
+      "requiredEvidence": ["exact branch head", "command", "run/job IDs when applicable", "test counts/results", "carrier cleanup", "handoff result"],
+      "fallbackWork": "If exact-head execution is still unavailable, retain A1 blocked, document the infrastructure reason precisely, release the lease, and keep this recovery assignment ready for the next execution-capable agent."
     },
     {
       "id": "R4-A2-LIFECYCLE-BUILD",
@@ -175,7 +200,8 @@
     }
   ],
   "evidence": [
-    {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "submitted", "commit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"}
+    {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "submitted", "commit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"},
+    {"worker": 2, "assignment": "R4-A1-LIFECYCLE-CONTRACT", "path": ".gitl/evidence/round-4/worker-2.md", "status": "blocked", "commit": "79ed6dca0e8a44ff3a63302ff2c67720ed070dc7"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
