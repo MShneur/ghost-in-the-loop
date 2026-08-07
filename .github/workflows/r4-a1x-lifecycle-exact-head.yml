@@ -6,6 +6,13 @@ on:
       - agent/8.8-repair-resume
     paths:
       - '.github/workflows/r4-a1x-lifecycle-exact-head.yml'
+  pull_request:
+    branches:
+      - gitl/r3-a3-ci-base
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: read
@@ -15,12 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      EXPECTED_HEAD: ${{ github.sha }}
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Checkout exact event head
+      - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: Guard exact head
@@ -31,7 +38,11 @@ jobs:
           echo "expected=${EXPECTED_HEAD}"
           echo "actual=${actual}"
           test "${actual}" = "${EXPECTED_HEAD}"
-          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            test "${GITHUB_HEAD_REF}" = "agent/8.8-repair-resume"
+          else
+            test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          fi
 
       - name: Set up Node
         uses: actions/setup-node@v4
