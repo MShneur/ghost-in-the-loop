@@ -1,38 +1,34 @@
-name: R3 A2B Ticker Single Flight Repair
+name: R3 A2B Exact Head Verification
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair-and-verify:
+  verify-exact-head:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'agent/8.8-repair-resume'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:
-      EXPECTED_HEAD: e560ff7f4e1d86ab2b7c47dac1a10d4c6cdc27a9
-      TARGET_BRANCH: agent/8.8-repair-resume
+      EXPECTED_HEAD: 5c057fe2235da50c23c800f7c345bc3814f01b3c
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
-      - name: Guard exact head and lease
+      - name: Guard exact head and active lease
         shell: bash
         run: |
           set -euo pipefail
-          ACTUAL=$(git rev-parse HEAD)
-          test "$ACTUAL" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           node - <<'NODE'
           const fs = require('fs');
           const s = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json','utf8'));
-          if (s.lease?.holder !== 'scheduled-agent-4' || s.lease?.assignmentId !== 'R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR') {
-            throw new Error('lease guard failed');
-          }
+          if (s.lease?.holder !== 'scheduled-agent-4' || s.lease?.assignmentId !== 'R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR') throw new Error('lease guard failed');
           NODE
 
       - name: Install dependencies and browsers
@@ -42,72 +38,34 @@ jobs:
           npm ci 2>&1 | tee /tmp/npm-ci.log
           npx playwright install --with-deps chromium firefox 2>&1 | tee /tmp/browser-install.log
 
-      - name: Apply smallest repair and regenerate extension
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('ghost-in-the-loop.user.js')
-          s = p.read_text()
-          needle = """  const before=runtimeServiceHealth();\n  if (before.blocked.length) {"""
-          replacement = """  const before=runtimeServiceHealth();\n  if (priorState==='RUNNING' && !before.needsRepair && before.blocked.length===0) {\n    Timeline.record('repair_resume_noop',{state:priorState,ticker:Ticker.mode});\n    return {ok:true,resumed:false,repaired:[],blocked:[]};\n  }\n  if (before.blocked.length) {"""
-          if s.count(needle) != 1:
-              raise SystemExit(f'expected one repairAndResume insertion point, found {s.count(needle)}')
-          p.write_text(s.replace(needle, replacement, 1))
-          PY
-          npm run build 2>&1 | tee /tmp/build.log
-          git diff -- ghost-in-the-loop.user.js extension/content.js | tee /tmp/product.diff
-
-      - name: Run parity, syntax, unit, and browser gates
-        id: gates
+      - name: Run exact-head parity, syntax, unit, and browser gates
         shell: bash
         run: |
           set +e
-          npm run check:generated > /tmp/check-generated.log 2>&1
-          S1=$?
-          npm run lint > /tmp/lint.log 2>&1
-          S2=$?
-          npm test -- --runInBand > /tmp/unit.log 2>&1
-          S3=$?
-          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium > /tmp/chromium.log 2>&1
-          S4=$?
-          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile > /tmp/chromium-mobile.log 2>&1
-          S5=$?
-          npx playwright test tests/e2e/repair-resume.spec.js --project=firefox > /tmp/firefox.log 2>&1
-          S6=$?
+          npm run check:generated > /tmp/check-generated.log 2>&1; S1=$?
+          npm run lint > /tmp/lint.log 2>&1; S2=$?
+          npm test -- --runInBand > /tmp/unit.log 2>&1; S3=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium > /tmp/chromium.log 2>&1; S4=$?
+          npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile > /tmp/chromium-mobile.log 2>&1; S5=$?
+          npx playwright test tests/e2e/repair-resume.spec.js --project=firefox > /tmp/firefox.log 2>&1; S6=$?
           printf 'check_generated=%s\nlint=%s\nunit=%s\nchromium=%s\nchromium_mobile=%s\nfirefox=%s\n' "$S1" "$S2" "$S3" "$S4" "$S5" "$S6" | tee /tmp/status.txt
-          if [ "$S1" -ne 0 ] || [ "$S2" -ne 0 ] || [ "$S3" -ne 0 ] || [ "$S4" -ne 0 ] || [ "$S5" -ne 0 ] || [ "$S6" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Commit verified product repair
-        if: success()
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add ghost-in-the-loop.user.js extension/content.js
-          git commit -m "fix: make repair ticker restart single-flight"
-          git push origin HEAD:"$TARGET_BRANCH"
-          git rev-parse HEAD | tee /tmp/final-head.txt
+          if [ "$S1" -ne 0 ] || [ "$S2" -ne 0 ] || [ "$S3" -ne 0 ] || [ "$S4" -ne 0 ] || [ "$S5" -ne 0 ] || [ "$S6" -ne 0 ]; then exit 1; fi
 
       - name: Collect evidence
         if: always()
         shell: bash
         run: |
-          mkdir -p /tmp/r3-a2b-evidence
-          for f in npm-ci.log browser-install.log build.log product.diff check-generated.log lint.log unit.log chromium.log chromium-mobile.log firefox.log status.txt final-head.txt; do
-            if [ -f "/tmp/$f" ]; then cp "/tmp/$f" "/tmp/r3-a2b-evidence/$f"; fi
+          mkdir -p /tmp/r3-a2b-exact-head
+          for f in npm-ci.log browser-install.log check-generated.log lint.log unit.log chromium.log chromium-mobile.log firefox.log status.txt; do
+            if [ -f "/tmp/$f" ]; then cp "/tmp/$f" "/tmp/r3-a2b-exact-head/$f"; fi
           done
-          printf 'workflow_head=%s\nexpected_head=%s\n' "$(git rev-parse HEAD)" "$EXPECTED_HEAD" > /tmp/r3-a2b-evidence/workflow-head.txt
+          printf 'tested_head=%s\nexpected_head=%s\n' "$(git rev-parse HEAD)" "$EXPECTED_HEAD" > /tmp/r3-a2b-exact-head/head.txt
 
-      - name: Upload evidence
+      - name: Upload exact-head evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: r3-a2b-ticker-repair-evidence
-          path: /tmp/r3-a2b-evidence
+          name: r3-a2b-exact-head-evidence
+          path: /tmp/r3-a2b-exact-head
           if-no-files-found: error
           retention-days: 7
