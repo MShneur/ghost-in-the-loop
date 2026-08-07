@@ -157,11 +157,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 2,
-    "assignmentId": "R5-A1-LONGCHAT-BASELINE",
+    "nominalWorker": 3,
+    "assignmentId": "R5-A2-LONGCHAT-BUILD",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R5-A1-LONGCHAT-BASELINE regardless of timer number. Establish reproducible long-chat hot-path evidence before production optimization."
+    "instruction": "Claim R5-A2-LONGCHAT-BUILD regardless of timer number. Implement and falsify only the A1-selected grouped-selector tail collector before escalating to a persistent observer/cache."
   },
   "assignments": [
     {
