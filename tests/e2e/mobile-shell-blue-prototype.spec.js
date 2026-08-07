@@ -111,12 +111,27 @@ async function installPrototype(page) {
       let suppressNextMutation = false;
       const hostStyleBefore = container instanceof Element ? container.getAttribute('style') : null;
 
+      const withinVisibleContainerBounds = (el) => {
+        if (!(el instanceof Element)) return false;
+        const style = getComputedStyle(container);
+        const clipsX = style.overflowX !== 'visible';
+        const clipsY = style.overflowY !== 'visible';
+        if (!clipsX && !clipsY) return true;
+        const outer = container.getBoundingClientRect();
+        const inner = el.getBoundingClientRect();
+        const epsilon = 1;
+        if (clipsX && (inner.left < outer.left - epsilon || inner.right > outer.right + epsilon)) return false;
+        if (clipsY && (inner.top < outer.top - epsilon || inner.bottom > outer.bottom + epsilon)) return false;
+        return true;
+      };
+
       const contractReason = () => {
         if (!enabled) return 'experimental-gate-disabled';
         if (!(container instanceof Element) || !container.isConnected) return 'container-disconnected';
         if (container.getAttribute('data-gitl-prototype-contract') !== proof) return 'container-unverified';
         if (!(send instanceof Element) || !send.isConnected || !container.contains(send)) return 'send-outside-container';
         if (!visible(send)) return 'send-not-visible';
+        if (!withinVisibleContainerBounds(send)) return 'send-clipped';
         const display = getComputedStyle(container).display;
         if (display !== 'flex' && display !== 'grid') return 'container-not-structural-row';
         return null;
@@ -128,6 +143,7 @@ async function installPrototype(page) {
         if (!(mount instanceof Element) || !mount.isConnected || mount.parentElement !== container) return 'mount-disconnected';
         const position = getComputedStyle(mount).position;
         if (position === 'fixed' || position === 'absolute') return 'mount-not-in-flow';
+        if (!withinVisibleContainerBounds(mount)) return 'mount-clipped';
         if (document.querySelectorAll(MOUNT_SELECTOR).length !== 1) return 'duplicate-mount';
         if (window.__fixtureSend !== send) return 'send-identity-changed';
         return null;

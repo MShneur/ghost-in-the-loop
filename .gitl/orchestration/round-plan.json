@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "exact-repository-pass-redteam-ready",
+    "checkpointStatus": "redteam-repair-pass-mobile-perf-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Satisfied by the A2 executable prototype artifact; normal research fallback remains lower priority than any ready implementation/test/verification assignment.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket prototype-development gate",
-    "checkpointDecision": "A2X exact repository gates passed. Red Team is now the smallest release-moving falsification artifact and outranks research."
+    "checkpointDecision": "A3 found and repaired a deterministic overflow-clipping false positive; all repair gates passed, so A4 mobile/accessibility/performance is the next release-moving artifact."
   },
   "requiredPrograms": [
     {
@@ -188,11 +188,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R6-A3-MOBILE-SHELL-REDTEAM",
+    "nominalWorker": 5,
+    "assignmentId": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Execute Red Team falsification against the exact repository-verified Blue prototype. Do not return to research. Preserve live-host certification as UNKNOWN until A1X actual capture passes. Each real failure creates the smallest repair; a clean Red submission exposes mobile/accessibility/performance certification."
+    "instruction": "Execute mobile/browser/accessibility/performance certification against the Red-Team-surviving Blue prototype. Preserve live-host and physical-platform claim limits; do not return to research."
   },
   "assignments": [
     {
@@ -557,7 +557,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Falsify the prototype under host-control insertion, subtree replacement, route/layout pressure, verification failure, and cleanup while preserving fail-closed Send/CHOICE/route/lease/uncertainty; do not promote deterministic success to live ChatGPT certification.",
       "dependencies": [
@@ -596,14 +596,22 @@
         "exact head/run/job/artifact"
       ],
       "fallbackWork": "Each reproducible failure creates the smallest ready repair assignment; do not skip to mobile certification.",
-      "evidencePath": ".gitl/evidence/round-6/worker-4.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-4.md",
+      "executedBy": "scheduled-worker-1-r6-a3-handoff-repair-16",
+      "initialFailureRun": 31213429856,
+      "initialFailureJob": 92981355836,
+      "repairRun": 31214560411,
+      "repairArtifact": 9008001890,
+      "repairPrototypeBlob": "53cc902428a3fc1496a83ad1bf0bd1bbe6752c84",
+      "repairRedTeamBlob": "b8b5048dbc042626294423e28b337eb27d6c6b63",
+      "blockedReason": null
     },
     {
       "id": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "waiting",
+      "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Measure the surviving structural candidate under narrow/mobile, keyboard, orientation, large-text, reduced-motion, browser, and constrained-runtime conditions without promoting emulation to physical-device or live-host certification.",
       "dependencies": [

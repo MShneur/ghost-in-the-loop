@@ -15,7 +15,7 @@ const crypto = require('crypto');
 
 const PROOF = 'fixture-blue-v1';
 const CANDIDATE_PATH = path.join(__dirname, 'mobile-shell-blue-prototype.spec.js');
-const EXPECTED_GIT_BLOB = 'bc59521b917c37961920f4642fe2f21eae9f1cab';
+const EXPECTED_GIT_BLOB = '53cc902428a3fc1496a83ad1bf0bd1bbe6752c84';
 
 function gitBlobSha1(buffer) {
   return crypto
@@ -230,9 +230,9 @@ test.describe('Round-6 A3 Blue Red Team', () => {
 
     // Red contract: an overflow-clipped structural candidate must fail visibly;
     // rail fallback may remain, but may not hide a structural false positive.
-    if (geometry.clipped) {
-      expect(result.status).not.toBe('structural');
-    }
+    expect(geometry.clipped || result.reason === 'send-clipped').toBe(true);
+    expect(result.status).not.toBe('structural');
+    expect(['send-clipped', 'mount-clipped']).toContain(result.reason);
     expect((await page.evaluate(() => window.__probeEvents)).sendClicks).toBe(0);
   });
 
