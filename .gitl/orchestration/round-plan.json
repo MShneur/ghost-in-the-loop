@@ -59,11 +59,11 @@
     "note": "Certification is pinned to the original job/artifact; the later stale-lease rerun is not substituted."
   },
   "dispatch": {
-    "nextWake": "next eligible scheduled or manual agent",
+    "nextWake": "current eligible successor under reclaimed lease",
     "nominalWorker": 4,
-    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
+    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
     "automatic": true,
-    "instruction": "Execute the earliest dependency-ready Red Team assignment. A2 committed deterministic production-path lifecycle coverage but is blocked only on exact-head browser execution; use an observable guarded execution path, falsify the new lifecycle assertions and existing safety invariants, and preserve any exact failure as a bounded recovery handoff."
+    "instruction": "Adjudicate the deterministic A3 cache-clear count mismatch against the already accepted lifecycle contract. Distinguish semantic runtime-service restarts from idempotent DOM-cache invalidation, preserve exact-head falsification, and correct only an over-specified test contract. Do not change production code in A3X; if a user-visible or safety-relevant product defect is demonstrated, preserve it as a separate builder repair."
   },
   "assignments": [
     {
@@ -174,7 +174,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "ready",
+      "status": "blocked",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Attempt to falsify lifecycle recovery with repeated suspend/wake, route and lease changes, stale DOM replacement, uncertain Send state, rapid duplicate wake signals, and discarded-document restart semantics.",
       "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked"],
@@ -183,7 +183,42 @@
       "acceptanceCriteria": ["Exercise repeated wake signals and prove bounded/idempotent service restarts", "Replace relevant DOM before and after wake without stale-node actuation", "Change route and lease around wake and prove stale work does not resume", "Inject uncertain prior Send state and prove zero Send actuation", "Exercise persisted page restore and discarded-document cases supported by the harness", "Record failures and create a bounded recovery assignment rather than masking them"],
       "requiredTests": ["focused lifecycle Playwright Chromium", "relevant lifecycle Jest", "exact-head CI when available"],
       "requiredEvidence": ["adversarial sequences", "exact head", "CI/job IDs or direct command results", "failure artifacts", "criterion verdicts"],
-      "fallbackWork": "If browser execution is blocked, add deterministic adversarial tests and preserve the exact execution gap for R4-A4 without changing production code."
+      "fallbackWork": "If browser execution is blocked, add deterministic adversarial tests and preserve the exact execution gap for R4-A4 without changing production code.",
+      "evidencePath": ".gitl/evidence/round-4/worker-4.md",
+      "blockedReason": "Exact-head Red Team execution passed the safety attacks and runtime-service restart checks, but the A2 production fixture deterministically expected one cache-clear call while the real call graph performs a direct clear and another inside reDetect. The mismatch is preserved for A3X rather than masked or turned into an unauthorized production rewrite.",
+      "executionEvidence": {
+        "testedHead": "7e8dfda0e22143bdea17f34cd9a37490d0ad8236",
+        "runId": 31145488389,
+        "jobId": 92763921605,
+        "artifactId": 8981325698,
+        "artifactSha256": "acbaae68856146ac2693ff1e27290c1ab6252b331ecb46d426ca74353d4e131e",
+        "result": "Focused lifecycle Jest PASS 2/2 suites, 12 passed, 3 todo; adversarial Chromium PASS 4/4; production lifecycle Chromium 5/7 with two deterministic cacheClear expected 1 observed 2 failures."
+      }
+    },
+    {
+      "id": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
+      "worker": 4,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "test-contract-auditor-recovery",
+      "status": "ready",
+      "program": "LIFECYCLE-FROZEN-DISCARDED",
+      "goal": "Adjudicate whether A3's duplicate cache invalidation is a lifecycle product defect or an over-specified test detail by comparing the accepted contract, exact source call graph, and executable semantic restart counts.",
+      "rationale": "The accepted A1 contract requires at most one ticker/heartbeat/bus/observer/lock rebuild sequence and zero Send actuation; it does not require exactly one invocation of an idempotent DOM-cache helper. A3 proved ticker, heartbeat, bus/redetect sequencing remained single-gate while cacheClear was 2 because recoverAfterWake clears once directly and reDetect clears again.",
+      "dependencies": ["R4-A3-LIFECYCLE-REDTEAM:blocked"],
+      "mandatoryAction": "Use two opposing interpretations: strict exactly-once invalidation versus bounded idempotent invalidation. Cross-check the accepted lifecycle contract before changing any assertion. Instrument semantic runtime-service counts separately from cache invalidation. Correct the test only if the accepted contract proves the assertion over-specified; otherwise preserve the failure and create a separate builder repair.",
+      "allowedFiles": ["tests/**", "docs/lifecycle-recovery-contract.md", ".github/workflows/**", "scripts/**test**", ".gitl/evidence/round-4/worker-4.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
+      "prohibitedActions": ["production implementation", "weakening exactly-once ticker/heartbeat/bus/observer/lock semantics", "weakening Send/CHOICE/route/lease/uncertainty assertions", "accepting stale-head/cancelled CI", "main/merge/tag/release/publish"],
+      "acceptanceCriteria": [
+        "Show from the accepted A1 contract whether exact-once applies to runtime-service rebuilds, cache-helper invocations, or both",
+        "Show from source why cacheClear is 2 and whether any DOM-cache consumer exists between the direct clear and reDetect",
+        "Preserve an explicit bounded cache-invalidation assertion so future unbounded churn still fails",
+        "Keep ticker, heartbeat, bus/redetect and Send-safety assertions exact and unchanged",
+        "Run focused lifecycle Jest and both production/adversarial Chromium lifecycle fixtures on an exact guarded head",
+        "If corrected tests pass, mark A3/A3X submitted and activate A4; if a product defect remains, block A3X and create the smallest builder repair"
+      ],
+      "requiredTests": ["npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand", "npx playwright test tests/e2e/lifecycle-redteam.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium"],
+      "requiredEvidence": ["accepted-contract comparison", "source call graph", "opposing interpretations", "test change or no-change rationale", "exact tested head", "run/job/artifact IDs", "carrier cleanup", "handoff result"],
+      "fallbackWork": "If exact-head execution cannot be obtained, keep A3X blocked on execution evidence only and preserve the exact guarded command/carrier requirement."
     },
     {
       "id": "R4-A4-LIFECYCLE-MOBILE-PERF",
@@ -193,7 +228,7 @@
       "status": "waiting",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Evaluate lifecycle recovery under mobile Chromium/background-foreground pressure and measure whether timers, observers, scans, locks, and reattachment work remain bounded.",
-      "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked"],
+      "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked"],
       "allowedFiles": ["tests/**", "playwright.config.*", "docs/**", ".gitl/evidence/round-4/worker-5.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["subjective performance claims", "invented real-device evidence", "broad feature implementation", "main/merge/tag/release/publish"],
       "acceptanceCriteria": ["Run or define mobile Chromium background/foreground and viewport recovery scenarios", "Record timer/observer/scan/lock/restart counts or defensible bounded proxies", "Check repeated wake signals do not accumulate duplicate runtime services or accessible UI", "State real-device and Firefox lifecycle limitations explicitly", "Confirm latest message/composer remains usable after mobile wake where the harness permits"],
@@ -209,7 +244,7 @@
       "status": "waiting",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Independently audit Round 4 and decide whether frozen/discarded lifecycle recovery is certified, rejected, or still needs evidence.",
-      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked"],
+      "dependencies": ["R4-A1-LIFECYCLE-CONTRACT:submitted-or-blocked", "R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked", "R4-A4-LIFECYCLE-MOBILE-PERF:submitted-or-blocked"],
       "allowedFiles": [".gitl/evidence/round-4/worker-6.md", ".gitl/orchestration/round-plan.json", ".gitl/autopilot-state.json"],
       "prohibitedActions": ["product implementation", "accepting chat-only or stale-head claims", "main/merge/tag/release/publish"],
       "acceptanceCriteria": ["Verify source claims against authoritative browser/platform sources", "Verify exact-head tests and generated parity where claimed", "Verify no Send/CHOICE/route/lease/uncertainty regression", "Verify discarded/frozen cases are tested only to the extent supported by actual platform/harness evidence", "Mark each assignment accepted/rejected/needs-more-evidence", "Close the round to human verification only if the bounded lifecycle objective has been fully audited"],
