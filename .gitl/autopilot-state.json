@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "2d8384a2c3c7cbe955004daf173decf2079dcfae",
-  "currentStep": "R6-RESEARCH-FALLBACK-CSP-TT-SHADOW-COMPAT-06 completed one bounded non-conflicting compatibility/security research step. A future Shadow-host structural shell must not add new Trusted Types HTML sinks: ShadowRoot.innerHTML is itself a TT-governed injection sink, current Ghost already fails loud when the named gitl-ui policy is blocked, and structural mounting does not require HTML-string parsing. The first structural candidate should therefore use a DOM-built in-flow host/Shadow subtree, preserve extension isolated-world operation, avoid MAIN-world/unsafeWindow dependence, and add exact CSP/TT compatibility falsification without changing current product behavior. A1X remains locally blocked and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the CSP/TT compatibility contract into A2/A3. Otherwise start a new materially different research-novelty round, preferably deterministic structural-conformance test design or Shadow-control accessibility/event-retargeting analysis. Do not repeat the six completed post-A1X fallback modes without changed evidence.",
+  "headAtLastHandoff": "60c9c8249ab3fae90633e849193d0e798125ebf4",
+  "currentStep": "R6-RESEARCH-FALLBACK-SHADOW-A11Y-EVENTS-07 completed one bounded non-conflicting accessibility/event-boundary research step. Shadow DOM is not an event-safety firewall: UA click/touch UI events are composed across the boundary, so later Blue/Red certification must separately prove passive zero-actuation and intentional Ghost-activation side-effect isolation. The first Shadow candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button explicitly, use local accessible names plus tested aria-expanded state, and refuse to assume aria-controls relationships across peer Shadow roots. A1X remains locally blocked and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the event/focus/accessibility contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably deterministic structural-conformance test architecture that unifies the existing hidden-composer, exact-Send, rerender, scoped-resource, CSP/Trusted-Types, mobile/reflow, constrained-runtime, and event/focus/accessibility gates without implementing product behavior. Do not repeat the seven completed fallback modes without changed evidence.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -62,7 +62,7 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, so exhaustion has not begun."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first wake of the new novelty round also produced a new actionable event/focus/accessibility contract, so exhaustion has not begun."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -131,6 +131,10 @@
     {
       "type": "round-6-research-fallback-csp-tt-shadow-compat-06",
       "result": "A sixth materially different post-A1X fallback inspected current Ghost Trusted Types behavior, exact TT tests, MV3 isolated content-script configuration, and primary CSP/ShadowRoot platform documentation. It requires the future structural shell to add no new HTML-string TT sink, provisionally favors a DOM-built in-flow open-Shadow host over shadowRoot.innerHTML templating, preserves the named-policy boundary and extension isolated world, rejects MAIN-world/unsafeWindow as structural prerequisites, and predeclares a CSP/TT compatibility matrix without changing current product behavior. Evidence commit 2d8384a2c3c7cbe955004daf173decf2079dcfae; claim commit 0aabbd794c968ae6803f0ecc99770d77c97b351e."
+    },
+    {
+      "type": "round-6-research-fallback-shadow-a11y-events-07",
+      "result": "The first wake of a new novelty round used current platform standards plus the existing A1 probe/brief to define an interaction/accessibility contract for a future Shadow-host shell. UA UI events are composed across Shadow boundaries, so Shadow isolation cannot be treated as event safety. The first candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button, separate passive zero-actuation from intentional Ghost activation, verify host delegated-listener side effects, and avoid assuming cross-peer-ShadowRoot ARIA IDREF relationships. Evidence commit 60c9c8249ab3fae90633e849193d0e798125ebf4; claim commit 94f886c612664d7b29bd0ccda3aad86b0bd2df5d."
     }
   ],
   "findings": [
@@ -208,6 +212,11 @@
       "worker": 6,
       "type": "mobile-shell-tt-shadow-compat-contract",
       "finding": "A future structural Shadow host must add no new Trusted Types HTML sink. ShadowRoot.innerHTML remains TT-governed; current Ghost already proves that a restrictive trusted-types allow-list can block gitl-ui and drive existing HTML sinks to fail loud. Prefer a DOM-built in-flow host/Shadow subtree, preserve the named-policy boundary, keep MV3 structural mounting viable in the default isolated content-script world, and do not require MAIN-world/unsafeWindow authority. Browser TT support is broad in 2026, but host CSP enforcement remains site-specific and is not inferred for every adapter."
+    },
+    {
+      "worker": 2,
+      "type": "mobile-shell-shadow-event-a11y-contract",
+      "finding": "Open Shadow DOM isolates implementation/style but not UA UI-event propagation. Future Blue/Red certification must not assume clicks are contained: passive mount/repair stays zero-actuation, intentional Ghost activation must cause exactly one reviewed Ghost action and zero host Send/submit/native-control side effects, delegatesFocus stays false initially, mount/repair never autofocuses or steals editor focus, every Ghost button is type=button, and cross-portal ARIA IDREF relationships are accepted only when exact DOM/accessibility-tree evidence proves them."
     }
   ],
   "briefs": [
@@ -223,17 +232,10 @@
     ".gitl/evidence/round-6/research-fallback-03.md",
     ".gitl/evidence/round-6/research-fallback-04.md",
     ".gitl/evidence/round-6/research-fallback-05.md",
-    ".gitl/evidence/round-6/research-fallback-06.md"
+    ".gitl/evidence/round-6/research-fallback-06.md",
+    ".gitl/evidence/round-6/research-fallback-07.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-shadow-a11y-07",
-    "assignmentId": "R6-RESEARCH-FALLBACK-SHADOW-A11Y-EVENTS-07",
-    "nominalWorker": 2,
-    "executedRole": "accessibility-event-boundary-researcher-with-architect-lens",
-    "acquiredAt": "2026-08-07T16:18:30Z",
-    "expiresAt": "2026-08-07T17:03:30Z",
-    "inspectedHead": "UNKNOWN-tip; branch was exactly one state-only commit ahead of 2d8384a2c3c7cbe955004daf173decf2079dcfae, no open PR used the isolated branch as head, and no workflow run existed on the last evidence head"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -259,8 +261,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-06.md",
-    "latestResearchFallbackCommit": "2d8384a2c3c7cbe955004daf173decf2079dcfae",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-07.md",
+    "latestResearchFallbackCommit": "60c9c8249ab3fae90633e849193d0e798125ebf4",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -275,7 +277,8 @@
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
-    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, and calibrated low-end-device performance remain separately uncertified."
+    "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
+    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
     "round": 5,
