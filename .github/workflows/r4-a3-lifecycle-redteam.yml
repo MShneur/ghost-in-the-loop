@@ -59,11 +59,11 @@ jobs:
       - name: Focused lifecycle Jest
         run: npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand
 
-      - name: Production lifecycle fixture - Chromium
-        run: npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium
-
       - name: Adversarial lifecycle wake fixture - Chromium
         run: npx playwright test tests/e2e/lifecycle-redteam.spec.js --project=chromium
+
+      - name: Production lifecycle fixture - Chromium
+        run: npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium
 
       - name: Upload Playwright evidence
         if: always()
