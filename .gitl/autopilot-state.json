@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3, 4],
+  "completedWorkers": [1, 2, 3, 4, 5],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "61cfecae0b3af7e6260ded9c4c0b1e9e1102c46f",
-  "currentStep": "R4-A4-LIFECYCLE-MOBILE-PERF stale-lease recovery is active. The prior holder committed the mobile/performance fixture and Playwright Pixel-7 project wiring but left no Worker-5 evidence or handoff. Its lease expired at 2026-08-07T05:27:28Z. Repeated branch comparisons before recovery showed no movement beyond the same three A4 commits.",
-  "nextAction": "Recover R4-A4-LIFECYCLE-MOBILE-PERF without redoing its implementation: inspect the committed mobile fixture, obtain or truthfully mark missing execution evidence, write Worker-5 evidence, mark A4 submitted or blocked, activate the dependency-safe lifecycle audit, and release the lease.",
+  "headAtLastHandoff": "6587d56325fb7fc26dbed742044c6aaee99a5305",
+  "currentStep": "R4-A4-LIFECYCLE-MOBILE-PERF recovered an expired incomplete handoff without redoing implementation. The committed Pixel-7 lifecycle/mobile fixture and Playwright project wiring were audited and preserved. Worker-5 evidence c9e265a703cdc7b976315a9654e0ceff0de83212 marks A4 blocked only on exact observable mobile execution; R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC is now the earliest ready recovery.",
+  "nextAction": "The next eligible wake claims R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC. Use a temporary guarded connected-GitHub-visible carrier if required, run the exact-head Pixel-7 chromium-mobile lifecycle/performance fixture, preserve raw metrics plus run/job/artifact evidence, remove the carrier, and on PASS submit A4/A4X and activate R4-A5-LIFECYCLE-AUDIT.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 5,
-    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
+    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -108,6 +108,10 @@
     {
       "type": "round-4-a3x-cache-idempotence-pass",
       "result": "A3X recovered the expired A3 handoff, cross-checked the accepted contract, and established that exact-once applies to the semantic ticker/heartbeat/bus/observer/lock recovery sequence rather than private cache-helper invocation cardinality. Test commit 531263f41ee6c416eecafcf5f8ac0f8d74a0dd27 preserved a bounded 1..2 cache invalidation assertion and exact runtime-service/Send-safety assertions. Guarded run 31147614614/job 92770260104 tested exact head 4196712b579cb5ed388850b1717bc0a53d00f7f6 and passed lifecycle Jest 2/2 suites (12 pass, 3 todo), adversarial Chromium 4/4, and production lifecycle Chromium 7/7. Temporary carrier was removed in d215e136a20082fc2ec320396a8ef9773bad52d9 and draft PR #17 was closed unmerged. A2, A3, and A3X are submitted; A4 is ready."
+    },
+    {
+      "type": "round-4-a4-fixture-blocked-on-execution",
+      "result": "Recovered expired A4 lease after repeated no-movement checks. Existing A4 work added a Pixel-7 chromium-mobile lifecycle/performance fixture with 12 wake windows, exact runtime-service cardinality, bounded cache invalidation, interval/observer/lock accumulation proxies, zero Send-adjacent actuation, and host composer/latest-message accessibility assertions. Worker-5 evidence c9e265a703cdc7b976315a9654e0ceff0de83212 records that exact observable execution is still missing; A4X was activated instead of inferring PASS from push-workflow configuration."
     }
   ],
   "findings": [
@@ -157,6 +161,11 @@
       "worker": 4,
       "type": "lifecycle-cache-idempotence-adjudication",
       "finding": "The accepted lifecycle contract requires one semantic runtime-service rebuild sequence, not exactly one private cache-helper call. Current source performs one direct cache clear and one cache clear inside reDetect with no intervening cache consumer. A3X retained a tight 1..2 cache-invalidation bound while keeping ticker/heartbeat/bus/redetect exact and all Send-safety assertions unchanged; exact-head Chromium then passed 7/7 production lifecycle cases. This does not prove the duplicate clear is performance-optimal, so A4 must measure constrained-device impact."
+    },
+    {
+      "worker": 5,
+      "type": "lifecycle-mobile-perf-fixture-and-observability-gap",
+      "finding": "A4 now has deterministic Pixel-7 chromium-mobile instrumentation for repeated wake resource/restart/accessibility behavior. The fixture records timing but intentionally avoids an uncalibrated CI wall-clock budget. Exact connected-observable execution is still required; ordinary push CI configuration is not accepted as PASS evidence."
     }
   ],
   "briefs": [
@@ -182,17 +191,10 @@
     ".gitl/evidence/round-4/worker-1.md",
     ".gitl/evidence/round-4/worker-2.md",
     ".gitl/evidence/round-4/worker-3.md",
-    ".gitl/evidence/round-4/worker-4.md"
+    ".gitl/evidence/round-4/worker-4.md",
+    ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-a4-recovery",
-    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
-    "intendedRole": "mobile-browser-accessibility-performance-recovery",
-    "acquiredAt": "2026-08-07T05:35:56Z",
-    "expiresAt": "2026-08-07T06:20:56Z",
-    "inspectedHead": "UNKNOWN-preclaim-sha-via-connector",
-    "preClaimBranchCompare": "agent/8.8-repair-resume was exactly 3 commits ahead of 174e8f1a1ebc8864cd66167732cab3a87fe00639 on two checks; changed files were .gitl/autopilot-state.json, playwright.config.js, tests/e2e/lifecycle-mobile-perf.spec.js; no Worker-5 evidence or A4 PR existed"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
