@@ -310,7 +310,15 @@
     ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
     ".gitl/evidence/round-6/worker-3.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "manual-successor-r6-a2x-verify-12",
+    "assignmentId": "R6-A2X-MOBILE-SHELL-PROTOTYPE-VERIFY",
+    "nominalWorker": 3,
+    "executedRole": "builder-test-verifier-with-release-pressure",
+    "acquiredAt": "2026-08-07T17:40:30Z",
+    "expiresAt": "2026-08-07T18:25:30Z",
+    "inspectedHead": "UNKNOWN-PRECLAIM-BRANCH-TIP-RESOLVE-FROM-CLAIM-PARENT"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
