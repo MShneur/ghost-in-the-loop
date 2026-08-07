@@ -4,7 +4,7 @@
   "releaseTarget": "8.8.0",
   "mode": "review-after-round",
   "round": 3,
-  "status": "in-progress",
+  "status": "awaiting-human-verification",
   "supervisorWorker": 1,
   "schedule": [
     {"worker": 1, "minute": 0, "role": "supervisor-integrator"},
@@ -31,7 +31,7 @@
     "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md"
   },
   "requiredPrograms": [
-    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "in-progress", "releaseCritical": true},
+    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "completed", "releaseCritical": true, "certifiedBy": "R3-A3-RR-REDTEAM-CERT"},
     {"id": "LIFECYCLE-FROZEN-DISCARDED", "title": "Frozen and discarded page lifecycle research and recovery", "status": "backlog", "releaseCritical": true},
     {"id": "LONG-CHAT-PERF", "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance", "status": "backlog", "releaseCritical": true},
     {"id": "MOBILE-SHELL-STRUCTURAL", "title": "Host-affixed mobile Ghost shell research, implementation, and certification", "status": "backlog", "releaseCritical": true, "userRequired": true},
@@ -49,11 +49,11 @@
     "FINAL-CERT-PACKAGE"
   ],
   "dispatch": {
-    "nextWake": "next eligible scheduled wake",
-    "nominalWorker": 4,
-    "assignmentId": "R3-A3-RR-REDTEAM-CERT",
-    "automatic": true,
-    "instruction": "The next eligible wake must claim R3-A3-RR-REDTEAM-CERT regardless of worker number. Independently falsify the clean exact-head result at 5c057fe2235da50c23c800f7c345bc3814f01b3c, verify run 31138679335/job 92743714584/artifact 8978979561 is current and genuine, challenge Send/CHOICE/route/lease/uncertainty boundaries, and certify or reopen the earliest concrete failure."
+    "nextWake": "human review",
+    "nominalWorker": null,
+    "assignmentId": null,
+    "automatic": false,
+    "instruction": "Round 3 audit is complete in review-after-round mode. Do not open a new assignment until human verification. If accepted, the next supervisor should begin the next dependency-safe round with LIFECYCLE-FROZEN-DISCARDED while preserving every remaining required program."
   },
   "assignments": [
     {
@@ -84,13 +84,14 @@
         "finishedAt": "2026-08-07T01:18:12Z",
         "detail": "The hardened push-triggered carrier produced no durable handoff while the branch remained at its carrier head. Connected GitHub exposed no combined status and its available commit-workflow lookup exposed no run; that lookup is limited to pull-request-triggered runs, so authoritative push run/job IDs and logs are unavailable to this worker.",
         "unproven": ["Firefox exact execution", "desktop Chromium exact execution", "Pixel 7 Chromium exact execution", "zero Send actuation", "restart assertions"]
-      }
+      },
+      "auditVerdict": "blocked historical attempt retained for traceability; superseded by accepted A2 observable recovery"
     },
     {
       "id": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "submitted",
+      "status": "accepted",
       "program": "RR-E2E-FAULTS",
       "goal": "Repair the proven exact-head CI carrier dispatch/observability blocker, obtain authoritative connected-GitHub-visible browser evidence, and change product code only if the browser results reproduce a real defect.",
       "dependencies": ["R3-A1-RR-CI-RECOVERY:blocked"],
@@ -129,13 +130,14 @@
         "failureSummary": "Second same-task repair restarts the ticker again (expected delta 0, received 1); twelve rapid same-task repairs start it twelve times (expected delta 1, received 12) on desktop Chromium and Pixel 7 Chromium."
       },
       "evidencePath": ".gitl/evidence/round-3/worker-3.md",
-      "evidenceCommit": "afb2287571a03fa1396c2a4e04e2b38d36a91f0f"
+      "evidenceCommit": "afb2287571a03fa1396c2a4e04e2b38d36a91f0f",
+      "auditVerdict": "accepted: observable exact-head evidence genuinely reproduced the defect and routed it to A2B without premature product mutation"
     },
     {
       "id": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "submitted",
+      "status": "accepted",
       "program": "RR-E2E-FAULTS",
       "goal": "Repair only the proven Repair & Resume ticker restart idempotence/single-flight defect reproduced on desktop Chromium and Pixel 7 Chromium, without changing Send, CHOICE, route, lease, composer-staleness, or uncertainty safeguards.",
       "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted"],
@@ -193,25 +195,67 @@
         "singleFlight": "pass"
       },
       "evidencePath": ".gitl/evidence/round-3/worker-3.md",
-      "evidenceCommit": "277f815467156d13ed7a74ffbcc15cb208739c06"
+      "evidenceCommit": "277f815467156d13ed7a74ffbcc15cb208739c06",
+      "auditVerdict": "accepted: exact product diff, pinned original job 92743714584, artifact 8978979561, and source/test inspection independently support every bounded RR criterion",
+      "auditCaveat": "workflow run 31138679335 was later re-run after lease ownership changed; latest job 92746238803 correctly failed the stale A2B lease guard. The certified success is the pinned original job/artifact, not the run ID in isolation."
     },
     {
       "id": "R3-A3-RR-REDTEAM-CERT",
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "red-team-auditor",
-      "status": "ready",
+      "status": "accepted",
       "program": "RR-E2E-FAULTS",
       "goal": "Falsify the passing exact-head result, verify no stale or synthetic evidence is substituted, and certify or reopen the earliest proven gap.",
-      "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted", "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR:submitted"]
+      "dependencies": ["R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted", "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR:submitted"],
+      "executedBy": "scheduled-agent-6",
+      "startedAt": "2026-08-07T01:51:18Z",
+      "finishedAt": "2026-08-07T02:06:04Z",
+      "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
+      "workflowRunId": 31138679335,
+      "workflowJobId": 92743714584,
+      "artifactId": 8978979561,
+      "evidencePath": ".gitl/evidence/round-3/worker-6.md",
+      "result": {
+        "verdict": "accepted",
+        "rrProgramCertified": true,
+        "exactHeadBinding": "pass",
+        "singleFlight": "pass",
+        "send": "pass",
+        "choice": "pass by exact-source state analysis plus unchanged contract",
+        "routeLeaseUncertainty": "pass",
+        "composerStaleness": "pass",
+        "generatedParity": "pass",
+        "laterRunAttempt": "expected fail-closed on stale A2B lease guard; does not replace pinned original job/artifact"
+      }
     }
   ],
   "evidence": [
     {"worker": 1, "path": ".gitl/evidence/round-3/worker-1.md", "status": "submitted"},
     {"worker": 3, "assignment": "R3-A1-RR-CI-RECOVERY", "executedBy": "scheduled-agent-1-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "blocked"},
-    {"worker": 3, "assignment": "R3-A2-RR-PROVEN-FAILURE-REPAIR", "executedBy": "scheduled-agent-3", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31137892852, "jobId": 92741313903, "artifactId": 8978698975},
-    {"worker": 3, "assignment": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR", "executedBy": "scheduled-agent-4-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "submitted", "runId": 31138679335, "jobId": 92743714584, "artifactId": 8978979561, "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c"}
+    {"worker": 3, "assignment": "R3-A2-RR-PROVEN-FAILURE-REPAIR", "executedBy": "scheduled-agent-3", "path": ".gitl/evidence/round-3/worker-3.md", "status": "accepted", "runId": 31137892852, "jobId": 92741313903, "artifactId": 8978698975},
+    {"worker": 3, "assignment": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR", "executedBy": "scheduled-agent-4-successor", "path": ".gitl/evidence/round-3/worker-3.md", "status": "accepted", "runId": 31138679335, "jobId": 92743714584, "artifactId": 8978979561, "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c"},
+    {"worker": 6, "assignment": "R3-A3-RR-REDTEAM-CERT", "executedBy": "scheduled-agent-6", "path": ".gitl/evidence/round-3/worker-6.md", "status": "accepted", "runId": 31138679335, "jobId": 92743714584, "artifactId": 8978979561, "testedHead": "5c057fe2235da50c23c800f7c345bc3814f01b3c"}
   ],
-  "roundDecision": null,
+  "roundDecision": {
+    "status": "awaiting-human-verification",
+    "auditor": "scheduled-agent-6",
+    "auditAssignment": "R3-A3-RR-REDTEAM-CERT",
+    "rrProgramVerdict": "certified",
+    "summary": "Independent audit verified the exact product diff, original exact-head job 92743714584, artifact 8978979561, browser/unit/parity logs, non-dispatch safeguards, CHOICE state isolation, route/lease/uncertainty blocking, and stale-composer behavior. No bounded RR defect was reproduced.",
+    "certifiedBinding": {
+      "head": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
+      "runId": 31138679335,
+      "jobId": 92743714584,
+      "artifactId": 8978979561,
+      "artifactSha256": "5571ab9e56cfc537a99bf6f6f488cdc10b44b9b13fefcb60128e6275f144bb66"
+    },
+    "nonBlockingFindings": [
+      "The healthy-running repair no-op records a timeline event but does not refresh lastRepair/detail/render, so diagnostics may look stale after a harmless duplicate request.",
+      "npm ci reports two high-severity dependency audit findings outside this bounded RR repair.",
+      "The run ID has a later failed re-run caused by the stale A2B lease guard; auditors must cite the pinned successful job/artifact rather than run-level latest-attempt status."
+    ],
+    "nextRequiredProgram": "LIFECYCLE-FROZEN-DISCARDED"
+  },
   "humanReviewRequired": true,
   "publishReadyRequiresAllRequiredPrograms": true
 }
