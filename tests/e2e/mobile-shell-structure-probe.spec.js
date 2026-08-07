@@ -7,14 +7,14 @@ const { test, expect } = require('@playwright/test');
  * This file is deliberately NOT a claim about the current live ChatGPT DOM.
  * The unattended browser connector could not inspect the authenticated live page,
  * so A1 needs a durable, no-actuation capture contract for the next exact-evidence
- * recovery wake.  The fixture encodes only independently observed/adopted anchors:
+ * recovery wake. The fixture encodes only independently observed/adopted anchors:
  *   - #prompt-textarea / ProseMirror editor
  *   - [data-testid="composer"] or form[data-type="unified-composer"]
  *   - button[data-testid="send-button"]
  *   - an in-flow flex/grid action row around native composer controls
  *
- * The probe is read-only.  It never clicks, submits, types, reorders host nodes,
- * or inserts Ghost UI.  A live capture may use the same probe logic but MUST
+ * The probe is read-only. It never clicks, submits, types, reorders host nodes,
+ * or inserts Ghost UI. A live capture may use the same probe logic but MUST
  * record the actual current DOM signatures before any product selector is chosen.
  */
 
@@ -96,6 +96,7 @@ function probeSource() {
         id: el.id || null,
         testid: el.getAttribute('data-testid'),
         type: el.getAttribute('data-type'),
+        fixture: el.getAttribute('data-fixture'),
         role: el.getAttribute('role'),
         className: String(el.className || '').slice(0, 180),
         display: cs.display,
@@ -118,7 +119,7 @@ function probeSource() {
       return null;
     };
 
-    // Resolve from the editor outwards.  Never accept a Send control from an
+    // Resolve from the editor outwards. Never accept a Send control from an
     // unrelated/hidden composer elsewhere in the document.
     const input = firstVisible([
       'form[data-type="unified-composer"] #prompt-textarea',
@@ -203,7 +204,7 @@ test.describe('Round-6 mobile-shell structural capture contract', () => {
     expect(result.sendInsideComposer).toBe(true);
     expect(result.sendIdentityPreserved).toBe(true);
     expect(result.actionCandidates.some((c) => c.node.testid === 'composer-actions' && c.node.display === 'flex')).toBe(true);
-    expect(result.stackCandidates.some((c) => c.node.className.includes('') && c.childCount >= 2)).toBe(true);
+    expect(result.stackCandidates.some((c) => c.node.fixture === 'composer-stack' && c.composerDirectChild && c.node.display === 'flex' && c.node.flexDirection === 'column')).toBe(true);
     expect(result.headers.length).toBeGreaterThan(0);
     expect(result.eventCounts).toEqual({ click: 0, submit: 0, input: 0, keydown: 0 });
   });
@@ -213,9 +214,8 @@ test.describe('Round-6 mobile-shell structural capture contract', () => {
     await page.setContent(CHATGPT_FIXTURE);
 
     const before = await page.evaluate(() => ({
-      send: window.__fixtureSend,
-      sendRect: window.__fixtureSend.getBoundingClientRect().toJSON(),
-      composerRect: document.querySelector('form[data-type="unified-composer"]').getBoundingClientRect().toJSON()
+      hasSend: !!window.__fixtureSend,
+      sendConnected: !!window.__fixtureSend?.isConnected
     }));
     const result = await runProbe(page);
     const after = await page.evaluate(() => ({
@@ -228,7 +228,7 @@ test.describe('Round-6 mobile-shell structural capture contract', () => {
       events: window.__probeEvents
     }));
 
-    expect(before.send).toBeTruthy();
+    expect(before).toEqual({ hasSend: true, sendConnected: true });
     expect(result.viewport.innerWidth).toBe(390);
     expect(result.input?.id).toBe('prompt-textarea');
     expect(result.send?.testid).toBe('send-button');
