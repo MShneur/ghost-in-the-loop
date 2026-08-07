@@ -121,7 +121,15 @@
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-1.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-2-longchat-baseline",
+    "nominalWorker": 2,
+    "assignmentId": "R5-A1-LONGCHAT-BASELINE",
+    "intendedRole": "researcher-architect",
+    "acquiredAt": "2026-08-07T09:14:12Z",
+    "expiresAt": "2026-08-07T09:59:12Z",
+    "inspectedHead": "2d40a1467e73890ba080b8071e7cd873d4fa45aa"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
