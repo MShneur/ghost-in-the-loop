@@ -128,3 +128,101 @@ Create `R5-A2X-LONGCHAT-BUILD-EXEC` as the smallest dependency-safe recovery. An
 8. remove any temporary carrier, close any temporary PR unmerged, release the lease, and hand off explicitly.
 
 No human decision is required.
+
+---
+
+# R5-A2X-LONGCHAT-BUILD-EXEC addendum
+
+## Successor and lease
+
+- [VERIFIED] Nominal wake: Worker 2 / researcher-architect cadence.
+- [VERIFIED] Executed assignment role: Worker 3 / `builder-execution-recovery`, inherited under earliest-ready succession; timer number was not treated as ownership.
+- [VERIFIED] Pre-claim authoritative head: `522f287d2dfed2f2d876d0036e3d573fb34f81e0`.
+- [VERIFIED] A2X lease claim commit: `d01c510660fd2d3fa2ac9857d33d0939ff97aa72`.
+- [VERIFIED] Lease holder: `scheduled-successor-a2x-build-exec`; acquired `2026-08-07T10:08:33Z`; expiry `2026-08-07T10:53:33Z`.
+- [VERIFIED] No conflicting active workflow existed on the inspected head before claim.
+
+## Exact candidate
+
+- [VERIFIED] Candidate head: `9d49e34af07015f8064ac66398004180216efb08` (`perf: bound long-chat assistant selector work`).
+- [VERIFIED] The commit changes only `ghost-in-the-loop.user.js` and generated `extension/content.js`.
+- [VERIFIED] The implementation performs one grouped `querySelectorAll(selectorList.join(','))`, walks the union newest-to-oldest, keeps a separate raw `ANSWER_SCAN_LIMIT` quota for every original selector, assigns the lowest applicable original selector index to overlapping nodes, applies usability/content filtering only after raw tail accounting, and falls back to the exact legacy per-selector collector if the grouped path throws.
+- [VERIFIED] No MutationObserver, cache, timer, route state, network content dependency, Send authority, CHOICE logic, lease logic, or uncertainty behavior was introduced or relaxed.
+- [VERIFIED] `extension/content.js` was regenerated with `node scripts/build-extension.js` before the candidate commit; generated parity subsequently passed.
+
+## Guarded execution binding
+
+A temporary same-repository draft PR carrier was used only because the local git runner could not resolve GitHub. The carrier targeted isolated base `gitl/r5-a2x-exec-base`, never `main`.
+
+- [VERIFIED] Draft PR: #24; closed unmerged after execution.
+- [VERIFIED] Workflow run: `31169354385` (`R5 A2X guarded exact execution`).
+- [VERIFIED] Job: `92837396863` (`a2x-exact`).
+- [VERIFIED] Initial exact-head guard: expected and actual `d01c510660fd2d3fa2ac9857d33d0939ff97aa72` before candidate materialization.
+- [VERIFIED] The same job committed and pushed candidate `9d49e34af07015f8064ac66398004180216efb08` to `agent/8.8-repair-resume`, verified the remote ref equaled that candidate head, and ran all required tests on that checkout without a later source mutation.
+- [VERIFIED] Artifact: `8990318746`, `r5-a2x-long-chat-build-exec`, SHA-256 `eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4`.
+
+## Required command results
+
+- [VERIFIED] `node --check ghost-in-the-loop.user.js`: PASS.
+- [VERIFIED] `node --check extension/content.js`: PASS.
+- [VERIFIED] `npm run lint`: PASS.
+- [VERIFIED] `npm run check:generated`: PASS — generated extension artifact current.
+- [VERIFIED] `npx jest tests/issuefixes.test.js tests/sendtransaction.test.js --runInBand`: PASS — 2/2 suites, 18/18 tests.
+- [VERIFIED] `npm run test:unit -- --runInBand`: PASS — 43/43 suites, 477 passed, 3 explicit TODO, 480 total.
+- [VERIFIED] `npx playwright test tests/e2e/long-chat-perf-a2.spec.js --project=chromium`: PASS — 1/1 test, 2.5 s overall.
+
+## Raw A2 benchmark result
+
+All rows used 25 samples per operation and the unchanged deterministic 180/500/1000/2000-turn fixture.
+
+| Turns | DOM nodes | Answer p50 / p95 | Answer qSA calls/sample | Answer qSA matches/sample | Begin-Send p95 | Send-Evidence p95 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 180 | 795 | 0.30 / 0.40 ms | 1 | 181 | 0.50 ms | 0.50 ms |
+| 500 | 2075 | 0.40 / 0.70 ms | 1 | 501 | 1.00 ms | 0.90 ms |
+| 1000 | 4075 | 0.50 / 0.70 ms | 1 | 1001 | 1.60 ms | 1.40 ms |
+| 2000 | 8075 | 0.80 / 1.00 ms | 1 | 2001 | 2.30 ms | 2.80 ms |
+
+- [VERIFIED] 2000-turn answer returned-match work fell from A1 `6003` to A2X `2001` matches/sample: exactly one third of baseline, a **66.67% reduction**, exceeding the predeclared >=60% reduction gate.
+- [VERIFIED] 2000-turn answer p95 fell from `2.30 ms` to `1.00 ms`, passing the strict `<2.30 ms` gate.
+- [VERIFIED] 180-turn answer p95 was `0.40 ms`, passing the `<=0.875 ms` small-history regression gate.
+- [VERIFIED] Newest visible unfinished answer remained authoritative at every fixture size; older `HALT` and hidden `PROCEED` decoys did not displace it.
+- [VERIFIED] Safety events over the benchmark were exactly `{submit:0, click:0, input:0, keydown:0}`.
+
+## Devil's-advocate interpretation
+
+The candidate passes the predeclared A2 decision oracle, but it does **not** eliminate history-size scaling. The grouped query still materializes one full union stream: 181 -> 501 -> 1001 -> 2001 answer matches/sample as history grows. The exact result therefore supports the narrower claim that redundant overlapping selector enumeration was removed, not that answer selection became asymptotically bounded.
+
+A second remaining hot path is visible in the same exact run: at 2000 turns, `_beginSendAttempt` and `_sendEvidence` still recorded `8004` qSA matches/sample because independent assistant-count observation continues to enumerate history in addition to the optimized answer read. Their p95 values were 2.30 ms and 2.80 ms respectively. A3 should treat this as a falsification target but must not weaken the at-most-once Send journal or delivery-evidence contract to optimize it.
+
+The persistent MutationObserver/index alternative is therefore still a legitimate competing future option if later Red-Team/mobile evidence shows the remaining linear union scan or send-observation scans are unacceptable. It is not justified as a replacement merely because it is asymptotically more ambitious.
+
+## Cleanup and safety
+
+- [VERIFIED] Temporary workflow `.github/workflows/r5-a2x-exec.yml` was removed from both temporary carrier refs after the run.
+- [VERIFIED] Temporary trigger file was removed from the trigger ref.
+- [VERIFIED] PR #24 was closed draft and unmerged.
+- [LIMIT] The connected GitHub surface used here did not expose branch-ref deletion, so the now-inert temporary base/trigger refs may remain; neither contains an active carrier after cleanup.
+- [VERIFIED] `main` was not modified; no merge, auto-merge, tag, publication, or release occurred.
+- [VERIFIED] Two pre-existing high-severity npm audit findings remain; A2X changed no dependency.
+- [VERIFIED] GitHub Actions emitted the existing Node-action runtime deprecation warning; this is maintenance debt, not an A2X product regression.
+
+## A2X acceptance verdict
+
+- Candidate committed on isolated branch with generated extension parity: **PASS**.
+- 2000-turn qSA matches/sample <= 2401.2: **PASS — 2001**.
+- 2000-turn p95 < 2.30 ms: **PASS — 1.00 ms**.
+- 180-turn p95 <= 0.875 ms: **PASS — 0.40 ms**.
+- Newest-answer/terminal-marker semantics preserved: **PASS**.
+- Zero benchmark Send-adjacent actuation: **PASS**.
+- Syntax/lint/generated parity: **PASS**.
+- Focused answer-selection/Send-journal Jest: **PASS — 18/18**.
+- Full unit suite: **PASS — 477 pass + 3 TODO**.
+- Focused Chromium A2 benchmark: **PASS — 1/1**.
+- Send/CHOICE/route/lease/uncertainty weakened: **NO**.
+- Main/merge/tag/release/publish action: **NONE**.
+
+## A2X handoff
+
+`R5-A2-LONGCHAT-BUILD` and `R5-A2X-LONGCHAT-BUILD-EXEC` may now be marked submitted. Activate `R5-A3-LONGCHAT-REDTEAM` as the earliest dependency-safe assignment. The Red-Team should attack mixed/non-overlapping selector tails, malformed-selector fallback, hidden/nested replacement under mutation churn, long-history route replacement, and unresolved Send observation while preserving the exact A2 numerical record and all fail-closed safeguards.
+
+No human decision is required for this handoff.
