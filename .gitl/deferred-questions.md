@@ -2,6 +2,8 @@
 
 This queue follows the canonical Personal-Forge Automation Maker Policy B: human decisions are local by default. A deferred item blocks only the affected decision and truly dependent irreversible actions; independent dependency-safe work and bounded research continue.
 
+The explicit user directive `.gitl/user-directives/2026-08-07-release-pressure.md` resolved the three previously deferred ordinary engineering decisions through delegated expert review. Historical options and evidence remain below for auditability.
+
 ```yaml
 - id: DQ-R4-LIFECYCLE-REVIEW
   created_at: 2026-08-07T08:49:30Z
@@ -25,12 +27,16 @@ This queue follows the canonical Personal-Forge Automation Maker Policy B: human
     - "The audit accepts deterministic/emulated evidence for the bounded objective but explicitly rejects promotion to physical-device or real browser-scheduler certification."
     - "The conservative alternative is to make one or more excluded physical-platform claims release-critical before final certification."
   consequence_of_deferral: >-
-    Formal human acceptance/reopening of Round 4 remains pending. LONG-CHAT-PERF and other independent reversible roadmap work may continue under Policy B. Final release certification must surface this deferred question and cannot silently promote excluded lifecycle claims.
+    Historical only; this item is now answered. The bounded certification is accepted, while excluded physical-platform and real-scheduler claims remain non-certified.
   recommended_default: >-
     Accept the bounded Round-4 certification for roadmap sequencing while preserving every explicit limit; revisit only if later long-chat/mobile evidence reveals a lifecycle interaction or if the human chooses to make a physical-platform claim release-critical.
   unblock_condition: >-
-    Human answers accept or reopen; if reopen, identify which excluded lifecycle claim must become release-critical and what evidence level is required.
-  status: deferred
+    Satisfied by explicit delegated user authority in .gitl/user-directives/2026-08-07-release-pressure.md.
+  answer: >-
+    Accept the bounded Round-4 lifecycle certification and preserve every explicit non-certified limit.
+  answered_at: 2026-08-07T17:12:58Z
+  authority: .gitl/user-directives/2026-08-07-release-pressure.md
+  status: answered
 
 - id: DQ-R5-LONGCHAT-REVIEW
   created_at: 2026-08-07T11:58:00Z
@@ -57,12 +63,16 @@ This queue follows the canonical Personal-Forge Automation Maker Policy B: human
     - "The safety-critical Send-observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns and was deliberately not weakened."
     - "Hosted Pixel-7 emulation is not physical Android; desktop Playwright Firefox is not GeckoView/Firefox-Android."
   consequence_of_deferral: >-
-    Formal human acceptance/reopening of Round 5 remains pending. MOBILE-SHELL-STRUCTURAL and other independent reversible roadmap work may continue under Policy B. Final release certification must surface this question and cannot silently promote the excluded hardware, asymptotic, or Send-observation claims.
+    Historical only; this item is now answered. The bounded certification is accepted, while the linear Send-observation path and excluded physical-platform claims remain explicit limits.
   recommended_default: >-
     Accept the bounded Round-5 certification for roadmap sequencing because the predeclared deterministic improvement and safety/correctness gates passed exact-head audit, while preserving the linear Send-observation and physical-platform limits for targeted future evidence unless later mobile-shell work exposes an interaction.
   unblock_condition: >-
-    Human answers accept or reopen; if reopen, identify the specific stronger Long Chat claim that must become release-critical and the evidence level required.
-  status: deferred
+    Satisfied by explicit delegated user authority in .gitl/user-directives/2026-08-07-release-pressure.md.
+  answer: >-
+    Accept the bounded Round-5 Long Chat certification and preserve every explicit asymptotic and physical-platform limit.
+  answered_at: 2026-08-07T17:12:58Z
+  authority: .gitl/user-directives/2026-08-07-release-pressure.md
+  status: answered
 
 - id: DQ-R6-LIVE-STRUCTURE-CAPTURE
   created_at: 2026-08-07T13:19:30Z
@@ -89,10 +99,15 @@ This queue follows the canonical Personal-Forge Automation Maker Policy B: human
     - "Fresh maintained-project evidence weakens header-first assumptions but also shows composer controls and width behavior remain volatile; stronger composer anchors do not imply that adding a Blue cell is safe at narrow widths."
     - "Screenshot-only evidence can help with visual order and crowding but cannot establish identity-sensitive DOM invariants required by A1X."
   consequence_of_deferral: >-
-    Only the current-host structural selector/insertion decision and dependent R6-A2 product build remain paused. Prior programs, documentation/evidence work, independent reversible roadmap work, and bounded non-conflicting research may continue under Policy B. Scheduled workers must not repeatedly retry the same permission-gated browser call or treat deterministic/adoption fixtures as current host proof.
+    Historical authorization gate is resolved. Live current-host capture remains technically NOT OBTAINED and is still required for live adapter binding/certification, but it no longer blocks a reversible deterministic prototype/build attempt under the release-pressure directive.
   recommended_default: >-
-    Allow the read-only browser capture in an interactive session when convenient. If supplying evidence instead, prefer a sanitized DOM/computed-style/relationship capture; a screenshot is useful as a supplement but cannot by itself discharge the exact identity-sensitive gate. Until then, keep A2 waiting, preserve the existing rail fallback, and continue only work that does not depend on the missing current-host structural map.
+    Allow the read-only browser capture in an interactive session when convenient. If supplying evidence instead, prefer a sanitized DOM/computed-style/relationship capture; a screenshot is useful as a supplement but cannot by itself discharge the exact identity-sensitive gate.
   unblock_condition: >-
-    A durable current authenticated ChatGPT desktop and <=500 CSS px capture satisfies the A1X acceptance criteria, including active-composer-scoped exact Send identity, structural candidate signatures, zero probe actuation, and an exact insertion rule or evidence-backed rejection.
-  status: deferred
+    Human authorization is satisfied. Technical A1X submission still requires a durable current authenticated ChatGPT desktop and <=500 CSS px capture meeting the identity, zero-actuation, and insertion-rule criteria.
+  answer: >-
+    Read-only live authenticated ChatGPT inspection is authorized whenever a functioning interactive browser carrier is available. No typing, click, submit, input, keydown, Send actuation, Send replacement, or Send interception is authorized.
+  answered_at: 2026-08-07T17:12:58Z
+  authority: .gitl/user-directives/2026-08-07-release-pressure.md
+  technical_state: authorized-not-yet-obtained
+  status: answered
 ```
