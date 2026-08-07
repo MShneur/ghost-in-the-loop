@@ -79,7 +79,8 @@
       "acceptanceCriteria": ["Round 3 certification remains pinned to exact job/artifact evidence", "LIFECYCLE-FROZEN-DISCARDED is the next active program", "Workers 2-6 receive a dependency-safe research/build/red-team/mobile/audit chain", "only the earliest assignment is ready", "all remaining release-critical programs remain present"],
       "requiredTests": ["repository state and branch-head inspection", "active workflow check", "existing lifecycle test inspection"],
       "requiredEvidence": ["human acceptance", "starting branch head", "existing lifecycle coverage", "plan rationale", "handoff state"],
-      "evidencePath": ".gitl/evidence/round-4/worker-1.md"
+      "evidencePath": ".gitl/evidence/round-4/worker-1.md",
+      "evidenceCommit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"
     },
     {
       "id": "R4-A1-LIFECYCLE-CONTRACT",
@@ -174,7 +175,7 @@
     }
   ],
   "evidence": [
-    {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "pending-evidence-commit"}
+    {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "submitted", "commit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
