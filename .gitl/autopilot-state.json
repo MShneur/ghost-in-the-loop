@@ -184,7 +184,14 @@
     ".gitl/evidence/round-4/worker-3.md",
     ".gitl/evidence/round-4/worker-4.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "manual-successor-a4",
+    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
+    "intendedRole": "mobile-browser-accessibility-performance",
+    "acquiredAt": "2026-08-07T04:42:28Z",
+    "expiresAt": "2026-08-07T05:27:28Z",
+    "inspectedHead": "174e8f1a1ebc8864cd66167732cab3a87fe00639"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
