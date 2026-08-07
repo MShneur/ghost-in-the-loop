@@ -3,40 +3,16 @@
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "mode": "continuous-local-human-gates",
-  "round": 5,
+  "round": 6,
   "status": "active",
   "supervisorWorker": 1,
   "schedule": [
-    {
-      "worker": 1,
-      "minute": 0,
-      "role": "supervisor-integrator"
-    },
-    {
-      "worker": 2,
-      "minute": 10,
-      "role": "researcher-architect"
-    },
-    {
-      "worker": 3,
-      "minute": 20,
-      "role": "builder"
-    },
-    {
-      "worker": 4,
-      "minute": 30,
-      "role": "test-engineer-red-team"
-    },
-    {
-      "worker": 5,
-      "minute": 40,
-      "role": "mobile-browser-accessibility-performance"
-    },
-    {
-      "worker": 6,
-      "minute": 50,
-      "role": "devils-advocate-release-auditor"
-    }
+    {"worker": 1, "minute": 0, "role": "supervisor-integrator"},
+    {"worker": 2, "minute": 10, "role": "researcher-architect"},
+    {"worker": 3, "minute": 20, "role": "builder"},
+    {"worker": 4, "minute": 30, "role": "test-engineer-red-team"},
+    {"worker": 5, "minute": 40, "role": "mobile-browser-accessibility-performance"},
+    {"worker": 6, "minute": 50, "role": "devils-advocate-release-auditor"}
   ],
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
@@ -61,58 +37,13 @@
     "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md"
   },
   "requiredPrograms": [
-    {
-      "id": "RR-E2E-FAULTS",
-      "title": "Browser-level Repair and Resume fault injection",
-      "status": "completed",
-      "releaseCritical": true,
-      "certifiedRound": 3,
-      "humanAccepted": true
-    },
-    {
-      "id": "LIFECYCLE-FROZEN-DISCARDED",
-      "title": "Frozen and discarded page lifecycle research and recovery",
-      "status": "completed",
-      "releaseCritical": true,
-      "certifiedRound": 4,
-      "humanReview": "deferred-local",
-      "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"
-    },
-    {
-      "id": "LONG-CHAT-PERF",
-      "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance",
-      "status": "completed",
-      "releaseCritical": true,
-      "certifiedRound": 5,
-      "humanReview": "deferred-local",
-      "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW"
-    },
-    {
-      "id": "MOBILE-SHELL-STRUCTURAL",
-      "title": "Host-affixed mobile Ghost shell research, implementation, and certification",
-      "status": "backlog",
-      "releaseCritical": true,
-      "userRequired": true,
-      "brief": ".gitl/briefs/mobile-shell-concepts.md"
-    },
-    {
-      "id": "BUILD-IDENTITY",
-      "title": "Canonical build, candidate, and release-channel identity",
-      "status": "backlog",
-      "releaseCritical": true
-    },
-    {
-      "id": "DOCS-RECONCILIATION",
-      "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation",
-      "status": "backlog",
-      "releaseCritical": true
-    },
-    {
-      "id": "FINAL-CERT-PACKAGE",
-      "title": "Full certification, release audit, package, and SHA-256 verification",
-      "status": "backlog",
-      "releaseCritical": true
-    }
+    {"id": "RR-E2E-FAULTS", "title": "Browser-level Repair and Resume fault injection", "status": "completed", "releaseCritical": true, "certifiedRound": 3, "humanAccepted": true},
+    {"id": "LIFECYCLE-FROZEN-DISCARDED", "title": "Frozen and discarded page lifecycle research and recovery", "status": "completed", "releaseCritical": true, "certifiedRound": 4, "humanReview": "deferred-local", "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"},
+    {"id": "LONG-CHAT-PERF", "title": "Long-conversation observation, scanning, rendering, timer, and constrained-device performance", "status": "completed", "releaseCritical": true, "certifiedRound": 5, "humanReview": "deferred-local", "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW"},
+    {"id": "MOBILE-SHELL-STRUCTURAL", "title": "Host-affixed mobile Ghost shell research, implementation, and certification", "status": "active", "releaseCritical": true, "userRequired": true, "brief": ".gitl/briefs/mobile-shell-concepts.md", "completionRequires": ["research", "structural mount infrastructure", "implementation", "adversarial testing", "mobile/accessibility/performance certification", "cross-adapter expansion", "final audit"]},
+    {"id": "BUILD-IDENTITY", "title": "Canonical build, candidate, and release-channel identity", "status": "backlog", "releaseCritical": true},
+    {"id": "DOCS-RECONCILIATION", "title": "Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation", "status": "backlog", "releaseCritical": true},
+    {"id": "FINAL-CERT-PACKAGE", "title": "Full certification, release audit, package, and SHA-256 verification", "status": "backlog", "releaseCritical": true}
   ],
   "priorityOrder": [
     "RR-E2E-FAULTS",
@@ -124,580 +55,64 @@
     "FINAL-CERT-PACKAGE"
   ],
   "priorRound": {
-    "round": 4,
-    "program": "LIFECYCLE-FROZEN-DISCARDED",
-    "verdict": "certified-at-bounded-deterministic-scope",
+    "round": 5,
+    "program": "LONG-CHAT-PERF",
+    "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
     "humanReview": "deferred-local",
-    "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW",
-    "auditAssignment": "R4-A5-LIFECYCLE-AUDIT",
-    "auditEvidence": ".gitl/evidence/round-4/worker-6.md",
-    "auditEvidenceCommit": "6ef0e260f48bf67a9c2b6f0ef7035cf965451e6e",
-    "stateCloseCommit": "a348cadb125a18712f11ea6de02d2a22233736b6",
+    "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW",
+    "auditAssignment": "R5-A5-LONGCHAT-AUDIT",
+    "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
+    "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
     "explicitLimits": [
-      "No physical Android discard/freeze certification.",
-      "No Firefox-Android/GeckoView lifecycle certification.",
-      "No proof of actual OS/browser scheduler freeze or discard from synthetic fixtures.",
-      "No calibrated low-end performance budget."
+      "The grouped assistant query remains history-linear.",
+      "The safety-critical begin-Send and send-evidence observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns.",
+      "No proof Ghost dominates total host-page lag.",
+      "Pixel-7 Playwright evidence is emulation, not physical Android certification.",
+      "Desktop Firefox evidence is not Firefox-Android/GeckoView certification.",
+      "Hosted-CI timing is not a calibrated low-end hardware budget."
     ],
-    "sequencingDecision": "Under canonical Personal-Forge Policy B, the human review is local and does not block independent reversible LONG-CHAT-PERF work. Final certification must surface the deferred question."
+    "sequencingDecision": "DQ-R4-LIFECYCLE-REVIEW and DQ-R5-LONGCHAT-REVIEW remain local under canonical Policy B. Independent reversible MOBILE-SHELL-STRUCTURAL work may continue."
   },
   "roundHypotheses": [
     {
-      "id": "H1-tail-scan-cost",
-      "claim": "Long-conversation cost may be dominated by repeated full-DOM selector enumeration even though answer post-processing is capped at ANSWER_SCAN_LIMIT=48.",
-      "repositoryBasis": "_collectAnswerCandidates calls document.querySelectorAll for every assistant selector before slicing the last 48 matches; ChatGPT currently has three assistant selectors. engineTick calls Adapter.getLastText every 2500ms while RUNNING."
+      "id": "H1-adapter-contract",
+      "claim": "An adapter-owned explicit structural mount contract can add one Ghost child/sibling to a verified host row or stack with lower safety and maintenance risk than generic DOM inference.",
+      "prediction": "A deterministic ChatGPT host fixture and current live DOM mapping can identify stable header/composer/footer anchors, preserve the original Send node, and survive host-control insertion/rerender using only scoped observation."
     },
     {
-      "id": "H2-send-observation-cost",
-      "claim": "Dispatch confirmation may duplicate long-chat DOM work because _sendEvidence measures _qAll(PLAT.assistant).length and Adapter.getLastText while the send journal is unresolved.",
-      "repositoryBasis": "_beginSendAttempt and _sendEvidence both collect assistant state; any optimization must preserve at-most-once Send evidence and must not trade correctness for speed."
+      "id": "H2-generic-structural-inference",
+      "claim": "A reusable ancestor-climb and layout-classification algorithm may reduce per-adapter selector maintenance while still discovering safe flex/grid/block/table mount points.",
+      "prediction": "The same inference rules should select the intended container across materially different fixture structures without wrapping, reordering, hiding, or overlapping host controls; otherwise the approach is rejected for first implementation."
     },
     {
-      "id": "H3-render-or-observer-cost",
-      "claim": "Rendering, MutationObserver churn, platform-specific virtual scrolling, or other DOM work may dominate instead of answer scanning.",
-      "repositoryBasis": "The round must measure competing hot paths before choosing a fix; the existing lifecycle mobile fixture with 180 messages is not a long-chat performance certification."
+      "id": "H3-fallback-first",
+      "claim": "The existing fixed composer rail should remain a compatibility fallback rather than being rewritten until structural verification succeeds.",
+      "prediction": "When a structural contract cannot prove normal-flow insertion and Send-node preservation, the attempted mount can cleanly unmount and the existing rail can continue without new actuation authority."
+    },
+    {
+      "id": "H4-shadow-dom-boundary",
+      "claim": "A standard custom element with Shadow DOM can isolate Ghost internals while the host element itself remains an in-flow child or sibling.",
+      "prediction": "Isolation can be achieved without scoped CustomElementRegistry dependencies, fixed/absolute positioning for the structural mount, or duplicated Ghost state/action authority."
     }
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 1,
-    "assignmentId": "R6-SUPERVISOR-PLAN",
+    "nominalWorker": 2,
+    "assignmentId": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Claim R6-SUPERVISOR-PLAN regardless of timer number. Read the canonical maker plus .gitl/briefs/mobile-shell-concepts.md, preserve the bounded Round-5 certification and both local deferred questions, and open the dependency-safe MOBILE-SHELL-STRUCTURAL research/build/Red-Team/mobile/audit chain without pre-authorizing a product change."
+    "instruction": "Claim R6-A1-MOBILE-SHELL-STRUCTURE-MAP regardless of timer number. Map current ChatGPT mobile/desktop host structure, compare explicit adapter contracts against generic structural inference and the rail fallback, gather upstream/adoption/user evidence, create deterministic structure fixtures when useful, and predeclare the smallest first structural candidate plus falsification gate. Do not change product behavior."
   },
   "assignments": [
-    {
-      "id": "R5-SUPERVISOR-PLAN",
-      "worker": 1,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "supervisor-integrator",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Apply canonical Policy B to the completed Round-4 review, create the durable deferred-human queue, and open an evidence-competitive Round-5 long-chat performance chain without changing product behavior.",
-      "dependencies": [
-        "R4-A5-LIFECYCLE-AUDIT:accepted"
-      ],
-      "allowedFiles": [
-        ".gitl/**"
-      ],
-      "prohibitedActions": [
-        "product implementation",
-        "main/merge/tag/release/publish",
-        "silently accepting the deferred Round-4 human decision",
-        "dropping remaining required programs"
-      ],
-      "acceptanceCriteria": [
-        "Round-4 certification remains preserved at its exact bounded evidence scope and is queued for later human review",
-        "The deferred human review is local and does not block independent LONG-CHAT-PERF work",
-        "LONG-CHAT-PERF becomes the active program",
-        "A research/build/red-team/mobile/audit chain is dependency-safe and only A1 is ready",
-        "Competing performance hypotheses are preserved rather than preselecting an optimization",
-        "All remaining required programs remain present"
-      ],
-      "requiredTests": [
-        "current branch/state/lease inspection",
-        "Round-4 audit evidence inspection",
-        "current answer-selection/engineTick source inspection",
-        "existing lifecycle-mobile-perf fixture inspection"
-      ],
-      "requiredEvidence": [
-        "maker authority",
-        "starting head",
-        "deferred question",
-        "repository performance hypotheses",
-        "assignment plan",
-        "handoff state"
-      ],
-      "evidencePath": ".gitl/evidence/round-5/worker-1.md"
-    },
-    {
-      "id": "R5-A1-LONGCHAT-BASELINE",
-      "worker": 2,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "researcher-architect",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Establish an exact-head long-conversation performance/correctness baseline, identify the dominant hot path, and compare materially different optimization philosophies before any production change.",
-      "rationale": "Current answer selection caps post-processing to 48 candidates but still enumerates complete selector match sets; engineTick polls every 2.5s, and send confirmation performs additional assistant scans. The dominant cost must be measured rather than assumed.",
-      "dependencies": [
-        "R5-SUPERVISOR-PLAN:submitted"
-      ],
-      "mandatoryAction": "Use repository evidence plus current authoritative performance/testing sources and relevant real-user/community evidence when available. Resolve at least two opposing implementation philosophies and one outside-frame candidate. Convert each claim into a measurable prediction.",
-      "candidateApproaches": [
-        "Expert A / bounded-polling minimalist: preserve the current polling architecture and reduce hot-path work with tail-aware lookup, selector consolidation, cache validation, or other small read-only optimizations.",
-        "Expert B / event-driven incremental observer: track the newest assistant-turn candidate through mutation events and use polling primarily as validation/recovery, accepting additional state complexity only if measurements justify it.",
-        "Outside-frame candidate: reduce dependence on repeated conversation-DOM scanning through a portable observation signal or platform adapter capability, but reject any design that grants network telemetry or heuristics new Send authority."
-      ],
-      "allowedFiles": [
-        "tests/**",
-        "docs/**",
-        "scripts/**test**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-5/worker-2.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json",
-        ".gitl/deferred-questions.md"
-      ],
-      "prohibitedActions": [
-        "production optimization before a reproduced baseline",
-        "new Send authority",
-        "weakening newest-answer/terminal-marker correctness",
-        "weakening CHOICE/route/lease/uncertainty safeguards",
-        "inventing a millisecond budget after seeing results",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Create a deterministic long-chat fixture using the real userscript path at multiple conversation sizes, including the existing 180-message reference and materially larger histories such as 500, 1000, and 2000 assistant turns where CI capacity permits",
-        "Measure per-operation or per-tick timing plus query/scan counts for answer selection, send-observation assistant counting, rendering or observer work when relevant, and record DOM size",
-        "Verify newest-answer and terminal-marker correctness with older terminal markers, nested duplicates, hidden duplicates, and an unfinished newest response",
-        "Record p50/p95 or an equivalent distribution across repeated samples; compare scaling trends before selecting an optimization",
-        "Gather primary/upstream/adoption evidence and real user/community evidence when it can discriminate between approaches; mark unavailable evidence UNKNOWN rather than inventing sentiment",
-        "Predeclare candidate comparison criteria and identify the smallest fix whose predicted improvement can be falsified",
-        "No lifecycle/performance measurement may actuate Send or change actuator authority"
-      ],
-      "requiredTests": [
-        "focused Jest or Playwright long-chat baseline fixture on exact branch head",
-        "existing answer-selection correctness tests relevant to newest-answer semantics",
-        "record exact command/head/run/job/artifact when CI is used"
-      ],
-      "requiredEvidence": [
-        "source hot-path call graph",
-        "fixture sizes and DOM counts",
-        "raw timing/query measurements",
-        "competing expert approaches",
-        "user/upstream/adoption findings",
-        "rejected options",
-        "recommended smallest next implementation and falsification criterion"
-      ],
-      "fallbackWork": "If browser execution is unavailable, commit the deterministic benchmark/correctness fixture and exact execution command, mark A1 blocked only on execution, and activate a bounded A1X exact-head execution recovery rather than guessing the hot path.",
-      "evidencePath": ".gitl/evidence/round-5/worker-2.md",
-      "executedBy": "scheduled-agent-2-longchat-baseline",
-      "testedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
-      "runId": 31165679128,
-      "jobId": 92825797473,
-      "artifactId": 8988876017,
-      "conclusion": "Exact deterministic 180/500/1000/2000-turn Chromium baseline passed. Full-document assistant-match enumeration scales approximately linearly with retained history; no Send-adjacent events occurred. A2 should falsify a stateless grouped-selector tail collector before considering persistent observer state."
-    },
-    {
-      "id": "R5-A2-LONGCHAT-BUILD",
-      "worker": 3,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "builder",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Implement the smallest evidence-selected long-chat optimization and preserve exact answer-selection and fail-closed Send semantics.",
-      "dependencies": [
-        "R5-A1-LONGCHAT-BASELINE:submitted"
-      ],
-      "allowedFiles": [
-        "ghost-in-the-loop.user.js",
-        "extension/content.js",
-        "scripts/build-extension.js",
-        "tests/**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-5/worker-3.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "broad UI rewrite",
-        "new Send authority",
-        "network-content dependence for control decisions",
-        "weakening newest-answer/CHOICE/route/lease/uncertainty behavior",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Change is directly justified by A1 measurements and smaller than materially weaker alternatives",
-        "Large-chat benchmark improves according to A1's predeclared discriminating metric without an unacceptable small-chat regression",
-        "Newest answer and terminal marker selection remain correct across duplicate/hidden/nested cases",
-        "At-most-once Send journal evidence remains at least as strict as before",
-        "Generated userscript/extension parity is preserved when product source changes"
-      ],
-      "requiredTests": [
-        "A1 exact benchmark/correctness fixture before and after",
-        "focused answer-selection/send-journal Jest",
-        "generated parity and full unit suite for product changes",
-        "focused Chromium exact-head execution"
-      ],
-      "requiredEvidence": [
-        "before/after measurements",
-        "implementation rationale",
-        "files/commit",
-        "test commands/results",
-        "rejected broader alternatives",
-        "remaining limits"
-      ],
-      "evidencePath": ".gitl/evidence/round-5/worker-3.md",
-      "activationReason": "A1 exact baseline submitted with deterministic scaling evidence and a predeclared grouped-selector falsification criterion.",
-      "executedBy": "scheduled-agent-6-longchat-builder-successor",
-      "fixtureCommit": "81cb49e30a66cfefd796f56784f9327f80df71c0",
-      "initialBlockedRecovery": "The bounded builder wake could not materialize or execute the candidate. R5-A2X-LONGCHAT-BUILD-EXEC was created as the exact execution recovery without weakening the oracle.",
-      "recoveredBy": "R5-A2X-LONGCHAT-BUILD-EXEC",
-      "candidateCommit": "9d49e34af07015f8064ac66398004180216efb08",
-      "testedHead": "9d49e34af07015f8064ac66398004180216efb08",
-      "runId": 31169354385,
-      "jobId": 92837396863,
-      "artifactId": 8990318746,
-      "cleanupCommit": "01013755837d3719dd924d1b8b8a2a322238118b",
-      "temporaryPr": 23,
-      "conclusion": "Recovered by A2X. The stateless grouped-selector candidate passed the unchanged A1/A2 performance, correctness, generated-parity, full-unit, and Send-safety gates on exact candidate head 9d49e34af07015f8064ac66398004180216efb08."
-    },
-    {
-      "id": "R5-A2X-LONGCHAT-BUILD-EXEC",
-      "worker": 3,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "builder-execution-recovery",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Materialize the A1-selected stateless grouped-selector tail collector in an execution-capable environment, regenerate the extension, and bind its performance/correctness verdict to one exact committed head without changing the predeclared oracle.",
-      "dependencies": [
-        "R5-A2-LONGCHAT-BUILD:blocked"
-      ],
-      "mandatoryAction": "Implement only the grouped-selector union/reverse-tail reconstruction with a legacy fallback. Preserve per-selector raw last-48 semantics and selector priority for overlapping elements. Do not introduce persistent observer/cache state unless this candidate is first falsified by exact evidence.",
-      "allowedFiles": [
-        "ghost-in-the-loop.user.js",
-        "extension/content.js",
-        "scripts/build-extension.js",
-        "tests/e2e/long-chat-perf-a2.spec.js",
-        "tests/**",
-        ".github/workflows/**",
-        ".gitl/evidence/round-5/worker-3.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "weakening A1/A2 numerical gates",
-        "changing newest-answer or terminal-marker semantics",
-        "new Send authority",
-        "weakening Send journal/CHOICE/route/lease/uncertainty safeguards",
-        "broad UI rewrite",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Candidate is committed on the isolated branch and extension/content.js is regenerated from the same userscript runtime",
-        "At 2000 turns returned qSA matches/sample are <= 2401.2 (40% of the A1 6003 baseline)",
-        "At 2000 turns p95 is < 2.30 ms and at 180 turns p95 is <= 0.875 ms",
-        "Newest visible unfinished answer remains authoritative over older terminal markers and hidden/nested duplicates",
-        "No benchmark or recovery causes Send-adjacent submit/click/input/keydown actuation",
-        "Syntax/lint/generated parity, focused answer-selection/Send-journal Jest, full unit, and focused Chromium A2 benchmark pass on the exact committed candidate head"
-      ],
-      "requiredTests": [
-        "node syntax checks for userscript and generated extension",
-        "npm run lint",
-        "npm run check:generated",
-        "npx jest tests/issuefixes.test.js tests/sendtransaction.test.js --runInBand",
-        "npm run test:unit -- --runInBand",
-        "npx playwright test tests/e2e/long-chat-perf-a2.spec.js --project=chromium"
-      ],
-      "requiredEvidence": [
-        "exact candidate head",
-        "implementation diff",
-        "before/after raw measurements",
-        "exact run/job/artifact if CI is used",
-        "all command results",
-        "generated parity",
-        "safety events",
-        "failure preserved if any",
-        "cleanup/handoff"
-      ],
-      "fallbackWork": "If the candidate deterministically fails a predeclared performance or correctness gate, preserve the failure and create the smallest correction or evidence-backed alternative; do not weaken thresholds. If execution infrastructure alone fails, create only the smallest execution recovery.",
-      "evidencePath": ".gitl/evidence/round-5/worker-3.md",
-      "executedBy": "scheduled-successor-a2x-build-exec",
-      "claimCommit": "d01c510660fd2d3fa2ac9857d33d0939ff97aa72",
-      "testedHead": "9d49e34af07015f8064ac66398004180216efb08",
-      "runId": 31169354385,
-      "jobId": 92837396863,
-      "artifactId": 8990318746,
-      "artifactSha256": "eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4",
-      "temporaryPr": 24,
-      "metrics": {
-        "answer2000QsaMatchesPerSample": 2001,
-        "answer2000QsaReductionVsA1Percent": 66.67,
-        "answer2000P95Ms": 1,
-        "answer180P95Ms": 0.4,
-        "safetyEvents": {
-          "submit": 0,
-          "click": 0,
-          "input": 0,
-          "keydown": 0
-        }
-      },
-      "conclusion": "PASS. Exact candidate reduced 2000-turn answer qSA returned-match work from 6003 to 2001/sample and p95 from 2.30 ms to 1.00 ms, passed the 180-turn gate at 0.40 ms, preserved newest-answer semantics and zero Send-adjacent actuation, and passed syntax/lint/generated parity, focused Jest, full unit, and Chromium A2 gates. Remaining union and send-observation work still scales with history and is routed to Red Team."
-    },
-    {
-      "id": "R5-A3-LONGCHAT-REDTEAM",
-      "worker": 4,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "test-engineer-red-team",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Attempt to falsify the accepted long-chat optimization under adversarial DOM history, mutation churn, stale/hidden duplicates, route changes, and unresolved Send states.",
-      "dependencies": [
-        "R5-A2X-LONGCHAT-BUILD-EXEC:submitted"
-      ],
-      "allowedFiles": [
-        "tests/**",
-        ".github/workflows/**",
-        "scripts/**test**",
-        ".gitl/evidence/round-5/worker-4.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "rewriting production implementation",
-        "weakening assertions",
-        "accepting stale-head/cancelled CI",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Stress at least one materially larger history than A1's smallest baseline",
-        "Older HALT/PROCEED/CHOICE markers can never override a newer unfinished answer",
-        "Hidden and nested duplicate answer nodes do not corrupt newest-answer selection",
-        "Mutation churn and DOM replacement do not create runaway observers/timers or stale-node actuation",
-        "Route/lease/uncertain-Send behavior remains fail closed with zero duplicate Send",
-        "Any performance claim is bound to exact head, fixture size, and raw measurements"
-      ],
-      "requiredTests": [
-        "exact-head adversarial long-chat Chromium",
-        "focused answer-selection/send-journal tests",
-        "repeat benchmark after adversarial mutation load"
-      ],
-      "requiredEvidence": [
-        "falsification cases",
-        "exact head/run/job/artifact",
-        "raw measurements",
-        "failures preserved",
-        "smallest recovery if needed"
-      ],
-      "fallbackWork": "A deterministic failure must create a bounded ready recovery assignment before A4; do not weaken the performance or safety oracle.",
-      "evidencePath": ".gitl/evidence/round-5/worker-4.md",
-      "activationReason": "A2X passed the unchanged A1/A2 oracle on exact candidate head 9d49e34af07015f8064ac66398004180216efb08; Red Team is now the earliest dependency-ready assignment.",
-      "executedBy": "scheduled-agent-6-longchat-redteam-successor",
-      "claimCommit": "0cb75a1db0f0a144c3af1f7e75a848310c8d8c9e",
-      "testCommit": "73ec20832e6ae125fd38dd137f315ee695e186b6",
-      "testedHead": "73ec20832e6ae125fd38dd137f315ee695e186b6",
-      "runId": 31171939489,
-      "jobId": 92845452541,
-      "artifactId": 8991319478,
-      "artifactSha256": "eb54291a2aa50868b9281982422c548025f77130f1338d671a83094fae4273e3",
-      "temporaryPr": 25,
-      "metrics": {
-        "adversarialTurns": 2000,
-        "mixedTailTurns": 1200,
-        "afterMutationAnswerQsaMatchesPerSample": 2001,
-        "afterMutationAnswerP95Ms": 2.2,
-        "activeIntervalsBeforeAfter": [
-          4,
-          4
-        ],
-        "intervalCreatesBeforeAfter": [
-          5,
-          5
-        ],
-        "observerCreatesBeforeAfter": [
-          3,
-          3
-        ],
-        "safetyEvents": {
-          "submit": 0,
-          "click": 0,
-          "input": 0,
-          "keydown": 0
-        },
-        "repeat2000BeginSendP95Ms": 6.4,
-        "repeat2000SendEvidenceP95Ms": 3.6,
-        "repeat2000SendObservationMatchesPerSample": 8004
-      },
-      "conclusion": "PASS. Exact-head adversarial Chromium preserved mixed selector-tail semantics, newest unfinished-answer authority, unchanged A2 2000-turn performance gates after heavy DOM replacement, stable timer/observer counts, and fail-closed route/lease/uncertain-Send behavior with zero actuation. Remaining Send-observation work still scales linearly and is carried forward as a bounded performance limit rather than weakened."
-    },
-    {
-      "id": "R5-A4-LONGCHAT-MOBILE-PERF",
-      "worker": 5,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Measure the accepted long-chat path under Pixel-class Chromium emulation and cross-browser constraints without promoting emulation into physical-device certification.",
-      "dependencies": [
-        "R5-A3-LONGCHAT-REDTEAM:submitted-or-blocked"
-      ],
-      "allowedFiles": [
-        "tests/**",
-        ".github/workflows/**",
-        "scripts/**test**",
-        ".gitl/evidence/round-5/worker-5.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json"
-      ],
-      "prohibitedActions": [
-        "arbitrary post-hoc wall-clock threshold",
-        "claiming physical Android or Firefox-Android certification from Playwright",
-        "product changes",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Run long-chat fixture under configured Pixel-7 chromium-mobile on exact head",
-        "Measure scaling, active intervals/observers, panel count, host composer/latest-message usability, and zero Send-adjacent actuation",
-        "Include a desktop Firefox correctness run where the fixture is portable and explicitly distinguish it from GeckoView/Firefox-Android",
-        "Compare against the Round-4 180-message mobile reference without claiming identical hardware timing",
-        "State whether the chosen approach is practical for lower-end/mobile use based on measured trend and resource accumulation proxies"
-      ],
-      "requiredTests": [
-        "exact-head chromium-mobile long-chat fixture",
-        "desktop Firefox correctness where supported",
-        "resource accumulation and accessibility/usability assertions"
-      ],
-      "requiredEvidence": [
-        "device profile",
-        "fixture size",
-        "raw timing/resource metrics",
-        "browser matrix",
-        "limitations",
-        "exact run/job/artifact"
-      ],
-      "fallbackWork": "If a browser-specific failure is reproducible, preserve it and create the smallest platform-scoped recovery rather than weakening shared correctness.",
-      "evidencePath": ".gitl/evidence/round-5/worker-5.md",
-      "activationReason": "R5-A3-LONGCHAT-REDTEAM passed exact adversarial Chromium on head 73ec20832e6ae125fd38dd137f315ee695e186b6 and preserved safety/performance oracles under selector-tail asymmetry, DOM replacement, route changes, uncertain Send, and foreign lease conditions.",
-      "executedBy": "scheduled-successor-r5-a4-mobile-perf",
-      "claimCommit": "a2f3f0a3837e6170ae1a7a9d2d2160cc83d882c0",
-      "testCommit": "290c5e8b1a3d16948db61875c9199cca0792ede3",
-      "testedHead": "290c5e8b1a3d16948db61875c9199cca0792ede3",
-      "runId": 31173733483,
-      "jobId": 92851027653,
-      "artifactId": 8992007971,
-      "artifactSha256": "fd3baa72e9e4bcc18938e2a497536d7b5d28f1d92bb13be908d3151c7b810d83",
-      "temporaryPr": 26,
-      "metrics": {
-        "chromiumMobile": {
-          "profile": {
-            "width": 412,
-            "height": 839,
-            "devicePixelRatio": 2.625,
-            "maxTouchPoints": 1
-          },
-          "answer180P95Ms": 0.4,
-          "answer2000P95Ms": 1.7,
-          "answer2000QsaMatchesPerSample": 2001,
-          "beginSend2000P95Ms": 4.9,
-          "sendEvidence2000P95Ms": 4.1,
-          "sendObservationMatchesPerSample": 8004,
-          "activeIntervalsBeforeAfter": [
-            4,
-            4
-          ],
-          "activeObserversBeforeAfter": [
-            3,
-            3
-          ],
-          "safetyEvents": {
-            "submit": 0,
-            "click": 0,
-            "input": 0,
-            "keydown": 0
-          }
-        },
-        "desktopFirefox": {
-          "profile": {
-            "width": 412,
-            "height": 915,
-            "devicePixelRatio": 1,
-            "maxTouchPoints": 0
-          },
-          "answer180P95Ms": 1,
-          "answer2000P95Ms": 2,
-          "answer2000QsaMatchesPerSample": 2001,
-          "beginSend2000P95Ms": 3,
-          "sendEvidence2000P95Ms": 3,
-          "sendObservationMatchesPerSample": 8004,
-          "activeIntervalsBeforeAfter": [
-            4,
-            4
-          ],
-          "activeObserversBeforeAfter": [
-            3,
-            3
-          ],
-          "safetyEvents": {
-            "submit": 0,
-            "click": 0,
-            "input": 0,
-            "keydown": 0
-          }
-        }
-      },
-      "conclusion": "PASS at bounded Playwright scope. Exact Pixel-7 Chromium emulation and desktop Firefox preserved newest-answer correctness, stable resource proxies, visible host composer/Send, and zero actuation through 2000 turns. The grouped answer query and safety-critical Send-observation path remain history-linear; no physical Android or Firefox-Android/GeckoView claim is made."
-    },
-    {
-      "id": "R5-A5-LONGCHAT-AUDIT",
-      "worker": 6,
-      "claimableByAnyEligibleWorker": true,
-      "intendedRole": "devils-advocate-release-auditor",
-      "status": "submitted",
-      "program": "LONG-CHAT-PERF",
-      "goal": "Independently audit Round-5 source claims, benchmark design, exact-head evidence, performance scaling, cross-browser/mobile limits, and Send/CHOICE/route/lease safety before certifying the bounded long-chat objective.",
-      "dependencies": [
-        "R5-A1-LONGCHAT-BASELINE:submitted",
-        "R5-A2X-LONGCHAT-BUILD-EXEC:submitted",
-        "R5-A3-LONGCHAT-REDTEAM:submitted",
-        "R5-A4-LONGCHAT-MOBILE-PERF:submitted-or-blocked"
-      ],
-      "allowedFiles": [
-        ".gitl/evidence/round-5/worker-6.md",
-        ".gitl/orchestration/round-plan.json",
-        ".gitl/autopilot-state.json",
-        ".gitl/deferred-questions.md"
-      ],
-      "prohibitedActions": [
-        "product implementation",
-        "changing benchmark thresholds after results",
-        "promoting emulation into physical-device claims",
-        "main/merge/tag/release/publish"
-      ],
-      "acceptanceCriteria": [
-        "Audit compares raw before/after measurements and verifies the benchmark actually discriminates candidate approaches",
-        "No speed claim is accepted from stale-head or unbound CI",
-        "Newest-answer and terminal-marker correctness remains intact",
-        "Send/CHOICE/route/lease/uncertainty safeguards remain fail closed",
-        "Mobile and Firefox limitations are stated precisely",
-        "Unsupported performance or hardware claims are rejected rather than rounded up into certification",
-        "If the bounded objective is certified, any human review is queued locally and the next independent program remains discoverable under Policy B"
-      ],
-      "requiredTests": [
-        "independent source/test diff review",
-        "exact run/job/artifact verification",
-        "raw benchmark artifact inspection",
-        "rerun only when it can discriminate an unresolved claim"
-      ],
-      "requiredEvidence": [
-        "assignment verdicts",
-        "accepted/rejected claims",
-        "exact evidence bindings",
-        "limits",
-        "deferred questions",
-        "next dependency-safe program"
-      ],
-      "fallbackWork": "Any missing or contradictory evidence creates the smallest ready recovery assignment; do not close the round as certified merely because all scheduled slots fired.",
-      "evidencePath": ".gitl/evidence/round-5/worker-6.md",
-      "activationReason": "R5-A4 exact run 31173733483/job 92851027653 passed Pixel-7 Chromium emulation and desktop Firefox long-chat correctness/resource/usability evidence on tested head 290c5e8b1a3d16948db61875c9199cca0792ede3, with physical-device and linear Send-observation limits preserved.",
-      "executedBy": "scheduled-agent-6-longchat-auditor",
-      "claimCommit": "1c71812f89c1948a885037f2902603f397b85f2e",
-      "evidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
-      "deferredQuestionCommit": "3f5f737de6d493f51b68a8602682ae5929126cb8",
-      "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
-      "conclusion": "PASS at bounded scope. Exact source diff, workflow bindings, artifact hashes/heads, raw before/after benchmark output, adversarial mutation/selector-tail tests, and Pixel-7 Chromium-emulation plus desktop-Firefox evidence are mutually consistent. The grouped answer collector achieved the predeclared deterministic improvement without weakening fail-closed safeguards. History-linear union scanning and the 8004-match/sample Send-observation path remain explicit limits; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over total host-page lag are not certified."
-    },
     {
       "id": "R6-SUPERVISOR-PLAN",
       "worker": 1,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "supervisor-integrator",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
-      "goal": "Open the next evidence-competitive round for the user-required host-affixed mobile Ghost shell without treating the deferred Round-4 or Round-5 human reviews as global freezes.",
-      "dependencies": [
-        "R5-A5-LONGCHAT-AUDIT:submitted"
-      ],
+      "goal": "Open the next evidence-competitive round for the user-required host-affixed mobile Ghost shell without treating deferred Round-4 or Round-5 reviews as global freezes.",
+      "dependencies": ["R5-A5-LONGCHAT-AUDIT:submitted"],
       "mandatoryReads": [
         "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
         ".gitl/briefs/mobile-shell-concepts.md",
@@ -705,9 +120,7 @@
         ".gitl/evidence/round-5/worker-6.md",
         ".gitl/orchestration/agent-succession-rule.md"
       ],
-      "allowedFiles": [
-        ".gitl/**"
-      ],
+      "allowedFiles": [".gitl/**"],
       "prohibitedActions": [
         "product implementation during supervisor planning",
         "silently accepting or rejecting DQ-R4-LIFECYCLE-REVIEW",
@@ -731,34 +144,267 @@
         "Round-6 dependency plan",
         "explicit handoff"
       ],
-      "fallbackWork": "If the brief conflicts with current implementation or platform constraints, preserve the conflict in supervisor evidence and create a research-first Round-6 plan rather than guessing or rewriting the brief.",
-      "evidencePath": ".gitl/evidence/round-6/worker-1.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-1.md",
+      "executedBy": "scheduled-successor-r6-supervisor-plan",
+      "claimCommit": "6ff72ded1b2d57010ddd2f87a46da8ddb40d7622"
+    },
+    {
+      "id": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+      "worker": 2,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "researcher-architect",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Map real host structural rows/columns for ChatGPT first, falsify competing discovery strategies, and define the smallest one-platform/one-mode structural candidate without changing product behavior.",
+      "dependencies": ["R6-SUPERVISOR-PLAN:submitted"],
+      "mandatoryAction": "Use repository source plus current authoritative platform/web standards and relevant user/community/adoption evidence where available. Compare at least explicit adapter-owned mount contracts, generic structural inference, and the existing rail fallback. Evaluate teal, blue, and red for the first ChatGPT implementation; do not preselect based only on the brief sketch.",
+      "allowedFiles": [
+        "tests/**",
+        "docs/**",
+        "scripts/**test**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-2.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "production shell implementation before a reproduced structural map and falsification gate",
+        "moving, wrapping, cloning, replacing, or intercepting host Send",
+        "viewport overlay as success for blue or red",
+        "document-wide high-frequency MutationObserver for the proposed structural mount",
+        "new Send/Play authority",
+        "weakening CHOICE/route/lease/uncertainty behavior",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Record current ChatGPT header action row, composer action row, composer/footer stack, layout type, stable anchors, and replacement/rerender behavior at desktop and narrow mobile breakpoints using live evidence or a clearly labeled deterministic fixture when live inspection is unavailable",
+        "Record current Ghost baseline: fixed #gitl panel/rail geometry, document-body rail observer/polling, platform adapter fields, and absence/presence of existing custom-element/Shadow-DOM structural infrastructure",
+        "Compare explicit adapter-owned contracts versus generic structural inference with measurable failure predictions, maintenance cost, and safety consequences",
+        "Evaluate teal, blue, and red as the first implementation candidate using reach/usability, Send proximity, layout reflow, narrow-width, rerender, and reversibility evidence",
+        "Gather primary/upstream/adoption evidence and aggregate user/community evidence when it can discriminate; mark unavailable evidence UNKNOWN",
+        "Create deterministic host-structure fixtures or probes sufficient to reproduce the selected mount assumptions without actuating Send",
+        "Predeclare the smallest build candidate plus exact structural/safety/performance falsification criteria for A2",
+        "No product behavior changes"
+      ],
+      "requiredTests": [
+        "current branch/state/lease inspection",
+        "source inspection of #gitl positioning, rail tracking, platform adapters, and Send selectors",
+        "deterministic host-structure probe/fixture if live host evidence cannot be made durable",
+        "exact command/head/run/job/artifact for any CI execution"
+      ],
+      "requiredEvidence": [
+        "host structure map",
+        "current Ghost shell baseline",
+        "competing architecture table",
+        "user/upstream/adoption findings",
+        "selected smallest candidate",
+        "predeclared falsification gate"
+      ],
+      "fallbackWork": "If current ChatGPT structure cannot be reliably mapped, commit only a deterministic capture/probe fixture and create the smallest exact-evidence recovery assignment; do not guess selectors or authorize product implementation.",
+      "evidencePath": ".gitl/evidence/round-6/worker-2.md"
+    },
+    {
+      "id": "R6-A2-MOBILE-SHELL-BUILD",
+      "worker": 3,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder",
+      "status": "waiting",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Implement only the A1-selected one-platform/one-mode structural mount primitive behind an experimental path, preserving the existing rail as fail-closed compatibility fallback.",
+      "dependencies": ["R6-A1-MOBILE-SHELL-STRUCTURE-MAP:submitted"],
+      "allowedFiles": [
+        "ghost-in-the-loop.user.js",
+        "extension/content.js",
+        "scripts/build-extension.js",
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-3.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "implementing more than one platform and one mount mode unless A1 evidence makes them inseparable",
+        "fixed or absolute positioning for the structural mount element",
+        "moving/wrapping/cloning/replacing the host Send node",
+        "document-wide high-frequency structural observer",
+        "unrecorded host style mutation",
+        "new Send/Play authority or second state store",
+        "weakening CHOICE/route/lease/uncertainty safeguards",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Implement the smallest A1-selected adapter-owned structural mount and only its required registry/verification infrastructure",
+        "The structural host element is an in-flow child or sibling; blue/red may not be viewport overlays",
+        "Any custom element/Shadow DOM interior reuses existing Ghost state and reviewed action handlers",
+        "Host Send remains the exact same connected node before and after mount and stays operable",
+        "One data-gitl-mount identity prevents duplicates across rerender/repair",
+        "Only the nearest verified structural container is observed for repair; all observers/timers are cleaned on unmount",
+        "Every host style mutation is minimal, reversible, and restored exactly",
+        "Verification failure removes the attempted structural mount and preserves the existing rail fallback",
+        "Generated userscript/extension parity remains exact",
+        "A1 falsification gates pass without weakening thresholds or assertions"
+      ],
+      "requiredTests": [
+        "syntax/lint",
+        "generated extension parity",
+        "focused Send/CHOICE/route/lease/uncertainty regressions",
+        "A1 structural fixture/probe on exact candidate head",
+        "full unit suite when product source changes",
+        "record exact command/head/run/job/artifact when CI is used"
+      ],
+      "requiredEvidence": [
+        "product diff",
+        "exact mount contract",
+        "Send node identity before/after",
+        "observer/timer inventory",
+        "host style mutation ledger",
+        "fallback result",
+        "exact test/CI bindings"
+      ],
+      "fallbackWork": "Any structural, Send-identity, duplicate, cleanup, or falsification failure must block A2 and create the smallest ready A2X repair/execution recovery rather than weakening the contract.",
+      "evidencePath": ".gitl/evidence/round-6/worker-3.md"
+    },
+    {
+      "id": "R6-A3-MOBILE-SHELL-REDTEAM",
+      "worker": 4,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "test-engineer-red-team",
+      "status": "waiting",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Falsify the structural mount under host control insertion, subtree replacement, route changes, layout pressure, verification failure, and cleanup while proving Send/CHOICE/route/lease/uncertainty remain fail closed.",
+      "dependencies": ["R6-A2-MOBILE-SHELL-BUILD:submitted-or-blocked"],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-4.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "accepting a blocked builder as a pass",
+        "product changes except a supervisor-created bounded recovery",
+        "weakening structural or Send identity assertions",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Insert native host controls before and after Ghost and verify host controls remain present, ordered, visible, and operable",
+        "Replace the relevant host subtree repeatedly and verify exactly one Ghost mount with the same Ghost state",
+        "Verify original Send node identity and event behavior are unchanged; zero Ghost test instrumentation may submit/click/input/keydown the host Send path unless the existing reviewed regression explicitly requires it",
+        "Force missing/malformed/fixed-grid/overflow structural candidates and verify structural verification fails closed to clean unmount/rail fallback rather than overlap",
+        "Exercise route changes and stale-node replacement without duplicate observers/mounts",
+        "Verify unmount restores every recorded host inline style/value exactly",
+        "For red-like expansion if selected, prove content reflows and latest message/composer remain reachable rather than covered",
+        "Record observer callback/resource accumulation and any reattachment race"
+      ],
+      "requiredTests": [
+        "adversarial deterministic Chromium structural fixture",
+        "focused existing Send transaction and answer/route/lease regressions",
+        "unchanged A1/A2 falsification gate where applicable",
+        "record exact head/run/job/artifact"
+      ],
+      "requiredEvidence": [
+        "falsification matrix",
+        "host control and Send identity results",
+        "duplicate/cleanup/resource results",
+        "fallback behavior",
+        "exact CI/artifact binding"
+      ],
+      "fallbackWork": "Every reproducible failure creates the smallest ready repair assignment with exact fixture state and reproduction command. Do not skip directly to mobile certification.",
+      "evidencePath": ".gitl/evidence/round-6/worker-4.md"
+    },
+    {
+      "id": "R6-A4-MOBILE-SHELL-MOBILE-PERF",
+      "worker": 5,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "mobile-browser-accessibility-performance",
+      "status": "waiting",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Measure the surviving structural candidate under narrow/mobile, keyboard, orientation, large-text, reduced-motion, browser, and constrained-runtime conditions without promoting emulation to physical-device certification.",
+      "dependencies": ["R6-A3-MOBILE-SHELL-REDTEAM:submitted"],
+      "allowedFiles": [
+        "tests/**",
+        ".github/workflows/**",
+        ".gitl/evidence/round-6/worker-5.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json"
+      ],
+      "prohibitedActions": [
+        "physical-device certification from Playwright emulation",
+        "Firefox-Android/GeckoView certification from desktop Firefox",
+        "inventing a low-end hardware budget after seeing results",
+        "weakening Send or structural assertions for timing",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Exercise Pixel-class Chromium emulation plus a portable Firefox project without Chromium-only mobile options",
+        "Test narrow widths including <=500 CSS px, portrait/landscape transitions, visualViewport/keyboard-like changes, browser toolbar movement fixtures, 200% text or equivalent large-text pressure, and prefers-reduced-motion",
+        "Verify structural mount remains in flow, host composer/Send/latest message remain reachable, and no host control overlap or clipping is introduced",
+        "Measure mount/repair latency, observer callbacks, ResizeObserver activity, layout-shift or geometry deltas, active timers/observers, and duplicate mounts across repeated changes",
+        "Use throttled or otherwise constrained CI evidence when useful but label hosted timing descriptive rather than calibrated physical hardware",
+        "Preserve zero unintended Send-adjacent actuation and exact fallback behavior",
+        "Record physical-device/GeckoView evidence as UNKNOWN unless actually executed"
+      ],
+      "requiredTests": [
+        "Pixel-class Chromium emulation structural fixture",
+        "desktop Firefox structural fixture",
+        "large-text/reduced-motion/narrow-width/keyboard-orientation scenarios",
+        "focused Send safety regressions",
+        "record exact head/run/job/artifact"
+      ],
+      "requiredEvidence": [
+        "raw geometry/resource/timing tables",
+        "accessibility and large-text result",
+        "keyboard/orientation result",
+        "browser matrix",
+        "explicit physical-platform limits"
+      ],
+      "fallbackWork": "A deterministic mobile/layout failure creates the smallest ready repair assignment; preserve the failure and do not convert emulation into a physical-platform claim.",
+      "evidencePath": ".gitl/evidence/round-6/worker-5.md"
+    },
+    {
+      "id": "R6-A5-MOBILE-SHELL-AUDIT",
+      "worker": 6,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "devils-advocate-release-auditor",
+      "status": "waiting",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Independently audit the bounded Round-6 one-platform/one-mode structural prototype, source/evidence bindings, fail-closed behavior, mobile/accessibility limits, and maintenance cost before deciding whether a cross-adapter expansion round is justified.",
+      "dependencies": ["R6-A4-MOBILE-SHELL-MOBILE-PERF:submitted"],
+      "allowedFiles": [
+        ".gitl/evidence/round-6/worker-6.md",
+        ".gitl/orchestration/round-plan.json",
+        ".gitl/autopilot-state.json",
+        ".gitl/deferred-questions.md"
+      ],
+      "prohibitedActions": [
+        "marking MOBILE-SHELL-STRUCTURAL fully complete before required cross-adapter expansion/final program audit",
+        "accepting overlay behavior as structural success",
+        "accepting replaced/cloned/moved Send controls",
+        "promoting emulation to physical Android/GeckoView certification",
+        "main/merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "Independently inspect exact source diff and prove the structural mount is in normal host flow",
+        "Verify exact-head CI/run/job/artifact bindings for A1/A2/A3/A4 and reject chat-only claims",
+        "Verify original Send node identity, CHOICE/route/lease/uncertainty fail-closed behavior, unique mount identity, clean unmount, scoped observation, and exact host-style restoration",
+        "Challenge maintenance risk against the current rail fallback and the user-accessibility benefit",
+        "Reject unsupported physical-device, GeckoView, universal-selector, or cross-adapter claims",
+        "If the bounded ChatGPT prototype is supported, keep MOBILE-SHELL-STRUCTURAL active and expose the next cross-adapter expansion supervisor/research assignment; otherwise expose the smallest recovery",
+        "Do not silently resolve DQ-R4-LIFECYCLE-REVIEW or DQ-R5-LONGCHAT-REVIEW"
+      ],
+      "requiredEvidence": [
+        "independent source and CI audit",
+        "each assignment verdict",
+        "accepted/rejected structural claims",
+        "maintenance/usability dissent",
+        "explicit next cross-adapter or recovery action"
+      ],
+      "fallbackWork": "Any missing or contradictory evidence creates the smallest ready recovery assignment; do not certify the bounded prototype merely because all scheduled slots fired.",
+      "evidencePath": ".gitl/evidence/round-6/worker-6.md"
     }
   ],
-  "roundDecision": {
-    "verdict": "certified-at-bounded-deterministic-and-hosted-playwright-scope",
-    "auditAssignment": "R5-A5-LONGCHAT-AUDIT",
-    "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
-    "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
-    "deferredHumanQuestion": "DQ-R5-LONGCHAT-REVIEW",
-    "acceptedCandidate": "stateless grouped-selector reverse-tail collector with exact legacy fallback",
-    "acceptedEvidence": {
-      "a1": "head 747031cc8160ba6febdd6fecb03d597fae36cd66 / run 31165679128 / job 92825797473 / artifact 8988876017",
-      "a2x": "head 9d49e34af07015f8064ac66398004180216efb08 / run 31169354385 / job 92837396863 / artifact 8990318746",
-      "a3": "head 73ec20832e6ae125fd38dd137f315ee695e186b6 / run 31171939489 / job 92845452541 / artifact 8991319478",
-      "a4": "head 290c5e8b1a3d16948db61875c9199cca0792ede3 / run 31173733483 / job 92851027653 / artifact 8992007971"
-    },
-    "explicitLimits": [
-      "The grouped assistant query still scales linearly with retained matching history; the program does not certify constant-time lookup.",
-      "The safety-critical begin-Send and send-evidence observation path remains history-linear at 8004 assistant-selector matches/sample at 2000 turns and is not optimized by this round.",
-      "The program does not prove Ghost is the dominant cause of total real ChatGPT long-thread lag.",
-      "Pixel-7 Playwright evidence is emulation, not physical Android CPU/memory/battery/thermal/scheduler certification.",
-      "Desktop Firefox evidence is not Firefox-Android/GeckoView certification.",
-      "Hosted-CI timing is descriptive rather than a calibrated low-end hardware budget.",
-      "Synthetic retained DOM may differ from future ChatGPT virtualization or markup."
-    ],
-    "sequencingDecision": "Under canonical Personal-Forge Policy B, DQ-R5-LONGCHAT-REVIEW is local. MOBILE-SHELL-STRUCTURAL is the next independent release-critical program and R6-SUPERVISOR-PLAN is ready."
-  },
+  "roundDecision": null,
   "humanReviewRequired": false,
   "humanReviewPolicy": "local-deferred-queue",
   "publishReadyRequiresAllRequiredPrograms": true
