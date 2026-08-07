@@ -23,11 +23,11 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "b6fddcb9af98b99cf2272597664e6f9da1468d90",
-  "currentStep": "R4-A1-LIFECYCLE-CONTRACT produced the lifecycle contract and focused specification coverage but is blocked only on exact-branch-head execution of the newly added test. R4-A1X-LIFECYCLE-CONTRACT-EXEC is ready.",
-  "nextAction": "The next eligible agent claims R4-A1X-LIFECYCLE-CONTRACT-EXEC, runs wake-recovery and lifecycle-recovery-contract Jest on the exact branch head using a guarded temporary CI carrier if necessary, removes temporary machinery, then marks A1/A1X submitted and activates R4-A2 on PASS or preserves the exact failure on FAIL.",
+  "currentStep": "R4-A1X-LIFECYCLE-CONTRACT-EXEC is in progress to obtain exact-branch-head execution evidence for wake-recovery and lifecycle-recovery-contract Jest without changing product behavior.",
+  "nextAction": "scheduled-agent-2 executes R4-A1X-LIFECYCLE-CONTRACT-EXEC; other workers must avoid conflicting writes while this lease is valid and active.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current eligible wake",
     "nominalWorker": 2,
     "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
     "claimableByAnyEligibleWorker": true,
@@ -146,7 +146,16 @@
     ".gitl/evidence/round-4/worker-1.md",
     ".gitl/evidence/round-4/worker-2.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-2",
+    "nominalWorker": 2,
+    "assignmentId": "R4-A1X-LIFECYCLE-CONTRACT-EXEC",
+    "intendedRole": "researcher-architect-execution-recovery",
+    "acquiredAt": "2026-08-07T03:11:49Z",
+    "expiresAt": "2026-08-07T03:56:49Z",
+    "inspectedHead": "branch agent/8.8-repair-resume was one coordination-only commit ahead of b6fddcb9af98b99cf2272597664e6f9da1468d90 before claim",
+    "activeWorkflowCheck": "No active workflow was found on b6fddcb9af98b99cf2272597664e6f9da1468d90; its latest recorded run 31142916197 was completed successfully. The connector does not expose branch-head SHA before a contents write, so the lease-claim commit becomes the exact execution head anchor."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
