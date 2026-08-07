@@ -2,12 +2,12 @@
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
-  "status": "awaiting-human-verification",
-  "round": 4,
-  "roundPhase": "audit-complete",
-  "mode": "review-after-round",
+  "status": "active",
+  "round": 5,
+  "roundPhase": "in-progress",
+  "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3, 4, 5, 6],
+  "completedWorkers": [1],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -15,32 +15,36 @@
   "promptLocation": ".gitl/orchestration/task-prompts.md",
   "evidenceContractLocation": ".gitl/orchestration/evidence-contract.md",
   "evidenceRoot": ".gitl/evidence",
+  "deferredQuestionQueue": ".gitl/deferred-questions.md",
+  "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md",
   "mandatoryReads": [
     ".gitl/orchestration/task-prompts.md",
     ".gitl/orchestration/round-plan.json",
-    ".gitl/orchestration/agent-succession-rule.md"
+    ".gitl/orchestration/agent-succession-rule.md",
+    ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "fab8b8a1e26353782f274b7abb3fe967d60ee12f",
-  "currentStep": "R4-A5-LIFECYCLE-AUDIT independently accepted every Round-4 assignment at its stated evidence level and certified LIFECYCLE-FROZEN-DISCARDED for the bounded Ghost recovery objective. The audit rechecked exact-head CI, artifacts, source/test diffs, platform claims, fail-closed safeguards, and the A4Y raw Pixel-7 reporter. It explicitly rejects stronger claims about physical Android/Firefox-Android, actual OS/browser freeze/discard scheduling, or a calibrated low-end performance budget. Round 4 is awaiting human verification and publishReady remains false.",
-  "nextAction": "Human review decides whether to accept or reopen Round 4. If accepted, the next supervisor opens the dependency-safe LONG-CHAT-PERF program; if reopened, create only the smallest evidence-driven lifecycle recovery. Scheduled workers must not start the next program before this review gate is resolved.",
+  "headAtLastHandoff": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
+  "currentStep": "R5-SUPERVISOR-PLAN applied the latest canonical Personal-Forge maker. Round-4 lifecycle certification remains bounded and its accept-vs-reopen decision is queued locally as DQ-R4-LIFECYCLE-REVIEW instead of freezing independent work. LONG-CHAT-PERF is now active with competing polling, event-driven, and outside-frame hypotheses preserved for exact measurement before any product optimization.",
+  "nextAction": "The next eligible wake claims R5-A1-LONGCHAT-BASELINE regardless of nominal timer number. Build and execute an exact-head long-chat benchmark/correctness fixture across materially different history sizes, measure scaling and query/scan hot paths, compare competing approaches with predeclared criteria, and recommend only the smallest falsifiable optimization supported by evidence.",
   "automaticDispatch": {
-    "enabled": false,
-    "scheduledFor": "human review",
-    "nominalWorker": null,
-    "assignmentId": null,
-    "claimableByAnyEligibleWorker": false,
+    "enabled": true,
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 2,
+    "assignmentId": "R5-A1-LONGCHAT-BASELINE",
+    "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
       "nominal role mismatch",
-      "previous failed test",
-      "previous blocked assignment with ready recovery"
+      "local deferred human question",
+      "previous failed test with a ready recovery",
+      "previous blocked assignment with dependency-safe continuation"
     ],
     "holdRequiredReasons": [
-      "valid lease held by active agent",
-      "active workflow on relevant head",
-      "consistent branch movement proving current work",
+      "valid lease plus active evidence on conflicting work",
+      "active branch-changing workflow on the relevant head",
+      "consistent branch movement proving current conflicting work",
       "true project-wide human decision or irreversible/publication/security gate"
     ]
   },
@@ -49,14 +53,14 @@
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "topics": [
-      "new authoritative browser or extension behavior",
-      "better Playwright or CI workflows",
-      "safer scripts and deterministic fixtures",
-      "architecture and performance concepts",
-      "next-update compatibility risks",
+      "long-conversation DOM observation and selector scaling",
+      "incremental MutationObserver patterns and invalidation risks",
+      "better Playwright or CI benchmark workflows",
+      "performance, memory, battery, latency, and constrained-device methods",
+      "upstream/browser platform changes",
       "real user and community feedback including Reddit when relevant"
     ],
-    "releaseReadyMode": "Freeze the candidate and checksums; store research separately as next-update-research without changing publish-ready artifacts."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -68,37 +72,28 @@
     "DOCS-RECONCILIATION",
     "FINAL-CERT-PACKAGE"
   ],
+  "programStatus": {
+    "RR-E2E-FAULTS": "completed-human-accepted",
+    "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-review-deferred-local",
+    "LONG-CHAT-PERF": "active",
+    "MOBILE-SHELL-STRUCTURAL": "backlog",
+    "BUILD-IDENTITY": "backlog",
+    "DOCS-RECONCILIATION": "backlog",
+    "FINAL-CERT-PACKAGE": "backlog"
+  },
   "completedSteps": [
     {"type": "round-1-complete", "result": "Accepted the fault contract and retained browser/mobile scaffolding."},
     {"type": "round-2-complete-with-gaps", "result": "Added a production-path fixture and adversarial/mobile scaffolding; exact-head execution remained absent."},
-    {"type": "round-3-rr-certified", "result": "Pinned original job 92743714584 and artifact 8978979561 on exact product head 5c057fe2235da50c23c800f7c345bc3814f01b3c certified RR-E2E-FAULTS after independent Red Team audit."},
-    {"type": "round-3-human-accepted", "result": "On 2026-08-06 the user said 'Proceed with tasks', accepting the prior review gate and authorizing the next dependency-safe round."},
-    {"type": "round-4-supervisor-plan", "result": "Opened LIFECYCLE-FROZEN-DISCARDED as the active program with a research, build, Red Team, mobile/performance, and audit chain."},
-    {"type": "round-4-a1-contract-blocked-on-execution", "result": "Committed lifecycle contract 03c67625255803ae3b0b0fd662af3bf407996e0d, focused source-contract test 44464967410f7c44a8f546fc189466a39fcd16a8, and worker-2 evidence 79ed6dca0e8a44ff3a63302ff2c67720ed070dc7. Contract criteria were mapped but exact branch-head execution was still required."},
-    {"type": "round-4-a1x-exact-head-pass", "result": "Guarded connected-GitHub-visible run 31143832068/job 92759102485 checked out exact head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed both lifecycle source-contract suites: 12 tests passed, 3 explicit TODOs, zero failures. Temporary workflow carrier was removed in 20cb29497a6e8b4ca897c08f88f7ebfae4c288bd, A1/A1X were submitted, and A2 was activated."},
-    {"type": "round-4-a2-production-fixture-blocked-on-execution", "result": "Builder commit 10bece4cef59c13f17ad97882aafcbfe15597b84 added BFCache/duplicate-wake, freeze/resume, and fixture-injected discarded-fresh-document coverage to the existing real userscript Playwright production fixture. No product source changed. Worker-3 evidence 805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23 marked A2 blocked only because exact-head browser execution was unavailable within A2's allowed files."},
-    {"type": "round-4-a3-redteam-falsification", "result": "Red Team exact-head run 31145488389/job 92763921605 passed focused lifecycle Jest and all 4 adversarial Chromium safety cases, while the production lifecycle fixture deterministically failed only two cacheClear expected-1/observed-2 assertions. The exact source call graph showed recoverAfterWake clears caches directly and reDetect clears them again; A3 preserved the mismatch and handed it to A3X rather than changing product or masking the failure."},
-    {"type": "round-4-a3x-cache-idempotence-pass", "result": "A3X recovered the expired A3 handoff, cross-checked the accepted contract, and established that exact-once applies to the semantic ticker/heartbeat/bus/observer/lock recovery sequence rather than private cache-helper invocation cardinality. Test commit 531263f41ee6c416eecafcf5f8ac0f8d74a0dd27 preserved a bounded 1..2 cache invalidation assertion and exact runtime-service/Send-safety assertions. Guarded run 31147614614/job 92770260104 tested exact head 4196712b579cb5ed388850b1717bc0a53d00f7f6 and passed lifecycle Jest 2/2 suites (12 pass, 3 todo), adversarial Chromium 4/4, and production lifecycle Chromium 7/7. Temporary carrier was removed in d215e136a20082fc2ec320396a8ef9773bad52d9 and draft PR #17 was closed unmerged. A2, A3, and A3X are submitted; A4 is ready."},
-    {"type": "round-4-a4-fixture-blocked-on-execution", "result": "Recovered expired A4 lease after repeated no-movement checks. Existing A4 work added a Pixel-7 chromium-mobile lifecycle/performance fixture with 12 wake windows, exact runtime-service cardinality, bounded cache invalidation, interval/observer/lock accumulation proxies, zero Send-adjacent actuation, and host composer/latest-message accessibility assertions. Worker-5 evidence c9e265a703cdc7b976315a9654e0ceff0de83212 records that exact observable execution is still missing; A4X was activated instead of inferring PASS from push-workflow configuration."},
-    {"type": "round-4-a4x-exact-mobile-viewport-failure", "result": "A4X guarded exact head cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75 in run 31152568300/job 92785122646. Pixel 7 UA, DPR 2.625, touch=1, exact service cardinality, bounded resources, zero Send-adjacent events, host-node integrity, and raw metrics were captured; both attempts failed only because the synthetic page reported layout width 981 against required <=500. Artifact 8983863803 SHA-256 54ce80517b04843f213cf8766de5aff63c2f6b3fc2cabbaa3f97613cbd7efcb6 preserves reporter output and traces. Temporary carrier was removed in f1745d18f32018f23fc747b219e4727e7d9c56d2 and draft PR #18 closed unmerged. A4Y was activated rather than weakening the assertion."},
-    {"type": "round-4-a4y-mobile-viewport-pass", "result": "Fixture-only commit c2b2372ce961a5045810445c6184e9e2804babb4 added device-width viewport metadata without weakening width or lifecycle assertions. Exact-head run 31153444356/job 92787723447 passed Pixel-7 chromium-mobile 1/1 on head 53497095439feaff586454ca778560db287ff2aa. Artifact 8984194701 SHA-256 19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce records the evidence. Two later handoff-carrier runs failed only in orchestration scripting; this recovery repaired the durable handoff without rerunning the already-certified test."},
-    {"type": "round-4-lifecycle-certified-awaiting-human", "result": "Worker-6 A5 independently audited source claims, exact heads, job/artifact bindings, test-only diffs, raw Pixel-7 evidence, and fail-closed safeguards. LIFECYCLE-FROZEN-DISCARDED is certified at the bounded deterministic evidence level, with physical Android/Firefox-Android, actual OS/browser freeze/discard scheduling, and a calibrated low-end performance budget explicitly not certified. Round 4 now awaits human verification."}
+    {"type": "round-3-rr-certified", "result": "RR-E2E-FAULTS certified on original run 31138679335/job 92743714584/artifact 8978979561 against product head 5c057fe2235da50c23c800f7c345bc3814f01b3c."},
+    {"type": "round-3-human-accepted", "result": "User accepted the Round-3 review and authorized the next dependency-safe round."},
+    {"type": "round-4-lifecycle-certified", "result": "LIFECYCLE-FROZEN-DISCARDED certified at bounded deterministic scope by R4-A5. Exact lifecycle and Pixel-7 emulation evidence is retained in Round-4 worker evidence; physical Android/Firefox-Android, actual scheduler freeze/discard, and calibrated low-end budgets remain explicitly uncertified."},
+    {"type": "round-5-supervisor-plan-policy-b", "result": "Canonical Personal-Forge Policy B converted the Round-4 human review into local deferred question DQ-R4-LIFECYCLE-REVIEW. Commit fe2053dac6241381b9b03835225ef8aea3d5ab23 created the queue; commit 94a98eb0e324bb4927df0c6243109af9d0f95d69 opened the LONG-CHAT-PERF chain; Worker-1 evidence commit f47d9bf5e699ff377321abd2424e766c0bd12c46 recorded the handoff."}
   ],
   "findings": [
-    {"worker": 6, "type": "independent-rr-certification", "finding": "RR-E2E-FAULTS is certified specifically against original job 92743714584 and artifact 8978979561; a later stale-lease rerun is not substituted for that evidence."},
-    {"worker": 1, "type": "lifecycle-existing-coverage", "finding": "Current tests/wake-recovery.test.js proves one centralized recoverAfterWake path and listeners for visibilitychange, pageshow, and focus, but dedicated frozen/discarded lifecycle evidence is not yet established."},
-    {"worker": 6, "type": "nonblocking-observability-followup", "finding": "Healthy-running repair no-op diagnostics may remain visually stale; no safety consequence was reproduced and this does not reopen RR-E2E-FAULTS."},
-    {"worker": 2, "executedByNominalWorker": 6, "type": "lifecycle-contract", "finding": "Primary-source and repository analysis favors keeping recoverAfterWake as the single reactivation seam; hidden is not proof of freeze/discard, pageshow.persisted is the portable BFCache discriminator, Chromium resume is optional, and discarded-document handling must be fresh-boot/fail-closed with document.wasDiscarded feature-detected only where exposed."},
-    {"worker": 2, "executedByNominalWorker": 6, "type": "ci-binding-gap", "finding": "Push-triggered R3 A3 workflow run 31142660712/job 92755596910 succeeded but explicitly checked out old product head 5c057fe; it cannot certify new branch-head lifecycle tests. A1X was opened to obtain exact-head execution evidence."},
-    {"worker": 2, "type": "lifecycle-contract-exact-head-pass", "finding": "A1X used a PR-visible isolated temporary carrier because the connector did not expose push-run evidence. Run 31143832068/job 92759102485 verified expected=actual head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 and passed 2 suites / 12 tests with 3 explicit TODOs. Legacy R3 job 92758568585 was rejected as evidence because it checked out old product head 5c057fe."},
-    {"worker": 3, "type": "lifecycle-production-fixture", "finding": "A2 preserved the minimal central recovery seam and added deterministic production-copy Playwright coverage for pageshow.persisted duplicate wake coalescing, non-actuating freeze followed by resume recovery, and fresh boot with fixture-injected document.wasDiscarded=true."},
-    {"worker": 4, "type": "lifecycle-redteam-safety-pass", "finding": "Exact-head Red Team execution passed route-change fail-closed, foreign-lease fail-closed, uncertain prior Send zero-actuation, stale DOM replacement, focused lifecycle Jest, and discarded fresh-document behavior. The only deterministic mismatch was cache helper cardinality: expected 1, observed 2."},
-    {"worker": 4, "type": "lifecycle-cache-idempotence-adjudication", "finding": "The accepted lifecycle contract requires one semantic runtime-service rebuild sequence, not exactly one private cache-helper call. Current source performs one direct cache clear and one cache clear inside reDetect with no intervening cache consumer. A3X retained a tight 1..2 cache-invalidation bound while keeping ticker/heartbeat/bus/redetect exact and all Send-safety assertions unchanged; exact-head Chromium then passed 7/7 production lifecycle cases. This does not prove the duplicate clear is performance-optimal, so A4 must measure constrained-device impact."},
-    {"worker": 5, "type": "lifecycle-mobile-perf-fixture-and-observability-gap", "finding": "A4 now has deterministic Pixel-7 chromium-mobile instrumentation for repeated wake resource/restart/accessibility behavior. The fixture records timing but intentionally avoids an uncalibrated CI wall-clock budget. Exact connected-observable execution is still required; ordinary push CI configuration is not accepted as PASS evidence."},
-    {"worker": 5, "executedByNominalWorker": 6, "type": "lifecycle-mobile-viewport-fixture-failure", "finding": "Exact-head A4X execution proves the Pixel 7 device profile is materially active (Android Pixel 7 UA, DPR 2.625, touch=1) and all 12 wake-window semantic/resource/zero-Send metrics were captured, but the synthetic HTML lacks mobile viewport metadata and reported width 981 against the deliberate <=500 assertion. The next bounded repair must correct the fixture metadata rather than loosen the assertion or change product code."},
-    {"worker": 5, "type": "lifecycle-mobile-viewport-fixture-pass", "finding": "A4Y proved the prior width=981 failure was a synthetic-document viewport contract defect: adding standards-correct device-width viewport metadata changed the Pixel-7 CSS layout viewport to 412 while preserving touch/DPR, all 12 exact semantic recovery windows, bounded resources, zero Send-adjacent events, and host usability. This remains emulation evidence, not physical Android or Firefox-Android certification."},
-    {"worker": 6, "type": "lifecycle-round4-independent-certification", "finding": "Independent A5 audit accepts all Round-4 assignments at their stated evidence level and certifies the bounded lifecycle objective. Synthetic freeze/discard fixtures, Pixel-7 emulation, and zero-duration cache timing are not promoted into physical-device or browser-scheduler claims."},
-    {"worker": 6, "type": "a4y-ci-binding-nuance", "finding": "A4Y artifact 8984194701 contains PR-context metadata.ci.commitHash 377cbecb... but metadata.gitCommit.hash 534970...; exact job checkout/guard and gitCommit.hash bind the tested head. PR merge metadata alone must not be used as tested-head proof."}
+    {"worker": 6, "type": "round4-lifecycle-certification-limit", "finding": "Round-4 deterministic lifecycle evidence is accepted at its bounded scope but must not be promoted to physical Android, Firefox-Android/GeckoView, real scheduler freeze/discard, or calibrated low-end performance certification."},
+    {"worker": 1, "executedByNominalWorker": 6, "type": "long-chat-hotpath-hypothesis", "finding": "ANSWER_SCAN_LIMIT=48 caps post-query candidate processing, but _collectAnswerCandidates still performs complete querySelectorAll enumeration for every assistant selector; engineTick invokes last-answer selection every 2500 ms while RUNNING. This is a concrete scaling hypothesis, not yet a proven dominant bottleneck."},
+    {"worker": 1, "executedByNominalWorker": 6, "type": "send-observation-performance-hypothesis", "finding": "_beginSendAttempt and _sendEvidence collect assistant counts and last-answer text while dispatch is unresolved. Performance work must measure this cost without weakening the at-most-once Send journal or independent delivery evidence."},
+    {"worker": 1, "executedByNominalWorker": 6, "type": "orchestration-policy-drift", "finding": "Project-local README/task prompt still describe the former global review-after-round freeze. The canonical Personal-Forge maker is authoritative for orchestration behavior and now governs Policy B, but the stale project documentation remains a reconciliation item."}
   ],
   "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [
@@ -123,50 +118,37 @@
     ".gitl/evidence/round-4/worker-3.md",
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md",
-    ".gitl/evidence/round-4/worker-6.md"
+    ".gitl/evidence/round-4/worker-6.md",
+    ".gitl/evidence/round-5/worker-1.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-round5-supervisor",
-    "assignmentId": "R5-SUPERVISOR-PLAN",
-    "intendedRole": "supervisor-integrator",
-    "nominalWorker": 6,
-    "acquiredAt": "2026-08-07T08:49:30Z",
-    "expiresAt": "2026-08-07T09:34:30Z",
-    "branchHead": "a348cadb125a18712f11ea6de02d2a22233736b6"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
+    "round": 5,
+    "program": "LONG-CHAT-PERF",
+    "verdict": "in-progress",
+    "supervisorAssignment": "R5-SUPERVISOR-PLAN",
+    "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
+    "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
+    "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
+    "nextAssignment": "R5-A1-LONGCHAT-BASELINE",
+    "performanceWinner": "UNKNOWN until exact baseline measurement"
+  },
+  "priorRoundVerification": {
     "round": 4,
     "program": "LIFECYCLE-FROZEN-DISCARDED",
-    "verdict": "certified-awaiting-human-verification",
+    "verdict": "certified-human-review-deferred-local",
     "auditAssignment": "R4-A5-LIFECYCLE-AUDIT",
     "auditEvidence": ".gitl/evidence/round-4/worker-6.md",
     "auditEvidenceCommit": "6ef0e260f48bf67a9c2b6f0ef7035cf965451e6e",
-    "planDecisionCommit": "fab8b8a1e26353782f274b7abb3fe967d60ee12f",
-    "keyExecutionEvidence": [
-      {"assignment": "R4-A1X-LIFECYCLE-CONTRACT-EXEC", "testedHead": "79de931a689c731a680ae4c1e1360f0ec4ad9ce7", "runId": 31143832068, "jobId": 92759102485},
-      {"assignment": "R4-A3-LIFECYCLE-REDTEAM", "testedHead": "7e8dfda0e22143bdea17f34cd9a37490d0ad8236", "runId": 31145488389, "jobId": 92763921605, "artifactId": 8981325698},
-      {"assignment": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE", "testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6", "runId": 31147614614, "jobId": 92770260104},
-      {"assignment": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC", "testedHead": "cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75", "runId": 31152568300, "jobId": 92785122646, "artifactId": 8983863803},
-      {"assignment": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE", "testedHead": "53497095439feaff586454ca778560db287ff2aa", "runId": 31153444356, "jobId": 92787723447, "artifactId": 8984194701}
-    ],
+    "stateCloseCommit": "a348cadb125a18712f11ea6de02d2a22233736b6",
+    "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW",
     "limits": [
       "No physical Android discard/freeze certification.",
       "No Firefox-Android/GeckoView lifecycle certification.",
       "No calibrated low-end performance budget.",
       "Synthetic freeze and fixture-injected document.wasDiscarded remain deterministic harness evidence only."
     ]
-  },
-  "priorRoundVerification": {
-    "round": 3,
-    "program": "RR-E2E-FAULTS",
-    "verdict": "certified-and-human-accepted",
-    "head": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-    "runId": 31138679335,
-    "jobId": 92743714584,
-    "artifactId": 8978979561,
-    "artifactSha256": "5571ab9e56cfc537a99bf6f6f488cdc10b44b9b13fefcb60128e6275f144bb66",
-    "laterRerun": "job 92746238803 failed stale A2B lease guard before tests and is not the certified attempt"
   }
 }
