@@ -26,8 +26,8 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "561cabe0b80a341c94900e493e1a6dcb6cef0b71",
-  "currentStep": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE completed one bounded recovery attempt. The exact deterministic desktop+narrow structure oracle passed 2/2 at authoritative head 2eed7b903de00abe5a22c5afc652550e5010f157, but two independent read-only browser entry points still required interactive permission, so the current authenticated ChatGPT structure and exact Blue insertion slot remain UNKNOWN. A1X is blocked locally on DQ-R6-LIVE-STRUCTURE-CAPTURE; A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because read-only browser permission or a current sanitized capture becomes available, resume the same A1X live-capture criteria without weakening the oracle. Otherwise the next eligible wake must not repeat the same permission-gated call or deterministic probe; with no dependency-ready implementation assignment, perform one bounded non-conflicting research fallback or later supervisor-authorized independent work under canonical Policy B.",
+  "currentStep": "Bounded Round-6 research fallback in progress: evaluate fresh maintained-project evidence about ChatGPT host-control structural drift and whether it changes the Blue-versus-Teal mount risk ranking without treating external examples as current authenticated DOM proof.",
+  "nextAction": "Complete one non-conflicting research fallback, write durable evidence and any narrowed local deferred-capture guidance, then release the lease. Do not repeat the permission-gated live browser call or deterministic probe unless evidence changes.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -106,7 +106,15 @@
     ".gitl/evidence/round-6/worker-1.md",
     ".gitl/evidence/round-6/worker-2.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-r6-research-fallback",
+    "assignmentId": "R6-RESEARCH-FALLBACK-ADOPTION-DRIFT-01",
+    "intendedRole": "researcher-architect with devils-advocate audit lens",
+    "acquiredAt": "2026-08-07T13:53:54Z",
+    "expiresAt": "2026-08-07T14:38:54Z",
+    "inspectedHead": "UNKNOWN-CONNECTOR-TIP; branch verified exactly one state-only commit ahead of 561cabe0b80a341c94900e493e1a6dcb6cef0b71 immediately before claim",
+    "purpose": "One bounded non-conflicting research fallback on current maintained-project host-UI drift and capture implications; no product changes."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
