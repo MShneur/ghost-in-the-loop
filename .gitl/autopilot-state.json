@@ -291,7 +291,16 @@
     ".gitl/evidence/round-6/research-fallback-10.md",
     ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-a2-prototype-11",
+    "assignmentId": "R6-A2-MOBILE-SHELL-BUILD",
+    "nominalWorker": 3,
+    "executedRole": "builder-with-test-first-delivery-pressure-lens",
+    "acquiredAt": "2026-08-07T17:24:09Z",
+    "expiresAt": "2026-08-07T18:09:09Z",
+    "inspectedStateBlob": "565f85d71b96cd1a24cf5abfc2dd3db5aee36297",
+    "activeWorkCheck": "no competing lease; no open PR head for agent/8.8-repair-resume; compare from delivery-pressure evidence head showed only the completed reconciliation state handoff"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
