@@ -23,11 +23,11 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "6587d56325fb7fc26dbed742044c6aaee99a5305",
-  "currentStep": "R4-A4-LIFECYCLE-MOBILE-PERF recovered an expired incomplete handoff without redoing implementation. The committed Pixel-7 lifecycle/mobile fixture and Playwright project wiring were audited and preserved. Worker-5 evidence c9e265a703cdc7b976315a9654e0ceff0de83212 marks A4 blocked only on exact observable mobile execution; R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC is now the earliest ready recovery.",
-  "nextAction": "The next eligible wake claims R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC. Use a temporary guarded connected-GitHub-visible carrier if required, run the exact-head Pixel-7 chromium-mobile lifecycle/performance fixture, preserve raw metrics plus run/job/artifact evidence, remove the carrier, and on PASS submit A4/A4X and activate R4-A5-LIFECYCLE-AUDIT.",
+  "currentStep": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC is actively executing under a successor lease. The bounded goal is exact-head connected-GitHub-visible Pixel-7 chromium-mobile lifecycle/performance evidence without product changes.",
+  "nextAction": "Guard the exact branch head, run npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile through the smallest temporary PR-visible carrier if required, preserve metrics/run/job/artifact evidence, remove temporary machinery, then submit or block A4/A4X truthfully and hand off A5.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "active assignment",
     "nominalWorker": 5,
     "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
     "claimableByAnyEligibleWorker": true,
@@ -194,7 +194,15 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6",
+    "nominalWorker": 6,
+    "assignmentId": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC",
+    "intendedRole": "mobile-browser-accessibility-performance-execution-recovery",
+    "acquiredAt": "2026-08-07T05:51:41Z",
+    "expiresAt": "2026-08-07T06:36:41Z",
+    "inspectedHead": "6ece1c011f3df5305cc9564e6e576108b7ea3277"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
