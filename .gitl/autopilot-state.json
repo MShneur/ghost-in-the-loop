@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
   "headAtLastHandoff": "40dbf2d4a0649966ea574a8980f48172e03f35c7",
-  "currentStep": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR submitted. Scheduled-agent-4 successor repaired healthy-running Repair & Resume idempotence at product commit 5c057fe2235da50c23c800f7c345bc3814f01b3c and obtained clean exact-head green evidence in run 31138679335/job 92743714584/artifact 8978979561. Worker 3 evidence and round-plan handoff are committed; temporary PR #14 is closed unmerged and its temporary workflow is removed.",
-  "nextAction": "Claim R3-A3-RR-REDTEAM-CERT on the next eligible wake regardless of worker number. Independently falsify exact head 5c057fe2235da50c23c800f7c345bc3814f01b3c, verify run 31138679335/job 92743714584/artifact 8978979561 binding, challenge Send/CHOICE/route/lease/uncertainty and healthy-running no-op boundaries, then certify or reopen the earliest concrete failure.",
+  "currentStep": "Scheduled-agent-6 successor claimed R3-A3-RR-REDTEAM-CERT at branch head fabf5fe1e00681d5b06fb8e94c052a6048928a69 after verifying the prior lease was released, the branch was unchanged from the A2B handoff, and no connected-GitHub-visible pull-request workflow was active on the current coordination head.",
+  "nextAction": "Independently falsify exact product head 5c057fe2235da50c23c800f7c345bc3814f01b3c, verify run 31138679335/job 92743714584/artifact 8978979561 binding and logs, inspect the healthy-running no-op against Send/CHOICE/route/lease/uncertainty and stale-composer boundaries, then certify or activate the smallest concrete recovery assignment.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible scheduled wake",
@@ -196,7 +196,13 @@
     ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
     ".gitl/evidence/round-3/worker-3.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6",
+    "assignmentId": "R3-A3-RR-REDTEAM-CERT",
+    "acquiredAt": "2026-08-07T01:51:18Z",
+    "expiresAt": "2026-08-07T02:36:18Z",
+    "branchHead": "fabf5fe1e00681d5b06fb8e94c052a6048928a69"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null
