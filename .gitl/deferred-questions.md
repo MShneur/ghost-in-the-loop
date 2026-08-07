@@ -69,25 +69,29 @@ This queue follows the canonical Personal-Forge Automation Maker Policy B: human
   program: MOBILE-SHELL-STRUCTURAL
   assignment: R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE
   question: >-
-    When convenient in an interactive session, will you allow read-only browser-tool inspection of the current authenticated ChatGPT page, or provide a current sanitized DOM/screenshot capture, so Round 6 can bind the active editor/composer/exact Send relationship and structural action/header/footer candidates without guessing?
+    When convenient in an interactive session, will you allow read-only browser-tool inspection of the current authenticated ChatGPT page, or provide a current sanitized structural capture, so Round 6 can bind the active editor/composer/exact Send relationship and structural action/header/footer candidates without guessing?
   option_a: >-
     Allow read-only browser inspection in an interactive session. The capture contract performs DOM/computed-style reads only, preserves the original Send node, and must record zero click, submit, input, or keydown actuation attributable to the probe.
   option_b: >-
-    Provide a current sanitized DOM/screenshot or equivalent capture sufficient to identify the visible editor, its composer root, exact Send, candidate composer action row, header action row, composer/footer stack, narrow/mobile layout, and relevant ancestor relationships.
+    Provide a current sanitized DOM/computed-style/relationship capture sufficient to identify the visible editor, its composer root, exact Send, candidate composer action row, header action row, composer/footer stack, narrow/mobile layout, and relevant ancestor relationships. Screenshots may supplement this capture for layout/order evidence but are not sufficient by themselves for exact Send JavaScript node identity, hidden-composer, containment, or rerender-identity acceptance criteria.
   other_options:
     - Keep the structural prototype deferred and continue only independent reversible research until a current host capture is available.
   evidence_for_each:
     - "A1/A1X evidence: .gitl/evidence/round-6/worker-2.md"
     - "A1X exact deterministic probe: head 2eed7b903de00abe5a22c5afc652550e5010f157 / run 31181719403 / job 92876348475 / artifact 8995048318"
     - "The deterministic desktop+narrow probe passed 2/2, but the artifact explicitly records live_authenticated_capture=NOT_OBTAINED_BROWSER_PERMISSION_REQUIRED."
+    - "Round-6 research fallback: .gitl/evidence/round-6/research-fallback-01.md. Fresh maintained/adoption evidence through 2026-07-28 strengthens composer-local discovery but also documents composer redesign/control-density/width volatility, so it cannot safely substitute for current-host structure evidence."
+    - "VoiceType selector configuration updated 2026-05-16 independently records explicit #prompt-textarea, send-button, composer-plus and voice anchors while its header selector is broad; this supports discovery strategy only, not a live insertion slot."
   user_community_evidence: []
   unresolved_dissent:
     - "Explicit adapter-owned composer discovery remains the safer first architecture, but the exact live insertion slot is still UNKNOWN."
     - "Generic structural inference remains a competing maintenance strategy but is not safe to promote near Send without live falsification against hidden/secondary composer states."
+    - "Fresh maintained-project evidence weakens header-first assumptions but also shows composer controls and width behavior remain volatile; stronger composer anchors do not imply that adding a Blue cell is safe at narrow widths."
+    - "Screenshot-only evidence can help with visual order and crowding but cannot establish identity-sensitive DOM invariants required by A1X."
   consequence_of_deferral: >-
     Only the current-host structural selector/insertion decision and dependent R6-A2 product build remain paused. Prior programs, documentation/evidence work, independent reversible roadmap work, and bounded non-conflicting research may continue under Policy B. Scheduled workers must not repeatedly retry the same permission-gated browser call or treat deterministic/adoption fixtures as current host proof.
   recommended_default: >-
-    Allow the read-only browser capture in an interactive session when convenient. Until then, keep A2 waiting, preserve the existing rail fallback, and continue only work that does not depend on the missing current-host structural map.
+    Allow the read-only browser capture in an interactive session when convenient. If supplying evidence instead, prefer a sanitized DOM/computed-style/relationship capture; a screenshot is useful as a supplement but cannot by itself discharge the exact identity-sensitive gate. Until then, keep A2 waiting, preserve the existing rail fallback, and continue only work that does not depend on the missing current-host structural map.
   unblock_condition: >-
     A durable current authenticated ChatGPT desktop and <=500 CSS px capture satisfies the A1X acceptance criteria, including active-composer-scoped exact Send identity, structural candidate signatures, zero probe actuation, and an exact insertion rule or evidence-backed rejection.
   status: deferred
