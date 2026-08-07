@@ -1,0 +1,62 @@
+name: R5 A4 Mobile Perf
+
+on:
+  pull_request:
+    branches:
+      - gitl/r5-a4-mobile-perf-base
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Guard exact isolated head
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected='${{ github.event.pull_request.head.sha }}'
+          actual="$(git rev-parse HEAD)"
+          remote="$(git ls-remote origin refs/heads/agent/8.8-repair-resume | awk '{print $1}')"
+          echo "expected=$expected"
+          echo "actual=$actual"
+          echo "remote=$remote"
+          test "$actual" = "$expected"
+          test "$remote" = "$expected"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Focused Send safety regression
+        run: npx jest tests/issuefixes.test.js tests/sendtransaction.test.js --runInBand
+
+      - name: Pixel-7 Chromium emulation and desktop Firefox long-chat evidence
+        run: npx playwright test tests/e2e/long-chat/lifecycle-mobile-perf.spec.js --project=chromium-mobile --project=firefox
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r5-a4-long-chat-mobile-perf
+          path: |
+            e2e-results.json
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
