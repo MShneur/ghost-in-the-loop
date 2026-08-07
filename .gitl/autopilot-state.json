@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
   "headAtLastHandoff": "9bc44761ab64c5d2187e0174c808133c0f5c2a9d",
-  "currentStep": "R3-A1-RR-CI-RECOVERY is blocked after scheduled-agent-1 successor reclaimed the expired lease, hardened the exact-head carrier, and observed no durable connected-GitHub-visible run/log handoff through 2026-08-07T01:18:12Z. Worker 3 evidence is committed, the temporary carrier is removed, and R3-A2-RR-PROVEN-FAILURE-REPAIR is ready.",
-  "nextAction": "The next eligible agent must claim R3-A2-RR-PROVEN-FAILURE-REPAIR regardless of nominal worker number. Repair the CI carrier dispatch/observability blocker using an execution path whose run/job IDs and logs are visible through connected GitHub, execute all three required browser commands on the exact head, and change product code only if those results reproduce a real defect.",
+  "currentStep": "Scheduled-agent-3 claimed R3-A2-RR-PROVEN-FAILURE-REPAIR at exact branch head 0a82a186656b2bec0d889e7699f9c45005c9fe26 after verifying the released A1 handoff, no combined commit statuses, and no connected-GitHub-visible PR workflow run on that head.",
+  "nextAction": "Execute the bounded A2 recovery using a PR-visible exact-head GitHub Actions path so connected GitHub exposes run/job IDs and logs for Firefox, desktop Chromium, and Pixel 7 Chromium. Change product code only if the matrix reproduces a real defect; otherwise submit or block A2 with exact evidence and hand off dependency-safely.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "2026-08-06T21:20:00-04:00",
@@ -178,11 +178,11 @@
     ".gitl/evidence/round-3/worker-3.md"
   ],
   "lease": {
-    "holder": null,
-    "assignmentId": null,
-    "acquiredAt": null,
-    "expiresAt": null,
-    "branchHead": null
+    "holder": "scheduled-agent-3",
+    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
+    "acquiredAt": "2026-08-07T01:22:00Z",
+    "expiresAt": "2026-08-07T02:07:00Z",
+    "branchHead": "0a82a186656b2bec0d889e7699f9c45005c9fe26"
   },
   "blockedReason": null,
   "publishReady": false,
