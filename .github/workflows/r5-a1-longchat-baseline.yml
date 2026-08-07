@@ -1,0 +1,57 @@
+name: R5 A1 Long Chat Baseline
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  long-chat-baseline:
+    if: github.event.pull_request.head.ref == 'agent/8.8-repair-resume'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Guard exact head
+        shell: bash
+        run: |
+          expected='${{ github.event.pull_request.head.sha }}'
+          actual="$(git rev-parse HEAD)"
+          echo "expected=$expected"
+          echo "actual=$actual"
+          test "$actual" = "$expected"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Existing focused correctness guards
+        run: npx jest tests/issuefixes.test.js tests/sendtransaction.test.js --runInBand
+
+      - name: Exact long-chat baseline
+        run: npx playwright test tests/e2e/long-chat-perf.spec.js --project=chromium
+
+      - name: Preserve baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r5-a1-long-chat-baseline
+          if-no-files-found: warn
+          path: |
+            test-results
+            e2e-results.json
