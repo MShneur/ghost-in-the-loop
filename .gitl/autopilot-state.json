@@ -27,14 +27,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "ce576fd7313f8d158f5e7c40c024bc71247cb026",
-  "currentStep": "R6-A5-MOBILE-SHELL-AUDIT independently accepted the ChatGPT Blue structural candidate at bounded deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and CI bindings. The audit rejects universal/live/physical promotion, records the existing npm dependency-audit risk for later release review, and formalizes a certified site-specific-first-runner policy for the already-required cross-adapter expansion. MOBILE-SHELL-STRUCTURAL remains active; R6-SUPERVISOR-CROSS-ADAPTER-PLAN is ready and live ChatGPT structural binding remains UNKNOWN pending A1X.",
-  "nextAction": "Execute R6-SUPERVISOR-CROSS-ADAPTER-PLAN before any research. Open the already-required cross-adapter capture/build/test chain around certified site-specific runners: specialized runner first only when site identity plus current certified structural capability checks pass, standard adapter-aware structural protocol second, existing rail fallback third. Preserve A1X as a local read-only live ChatGPT certification gate when a functioning carrier appears.",
+  "headAtLastHandoff": "92945518ded5230c0effcf42ef64e4f5d5ce8f0b",
+  "currentStep": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN is submitted and opened the bounded ChatGPT+Claude cross-adapter chain using the certified site-specific-first-runner policy. The expired supervisor lease was safely recovered after the branch remained stable at 92945518ded5230c0effcf42ef64e4f5d5ce8f0b with no associated workflow run. R6-XA1-CLAUDE-STRUCTURE-CONTRACT is now claimed for the smallest deterministic no-actuation Claude structural contract/fixture; live Claude and live ChatGPT structural binding remain UNKNOWN unless qualifying current-host read-only evidence is obtained.",
+  "nextAction": "Execute R6-XA1-CLAUDE-STRUCTURE-CONTRACT before any research: define an adapter-owned Claude capability signature from reviewed anchors without granting mutation authority from selectors alone, add desktop+narrow hidden/secondary-composer and decoy-editor rejection, exact Send identity/zero-actuation checks, and explicit specialized-to-standard-to-rail demotion. Leave live Claude insertion UNKNOWN unless a functioning authenticated read-only carrier supplies current structural evidence.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
-    "nominalWorker": 1,
-    "assignmentId": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
+    "scheduledFor": "current eligible wake",
+    "nominalWorker": 2,
+    "assignmentId": "R6-XA1-CLAUDE-STRUCTURE-CONTRACT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "A5 bounded audit is submitted and the supervisor cross-adapter planning handoff is executable; research may not compete with the required cross-adapter delivery path.",
+    "reason": "The cross-adapter supervisor plan is submitted and XA1 is executable/claimed; research may not compete with the Claude contract/fixture delivery path.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,17 +72,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "audit-accepted-cross-adapter-plan-ready",
+    "checkpointStatus": "cross-adapter-plan-submitted-claude-contract-in-progress",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
+    "nextArtifactAssignment": "R6-XA1-CLAUDE-STRUCTURE-CONTRACT",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
-    "makerVersionObserved": "v1.1 canonical maker fetched before the A5 independent audit wake",
+    "makerVersionObserved": "v1.1 canonical maker fetched first in the XA1 successor wake",
     "lastDeliveryReviewAt": "2026-08-07T20:59:00Z",
     "lastTestableArtifactAt": "2026-08-07T20:22:52Z",
-    "lastDeliveryDecision": "A5 accepts the ChatGPT deterministic structural candidate at bounded hosted scope but does not complete MOBILE-SHELL-STRUCTURAL. Advance directly to the already-required cross-adapter expansion using certified site-specific-first-runner eligibility, then later final audit; keep live ChatGPT binding pending A1X.",
-    "evidence": ".gitl/evidence/round-6/worker-6.md",
-    "evidenceCommit": "db21d43d89850ec3031c04773f1bb69afc597e44"
+    "lastDeliveryDecision": "A5 accepted the bounded ChatGPT deterministic candidate; the supervisor opened a bounded Claude second-adapter proof. Execute the smallest deterministic Claude structural contract/fixture now, keep specialized eligibility fail-closed, and do not wait on unavailable live-host capture for fixture development.",
+    "evidence": ".gitl/evidence/round-6/cross-adapter-plan.md",
+    "evidenceCommit": "38fc8ccf7c9a0699f8783e98c778799c71efc423"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-prototype-audit-accepted-cross-adapter-plan-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-cross-adapter-claude-contract-in-progress-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -126,7 +126,8 @@
     {"type":"round-6-a2x-exact-repository-pass-15","result":"A2X exact repository carrier PASS at e9712e2e6c0945befb531d65b1a4468bbd05a4f1: run 31212815306, job 92979379882, artifact 9007360537, SHA-256 9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb. Base certification, lint, full unit 43/43 suites (477 pass, 3 TODO), focused safety 69/69, and Blue Chromium+Firefox 10/10 passed. A2/A2X submitted; A3 Red Team ready."},
     {"type":"round-6-a3-redteam-overflow-repair-pass","result":"Initial A3 run 31213429856/job 92981355836 found overflow-clipped structural false positive in Chromium+Firefox. Repair run 31214560411 passed all gates with prototype blob 53cc902428a3fc1496a83ad1bf0bd1bbe6752c84 and Red blob b8b5048dbc042626294423e28b337eb27d6c6b63."},
     {"type":"round-6-a4-mobile-perf-orientation-oracle-repair-pass","result":"A4 initial run 31215306655/job 92987347838/artifact 9008274458 failed only on an exact orientation-event-count oracle because Chromium emitted native orientationchange plus the fixture injection. Repair commit 096722a6688a3b5ff3dc1e20aa22ec799cafabdb removed the injected duplicate and asserted geometry. Repair run 31215517114/job 92988007587/artifact 9008352875/digest 08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297 passed base/lint/unit/focused safety, Blue, Red Team, and A4 hosted Chromium+Firefox gates."},
-    {"type":"round-6-a5-bounded-audit-accepted","result":"Independent A5 audit re-read A1/A1X/A2/A2X/A3/A4 evidence, exact current prototype/Red/mobile test blobs, and connected GitHub CI jobs/artifacts. It accepts the ChatGPT Blue candidate only at deterministic/hosted scope, preserves live/physical claim limits, rejects universal structural inference, records two high-severity npm audit findings as a later dependency-review risk rather than auto-fixing them, and exposes the required cross-adapter planning handoff. Evidence commit db21d43d89850ec3031c04773f1bb69afc597e44; plan handoff commit ce576fd7313f8d158f5e7c40c024bc71247cb026."}
+    {"type":"round-6-a5-bounded-audit-accepted","result":"Independent A5 audit re-read A1/A1X/A2/A2X/A3/A4 evidence, exact current prototype/Red/mobile test blobs, and connected GitHub CI jobs/artifacts. It accepts the ChatGPT Blue candidate only at deterministic/hosted scope, preserves live/physical claim limits, rejects universal structural inference, records two high-severity npm audit findings as a later dependency-review risk rather than auto-fixing them, and exposes the required cross-adapter planning handoff. Evidence commit db21d43d89850ec3031c04773f1bb69afc597e44; plan handoff commit ce576fd7313f8d158f5e7c40c024bc71247cb026."},
+    {"type":"round-6-cross-adapter-supervisor-plan","result":"R6-SUPERVISOR-CROSS-ADAPTER-PLAN bounded the minimum cross-adapter proof to ChatGPT plus one independently specified Claude structural contract, encoded certified site-specific runner -> standard adapter-aware structural protocol -> rail fallback, submitted the supervisor assignment, and exposed XA1 before research. Evidence commit 38fc8ccf7c9a0699f8783e98c778799c71efc423; plan commit 92945518ded5230c0effcf42ef64e4f5d5ce8f0b. The supervisor lease later expired with no further branch movement and was recovered by the XA1 successor."
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."},
@@ -157,7 +158,8 @@
     {"worker":5,"type":"mobile-shell-a4-hosted-mobile-perf-pass","finding":"The exact repaired deterministic Blue candidate passed hosted Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape viewport geometry, deterministic VisualViewport signal, desktop Firefox semantics, resource cleanup, zero passive Send actuation, and Chromium 1x/4x/6x CPU invariant stress. The first carrier revealed and repaired only a double-counting orientation oracle. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT insertion remain uncertified."},
     {"worker":6,"type":"mobile-shell-a5-bounded-audit-acceptance","finding":"Independent A5 audit accepts the repaired ChatGPT Blue candidate at the executed deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and GitHub Actions bindings. It explicitly rejects promotion to live ChatGPT, universal cross-site, physical Android/WebView/GeckoView, real IME/AT, or calibrated-hardware certification and keeps MOBILE-SHELL-STRUCTURAL active for cross-adapter expansion plus a later final audit."},
     {"worker":6,"type":"mobile-shell-site-specific-first-runner-policy","finding":"For the required cross-adapter expansion, a certified site-specific structural runner may run before the standard structural protocol only when both reviewed site identity and current structural capability/signature checks satisfy that runner's certified contract and evidence shows measurable site-specific advantage. The standard adapter-aware structural protocol is second; the existing rail is the fail-closed third path. Structural authority remains separate from Send actuation authority, and no site inherits another site's insertion rule by analogy."},
-    {"worker":6,"type":"release-dependency-audit-risk","finding":"A2X and A4 npm install logs report two high-severity npm audit findings. Package identities, shipped exploitability, and remediation are not established by A5 and are therefore UNKNOWN rather than silently accepted. Carry this into existing final release/dependency certification; do not run an unattended blanket dependency upgrade merely to clear the warning."}
+    {"worker":6,"type":"release-dependency-audit-risk","finding":"A2X and A4 npm install logs report two high-severity npm audit findings. Package identities, shipped exploitability, and remediation are not established by A5 and are therefore UNKNOWN rather than silently accepted. Carry this into existing final release/dependency certification; do not run an unattended blanket dependency upgrade merely to clear the warning."},
+    {"worker":2,"type":"cross-adapter-plan-claude-first","finding":"The bounded cross-adapter proof is ChatGPT deterministic evidence plus one independently specified Claude structural contract. Certified site-specific runners outrank the standard protocol only with adapter-owned current signature evidence and measurable benefit; all failures demote to standard then rail."
   ],
   "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [
@@ -183,25 +185,26 @@
     ".gitl/evidence/round-6/worker-4.md",
     ".gitl/evidence/round-6/a3-overflow-repair-result.md",
     ".gitl/evidence/round-6/worker-5.md",
-    ".gitl/evidence/round-6/worker-6.md"
+    ".gitl/evidence/round-6/worker-6.md",
+    ".gitl/evidence/round-6/cross-adapter-plan.md"
   ],
   "lease": {
-    "holder": "scheduled-worker-2-r6-cross-adapter-supervisor-19",
-    "assignmentId": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
-    "nominalWorker": 2,
-    "executedRole": "successor-supervisor-integrator-with-researcher-architect-lens",
-    "acquiredAt": "2026-08-07T21:08:06Z",
-    "expiresAt": "2026-08-07T21:53:06Z",
-    "inspectedHead": "f3807ebd96c43b00ff1de7b2e4cb5072ec02450c",
-    "inspectedStateBlob": "38e2c486fa8e55cee7553d1782698764d1c0636c",
-    "activeWorkCheck": "Shared lease was null; R6-SUPERVISOR-CROSS-ADAPTER-PLAN was ready; branch head was f3807ebd96c43b00ff1de7b2e4cb5072ec02450c; no PR-triggered workflow runs were associated with that head; no conflicting branch movement was observed before claim."
+    "holder": "scheduled-worker-6-r6-xa1-claude-contract-20",
+    "assignmentId": "R6-XA1-CLAUDE-STRUCTURE-CONTRACT",
+    "nominalWorker": 6,
+    "executedRole": "successor-researcher-architect-with-devils-advocate-lens",
+    "acquiredAt": "2026-08-07T21:54:30Z",
+    "expiresAt": "2026-08-07T22:39:30Z",
+    "inspectedHead": "92945518ded5230c0effcf42ef64e4f5d5ce8f0b",
+    "inspectedStateBlob": "de9cbb6222d08c2c8c0ffe23f7d79de52705e325",
+    "activeWorkCheck": "Prior supervisor lease expired at 2026-08-07T21:53:06Z. The branch remained exactly two commits ahead of its claim, ending at 92945518ded5230c0effcf42ef64e4f5d5ce8f0b; no PR-triggered workflow run was associated with that head; the plan marked the supervisor submitted and XA1 ready."
   },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "prototype-audit-accepted-cross-adapter-plan-ready-live-certification-pending",
+    "verdict": "cross-adapter-plan-submitted-claude-contract-in-progress-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -221,8 +224,8 @@
     "liveCaptureAuthorization": "AUTHORIZED-READ-ONLY-ZERO-ACTUATION",
     "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-10.md",
     "latestResearchFallbackCommit": "cb7e8ddf550802e3954e28418ac43230252f6e85",
-    "deliveryPressureEvidence": ".gitl/evidence/round-6/worker-6.md",
-    "deliveryPressureEvidenceCommit": "db21d43d89850ec3031c04773f1bb69afc597e44",
+    "deliveryPressureEvidence": ".gitl/evidence/round-6/cross-adapter-plan.md",
+    "deliveryPressureEvidenceCommit": "38fc8ccf7c9a0699f8783e98c778799c71efc423",
     "resolvedRound4Review": "DQ-R4-LIFECYCLE-REVIEW:accepted-bounded",
     "resolvedRound5Review": "DQ-R5-LONGCHAT-REVIEW:accepted-bounded",
     "resolvedRound6CaptureAuthorization": "DQ-R6-LIVE-STRUCTURE-CAPTURE:read-only-authorized-live-evidence-not-obtained",
@@ -238,12 +241,12 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
-    "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. It remains fixture-gated and is not a live ChatGPT binding. Cross-adapter expansion must now choose certified adapter-specific first runners where evidence shows they are better, with standard structural protocol and rail fallback behind them.",
+    "nextAssignment": "R6-XA1-CLAUDE-STRUCTURE-CONTRACT",
+    "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. The cross-adapter supervisor selected Claude as the bounded second-adapter proof target under certified site-specific-first eligibility; neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "ChatGPT deterministic prototype verification, Red Team, mobile/accessibility/performance, and bounded A5 audit are complete. Current-host structural capture remains a hard gate on exact live ChatGPT adapter binding/certification, not on deterministic development. Full MOBILE-SHELL-STRUCTURAL completion still requires the already-required cross-adapter expansion and a later final audit, plus live evidence wherever a live-host claim depends on it.",
-    "deliveryPressureConstraints": "A2X/A3/A4 produced executed artifacts and A5 independently accepted the bounded candidate. Do not return to research while the cross-adapter supervisor planning handoff or its resulting implementation/test assignments are executable. Do not add speculative release-critical programs; use explicit limits for unproven physical/live claims and move to later BUILD-IDENTITY only after Round 6's required cross-adapter expansion and final audit are complete.",
+    "roundScope": "ChatGPT deterministic prototype verification, Red Team, mobile/accessibility/performance, and bounded A5 audit are complete. The cross-adapter plan is submitted and XA1 is executing. Full MOBILE-SHELL-STRUCTURAL completion still requires the Claude fixture/prototype Red-Team/mobile sequence and a later final audit, plus live evidence wherever a live-host claim depends on it.",
+    "deliveryPressureConstraints": "A2X/A3/A4 produced executed artifacts and A5 independently accepted the bounded candidate. Do not return to research while XA1 or its cross-adapter successors are executable. Do not add speculative release-critical programs; use explicit limits for unproven physical/live claims and move to later BUILD-IDENTITY only after Round 6's required cross-adapter expansion and final audit are complete.",
     "structuralHostPrimitive": "Current deterministic prototype: ordinary in-flow div with one open ShadowRoot plus an external mount-manager closure, fixture-only verified-container token, exact caller-supplied Send node, no live selector binding, direct callback controls, scoped MutationObserver/ResizeObserver, coalesced generation-guarded repair, no host style mutation, and explicit rejection/fallback reasons.",
     "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; callbacks schedule/coalesce rather than synchronously resize; the implementation suppresses its own Ghost-only reposition mutation to avoid self-repair loops; Shadow controls bind directly to supplied reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
@@ -255,7 +258,7 @@
     "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. The A2 prototype encodes fixed-position and unverified/hidden-container mutant rejection, and exact A3 Red Team demonstrated oracle sensitivity by finding and repairing a clipping false positive. A surviving mutant invalidates the oracle, not the safeguard. Deterministic success still does not certify a live site's insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
-    "platformClaimLimits": "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, calibrated low-end-device performance, and exact current live ChatGPT structural insertion remain uncertified. Hosted deterministic desktop Firefox A2/A4 behavior is tested only at fixture scope and is not GeckoView certification.",
+    "platformClaimLimits": "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, calibrated low-end-device performance, exact current live ChatGPT structural insertion, and exact current live Claude structural insertion remain uncertified. Hosted deterministic desktop Firefox evidence is fixture scope only and is not GeckoView certification.",
     "a2xStatus": "submitted",
     "a2xTestedHead": "e9712e2e6c0945befb531d65b1a4468bbd05a4f1",
     "a2xRun": 31212815306,
