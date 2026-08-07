@@ -7,7 +7,13 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3, 4, 5],
+  "completedWorkers": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +28,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "17aceb26ff42644fe78a34a8f09b59597110fa64",
-  "currentStep": "R4-A4X-LIFECYCLE-MOBILE-PERF-EXEC obtained exact-head connected GitHub evidence and preserved a deterministic fixture failure instead of manufacturing green CI. Run 31152568300/job 92785122646 on head cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75 failed both attempts only at the Pixel-class layout-width assertion: expected <=500, observed 981. Pixel 7 UA/DPR/touch and all 12 wake-window semantic/resource/zero-Send measurements were captured. Worker-5 evidence 95e1a47b5abc68c4173e91ae0e9ed3f9b10dc40b records the failure, artifact 8983863803, and cleanup. R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE is the earliest ready recovery.",
-  "nextAction": "The next eligible wake claims R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE. Confirm the synthetic data page lacks device-width viewport metadata, add only standards-correct mobile viewport metadata without relaxing width<=500 or any lifecycle/resource/Send/accessibility assertion, rerun the exact guarded Pixel-7 chromium-mobile fixture, preserve raw metrics/run/job/artifact evidence, clean up the carrier, and on PASS activate R4-A5-LIFECYCLE-AUDIT.",
+  "headAtLastHandoff": "15f9216143eb18f43ae151301d2482b0819169f5",
+  "currentStep": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE corrected only the synthetic mobile document by adding standards-correct device-width viewport metadata. Exact-head run 31153444356/job 92787723447 on head 53497095439feaff586454ca778560db287ff2aa passed the Pixel-7 chromium-mobile fixture 1/1 with width 412, touch 1, all 12 wake-window semantic/resource checks, zero Send-adjacent events, and host input/Send/latest-message usability intact. Artifact 8984194701 SHA-256 19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce preserves reporter evidence. A4/A4X/A4Y are submitted and R4-A5-LIFECYCLE-AUDIT is ready.",
+  "nextAction": "The next eligible wake claims R4-A5-LIFECYCLE-AUDIT and independently verifies every Round-4 lifecycle source claim, exact tested head, run/job/artifact binding, mobile-emulation limitation, and Send/CHOICE/route/lease/uncertainty safeguard before deciding certification or the smallest further recovery.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 5,
-    "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
+    "nominalWorker": 6,
+    "assignmentId": "R4-A5-LIFECYCLE-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -116,6 +122,10 @@
     {
       "type": "round-4-a4x-exact-mobile-viewport-failure",
       "result": "A4X guarded exact head cfa67d16000aadbd5ddaaf2ce1e1acc4c477ad75 in run 31152568300/job 92785122646. Pixel 7 UA, DPR 2.625, touch=1, exact service cardinality, bounded resources, zero Send-adjacent events, host-node integrity, and raw metrics were captured; both attempts failed only because the synthetic page reported layout width 981 against required <=500. Artifact 8983863803 SHA-256 54ce80517b04843f213cf8766de5aff63c2f6b3fc2cabbaa3f97613cbd7efcb6 preserves reporter output and traces. Temporary carrier was removed in f1745d18f32018f23fc747b219e4727e7d9c56d2 and draft PR #18 closed unmerged. A4Y was activated rather than weakening the assertion."
+    },
+    {
+      "type": "round-4-a4y-mobile-viewport-pass",
+      "result": "Fixture-only commit c2b2372ce961a5045810445c6184e9e2804babb4 added device-width viewport metadata without weakening width or lifecycle assertions. Exact-head run 31153444356/job 92787723447 passed Pixel-7 chromium-mobile 1/1 on head 53497095439feaff586454ca778560db287ff2aa. Artifact 8984194701 SHA-256 19e40dac68753597703defdfe3e57b2e7c1f44f08cafbe775037b948e7aeb0ce records the evidence. Two later handoff-carrier runs failed only in orchestration scripting; this recovery repaired the durable handoff without rerunning the already-certified test."
     }
   ],
   "findings": [
@@ -176,6 +186,11 @@
       "executedByNominalWorker": 6,
       "type": "lifecycle-mobile-viewport-fixture-failure",
       "finding": "Exact-head A4X execution proves the Pixel 7 device profile is materially active (Android Pixel 7 UA, DPR 2.625, touch=1) and all 12 wake-window semantic/resource/zero-Send metrics were captured, but the synthetic HTML lacks mobile viewport metadata and reported width 981 against the deliberate <=500 assertion. The next bounded repair must correct the fixture metadata rather than loosen the assertion or change product code."
+    },
+    {
+      "worker": 5,
+      "type": "lifecycle-mobile-viewport-fixture-pass",
+      "finding": "A4Y proved the prior width=981 failure was a synthetic-document viewport contract defect: adding standards-correct device-width viewport metadata changed the Pixel-7 CSS layout viewport to 412 while preserving touch/DPR, all 12 exact semantic recovery windows, bounded resources, zero Send-adjacent events, and host usability. This remains emulation evidence, not physical Android or Firefox-Android certification."
     }
   ],
   "briefs": [
@@ -204,16 +219,7 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-50-a4y-handoff-recovery",
-    "nominalWorker": 6,
-    "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
-    "intendedRole": "devils-advocate-release-auditor-handoff-recovery",
-    "acquiredAt": "2026-08-07T07:50:44Z",
-    "expiresAt": "2026-08-07T08:35:44Z",
-    "inspectedHead": "5017c3e799cbac47562dc0461e80206433749bf8",
-    "inspectedHeadEvidence": "Prior recovery lease expired at 2026-08-07T07:50:12Z. Branch remained identical to 5017c3e799cbac47562dc0461e80206433749bf8 at claim time; PR #20 remained open and unmerged; workflow run 31156472535 on that head was completed with failure; no active workflow or later branch movement remained."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
