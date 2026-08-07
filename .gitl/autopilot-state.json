@@ -27,21 +27,22 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "cb7e8ddf550802e3954e28418ac43230252f6e85",
-  "currentStep": "R6-RESEARCH-FALLBACK-RED-SCROLL-ANCHOR-10 completed one bounded non-conflicting Red expansion scroll/reflow research step. The first Red certification contract is now scroll-intent-preserving and observational rather than corrective: distinguish FOLLOWING_LATEST from READING_HISTORY, prohibit new Ghost scroll writes during passive mount/expand/collapse, verify tail/anchor/composer geometry directly, treat native scroll events separately from Ghost write authority, and fail Red for an adapter rather than hiding a bad structural mount with scrollIntoView/scrollTop. A1X remains locally blocked and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance, accessibility, and Red R1-R10 scroll/reflow contracts into A2/A3/A4. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably state-machine/fault-sequence methodology for structural mount/repair/route/keyboard/rerender interleavings. Do not repeat the ten completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
+  "headAtLastHandoff": "77c017cb0f3aaad1aa71e765f92c1325835bb8da",
+  "currentStep": "R6-DP-RECONCILE-01 applied the explicit release-pressure directive. Round-4 and Round-5 bounded certifications are human-accepted under delegated authority; Round-6 read-only live inspection is authorized but the actual authenticated structure capture remains UNKNOWN. The delivery-pressure checkpoint found ten consecutive research-only wakes and a safe falsifiable artifact path, so research fallback is temporarily ineligible and R6-A2 is ready as a prototype-only deterministic structural build. Live ChatGPT adapter binding/certification remains a later hard A1X gate.",
+  "nextAction": "Claim R6-A2-MOBILE-SHELL-BUILD on the isolated branch and perform one prototype-only implementation/test attempt. Build the smallest reversible fail-closed Blue structural primitive against a deterministic fixture-owned verified container, keep unverified live ChatGPT binding dormant/fail-closed, preserve exact Send identity and all CHOICE/route/lease/uncertainty safeguards, and run the focused structural oracle/mutant, generated-parity, and safety regressions. A concrete failure creates the smallest A2X repair. Missing live capture alone is no longer a reason to skip the deterministic attempt.",
   "automaticDispatch": {
-    "enabled": false,
-    "scheduledFor": "research fallback while local capture gate remains unchanged",
-    "nominalWorker": null,
-    "assignmentId": null,
-    "claimableByAnyEligibleWorker": false,
+    "enabled": true,
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 3,
+    "assignmentId": "R6-A2-MOBILE-SHELL-BUILD",
+    "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
       "nominal role mismatch",
-      "local deferred human question",
+      "local or already-answered human question",
       "previous failed test with a ready recovery",
-      "previous blocked assignment with dependency-safe continuation"
+      "previous blocked assignment with dependency-safe continuation",
+      "missing live capture when a prototype-only deterministic build is ready"
     ],
     "holdRequiredReasons": [
       "valid lease plus active evidence on conflicting work",
@@ -51,7 +52,10 @@
     ]
   },
   "researchFallback": {
-    "enabled": true,
+    "enabled": false,
+    "temporarilyIneligible": true,
+    "reason": "Delivery-pressure checkpoint found a safe reversible executable artifact. At least one implementation/test/package attempt must be recorded before another research-only fallback is eligible.",
+    "reenableCondition": "R6-A2 or a direct recovery records an implementation/test/package attempt, or demonstrates a specific invariant that cannot be exercised deterministically.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "topics": [
@@ -62,7 +66,19 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first four wakes of the new novelty round produced actionable event/focus/accessibility, structural-conformance/oracle-validation, cross-browser accessibility-verification, and Red scroll-intent/reflow contracts, so exhaustion has not begun."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion still requires a complete six-wake no-novelty round plus canonical criteria, but delivery pressure now takes precedence because a safe executable artifact is ready."
+  },
+  "deliveryPressure": {
+    "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
+    "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
+    "checkpointStatus": "triggered-and-reconciled",
+    "researchOnlyWakesSinceLastProductTestPackageArtifact": 10,
+    "researchFallbackTemporarilyIneligible": true,
+    "nextArtifactAssignment": "R6-A2-MOBILE-SHELL-BUILD",
+    "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
+    "makerVersionObserved": "v1.0 at canonical path; user directive references v1.1 but v1.1 was not retrievable during reconciliation",
+    "evidence": ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
+    "evidenceCommit": "77c017cb0f3aaad1aa71e765f92c1325835bb8da"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -76,9 +92,9 @@
   ],
   "programStatus": {
     "RR-E2E-FAULTS": "completed-human-accepted",
-    "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-review-deferred-local",
-    "LONG-CHAT-PERF": "completed-certified-human-review-deferred-local",
-    "MOBILE-SHELL-STRUCTURAL": "active-research-local-live-capture-gate",
+    "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
+    "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
+    "MOBILE-SHELL-STRUCTURAL": "active-prototype-build-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -90,11 +106,11 @@
     },
     {
       "type": "round-4-lifecycle-certified",
-      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."
+      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW was later accepted under delegated user authority while explicit physical/scheduler limits remain non-certified."
     },
     {
       "type": "round-5-longchat-certified",
-      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."
+      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW was later accepted under delegated user authority while history-linear Send observation and physical-platform limits remain non-certified."
     },
     {
       "type": "round-6-supervisor-plan",
@@ -106,7 +122,7 @@
     },
     {
       "type": "round-6-a1x-exact-probe-blocked-live-capture",
-      "result": "R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Worker-2 addendum commit 7bb9b4b66d4749821f64c7f3f29a8ab87a30106e; local deferred question commit 3b2fd56825f98e78024bbc3c92214ae73e38b601; blocked-plan commit 561cabe0b80a341c94900e493e1a6dcb6cef0b71."
+      "result": "R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Human read-only authorization was later granted; the actual current-host capture remains not obtained and is still required for live binding/certification."
     },
     {
       "type": "round-6-research-fallback-adoption-drift-01",
@@ -147,6 +163,10 @@
     {
       "type": "round-6-research-fallback-red-scroll-anchor-10",
       "result": "The fourth wake of the new novelty round defined a Red scroll-intent/reflow contract without product changes. It separates FOLLOWING_LATEST from READING_HISTORY, prohibits new Ghost scrollTop/scrollTo/scrollBy/scrollIntoView writes in passive Red mount/expand/collapse, uses direct scroll-owner/tail/anchor/composer geometry as the primary oracle, treats native scroll events separately from Ghost write authority, rejects CLS as the primary gate for intentional expansion, and preserves adapter-specific spacer/layout mutation only as a later evidence-dependent alternative. Evidence commit cb7e8ddf550802e3954e28418ac43230252f6e85; claim commit dc0f026762fd2adc1710ca9aadb545517ddeabdf."
+    },
+    {
+      "type": "round-6-delivery-pressure-reconcile-01",
+      "result": "Explicit user directive 84237df815ef56f779434db130d24d4ffbe14666 resolved R4/R5 bounded reviews, authorized read-only R6 live inspection, and required an anti-loop delivery checkpoint. Reconciliation evidence 77c017cb0f3aaad1aa71e765f92c1325835bb8da records that canonical maker v1.0 was retrievable while the directive references unavailable v1.1, ten research-only wakes triggered delivery pressure, and A2 is now ready prototype-only with live certification still gated on A1X."
     }
   ],
   "findings": [
@@ -168,12 +188,12 @@
     {
       "worker": 2,
       "type": "mobile-shell-a1-live-capture-gap",
-      "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT without user permission. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed."
+      "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed. Human read-only authorization is now granted; the remaining gap is technical/current-host evidence."
     },
     {
       "worker": 2,
       "type": "mobile-shell-a1-smallest-candidate",
-      "finding": "Blue composer action-cell is the smallest architecture/mode to test first because composer/editor/Send anchors have the strongest independent adoption convergence and thumb reach is high. It is not authorized for product implementation until A1X confirms the exact current action row and insertion rule with original Send identity preserved."
+      "finding": "Blue composer action-cell remains the smallest architecture/mode to test first. Under the release-pressure directive, a deterministic prototype may now be built and falsified before live capture, but no exact live ChatGPT insertion slot or live structural certification may be claimed until A1X passes."
     },
     {
       "worker": 2,
@@ -183,27 +203,27 @@
     {
       "worker": 2,
       "type": "mobile-shell-a1x-permission-boundary",
-      "finding": "A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but browser_tabs(list) and a direct read-only location/title evaluation both required interactive permission in this scheduled runtime. Therefore current authenticated ChatGPT structure, live Send identity, rerender behavior, and an exact Blue insertion slot remain UNKNOWN. Repeating the unchanged permission call is not discriminating work; DQ-R6-LIVE-STRUCTURE-CAPTURE is local and A2 remains waiting."
+      "finding": "A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but scheduled runtime lacked an interactive carrier. Read-only user authorization is now resolved; current authenticated ChatGPT structure, live Send identity, rerender behavior, and exact Blue insertion slot remain technically UNKNOWN."
     },
     {
       "worker": 6,
       "type": "mobile-shell-adoption-drift-composer-locality",
-      "finding": "Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required."
+      "finding": "Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required for certification."
     },
     {
       "worker": 6,
       "type": "mobile-shell-capture-evidence-narrowing",
-      "finding": "A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. DQ-R6 was narrowed to prefer sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."
+      "finding": "A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. A1X still prefers sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."
     },
     {
       "worker": 1,
       "type": "orchestration-policy-drift",
-      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."
+      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B, explicit release-pressure user directive, and current state govern execution until DOCS-RECONCILIATION repairs that drift."
     },
     {
       "worker": 2,
       "type": "mobile-shell-plain-shadow-host-preferred",
-      "finding": "Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state but does not authorize any current ChatGPT insertion slot. Repair must revalidate generation/current container before DOM writes, coalesce ResizeObserver-driven repair, bind Shadow controls directly to reviewed Ghost handlers, and fail closed to the rail."
+      "finding": "Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state. Prototype work may exercise this primitive deterministically, while live insertion remains uncertified."
     },
     {
       "worker": 5,
@@ -244,6 +264,11 @@
       "worker": 6,
       "type": "mobile-shell-red-scroll-intent-contract",
       "finding": "Future Red structural certification must preserve two pre-existing user states: FOLLOWING_LATEST and READING_HISTORY. Passive Red mount/expand/collapse gains no new scrollTop/scrollBy/scrollTo/scrollIntoView authority; tests instrument Ghost scroll writes separately from browser/native scroll events, use direct scroll-owner/tail/history-anchor/composer geometry, predeclare only a 1 CSS-pixel rounding tolerance for deterministic scroll arithmetic, reject CLS as the primary intentional-expansion oracle, detect ResizeObserver feedback loops, and fail to rail if the live scroll owner or natural reachability cannot be proven. Adapter-owned spacer/layout mutation remains a later separately authorized alternative, not an implicit repair."
+    },
+    {
+      "worker": 2,
+      "type": "delivery-pressure-prototype-path",
+      "finding": "Ten research-only fallbacks after the last executable structural artifact triggered the explicit user delivery-pressure checkpoint. The safe next artifact is a prototype-only deterministic Blue structural primitive: live capture is now a certification/live-binding gate rather than a blanket development gate. Research fallback is temporarily ineligible until an implementation/test/package attempt is recorded."
     }
   ],
   "briefs": [
@@ -263,29 +288,22 @@
     ".gitl/evidence/round-6/research-fallback-07.md",
     ".gitl/evidence/round-6/research-fallback-08.md",
     ".gitl/evidence/round-6/research-fallback-09.md",
-    ".gitl/evidence/round-6/research-fallback-10.md"
+    ".gitl/evidence/round-6/research-fallback-10.md",
+    ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-2-r6-delivery-pressure-reconcile",
-    "assignmentId": "R6-DP-RECONCILE-01",
-    "nominalWorker": 2,
-    "executedRole": "supervisor-integrator-with-researcher-architect-dissent",
-    "acquiredAt": "2026-08-07T17:16:00Z",
-    "expiresAt": "2026-08-07T18:01:00Z",
-    "inspectedHead": "84237df815ef56f779434db130d24d4ffbe14666"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "A1X-blocked-local-live-capture-gate-research-fallback-open",
+    "verdict": "prototype-build-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
     "supervisorPlanCommit": "7823a11d63b82531cb26f9e344f596c015fb4400",
     "researchAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
-    "researchStatus": "blocked-on-live-current-structure-capture",
+    "researchStatus": "live-capture-authorized-not-obtained",
     "researchEvidence": ".gitl/evidence/round-6/worker-2.md",
     "researchEvidenceCommit": "7bb9b4b66d4749821f64c7f3f29a8ab87a30106e",
     "probeCommits": [
@@ -298,36 +316,40 @@
     "a1xArtifact": 8995048318,
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
-    "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
+    "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-READONLY-AUTHORIZED-CARRIER-UNAVAILABLE",
+    "liveCaptureAuthorization": "AUTHORIZED-READ-ONLY-ZERO-ACTUATION",
     "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-10.md",
     "latestResearchFallbackCommit": "cb7e8ddf550802e3954e28418ac43230252f6e85",
-    "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
-    "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
-    "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
-    "nextAssignment": null,
-    "selectedFirstArchitecture": "ChatGPT-only Blue composer action cell via explicit adapter-owned structural contract remains only the smallest architecture to test first; exact insertion slot UNKNOWN and product implementation unauthorized until A1X live evidence passes.",
-    "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback.",
-    "captureEvidenceGuidance": "Interactive read-only capture is preferred. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "Current-host structural capture is a local gate on A2. Independent reversible work and bounded non-conflicting research remain eligible. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, cross-adapter expansion, and final audit.",
-    "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; autonomous custom element and moveBefore/connectedMoveCallback remain later evidence-dependent options.",
+    "deliveryPressureEvidence": ".gitl/evidence/round-6/delivery-pressure-reconcile-01.md",
+    "deliveryPressureEvidenceCommit": "77c017cb0f3aaad1aa71e765f92c1325835bb8da",
+    "resolvedRound4Review": "DQ-R4-LIFECYCLE-REVIEW:accepted-bounded",
+    "resolvedRound5Review": "DQ-R5-LONGCHAT-REVIEW:accepted-bounded",
+    "resolvedRound6CaptureAuthorization": "DQ-R6-LIVE-STRUCTURE-CAPTURE:read-only-authorized-live-evidence-not-obtained",
+    "nextAssignment": "R6-A2-MOBILE-SHELL-BUILD",
+    "selectedFirstArchitecture": "ChatGPT-only Blue remains the smallest architecture to test first. A prototype-only deterministic structural primitive is now authorized for development/falsification; the exact current live insertion slot remains UNKNOWN and live ChatGPT adapter binding/certification is forbidden until A1X exact evidence passes.",
+    "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
+    "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
+    "roundScope": "Prototype development and deterministic falsification may proceed now. Current-host structural capture remains a hard gate on exact live adapter binding/certification, not on the prototype build. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, live evidence where claimed, cross-adapter expansion, and final audit.",
+    "deliveryPressureConstraints": "Research-only fallback is temporarily ineligible until an implementation/test/package attempt is recorded. Do not add new release-critical requirements merely because more research is possible; record nonessential unproven claims as limits and move through the required release programs once Round 6 is complete.",
+    "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; prototype may exercise this against a deterministic fixture-owned verified container while unverified live binding remains fail-closed/dormant.",
     "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
     "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
-    "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a real candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. A1X live structure remains a prerequisite for the actual ChatGPT insertion rule.",
+    "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. Deterministic prototype success still does not certify the live ChatGPT insertion rule.",
     "accessibilityVerificationConstraints": "Tier A uses one locator-scoped Playwright ARIA semantic contract across hosted Chromium and desktop Firefox plus exact focus traversal, Send-node identity, role/name/state, expanded-state, hidden-content, cleanup, and zero-actuation invariants. Tier B keeps Chromium CDP Accessibility tree capture diagnostic-only because the domain is Chromium-specific and Experimental. Tier C keeps TalkBack, VoiceOver, NVDA/JAWS, WebView, GeckoView, and other physical/platform AT mappings separately uncertified until explicitly tested. Do not use browser-specific expected snapshots as a default escape hatch for deterministic semantic divergence, do not auto-update snapshots unattended to bless a mismatch, and do not treat Playwright ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships.",
     "redScrollReflowConstraints": "For the first Red candidate, preserve user scroll intent observationally rather than correcting it: distinguish FOLLOWING_LATEST from READING_HISTORY using the verified live scroll owner; make no new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes during passive mount/expand/collapse; verify tail/anchor/composer/Red geometry directly; treat native/browser scroll events separately from Ghost write authority; use <=1 CSS px only for deterministic subpixel/rounding arithmetic, never as a user-visible jump budget; keep LayoutShift/CLS diagnostic-only for intentional expansion; require bounded/coalesced ResizeObserver repair with no feedback loop; fail to rail on ambiguous/stale scroll ownership or lost natural reachability. Adapter-owned spacer/layout mutation requires a separate evidence-backed authorization if host-flow-only behavior fails.",
-    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, and calibrated low-end-device performance remain separately uncertified."
+    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, calibrated low-end-device performance, and exact current live ChatGPT structural insertion remain separately uncertified until tested."
   },
   "priorRoundVerification": {
     "round": 5,
     "program": "LONG-CHAT-PERF",
-    "verdict": "certified-human-review-deferred-local",
+    "verdict": "certified-human-accepted-bounded",
     "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
     "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
-    "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW",
+    "resolvedQuestion": "DQ-R5-LONGCHAT-REVIEW",
     "limits": [
       "History-linear grouped assistant query remains.",
       "Send-observation remains 8004 matches/sample at 2000 turns.",
@@ -337,8 +359,8 @@
   "priorPriorRoundVerification": {
     "round": 4,
     "program": "LIFECYCLE-FROZEN-DISCARDED",
-    "verdict": "certified-human-review-deferred-local",
+    "verdict": "certified-human-accepted-bounded",
     "auditEvidence": ".gitl/evidence/round-4/worker-6.md",
-    "deferredQuestion": "DQ-R4-LIFECYCLE-REVIEW"
+    "resolvedQuestion": "DQ-R4-LIFECYCLE-REVIEW"
   }
 }
