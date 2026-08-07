@@ -1,0 +1,122 @@
+name: R6 XA1 Claude Contract Carrier
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/carriers/r6-xa1-claude-contract-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  claude-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard isolated branch and XA1 artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          test -f tests/e2e/claude-structure-contract.spec.js
+          grep -q 'fixture-claude-structure-v1' tests/e2e/claude-structure-contract.spec.js
+          grep -q 'certified-site-specific-runner' tests/e2e/claude-structure-contract.spec.js
+          grep -q 'standard-adapter-aware-structural-protocol' tests/e2e/claude-structure-contract.spec.js
+          grep -q 'existing-rail-fallback' tests/e2e/claude-structure-contract.spec.js
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install repository dependencies
+        run: npm ci
+
+      - name: Syntax check XA1 fixture
+        run: node --check tests/e2e/claude-structure-contract.spec.js
+
+      - name: Install portable browsers
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Execute XA1 Chromium and Firefox fixture
+        id: xa1
+        shell: bash
+        run: |
+          set +e
+          npx playwright test tests/e2e/claude-structure-contract.spec.js --project=chromium --project=firefox 2>&1 | tee xa1-claude-contract.log
+          rc=${PIPESTATUS[0]}
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -eq 0 ]; then
+            echo "verdict=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "verdict=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+          exit 0
+
+      - name: Upload XA1 execution artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-xa1-claude-contract
+          path: |
+            xa1-claude-contract.log
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Write durable carrier result and self-remove
+        if: always()
+        shell: bash
+        env:
+          XA1_VERDICT: ${{ steps.xa1.outputs.verdict }}
+          XA1_EXIT: ${{ steps.xa1.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          verdict="${XA1_VERDICT:-INFRASTRUCTURE-FAIL}"
+          exit_code="${XA1_EXIT:-NOT-RUN}"
+          mkdir -p .gitl/evidence/round-6
+          cat > .gitl/evidence/round-6/xa1-claude-contract-carrier-result.md <<EOF
+          # R6 XA1 Claude Contract Carrier Result
+
+          - tested_head: \`${GITHUB_SHA}\`
+          - run_id: \`${GITHUB_RUN_ID}\`
+          - run_attempt: \`${GITHUB_RUN_ATTEMPT}\`
+          - verdict: **${verdict}**
+          - playwright_exit_code: \`${exit_code}\`
+          - command: \`npx playwright test tests/e2e/claude-structure-contract.spec.js --project=chromium --project=firefox\`
+          - scope: deterministic fixture only; no live Claude navigation, typing, click, submit, input, keydown, Send actuation, or structural activation
+          - live_claude_structure: **UNKNOWN / NOT CLAIMED**
+          - live_chatgpt_structure: **UNKNOWN / NOT CLAIMED**
+
+          The workflow also ran \`npm ci\`, \`node --check tests/e2e/claude-structure-contract.spec.js\`, and installed portable Chromium + Firefox before the fixture execution. Full logs are uploaded as the \`r6-xa1-claude-contract\` artifact.
+          EOF
+
+          remote_head="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          if [ "$remote_head" != "$GITHUB_SHA" ]; then
+            echo "Remote branch moved from tested head; refusing carrier result push." >&2
+            exit 1
+          fi
+
+          rm -f .github/workflows/r6-xa1-claude-contract-carrier.yml
+          rm -f .gitl/carriers/r6-xa1-claude-contract-trigger.txt
+          git config user.name "gitl-xa1-carrier"
+          git config user.email "actions@users.noreply.github.com"
+          git add .gitl/evidence/round-6/xa1-claude-contract-carrier-result.md
+          git add -u .github/workflows/r6-xa1-claude-contract-carrier.yml .gitl/carriers/r6-xa1-claude-contract-trigger.txt
+          git commit -m "test(gitl): record XA1 Claude contract carrier result"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Fail job if XA1 fixture failed
+        if: always()
+        shell: bash
+        env:
+          XA1_VERDICT: ${{ steps.xa1.outputs.verdict }}
+        run: |
+          test "${XA1_VERDICT:-INFRASTRUCTURE-FAIL}" = "PASS"
