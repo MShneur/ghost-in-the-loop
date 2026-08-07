@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "a68465c811115993a07202aedb157932f853cf37",
-  "currentStep": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03 in progress: one bounded non-conflicting research step on mobile virtual-keyboard/footer reflow, orientation/large-text/narrow-width failure modes, and falsifiable structural-shell constraints that do not require current authenticated ChatGPT DOM.",
-  "nextAction": "Complete one materially different mobile/reflow research fallback, write durable evidence and falsifiable A2/Red-Team/mobile constraints, update state, and release the lease. Do not modify product code, authorize a live insertion slot, or repeat prior adoption-drift/Shadow-lifecycle/live-capture work.",
+  "headAtLastHandoff": "28b313e2bc2283d63e8e04a578dc9f4919c98434",
+  "currentStep": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03 completed one bounded non-conflicting research step. Browser and accessibility standards now require the eventual structural shell to treat keyboard/VisualViewport geometry as a verification signal rather than placement authority, survive both visual-only and layout-resize keyboard models, avoid changing host viewport/VirtualKeyboard policy, and add explicit 320-CSS-pixel-equivalent and 200%-text falsification gates. The exact current ChatGPT Blue insertion row remains UNKNOWN; A1X stays blocked locally and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry forward the new mobile/reflow gates. Otherwise the next eligible wake must use another materially different bounded research fallback such as physical/constrained-device methodology, CSP/ShadowRoot/browser compatibility, cross-adapter structural-contract evidence, or a new deterministic test-design artifact. Do not repeat live-capture permission attempts, adoption-drift, Shadow/custom-element lifecycle, or mobile keyboard/reflow research without changed evidence.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -115,6 +115,10 @@
     {
       "type": "round-6-research-fallback-scoped-repair-02",
       "result": "A second bounded post-A1X research fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
+    },
+    {
+      "type": "round-6-research-fallback-mobile-reflow-03",
+      "result": "A third bounded post-A1X fallback used primary Chrome, MDN, and W3C evidence to define mobile keyboard/reflow constraints without guessing the live ChatGPT DOM. It requires keyboard/VisualViewport geometry to remain a verification signal rather than placement authority, covers visual-only versus layout-resize keyboard models, rejects host viewport/VirtualKeyboard policy mutation, makes VirtualKeyboard optional-only because it is not Baseline, distinguishes Chrome Android from WebView, and adds 320-CSS-pixel-equivalent plus 200%-text falsification gates. Evidence commit 28b313e2bc2283d63e8e04a578dc9f4919c98434."
     }
   ],
   "findings": [
@@ -172,6 +176,11 @@
       "worker": 2,
       "type": "mobile-shell-plain-shadow-host-preferred",
       "finding": "Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state but does not authorize any current ChatGPT insertion slot. Repair must revalidate generation/current container before DOM writes, coalesce ResizeObserver-driven repair, bind Shadow controls directly to reviewed Ghost handlers, and fail closed to the rail."
+    },
+    {
+      "worker": 5,
+      "type": "mobile-shell-keyboard-reflow-contract",
+      "finding": "The eventual structural shell must remain host-flow-first across virtual-keyboard models. VisualViewport resize may schedule bounded verification but may not become x/y/bottom placement authority; Ghost must not edit viewport interactive-widget policy or opt the host into VirtualKeyboard overlay behavior. Because VirtualKeyboard is limited-availability, it is optional-only. Certification should include 320-CSS-pixel-equivalent reflow, 200% text scaling, visual-only and layout-resize keyboard models, orientation, listener cleanup/coalescing, and separate Android WebView claim discipline."
     }
   ],
   "briefs": [
@@ -183,17 +192,10 @@
     ".gitl/evidence/round-6/worker-1.md",
     ".gitl/evidence/round-6/worker-2.md",
     ".gitl/evidence/round-6/research-fallback-01.md",
-    ".gitl/evidence/round-6/research-fallback-02.md"
+    ".gitl/evidence/round-6/research-fallback-02.md",
+    ".gitl/evidence/round-6/research-fallback-03.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-research-fallback-mobile-reflow",
-    "assignmentId": "R6-RESEARCH-FALLBACK-MOBILE-REFLOW-03",
-    "intendedRole": "mobile-browser-accessibility-performance with researcher-architect and reliability dissent lens",
-    "acquiredAt": "2026-08-07T14:26:10Z",
-    "expiresAt": "2026-08-07T15:11:10Z",
-    "inspectedHead": "bcd845c457de5abb15b71f17647acca362ae599f",
-    "purpose": "One bounded non-conflicting research fallback on mobile virtual-keyboard/footer reflow, orientation/large-text/narrow-width failure modes; no product changes."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -219,8 +221,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-02.md",
-    "latestResearchFallbackCommit": "a68465c811115993a07202aedb157932f853cf37",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-03.md",
+    "latestResearchFallbackCommit": "28b313e2bc2283d63e8e04a578dc9f4919c98434",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -230,7 +232,9 @@
     "captureEvidenceGuidance": "Interactive read-only capture is preferred. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
     "roundScope": "Current-host structural capture is a local gate on A2. Independent reversible work and bounded non-conflicting research remain eligible. Full MOBILE-SHELL-STRUCTURAL completion still requires implementation, Red Team, mobile/accessibility/performance, cross-adapter expansion, and final audit.",
     "structuralHostPrimitive": "Provisional first primitive: ordinary in-flow span/div with one open ShadowRoot plus external Ghost mount manager; autonomous custom element and moveBefore/connectedMoveCallback remain later evidence-dependent options.",
-    "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail."
+    "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; ResizeObserver callbacks schedule/coalesce rather than synchronously resize; Shadow controls bind directly to reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
+    "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
+    "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
     "round": 5,
