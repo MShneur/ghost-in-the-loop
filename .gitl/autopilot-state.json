@@ -23,13 +23,13 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "2f8908ecb091a2877149acf1b854c266a99eab41",
-  "currentStep": "R4-A3-LIFECYCLE-REDTEAM is claimed by scheduled-agent-5 as the earliest dependency-ready assignment. Red Team will execute the A2 production lifecycle fixture and focused lifecycle Jest on an exact guarded head, then falsify route/lease/stale-DOM/uncertain-Send wake behavior without changing production code.",
-  "nextAction": "scheduled-agent-5 executes R4-A3-LIFECYCLE-REDTEAM on the isolated branch; other workers must avoid conflicting writes while this lease is valid and active.",
+  "currentStep": "The R4-A3-LIFECYCLE-REDTEAM lease expired after the holder committed final Worker-4 evidence, removed its temporary carrier, closed PR #16 unmerged, and stopped branch-changing activity. The successor reclaimed the lease to complete the interrupted handoff and execute R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE, which will adjudicate the deterministic cache-clear count mismatch against the accepted lifecycle contract without changing production code unless a separate builder repair is proven necessary.",
+  "nextAction": "Complete the stale A3 bookkeeping, make R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE the earliest recovery assignment, instrument the contract distinction between runtime-service restart and idempotent cache invalidation, obtain exact-head execution evidence, then hand off A4 only after the mismatch is resolved or durably narrowed.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "current eligible wake",
     "nominalWorker": 4,
-    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
+    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -163,17 +163,18 @@
     ".gitl/evidence/round-3/worker-6.md",
     ".gitl/evidence/round-4/worker-1.md",
     ".gitl/evidence/round-4/worker-2.md",
-    ".gitl/evidence/round-4/worker-3.md"
+    ".gitl/evidence/round-4/worker-3.md",
+    ".gitl/evidence/round-4/worker-4.md"
   ],
   "lease": {
-    "holder": "scheduled-agent-5",
-    "nominalWorker": 5,
-    "assignmentId": "R4-A3-LIFECYCLE-REDTEAM",
-    "intendedRole": "test-engineer-red-team",
-    "acquiredAt": "2026-08-07T03:40:09Z",
-    "expiresAt": "2026-08-07T04:25:09Z",
-    "inspectedHead": "UNKNOWN-via-connector-before-claim",
-    "inspectedHeadEvidence": "Connected compare showed agent/8.8-repair-resume stable at exactly one commit ahead of recorded handoff 2f8908ecb091a2877149acf1b854c266a99eab41; current state blob was 6910fba52840869a7ab64fb1099b8df994c7c564 and lease was null. The conflict-safe lease claim commit is the exact known execution base."
+    "holder": "manual-successor",
+    "nominalWorker": null,
+    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
+    "intendedRole": "test-contract-auditor-recovery",
+    "acquiredAt": "2026-08-07T04:25:28Z",
+    "expiresAt": "2026-08-07T05:10:28Z",
+    "inspectedHead": "UNKNOWN-via-connector-after-worker4-evidence",
+    "inspectedHeadEvidence": "At 2026-08-07T04:25Z the prior A3 lease had expired. PR #16 was closed unmerged at 03:50:23Z, run 31145488389/job 92763921605 was completed, and a fresh compare from cleanup commit 44fb065bfc6aa4a599d44b48eab606e8c525847e to agent/8.8-repair-resume showed exactly one later commit affecting only .gitl/evidence/round-4/worker-4.md. No later branch-changing work was present."
   },
   "blockedReason": null,
   "publishReady": false,
