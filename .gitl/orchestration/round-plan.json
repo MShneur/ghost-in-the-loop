@@ -59,11 +59,11 @@
     "note": "Certification is pinned to the original job/artifact; the later stale-lease rerun is not substituted."
   },
   "dispatch": {
-    "nextWake": "current eligible successor under reclaimed lease",
-    "nominalWorker": 4,
-    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
+    "nextWake": "next eligible scheduled or manual agent",
+    "nominalWorker": 5,
+    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
     "automatic": true,
-    "instruction": "Adjudicate the deterministic A3 cache-clear count mismatch against the already accepted lifecycle contract. Distinguish semantic runtime-service restarts from idempotent DOM-cache invalidation, preserve exact-head falsification, and correct only an over-specified test contract. Do not change production code in A3X; if a user-visible or safety-relevant product defect is demonstrated, preserve it as a separate builder repair."
+    "instruction": "Execute the earliest dependency-ready mobile/performance lifecycle assignment. Measure bounded restart, observer/scan/lock, accessibility, and constrained-device behavior under mobile Chromium emulation; distinguish emulator evidence from real-device claims and explicitly test whether the bounded duplicate cache invalidation has material performance consequences."
   },
   "assignments": [
     {
@@ -153,7 +153,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder",
-      "status": "blocked",
+      "status": "submitted",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Implement the smallest lifecycle recovery change required by R4-A1's accepted contract, or add executable production-path coverage only if current behavior already satisfies it.",
       "rationale": "Production changes must follow a verified lifecycle contract rather than speculative browser-event handling.",
@@ -167,14 +167,20 @@
       "evidencePath": ".gitl/evidence/round-4/worker-3.md",
       "evidenceCommit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23",
       "fixtureCommit": "10bece4cef59c13f17ad97882aafcbfe15597b84",
-      "blockedReason": "Deterministic lifecycle production-path coverage is committed, but exact-head Chromium execution is unavailable within A2's allowed files. A3 is authorized to create an observable guarded carrier and must execute/falsify the fixture before any product repair."
+      "recoveredBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
+      "executionEvidence": {
+        "testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6",
+        "runId": 31147614614,
+        "jobId": 92770260104,
+        "result": "PASS after contract adjudication: production Chromium lifecycle fixture 7/7; no product change required"
+      }
     },
     {
       "id": "R4-A3-LIFECYCLE-REDTEAM",
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "blocked",
+      "status": "submitted",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Attempt to falsify lifecycle recovery with repeated suspend/wake, route and lease changes, stale DOM replacement, uncertain Send state, rapid duplicate wake signals, and discarded-document restart semantics.",
       "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked"],
@@ -185,14 +191,15 @@
       "requiredEvidence": ["adversarial sequences", "exact head", "CI/job IDs or direct command results", "failure artifacts", "criterion verdicts"],
       "fallbackWork": "If browser execution is blocked, add deterministic adversarial tests and preserve the exact execution gap for R4-A4 without changing production code.",
       "evidencePath": ".gitl/evidence/round-4/worker-4.md",
-      "blockedReason": "Exact-head Red Team execution passed the safety attacks and runtime-service restart checks, but the A2 production fixture deterministically expected one cache-clear call while the real call graph performs a direct clear and another inside reDetect. The mismatch is preserved for A3X rather than masked or turned into an unauthorized production rewrite.",
+      "evidenceCommit": "7222107f0fab244d35bf947af3ba30400b6fdf46",
+      "resolvedBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
       "executionEvidence": {
         "testedHead": "7e8dfda0e22143bdea17f34cd9a37490d0ad8236",
         "runId": 31145488389,
         "jobId": 92763921605,
         "artifactId": 8981325698,
         "artifactSha256": "acbaae68856146ac2693ff1e27290c1ab6252b331ecb46d426ca74353d4e131e",
-        "result": "Focused lifecycle Jest PASS 2/2 suites, 12 passed, 3 todo; adversarial Chromium PASS 4/4; production lifecycle Chromium 5/7 with two deterministic cacheClear expected 1 observed 2 failures."
+        "result": "Focused lifecycle Jest PASS 2/2 suites, 12 passed, 3 todo; adversarial Chromium PASS 4/4; production lifecycle Chromium exposed only the cache-helper cardinality mismatch subsequently resolved by A3X."
       }
     },
     {
@@ -200,7 +207,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-contract-auditor-recovery",
-      "status": "ready",
+      "status": "submitted",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Adjudicate whether A3's duplicate cache invalidation is a lifecycle product defect or an over-specified test detail by comparing the accepted contract, exact source call graph, and executable semantic restart counts.",
       "rationale": "The accepted A1 contract requires at most one ticker/heartbeat/bus/observer/lock rebuild sequence and zero Send actuation; it does not require exactly one invocation of an idempotent DOM-cache helper. A3 proved ticker, heartbeat, bus/redetect sequencing remained single-gate while cacheClear was 2 because recoverAfterWake clears once directly and reDetect clears again.",
@@ -218,14 +225,28 @@
       ],
       "requiredTests": ["npx jest tests/wake-recovery.test.js tests/lifecycle-recovery-contract.test.js --runInBand", "npx playwright test tests/e2e/lifecycle-redteam.spec.js --project=chromium", "npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium"],
       "requiredEvidence": ["accepted-contract comparison", "source call graph", "opposing interpretations", "test change or no-change rationale", "exact tested head", "run/job/artifact IDs", "carrier cleanup", "handoff result"],
-      "fallbackWork": "If exact-head execution cannot be obtained, keep A3X blocked on execution evidence only and preserve the exact guarded command/carrier requirement."
+      "fallbackWork": "If exact-head execution cannot be obtained, keep A3X blocked on execution evidence only and preserve the exact guarded command/carrier requirement.",
+      "evidencePath": ".gitl/evidence/round-4/worker-4.md",
+      "evidenceCommit": "7222107f0fab244d35bf947af3ba30400b6fdf46",
+      "testCommit": "531263f41ee6c416eecafcf5f8ac0f8d74a0dd27",
+      "executionEvidence": {
+        "testedHead": "4196712b579cb5ed388850b1717bc0a53d00f7f6",
+        "runId": 31147614614,
+        "jobId": 92770260104,
+        "result": "PASS: focused lifecycle Jest 2/2 suites, 12 passed + 3 todo; adversarial Chromium 4/4; production lifecycle Chromium 7/7",
+        "artifact": null,
+        "artifactReason": "All Playwright cases passed, so no playwright-report/test-results files existed; upload step completed with if-no-files-found=ignore.",
+        "carrierCleanupCommit": "d215e136a20082fc2ec320396a8ef9773bad52d9",
+        "carrierPr": 17,
+        "carrierPrMerged": false
+      }
     },
     {
       "id": "R4-A4-LIFECYCLE-MOBILE-PERF",
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "waiting",
+      "status": "ready",
       "program": "LIFECYCLE-FROZEN-DISCARDED",
       "goal": "Evaluate lifecycle recovery under mobile Chromium/background-foreground pressure and measure whether timers, observers, scans, locks, and reattachment work remain bounded.",
       "dependencies": ["R4-A2-LIFECYCLE-BUILD:submitted-or-blocked", "R4-A3-LIFECYCLE-REDTEAM:submitted-or-blocked", "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE:submitted-or-blocked"],
@@ -257,7 +278,9 @@
     {"worker": 1, "assignment": "R4-SUPERVISOR-PLAN", "path": ".gitl/evidence/round-4/worker-1.md", "status": "submitted", "commit": "97c149ee3f6ed42fbc97b1f21c5683918d709a01"},
     {"worker": 2, "assignment": "R4-A1-LIFECYCLE-CONTRACT", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"},
     {"worker": 2, "assignment": "R4-A1X-LIFECYCLE-CONTRACT-EXEC", "path": ".gitl/evidence/round-4/worker-2.md", "status": "submitted", "commit": "a1601e57289b7349a42ef6d3bb3973cee4f7cb06"},
-    {"worker": 3, "assignment": "R4-A2-LIFECYCLE-BUILD", "path": ".gitl/evidence/round-4/worker-3.md", "status": "blocked", "commit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23"}
+    {"worker": 3, "assignment": "R4-A2-LIFECYCLE-BUILD", "path": ".gitl/evidence/round-4/worker-3.md", "status": "submitted", "commit": "805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23", "executionRecoveredBy": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE"},
+    {"worker": 4, "assignment": "R4-A3-LIFECYCLE-REDTEAM", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"},
+    {"worker": 4, "assignment": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE", "path": ".gitl/evidence/round-4/worker-4.md", "status": "submitted", "commit": "7222107f0fab244d35bf947af3ba30400b6fdf46"}
   ],
   "roundDecision": null,
   "humanReviewRequired": true,
