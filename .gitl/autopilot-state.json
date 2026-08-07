@@ -235,7 +235,15 @@
     ".gitl/evidence/round-6/research-fallback-06.md",
     ".gitl/evidence/round-6/research-fallback-07.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-structural-conformance-08",
+    "assignmentId": "R6-RESEARCH-FALLBACK-STRUCTURAL-CONFORMANCE-08",
+    "nominalWorker": 4,
+    "executedRole": "test-engineer-red-team-with-research-architect-lens",
+    "acquiredAt": "2026-08-07T16:31:34Z",
+    "expiresAt": "2026-08-07T17:16:34Z",
+    "inspectedHead": "2d7aab29291ecbf559c8d6167de1f037ad935fbe"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
