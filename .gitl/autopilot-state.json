@@ -204,7 +204,16 @@
     ".gitl/evidence/round-4/worker-4.md",
     ".gitl/evidence/round-4/worker-5.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "automation-successor-a4y",
+    "nominalWorker": null,
+    "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
+    "intendedRole": "mobile-browser-test-fixture-repair",
+    "acquiredAt": "2026-08-07T06:14:30Z",
+    "expiresAt": "2026-08-07T06:59:30Z",
+    "inspectedHead": "UNKNOWN-via-connector",
+    "inspectedHeadEvidence": "At claim time canonical state had lease=null; the branch was one commit ahead of headAtLastHandoff 17aceb26ff42644fe78a34a8f09b59597110fa64 with only .gitl/autopilot-state.json changed, no open PR from agent/8.8-repair-resume existed, and R4-A4Y was the earliest ready recovery."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
