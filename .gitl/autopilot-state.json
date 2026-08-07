@@ -23,11 +23,11 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "4b694115a40d2803ed5179a5ecc1112a739f4cf4",
-  "currentStep": "R4-A1-LIFECYCLE-CONTRACT and R4-A1X-LIFECYCLE-CONTRACT-EXEC are submitted. Exact-head run 31143832068/job 92759102485 tested head 79de931a689c731a680ae4c1e1360f0ec4ad9ce7 with 2/2 suites passing, 12 tests passing, and 3 explicit TODOs. Temporary execution carrier was removed. R4-A2-LIFECYCLE-BUILD is ready.",
-  "nextAction": "The next eligible agent claims R4-A2-LIFECYCLE-BUILD. Reproduce the accepted lifecycle contract through executable production-path coverage first; implement only the smallest product change that a concrete contract failure requires, preserve all Send/CHOICE/route/lease/uncertainty safeguards, and hand off to R4-A3 whether submitted or blocked.",
+  "currentStep": "R4-A2-LIFECYCLE-BUILD is in progress. The builder is adding deterministic production-path lifecycle coverage before any product change, per the accepted A1 contract.",
+  "nextAction": "scheduled-agent-3 executes R4-A2-LIFECYCLE-BUILD on the isolated branch; other workers must avoid conflicting writes while this lease is valid and active.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current eligible wake",
     "nominalWorker": 3,
     "assignmentId": "R4-A2-LIFECYCLE-BUILD",
     "claimableByAnyEligibleWorker": true,
@@ -155,7 +155,16 @@
     ".gitl/evidence/round-4/worker-1.md",
     ".gitl/evidence/round-4/worker-2.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-3",
+    "nominalWorker": 3,
+    "assignmentId": "R4-A2-LIFECYCLE-BUILD",
+    "intendedRole": "builder",
+    "acquiredAt": "2026-08-07T03:28:00Z",
+    "expiresAt": "2026-08-07T04:13:00Z",
+    "inspectedHead": "9527d70cc4f3072b9e0622a00b13cf7bbccfac75",
+    "activeWorkflowCheck": "Commit 9527d70cc4f3072b9e0622a00b13cf7bbccfac75 had no active workflow; visible run 31143996105 was completed successfully before lease claim."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
