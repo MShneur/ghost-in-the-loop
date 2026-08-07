@@ -176,3 +176,108 @@ Claim `R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR` regardless of nominal worker numbe
 
 ## Assignment Status
 - submitted — the A2 execution/observability blocker is repaired and authoritative evidence has converted the uncertainty into a concrete product-repair assignment.
+
+---
+
+# R3-A2B Ticker Single-Flight Repair
+
+## Identity
+- Round: 3
+- Worker: 3 (assignment evidence slot)
+- Executing successor: scheduled-agent-4 / nominal Worker 4 wake
+- Role: Builder assignment executed with test-engineer / Red Team lens
+- Assignment ID: `R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR`
+- Started at: `2026-08-07T01:30:00Z`
+- Finished at: `2026-08-07T01:40:03Z`
+
+## State Read
+- Branch: `agent/8.8-repair-resume`.
+- Starting head before lease claim: `22b0894247048cd4cf70b3edaf9e61754b9a8295`.
+- Lease claim commit: `e560ff7f4e1d86ab2b7c47dac1a10d4c6cdc27a9`.
+- Dependency gate: satisfied by `R3-A2-RR-PROVEN-FAILURE-REPAIR:submitted`.
+- Reproduction source: run `31137892852`, job `92741313903`, artifact `8978698975`; desktop and Pixel 7 Chromium had proved duplicate ticker starts while Firefox was green.
+
+## Step Performed
+
+The root cause was local and narrow. `repairAndResume()` always stopped and restarted the ticker after a successful first repair, even when a repeated request arrived while the loop was already `RUNNING` and `runtimeServiceHealth()` reported no repairable service and no blocker. That made a healthy same-task repair request destructive instead of idempotent.
+
+The product repair adds one fail-safe early no-op for exactly that healthy-running case:
+
+- prior state is `RUNNING`;
+- `before.needsRepair` is false; and
+- `before.blocked.length` is zero.
+
+The no-op records `repair_resume_noop` and returns without stopping or restarting services. Paused repairs still enter the original repair path, genuine running faults still enter the original repair path because `needsRepair` is true, and blocker evaluation remains ahead of every destructive repair path except the healthy no-op case where there is explicitly no blocker.
+
+The userscript was changed first and `npm run build` regenerated `extension/content.js`; the resulting product commit is `5c057fe2235da50c23c800f7c345bc3814f01b3c` (`fix: make repair ticker restart single-flight`).
+
+## Changes
+- `ghost-in-the-loop.user.js`: added the healthy-running idempotence guard in `repairAndResume()`.
+- `extension/content.js`: regenerated from the userscript, preserving source parity.
+- Product commit: `5c057fe2235da50c23c800f7c345bc3814f01b3c`.
+- No test assertions were weakened or edited.
+- A temporary PR-visible carrier was hosted only on isolated branch `gitl/r3-a2b-ci-base` and draft PR #14; it was never merged and was closed after evidence collection. Its workflow was removed from the temporary base at cleanup commit `f22900d2e10e0d2190d995478d60aee63bf0f444`.
+
+## Authoritative CI Evidence
+
+### Repair execution run
+- Workflow run: `31138510677`.
+- Job: `92743174453`.
+- Starting/guarded head: `e560ff7f4e1d86ab2b7c47dac1a10d4c6cdc27a9`.
+- Result: success.
+- Artifact: `8978918757`, `r3-a2b-ticker-repair-evidence`.
+- Artifact ZIP SHA-256: `7263b3fc771e392f20d8a62676faa47d4f4ac31b777013ca9c403fa59f6a0e48`.
+- This run applied the minimal patch in the checked-out worktree, regenerated the extension, ran all gates successfully, then committed the exact tested product content as `5c057fe2235da50c23c800f7c345bc3814f01b3c`.
+
+### Clean exact-head verification run
+- Exact tested head: `5c057fe2235da50c23c800f7c345bc3814f01b3c`.
+- Workflow run: `31138679335`.
+- Job: `92743714584`.
+- Job conclusion: success.
+- Artifact: `8978979561`, `r3-a2b-exact-head-evidence`.
+- Artifact ZIP SHA-256: `5571ab9e56cfc537a99bf6f6f488cdc10b44b9b13fefcb60128e6275f144bb66`.
+- The exact-head guard recorded both tested and expected head as `5c057fe2235da50c23c800f7c345bc3814f01b3c`.
+
+## Tests
+- `npm run check:generated`: PASS, exit 0.
+- `npm run lint`: PASS, exit 0.
+- `npm test -- --runInBand`: PASS — 42 suites, 471 tests.
+- `npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium`: PASS — 4 passed.
+- `npx playwright test tests/e2e/repair-resume-production.spec.js --project=chromium-mobile`: PASS — 4 passed.
+- `npx playwright test tests/e2e/repair-resume.spec.js --project=firefox`: PASS — 5 passed, 1 intended Pixel-class mobile-only case skipped under Firefox.
+- The same parity/lint/unit/browser gate set also passed in the repair execution run before the product commit, and the second run re-proved it against the committed exact head.
+
+## Acceptance Criteria
+- First repair of a paused ticker fault starts the ticker exactly once: PASS — production-path Chromium and Pixel 7 cases pass.
+- Second same-task repair adds zero ticker starts: PASS — the previously failing assertion now passes on both Chromium projects.
+- Twelve rapid same-task repair requests add exactly one ticker start total: PASS — the previously failing assertion now passes on both Chromium projects.
+- Desktop Chromium production path: PASS — 4/4.
+- Pixel 7 Chromium production path: PASS — 4/4.
+- Firefox focused regression: PASS — 5 passed, 1 intended skip.
+- No submit, click, input, or keydown Send actuation in repaired production paths: PASS — the production-path test named `repairs a real paused ticker fault once and never actuates Send` passes on both Chromium projects; Firefox's production-repair non-dispatching contract also passes.
+- Composer value and stale composer nodes remain untouched: PASS — stale-node production case passes on desktop and mobile Chromium.
+- Route, lease, and uncertain-Send blockers remain fail closed: PASS — dedicated production-path blocker case passes on desktop and mobile Chromium; Firefox blocker case passes.
+- Userscript/generated extension parity: PASS — generated check exit 0 on the exact committed head.
+
+## Safety Checks
+- Send authority weakened: no; no Send path was changed.
+- CHOICE behavior changed: no.
+- Route safeguards changed: no.
+- Lease safeguards changed: no; repository lease was claimed before product writes and CI guarded the active holder/assignment.
+- Uncertain-Send safeguards changed: no.
+- Composer-staleness safeguards changed: no.
+- `main` modified: no.
+- PR merged or auto-merged: no; PR #14 closed unmerged.
+- Tag/release/publish action: none.
+
+## Risks and Limits
+- `npm ci` still reports two high-severity dependency audit findings. They are not caused by this repair and were not modified inside this bounded assignment; they remain a separate dependency-maintenance concern.
+- The temporary CI base branch remains as an inert coordination branch because no branch-delete action is exposed to this worker. Its workflow has been removed and PR #14 is closed.
+- This is not final release certification. Independent A3 Red Team falsification is still required before the RR-E2E-FAULTS program can advance.
+
+## Recommended Next Action
+
+Claim `R3-A3-RR-REDTEAM-CERT` on the next eligible wake regardless of nominal worker number. Independently falsify the clean exact-head result at `5c057fe2235da50c23c800f7c345bc3814f01b3c`, verify the run/job/artifact binding is genuine and current, challenge the healthy-running no-op against Send/CHOICE/route/lease/uncertainty boundaries, and either certify this Repair & Resume slice or reopen the earliest concrete failure as a bounded successor assignment.
+
+## Assignment Status
+- submitted
