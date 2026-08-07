@@ -4,10 +4,10 @@
   "releaseTarget": "8.8.0",
   "status": "active",
   "round": 4,
-  "roundPhase": "planning",
+  "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [],
+  "completedWorkers": [1],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,12 +22,12 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "7a38174bed6e58db1883484a5cc6d161d093d9d0",
-  "currentStep": "Human review accepted the Round 3 RR-E2E-FAULTS certification. Manual supervisor successor is opening Round 4 on LIFECYCLE-FROZEN-DISCARDED.",
-  "nextAction": "Publish the Round 4 dependency-safe lifecycle plan and supervisor evidence, then release the lease with R4-A1-LIFECYCLE-CONTRACT ready for the next eligible agent.",
+  "headAtLastHandoff": "8cde19edb8325bf36dc40d2f31c9f1e38b3f2242",
+  "currentStep": "Round 4 is open. R4-A1-LIFECYCLE-CONTRACT is the earliest dependency-ready assignment for LIFECYCLE-FROZEN-DISCARDED.",
+  "nextAction": "The next eligible scheduled or manual agent claims the lease and executes R4-A1-LIFECYCLE-CONTRACT: map current recoverAfterWake behavior, research authoritative frozen/discarded lifecycle signals, add deterministic contract/specification coverage, write worker-2 evidence, then submit or block and hand off A2.",
   "automaticDispatch": {
-    "enabled": false,
-    "scheduledFor": "after supervisor handoff",
+    "enabled": true,
+    "scheduledFor": "next eligible wake",
     "nominalWorker": 2,
     "assignmentId": "R4-A1-LIFECYCLE-CONTRACT",
     "claimableByAnyEligibleWorker": true,
@@ -83,6 +83,10 @@
     {
       "type": "round-3-human-accepted",
       "result": "On 2026-08-06 the user said 'Proceed with tasks', accepting the review-after-round gate and authorizing the next dependency-safe round."
+    },
+    {
+      "type": "round-4-supervisor-plan",
+      "result": "Opened LIFECYCLE-FROZEN-DISCARDED as the active program with a research, build, Red Team, mobile/performance, and audit chain; only R4-A1 is ready."
     }
   ],
   "findings": [
@@ -121,15 +125,10 @@
     ".gitl/evidence/round-3/worker-1.md",
     ".gitl/evidence/round-3/orchestration-liveness-research-policy.md",
     ".gitl/evidence/round-3/worker-3.md",
-    ".gitl/evidence/round-3/worker-6.md"
+    ".gitl/evidence/round-3/worker-6.md",
+    ".gitl/evidence/round-4/worker-1.md"
   ],
-  "lease": {
-    "holder": "manual-supervisor-successor",
-    "assignmentId": "R4-SUPERVISOR-PLAN",
-    "acquiredAt": "2026-08-07T02:45:29Z",
-    "expiresAt": "2026-08-07T03:30:29Z",
-    "branchHead": "7a38174bed6e58db1883484a5cc6d161d093d9d0"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
