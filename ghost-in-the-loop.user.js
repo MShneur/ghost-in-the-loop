@@ -3377,6 +3377,10 @@ function repairAndResume() {
   const L=GHOST.loop;
   const priorState=L.state;
   const before=runtimeServiceHealth();
+  if (priorState==='RUNNING' && !before.needsRepair && before.blocked.length===0) {
+    Timeline.record('repair_resume_noop',{state:priorState,ticker:Ticker.mode});
+    return {ok:true,resumed:false,repaired:[],blocked:[]};
+  }
   if (before.blocked.length) {
     Ticker.stop();
     L.timer=null;
