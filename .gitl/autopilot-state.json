@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "60c9c8249ab3fae90633e849193d0e798125ebf4",
-  "currentStep": "R6-RESEARCH-FALLBACK-SHADOW-A11Y-EVENTS-07 completed one bounded non-conflicting accessibility/event-boundary research step. Shadow DOM is not an event-safety firewall: UA click/touch UI events are composed across the boundary, so later Blue/Red certification must separately prove passive zero-actuation and intentional Ghost-activation side-effect isolation. The first Shadow candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button explicitly, use local accessible names plus tested aria-expanded state, and refuse to assume aria-controls relationships across peer Shadow roots. A1X remains locally blocked and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the event/focus/accessibility contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably deterministic structural-conformance test architecture that unifies the existing hidden-composer, exact-Send, rerender, scoped-resource, CSP/Trusted-Types, mobile/reflow, constrained-runtime, and event/focus/accessibility gates without implementing product behavior. Do not repeat the seven completed fallback modes without changed evidence.",
+  "headAtLastHandoff": "b250f1d210936751306f80da52907a26e15a901d",
+  "currentStep": "R6-RESEARCH-FALLBACK-STRUCTURAL-CONFORMANCE-08 completed one bounded non-conflicting test-architecture research step. It rejects a single mega-fixture as the primary release oracle and defines a composable invariant ledger with S1-S11 orthogonal scenario families, five evidence-backed high-risk pairwise intersections, and a synthetic unsafe-candidate mutation suite that must prove the test oracle can detect wrong-composer selection, Send replacement/movement, overlays, duplicate/stale repair, unscoped resources, TT sinks, focus/form regressions, inaccessible cross-root assumptions, and incomplete cleanup before a real A2 candidate can use the harness as certification evidence. A1X remains locally blocked and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the S1-S11 structural-conformance plus oracle-mutation contract into A2/A3. Otherwise continue the new research-novelty round with one materially different bounded fallback, preferably cross-browser accessibility-tree verification methodology, Red expansion scroll-anchoring/layout-measurement design, or later state-machine/fault-sequence methodology. Do not repeat the eight completed fallback modes without changed evidence and do not implement product behavior while A1X remains blocked.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -62,7 +62,7 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first wake of the new novelty round also produced a new actionable event/focus/accessibility contract, so exhaustion has not begun."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, and the first two wakes of the new novelty round produced actionable event/focus/accessibility and structural-conformance/oracle-validation contracts, so exhaustion has not begun."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -135,6 +135,10 @@
     {
       "type": "round-6-research-fallback-shadow-a11y-events-07",
       "result": "The first wake of a new novelty round used current platform standards plus the existing A1 probe/brief to define an interaction/accessibility contract for a future Shadow-host shell. UA UI events are composed across Shadow boundaries, so Shadow isolation cannot be treated as event safety. The first candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button, separate passive zero-actuation from intentional Ghost activation, verify host delegated-listener side effects, and avoid assuming cross-peer-ShadowRoot ARIA IDREF relationships. Evidence commit 60c9c8249ab3fae90633e849193d0e798125ebf4; claim commit 94f886c612664d7b29bd0ccda3aad86b0bd2df5d."
+    },
+    {
+      "type": "round-6-research-fallback-structural-conformance-08",
+      "result": "The second wake of the new novelty round converted accumulated Round-6 constraints into a deterministic conformance architecture without product/test changes. It favors composable fixtures plus a machine-readable invariant ledger over one mega-fixture; defines S1-S11 orthogonal scenario families, five high-risk pairwise intersections, and an oracle mutation suite that must kill deliberately unsafe synthetic adapters before the harness can certify a real A2 candidate. Evidence commit b250f1d210936751306f80da52907a26e15a901d; claim commit 5197be030a59ad0adbb310b5a82353b262fcadfb."
     }
   ],
   "findings": [
@@ -217,6 +221,11 @@
       "worker": 2,
       "type": "mobile-shell-shadow-event-a11y-contract",
       "finding": "Open Shadow DOM isolates implementation/style but not UA UI-event propagation. Future Blue/Red certification must not assume clicks are contained: passive mount/repair stays zero-actuation, intentional Ghost activation must cause exactly one reviewed Ghost action and zero host Send/submit/native-control side effects, delegatesFocus stays false initially, mount/repair never autofocuses or steals editor focus, every Ghost button is type=button, and cross-portal ARIA IDREF relationships are accepted only when exact DOM/accessibility-tree evidence proves them."
+    },
+    {
+      "worker": 4,
+      "type": "mobile-shell-structural-conformance-oracle",
+      "finding": "Future structural certification should use a composable invariant ledger plus S1-S11 orthogonal scenario families and a small set of high-risk pairwise intersections, not one mega-fixture. Before judging a real A2 candidate, the harness must prove its own sensitivity by rejecting deliberately unsafe synthetic adapters for wrong-composer selection, Send identity/movement, overlay mounting, duplicate/stale repair, unscoped observers, incomplete cleanup, new TT sinks, focus/form side effects, inaccessible cross-root claims, and viewport-placement authority. A surviving mutant means the oracle is too weak; fix the test architecture rather than weakening product safeguards."
     }
   ],
   "briefs": [
@@ -233,17 +242,10 @@
     ".gitl/evidence/round-6/research-fallback-04.md",
     ".gitl/evidence/round-6/research-fallback-05.md",
     ".gitl/evidence/round-6/research-fallback-06.md",
-    ".gitl/evidence/round-6/research-fallback-07.md"
+    ".gitl/evidence/round-6/research-fallback-07.md",
+    ".gitl/evidence/round-6/research-fallback-08.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-structural-conformance-08",
-    "assignmentId": "R6-RESEARCH-FALLBACK-STRUCTURAL-CONFORMANCE-08",
-    "nominalWorker": 4,
-    "executedRole": "test-engineer-red-team-with-research-architect-lens",
-    "acquiredAt": "2026-08-07T16:31:34Z",
-    "expiresAt": "2026-08-07T17:16:34Z",
-    "inspectedHead": "2d7aab29291ecbf559c8d6167de1f037ad935fbe"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -269,8 +271,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-07.md",
-    "latestResearchFallbackCommit": "60c9c8249ab3fae90633e849193d0e798125ebf4",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-08.md",
+    "latestResearchFallbackCommit": "b250f1d210936751306f80da52907a26e15a901d",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -286,6 +288,7 @@
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
     "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. Keep delegatesFocus false initially; mount/verify/repair must not autofocus or steal focus; all Ghost buttons must be explicit type=button; separate passive zero-actuation from intentional Ghost activation; instrument host delegated listeners and reject any host Send/submit/native-control side effect; use local accessible names plus tested aria-expanded state; do not assume aria-controls/IDREF semantics across peer Shadow roots without exact accessibility-tree evidence.",
+    "structuralConformanceConstraints": "Use a composable machine-readable invariant ledger, S1-S11 orthogonal scenario families, and five high-risk pairwise intersections instead of one mega-fixture. Preserve the A1 read-only discovery probe separately. Before the harness can certify a real candidate it must kill deliberately unsafe synthetic adapters covering wrong-composer selection, Send clone/replace/move, overlay mounting, duplicate/stale repair, document-wide observation, cleanup leaks, new TT sinks, focus/form side effects, inaccessible cross-root assumptions, and viewport-placement authority. A surviving mutant invalidates the oracle, not the safeguard. A1X live structure remains a prerequisite for the actual ChatGPT insertion rule.",
     "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, assistive-technology mappings, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
