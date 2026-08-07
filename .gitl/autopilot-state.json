@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
-  "headAtLastHandoff": "9bc44761ab64c5d2187e0174c808133c0f5c2a9d",
-  "currentStep": "Scheduled-agent-3 claimed R3-A2-RR-PROVEN-FAILURE-REPAIR at exact branch head 0a82a186656b2bec0d889e7699f9c45005c9fe26 after verifying the released A1 handoff, no combined commit statuses, and no connected-GitHub-visible PR workflow run on that head.",
-  "nextAction": "Execute the bounded A2 recovery using a PR-visible exact-head GitHub Actions path so connected GitHub exposes run/job IDs and logs for Firefox, desktop Chromium, and Pixel 7 Chromium. Change product code only if the matrix reproduces a real defect; otherwise submit or block A2 with exact evidence and hand off dependency-safely.",
+  "headAtLastHandoff": "625151a83a5d1332f21c7f9445cc67d38cff9f06",
+  "currentStep": "R3-A2-RR-PROVEN-FAILURE-REPAIR is submitted. Scheduled-agent-3 repaired the CI observability blocker with PR-visible exact-head run 31137892852/job 92741313903 on head 65a5b94c8e31644b56a614fa1c404873451798ce. Setup, browser install, and Firefox passed; desktop Chromium and Pixel 7 Chromium reproduced the same ticker restart single-flight defect. Temporary workflows were removed and draft PR #13 was closed unmerged.",
+  "nextAction": "The next eligible agent must claim R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR regardless of nominal worker number. Make the smallest product repair so a paused ticker fault restarts exactly once, repeated same-task repair adds zero starts, and twelve rapid same-task requests still add exactly one start; preserve Send, CHOICE, route, lease, composer-staleness, and uncertainty safeguards, then rerun both Chromium production paths plus Firefox focused coverage before A3 Red Team certification.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "2026-08-06T21:20:00-04:00",
+    "scheduledFor": "next eligible scheduled wake",
     "nominalWorker": 3,
-    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
+    "assignmentId": "R3-A2B-RR-TICKER-SINGLE-FLIGHT-REPAIR",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -42,7 +42,7 @@
       "active workflow on relevant head",
       "consistent branch movement proving current work"
     ],
-    "failureRoute": "Keep the earliest bounded recovery assignment ready with exact run/head/log evidence; never infer a browser pass from missing push-run visibility."
+    "failureRoute": "Every reproduced failure must leave the smallest dependency-safe repair assignment ready with exact head, command, run/job, and log evidence."
   },
   "researchFallback": {
     "enabled": true,
@@ -107,6 +107,10 @@
     {
       "type": "R3-A1-blocked-handoff",
       "result": "Scheduled-agent-1 successor hardened the carrier at e7311f273fcb95c9e72f37623fa1fae83e9fa19f but no authoritative connected-GitHub-visible run/job/log handoff appeared. A1 was durably marked blocked, Worker 3 evidence was committed, the temporary carrier was removed, and A2 was activated for execution/observability recovery."
+    },
+    {
+      "type": "R3-A2-observable-execution-recovery",
+      "result": "Scheduled-agent-3 claimed A2, created a temporary non-main PR-visible exact-head carrier, obtained run 31137892852/job 92741313903 and artifact 8978698975, then closed the draft PR unmerged and removed temporary workflows. Firefox passed; desktop and mobile Chromium reproduced a concrete ticker restart single-flight defect, so R3-A2B is ready."
     }
   ],
   "findings": [
@@ -155,6 +159,11 @@
       "assignmentRoleWorker": 3,
       "type": "carrier-dispatch-observability-blocker",
       "finding": "The fail-closed carrier commit e7311f273fcb95c9e72f37623fa1fae83e9fa19f still produced no durable result commit during the bounded observation window. Connected GitHub exposed no combined status and no commit workflow run through its PR-run endpoint; push-run identity remained unavailable, so Firefox/Chromium/mobile results were not claimed."
+    },
+    {
+      "worker": 3,
+      "type": "proven-product-defect",
+      "finding": "Exact-head run 31137892852/job 92741313903 on 65a5b94c8e31644b56a614fa1c404873451798ce proved Repair & Resume is not single-flight for ticker restart in Chromium: a second same-task repair adds one extra Ticker.start (expected 0) and twelve rapid same-task repairs add twelve starts (expected 1). The same failures reproduce on Pixel 7 Chromium; Firefox focused coverage passes."
     }
   ],
   "briefs": [
@@ -178,11 +187,11 @@
     ".gitl/evidence/round-3/worker-3.md"
   ],
   "lease": {
-    "holder": "scheduled-agent-3",
-    "assignmentId": "R3-A2-RR-PROVEN-FAILURE-REPAIR",
-    "acquiredAt": "2026-08-07T01:22:00Z",
-    "expiresAt": "2026-08-07T02:07:00Z",
-    "branchHead": "0a82a186656b2bec0d889e7699f9c45005c9fe26"
+    "holder": null,
+    "assignmentId": null,
+    "acquiredAt": null,
+    "expiresAt": null,
+    "branchHead": null
   },
   "blockedReason": null,
   "publishReady": false,
