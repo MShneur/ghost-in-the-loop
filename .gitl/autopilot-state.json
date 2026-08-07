@@ -225,7 +225,15 @@
     ".gitl/evidence/round-6/research-fallback-05.md",
     ".gitl/evidence/round-6/research-fallback-06.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-shadow-a11y-07",
+    "assignmentId": "R6-RESEARCH-FALLBACK-SHADOW-A11Y-EVENTS-07",
+    "nominalWorker": 2,
+    "executedRole": "accessibility-event-boundary-researcher-with-architect-lens",
+    "acquiredAt": "2026-08-07T16:18:30Z",
+    "expiresAt": "2026-08-07T17:03:30Z",
+    "inspectedHead": "UNKNOWN-tip; branch was exactly one state-only commit ahead of 2d8384a2c3c7cbe955004daf173decf2079dcfae, no open PR used the isolated branch as head, and no workflow run existed on the last evidence head"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
