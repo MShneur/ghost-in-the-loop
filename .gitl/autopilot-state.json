@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "review-after-round",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3],
+  "completedWorkers": [1, 2, 3, 4],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -22,14 +22,14 @@
     ".gitl/orchestration/agent-succession-rule.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "2f8908ecb091a2877149acf1b854c266a99eab41",
-  "currentStep": "The R4-A3-LIFECYCLE-REDTEAM lease expired after the holder committed final Worker-4 evidence, removed its temporary carrier, closed PR #16 unmerged, and stopped branch-changing activity. The successor reclaimed the lease to complete the interrupted handoff and execute R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE, which will adjudicate the deterministic cache-clear count mismatch against the accepted lifecycle contract without changing production code unless a separate builder repair is proven necessary.",
-  "nextAction": "Complete the stale A3 bookkeeping, make R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE the earliest recovery assignment, instrument the contract distinction between runtime-service restart and idempotent cache invalidation, obtain exact-head execution evidence, then hand off A4 only after the mismatch is resolved or durably narrowed.",
+  "headAtLastHandoff": "61cfecae0b3af7e6260ded9c4c0b1e9e1102c46f",
+  "currentStep": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE completed the stale A3 handoff, adjudicated the duplicate cache-clear mismatch against the accepted lifecycle contract, corrected only the over-specified test helper cardinality to a bounded 1..2 assertion, and obtained exact-head PASS evidence for lifecycle Jest, adversarial Chromium, and the full 7-case production lifecycle Chromium fixture without changing product code. R4-A4-LIFECYCLE-MOBILE-PERF is now the earliest dependency-ready assignment.",
+  "nextAction": "The next eligible wake claims R4-A4-LIFECYCLE-MOBILE-PERF and measures mobile Chromium/background-return restart, scan, observer, lock, accessibility, and constrained-device costs. It must distinguish emulation from real-device evidence and test whether the bounded duplicate cache invalidation has measurable performance consequence rather than assuming either harmlessness or defect.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 5,
+    "assignmentId": "R4-A4-LIFECYCLE-MOBILE-PERF",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -99,7 +99,15 @@
     },
     {
       "type": "round-4-a2-production-fixture-blocked-on-execution",
-      "result": "Builder commit 10bece4cef59c13f17ad97882aafcbfe15597b84 added BFCache/duplicate-wake, freeze/resume, and fixture-injected discarded-fresh-document coverage to the existing real userscript Playwright production fixture. No product source changed. Worker-3 evidence 805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23 marks A2 blocked only because exact-head browser execution is unavailable within A2's allowed files and activates A3."
+      "result": "Builder commit 10bece4cef59c13f17ad97882aafcbfe15597b84 added BFCache/duplicate-wake, freeze/resume, and fixture-injected discarded-fresh-document coverage to the existing real userscript Playwright production fixture. No product source changed. Worker-3 evidence 805bf16b74cf6ca6bbe0d2c202fe1817ec78fb23 marked A2 blocked only because exact-head browser execution was unavailable within A2's allowed files."
+    },
+    {
+      "type": "round-4-a3-redteam-falsification",
+      "result": "Red Team exact-head run 31145488389/job 92763921605 passed focused lifecycle Jest and all 4 adversarial Chromium safety cases, while the production lifecycle fixture deterministically failed only two cacheClear expected-1/observed-2 assertions. The exact source call graph showed recoverAfterWake clears caches directly and reDetect clears them again; A3 preserved the mismatch and handed it to A3X rather than changing product or masking the failure."
+    },
+    {
+      "type": "round-4-a3x-cache-idempotence-pass",
+      "result": "A3X recovered the expired A3 handoff, cross-checked the accepted contract, and established that exact-once applies to the semantic ticker/heartbeat/bus/observer/lock recovery sequence rather than private cache-helper invocation cardinality. Test commit 531263f41ee6c416eecafcf5f8ac0f8d74a0dd27 preserved a bounded 1..2 cache invalidation assertion and exact runtime-service/Send-safety assertions. Guarded run 31147614614/job 92770260104 tested exact head 4196712b579cb5ed388850b1717bc0a53d00f7f6 and passed lifecycle Jest 2/2 suites (12 pass, 3 todo), adversarial Chromium 4/4, and production lifecycle Chromium 7/7. Temporary carrier was removed in d215e136a20082fc2ec320396a8ef9773bad52d9 and draft PR #17 was closed unmerged. A2, A3, and A3X are submitted; A4 is ready."
     }
   ],
   "findings": [
@@ -138,7 +146,17 @@
     {
       "worker": 3,
       "type": "lifecycle-production-fixture",
-      "finding": "A2 preserved the minimal central recovery seam and added deterministic production-copy Playwright coverage for pageshow.persisted duplicate wake coalescing, non-actuating freeze followed by resume recovery, and fresh boot with fixture-injected document.wasDiscarded=true. No product change is justified until A3 executes and falsifies this exact-head fixture."
+      "finding": "A2 preserved the minimal central recovery seam and added deterministic production-copy Playwright coverage for pageshow.persisted duplicate wake coalescing, non-actuating freeze followed by resume recovery, and fresh boot with fixture-injected document.wasDiscarded=true."
+    },
+    {
+      "worker": 4,
+      "type": "lifecycle-redteam-safety-pass",
+      "finding": "Exact-head Red Team execution passed route-change fail-closed, foreign-lease fail-closed, uncertain prior Send zero-actuation, stale DOM replacement, focused lifecycle Jest, and discarded fresh-document behavior. The only deterministic mismatch was cache helper cardinality: expected 1, observed 2."
+    },
+    {
+      "worker": 4,
+      "type": "lifecycle-cache-idempotence-adjudication",
+      "finding": "The accepted lifecycle contract requires one semantic runtime-service rebuild sequence, not exactly one private cache-helper call. Current source performs one direct cache clear and one cache clear inside reDetect with no intervening cache consumer. A3X retained a tight 1..2 cache-invalidation bound while keeping ticker/heartbeat/bus/redetect exact and all Send-safety assertions unchanged; exact-head Chromium then passed 7/7 production lifecycle cases. This does not prove the duplicate clear is performance-optimal, so A4 must measure constrained-device impact."
     }
   ],
   "briefs": [
@@ -166,16 +184,7 @@
     ".gitl/evidence/round-4/worker-3.md",
     ".gitl/evidence/round-4/worker-4.md"
   ],
-  "lease": {
-    "holder": "manual-successor",
-    "nominalWorker": null,
-    "assignmentId": "R4-A3X-LIFECYCLE-CACHE-IDEMPOTENCE",
-    "intendedRole": "test-contract-auditor-recovery",
-    "acquiredAt": "2026-08-07T04:25:28Z",
-    "expiresAt": "2026-08-07T05:10:28Z",
-    "inspectedHead": "UNKNOWN-via-connector-after-worker4-evidence",
-    "inspectedHeadEvidence": "At 2026-08-07T04:25Z the prior A3 lease had expired. PR #16 was closed unmerged at 03:50:23Z, run 31145488389/job 92763921605 was completed, and a fresh compare from cleanup commit 44fb065bfc6aa4a599d44b48eab606e8c525847e to agent/8.8-repair-resume showed exactly one later commit affecting only .gitl/evidence/round-4/worker-4.md. No later branch-changing work was present."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": null,
