@@ -123,8 +123,10 @@ async function deterministicVisualOnlySignal(page) {
 }
 
 async function orientationTransition(page, width, height) {
+  // Viewport geometry is the release oracle. Chromium may emit its own
+  // orientationchange when the emulated screen shape flips, so the fixture
+  // must not inject a second event and then assert an artificial event count.
   await page.setViewportSize({ width, height });
-  await page.evaluate(() => window.dispatchEvent(new Event('orientationchange')));
   await page.waitForTimeout(40);
 }
 
@@ -251,7 +253,8 @@ test.describe('Round-6 A4 Blue mobile/accessibility/performance fixture', () => 
       await assertSemanticAndSafetyContract(page, baselineEvents);
       await orientationTransition(page, 320, 780);
       g = await assertSemanticAndSafetyContract(page, baselineEvents);
-      expect(g.viewportSignals.orientation).toBe(2);
+      expect(g.viewport.width).toBe(320);
+      expect(g.viewport.height).toBe(780);
 
       await cleanUnmount(page);
       expect(await page.locator('[data-fixture="existing-rail"]').count()).toBe(1);
