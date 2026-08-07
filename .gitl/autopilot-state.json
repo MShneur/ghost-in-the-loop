@@ -23,8 +23,8 @@
   ],
   "productHeadAtRoundStart": "73011bef60ac9c6129b5f946a4b814a8842e3332",
   "headAtLastHandoff": "9bfa2b910883bfa0d34669387438eda2cf4d9df4",
-  "currentStep": "Scheduled agent 2 reclaimed R3-A1-RR-CI-RECOVERY after scheduled-agent-3's lease expired at 2026-08-07T00:09:14Z. The branch remained at 157830d5d27ef78b27d3e80fb9f4d55e2f4ed3b4, whose guarded carrier commit was created at 2026-08-06T23:25:55Z; no handoff commit followed before expiry.",
-  "nextAction": "Refresh the guarded exact-head carrier against the current reclaimed lease and current head, trigger the Firefox, desktop Chromium, and Pixel 7 Chromium production-path Repair & Resume matrix, persist exact run/log evidence, then submit A1 or activate A2 with the proven failure and release the lease.",
+  "currentStep": "Scheduled agent 1 reclaimed R3-A1-RR-CI-RECOVERY after scheduled-agent-2's lease expired at 2026-08-07T00:56:27Z. The branch remained at a17099d5a17e8f7d313196635ae587a4bac6f440, created at 2026-08-07T00:15:01Z; connected GitHub showed no branch movement, no combined commit statuses, and no PR-triggered workflow run on that head.",
+  "nextAction": "Replace the brittle A1 carrier with a guarded fail-closed carrier that records setup, browser-install, and test failures and performs an always-run durable handoff; then execute the Firefox, desktop Chromium, and Pixel 7 Chromium matrix and submit A1 or activate A2 with exact failure evidence.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "2026-08-06T18:20:00-04:00",
@@ -99,6 +99,10 @@
     {
       "type": "R3-A1-second-expired-lease-recovery",
       "result": "Scheduled agent 2 reclaimed A1 after scheduled-agent-3's lease expired at 00:09:14Z with no handoff commit; branch head remained 157830d5d27ef78b27d3e80fb9f4d55e2f4ed3b4."
+    },
+    {
+      "type": "R3-A1-third-expired-lease-recovery",
+      "result": "Scheduled agent 1 reclaimed A1 after scheduled-agent-2's lease expired at 00:56:27Z with no durable handoff; branch head remained a17099d5a17e8f7d313196635ae587a4bac6f440 after connected GitHub liveness checks."
     }
   ],
   "findings": [
@@ -136,6 +140,11 @@
       "worker": 2,
       "type": "expired-lease-recovery",
       "finding": "Scheduled-agent-3's successor lease expired at 00:09:14Z. Its guarded carrier commit 157830d5d27ef78b27d3e80fb9f4d55e2f4ed3b4 remained branch head with no durable Worker 3 handoff before reclaim."
+    },
+    {
+      "worker": 1,
+      "type": "carrier-handoff-gap",
+      "finding": "Scheduled-agent-2's guarded carrier produced no durable handoff before its lease expired. The carrier design can terminate before its evidence/handoff step when dependency setup or browser installation fails, so the recovery path must make setup failures durable instead of silently re-leasing the same blind attempt."
     }
   ],
   "briefs": [
@@ -158,11 +167,11 @@
     ".gitl/evidence/round-3/orchestration-liveness-research-policy.md"
   ],
   "lease": {
-    "holder": "scheduled-agent-2",
+    "holder": "scheduled-agent-1",
     "assignmentId": "R3-A1-RR-CI-RECOVERY",
-    "acquiredAt": "2026-08-07T00:11:27Z",
-    "expiresAt": "2026-08-07T00:56:27Z",
-    "branchHead": "157830d5d27ef78b27d3e80fb9f4d55e2f4ed3b4"
+    "acquiredAt": "2026-08-07T01:04:24Z",
+    "expiresAt": "2026-08-07T01:49:24Z",
+    "branchHead": "a17099d5a17e8f7d313196635ae587a4bac6f440"
   },
   "blockedReason": null,
   "publishReady": false,
