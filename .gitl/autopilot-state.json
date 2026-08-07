@@ -205,7 +205,15 @@
     ".gitl/evidence/round-6/research-fallback-03.md",
     ".gitl/evidence/round-6/research-fallback-04.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r6-cross-adapter-research",
+    "assignmentId": "R6-RESEARCH-FALLBACK-CROSS-ADAPTER-CONTRACT-05",
+    "intendedRole": "researcher-architect with cross-adapter reliability and test-certification dissent",
+    "acquiredAt": "2026-08-07T15:08:52Z",
+    "expiresAt": "2026-08-07T15:53:52Z",
+    "inspectedHead": "64651e796c2904b64d4e9e3ac2e6ec581c1e7b8c",
+    "purpose": "One bounded non-conflicting research fallback on cross-adapter structural mount contracts and expansion order; no product changes and no live insertion authorization."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
