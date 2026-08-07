@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "mobile-perf-pass-audit-ready",
+    "checkpointStatus": "audit-accepted-cross-adapter-plan-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Satisfied by the A2 executable prototype artifact; normal research fallback remains lower priority than any ready implementation/test/verification assignment.",
+    "reenableCondition": "Normal research fallback remains lower priority than the ready supervisor cross-adapter planning handoff and the implementation/test assignments it must expose.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket prototype-development gate",
-    "checkpointDecision": "A4 deterministic hosted mobile/accessibility/performance PASS after correcting an orientation-oracle double count; A5 independent audit is the next release-moving assignment."
+    "checkpointDecision": "A5 independently accepts the ChatGPT Blue candidate at bounded deterministic/hosted scope. MOBILE-SHELL-STRUCTURAL remains active because cross-adapter expansion, live-host evidence where claimed, and a later final audit remain required. Open the cross-adapter chain around a certified site-specific-first-runner policy instead of returning to research."
   },
   "requiredPrograms": [
     {
@@ -186,13 +186,33 @@
       "prediction": "Isolation must not require fixed/absolute primary positioning, duplicate state/action authority, new Trusted-Types HTML sinks, or MAIN-world/unsafeWindow authority."
     }
   ],
+  "crossAdapterPolicy": {
+    "name": "certified-site-specific-first-runner",
+    "purpose": "Allow a demonstrably better adapter-specific structural solution to run before the standard structural protocol on sites with a certified current contract, without weakening the universal safety boundary.",
+    "order": [
+      "certified-site-specific-runner",
+      "standard-adapter-aware-structural-protocol",
+      "existing-rail-fallback"
+    ],
+    "eligibility": "Site identity alone is insufficient. A specialized runner is eligible only when the reviewed site identity and current structural capability/signature checks satisfy that runner's certified contract; failed, stale, clipped, ambiguous, or missing verification demotes immediately to the next safer runner.",
+    "authorityBoundary": "Reviewed input/Send actuation authority is separate from structural mount authority. No platform inherits ChatGPT's insertion slot or another platform's structural runner by analogy.",
+    "measurementCriteria": [
+      "fewer and more local DOM assumptions",
+      "exact Send identity preservation and zero unintended actuation",
+      "smaller observer scope and rerender/repair churn",
+      "native-control reachability and mobile reflow",
+      "exact cleanup/resource release",
+      "cross-browser falsification and mutant sensitivity",
+      "maintenance cost under site redesign"
+    ]
+  },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R6-A5-MOBILE-SHELL-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Execute the independent bounded Round-6 structural audit. Inspect exact A2/A3/A4 source and CI evidence, preserve live-host and physical-platform limits, and do not return to research while A5 is executable."
+    "instruction": "Open the already-required Round-6 cross-adapter expansion around the certified site-specific-first-runner policy. Do not add new release scope. Preserve A1X as the read-only live ChatGPT certification gate when a functioning carrier appears, and expose the smallest adapter-specific capture/build/test assignments before any research fallback."
   },
   "assignments": [
     {
@@ -669,7 +689,7 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Independently audit the bounded structural prototype and decide whether the deterministic candidate is sound, while refusing live ChatGPT certification until A1X exact evidence exists.",
       "dependencies": [
@@ -706,10 +726,65 @@
         "next expansion/recovery"
       ],
       "fallbackWork": "Missing or contradictory evidence creates the smallest recovery; do not certify because schedule slots fired.",
-      "evidencePath": ".gitl/evidence/round-6/worker-6.md"
+      "evidencePath": ".gitl/evidence/round-6/worker-6.md",
+      "executedBy": "scheduled-worker-5-r6-a5-audit-18",
+      "evidenceCommit": "db21d43d89850ec3031c04773f1bb69afc597e44",
+      "auditVerdict": "accepted-bounded-chatgpt-deterministic-candidate-cross-adapter-live-final-audit-pending",
+      "blockedReason": null
+    },
+    {
+      "id": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN",
+      "worker": 1,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "supervisor-integrator",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Open the required cross-adapter expansion around a certified site-specific-first-runner policy without adding new release scope or granting structural authority by hostname/Send profile alone.",
+      "dependencies": [
+        "R6-A5-MOBILE-SHELL-AUDIT:submitted"
+      ],
+      "mandatoryReads": [
+        ".gitl/evidence/round-6/worker-6.md",
+        ".gitl/briefs/mobile-shell-concepts.md",
+        "docs/ARCHITECTURE.md",
+        ".gitl/user-directives/2026-08-07-release-pressure.md"
+      ],
+      "allowedFiles": [
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product implementation during supervisor planning",
+        "granting structural mount authority from hostname alone",
+        "granting structural mount authority from reviewed Send/input selectors alone",
+        "copying ChatGPT insertion rules to another adapter by analogy",
+        "dropping A1X live ChatGPT certification gate where a live ChatGPT claim depends on it",
+        "adding speculative release-critical programs",
+        "weakening Send/CHOICE/route/lease/uncertainty",
+        "main/merge/auto-merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "preserve the bounded A5 ChatGPT deterministic audit verdict and all platform/live-host limits",
+        "encode site-specific-first-runner eligibility as site identity plus current certified structural capability/signature checks",
+        "keep standard adapter-aware structural protocol second and existing rail fallback third",
+        "keep structural authority separate from actuation authority",
+        "use predeclared measurable superiority criteria rather than preference to let a site-specific runner outrank standard",
+        "open the smallest adapter-specific capture/build/test sequence for the existing cross-adapter requirement",
+        "retain A1X as a local read-only certification gate that becomes executable when a functioning carrier exists",
+        "open a later final Round-6 audit after cross-adapter evidence rather than marking the program complete now",
+        "do not perform product changes in this planning step"
+      ],
+      "requiredEvidence": [
+        "adapter priority and rationale",
+        "site-specific-vs-standard runner decision contract",
+        "per-adapter evidence tier and falsification gate",
+        "next executable assignment",
+        "later final-audit dependency"
+      ],
+      "fallbackWork": "If no adapter can safely receive a deterministic structural fixture, record the exact invariant preventing it and expose the smallest fixture/capture recovery; missing live ChatGPT capture alone is not a blanket blocker on other adapter-specific deterministic work.",
+      "evidencePath": ".gitl/evidence/round-6/cross-adapter-plan.md"
     }
   ],
-  "roundDecision": null,
+  "roundDecision": "bounded-chatgpt-deterministic-candidate-accepted-cross-adapter-live-final-audit-pending",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized",
   "publishReadyRequiresAllRequiredPrograms": true
