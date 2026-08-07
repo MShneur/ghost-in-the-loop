@@ -11,7 +11,9 @@ const EXPOSE = `
     tickerStart: 0,
     tickerStop: 0,
     cacheClear: 0,
-    heartbeatStart: 0
+    heartbeatStart: 0,
+    busInit: 0,
+    redetect: 0
   };
   const __rrOrigTickerStart = Ticker.start.bind(Ticker);
   const __rrOrigTickerStop = Ticker.stop.bind(Ticker);
@@ -21,6 +23,10 @@ const EXPOSE = `
   _clearElementCaches = (...args) => { __rrCounts.cacheClear += 1; return __rrOrigClear(...args); };
   const __rrOrigHeartbeat = startTabHeartbeat;
   startTabHeartbeat = (...args) => { __rrCounts.heartbeatStart += 1; return __rrOrigHeartbeat(...args); };
+  const __rrOrigBusInit = GhostBus.init.bind(GhostBus);
+  GhostBus.init = (...args) => { __rrCounts.busInit += 1; return __rrOrigBusInit(...args); };
+  const __rrOrigRedetect = reDetect;
+  reDetect = (...args) => { __rrCounts.redetect += 1; return __rrOrigRedetect(...args); };
 
   window.__GITL_Test = Object.freeze({
     runtimeHealth: overrides => runtimeServiceHealth(overrides),
@@ -34,6 +40,24 @@ const EXPOSE = `
         health: runtimeServiceHealth()
       };
     },
+    prepareWakeState: (state = 'RUNNING') => {
+      GHOST.loop.state = state;
+      GHOST.loop.needsPayload = false;
+      GHOST.loop.sendPending = false;
+      GHOST.loop.isSending = false;
+      if (GHOST.loop.sendTxn && (GHOST.loop.sendTxn.state === 'dispatching' || GHOST.loop.sendTxn.state === 'uncertain')) {
+        GHOST.loop.sendTxn = null;
+      }
+      _wakeRecovery.inFlight = false;
+      _wakeRecovery.lastAt = 0;
+      _wakeRecovery.hiddenAt = 0;
+      _wakeRecovery.routeClass = _safeRouteClass();
+      return {
+        state: GHOST.loop.state,
+        routeClass: _wakeRecovery.routeClass,
+        visibility: document.visibilityState
+      };
+    },
     lastRepair: () => JSON.parse(JSON.stringify(GHOST.lastRepair || null)),
     loopSnapshot: () => ({
       state: GHOST.loop.state,
@@ -41,6 +65,12 @@ const EXPOSE = `
       detail: GHOST.loop.detail,
       timer: GHOST.loop.timer,
       route: GHOST.loop.route
+    }),
+    wakeSnapshot: () => ({
+      inFlight: _wakeRecovery.inFlight,
+      lastAt: _wakeRecovery.lastAt,
+      hiddenAt: _wakeRecovery.hiddenAt,
+      routeClass: _wakeRecovery.routeClass
     }),
     counts: () => ({ ...__rrCounts }),
     tickerMode: () => Ticker.mode
@@ -227,5 +257,119 @@ test.describe('Repair & Resume production path', () => {
     expect(result.liveConnected).toBe(true);
     expect(result.liveEvents).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
     expect(result.liveValue).toBe('unchanged');
+  });
+
+  test('BFCache pageshow persisted wake and duplicate lifecycle burst rebuild runtime exactly once', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const events = { submit: 0, click: 0, input: 0, keydown: 0 };
+      const form = document.getElementById('composer');
+      const send = document.getElementById('true-send');
+      const input = document.getElementById('chat-box');
+      form.addEventListener('submit', e => { events.submit += 1; e.preventDefault(); });
+      send.addEventListener('click', () => { events.click += 1; });
+      input.addEventListener('input', () => { events.input += 1; });
+      input.addEventListener('keydown', () => { events.keydown += 1; });
+
+      const prepared = window.__GITL_Test.prepareWakeState('RUNNING');
+      const before = window.__GITL_Test.counts();
+      const pageshow = typeof PageTransitionEvent === 'function'
+        ? new PageTransitionEvent('pageshow', { persisted: true })
+        : new Event('pageshow');
+      if (!('persisted' in pageshow)) Object.defineProperty(pageshow, 'persisted', { value: true });
+      window.dispatchEvent(pageshow);
+      document.dispatchEvent(new Event('resume'));
+      window.dispatchEvent(new Event('focus'));
+      const after = window.__GITL_Test.counts();
+
+      return {
+        prepared,
+        persisted: pageshow.persisted === true,
+        before,
+        after,
+        events,
+        value: input.value,
+        loop: window.__GITL_Test.loopSnapshot(),
+        wake: window.__GITL_Test.wakeSnapshot()
+      };
+    });
+
+    expect(result.prepared.visibility).toBe('visible');
+    expect(result.persisted).toBe(true);
+    expect(result.after.tickerStart - result.before.tickerStart).toBe(1);
+    expect(result.after.heartbeatStart - result.before.heartbeatStart).toBe(1);
+    expect(result.after.cacheClear - result.before.cacheClear).toBe(1);
+    expect(result.after.busInit - result.before.busInit).toBe(1);
+    expect(result.after.redetect - result.before.redetect).toBe(1);
+    expect(result.loop.state).toBe('RUNNING');
+    expect(result.events).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+    expect(result.value).toBe('unchanged');
+    expect(result.wake.lastAt).toBeGreaterThan(0);
+  });
+
+  test('Chromium freeze is non-actuating and resume returns through the single recovery gate', async ({ page }) => {
+    const result = await page.evaluate(() => {
+      const events = { submit: 0, click: 0, input: 0, keydown: 0 };
+      const form = document.getElementById('composer');
+      const send = document.getElementById('true-send');
+      const input = document.getElementById('chat-box');
+      form.addEventListener('submit', e => { events.submit += 1; e.preventDefault(); });
+      send.addEventListener('click', () => { events.click += 1; });
+      input.addEventListener('input', () => { events.input += 1; });
+      input.addEventListener('keydown', () => { events.keydown += 1; });
+
+      window.__GITL_Test.prepareWakeState('RUNNING');
+      const before = window.__GITL_Test.counts();
+      document.dispatchEvent(new Event('freeze'));
+      const afterFreeze = window.__GITL_Test.counts();
+      document.dispatchEvent(new Event('resume'));
+      const afterResume = window.__GITL_Test.counts();
+
+      return {
+        before,
+        afterFreeze,
+        afterResume,
+        events,
+        value: input.value,
+        loop: window.__GITL_Test.loopSnapshot()
+      };
+    });
+
+    expect(result.afterFreeze).toEqual(result.before);
+    expect(result.afterResume.tickerStart - result.afterFreeze.tickerStart).toBe(1);
+    expect(result.afterResume.heartbeatStart - result.afterFreeze.heartbeatStart).toBe(1);
+    expect(result.afterResume.cacheClear - result.afterFreeze.cacheClear).toBe(1);
+    expect(result.afterResume.busInit - result.afterFreeze.busInit).toBe(1);
+    expect(result.afterResume.redetect - result.afterFreeze.redetect).toBe(1);
+    expect(result.loop.state).toBe('RUNNING');
+    expect(result.events).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+    expect(result.value).toBe('unchanged');
+  });
+
+  test('fixture-injected discarded fresh document boots IDLE and never resurrects Send authority', async ({ context }) => {
+    const fresh = await context.newPage();
+    const DISCARD_BOOT = `
+      window.__discardEvents = { submit: 0, click: 0, input: 0, keydown: 0 };
+      window.addEventListener('submit', e => { window.__discardEvents.submit += 1; }, true);
+      window.addEventListener('click', e => { window.__discardEvents.click += 1; }, true);
+      window.addEventListener('input', e => { window.__discardEvents.input += 1; }, true);
+      window.addEventListener('keydown', e => { window.__discardEvents.keydown += 1; }, true);
+      try { Object.defineProperty(document, 'wasDiscarded', { configurable: true, value: true }); } catch (_) {}
+    `;
+    await fresh.addInitScript(GM + '\n' + DISCARD_BOOT + '\n' + SCRIPT);
+    await fresh.goto(PAGE);
+    await fresh.waitForFunction(() => !!window.__GITL_Test);
+
+    const result = await fresh.evaluate(() => ({
+      wasDiscarded: document.wasDiscarded === true,
+      loop: window.__GITL_Test.loopSnapshot(),
+      events: { ...window.__discardEvents },
+      value: document.getElementById('chat-box').value
+    }));
+
+    expect(result.wasDiscarded).toBe(true);
+    expect(result.loop.state).toBe('IDLE');
+    expect(result.events).toEqual({ submit: 0, click: 0, input: 0, keydown: 0 });
+    expect(result.value).toBe('unchanged');
+    await fresh.close();
   });
 });
