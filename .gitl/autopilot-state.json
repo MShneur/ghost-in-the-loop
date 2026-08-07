@@ -26,8 +26,8 @@
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
   "headAtLastHandoff": "8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2",
-  "currentStep": "R5-A2X-LONGCHAT-BUILD-EXEC submitted. Exact candidate head 9d49e34af07015f8064ac66398004180216efb08 passed the unchanged A1/A2 performance, correctness, generated-parity, full-unit, and zero-actuation gates. R5-A3-LONGCHAT-REDTEAM is ready.",
-  "nextAction": "Next eligible wake claims R5-A3-LONGCHAT-REDTEAM regardless of timer number and attempts to falsify the grouped-selector optimization under mixed selector tails, mutation/DOM replacement, stale/hidden duplicates, route changes, and unresolved Send state without rewriting production or weakening any oracle.",
+  "currentStep": "R5-A3-LONGCHAT-REDTEAM claimed by nominal Worker 6 successor using the test-engineer-red-team role on inspected head d87903ee96b423201320a2414f310361e53afbd7.",
+  "nextAction": "Lease holder performs one bounded adversarial long-chat falsification step against the accepted grouped-selector candidate, preserving all A1/A2 performance and fail-closed safety oracles and without rewriting production.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -202,7 +202,15 @@
     ".gitl/evidence/round-5/worker-2.md",
     ".gitl/evidence/round-5/worker-3.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-agent-6-longchat-redteam-successor",
+    "nominalWorker": 6,
+    "executedRole": "test-engineer-red-team",
+    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
+    "acquiredAt": "2026-08-07T10:49:30Z",
+    "expiresAt": "2026-08-07T11:34:30Z",
+    "branchHead": "d87903ee96b423201320a2414f310361e53afbd7"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
