@@ -1,0 +1,375 @@
+name: Round 6 A3 Overflow Repair Carrier
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/a3-overflow-repair-trigger.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-a3-overflow-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Guard isolated branch and lease claim ancestry
+        id: guard
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_CLAIM: 94d3d9953b893cae3851801a1e64aa4345d8e326
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "agent/8.8-repair-resume"
+          git merge-base --is-ancestor "$EXPECTED_CLAIM" HEAD
+          node - <<'NODE'
+          const fs = require('fs');
+          const s = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json', 'utf8'));
+          if (s.branch !== 'agent/8.8-repair-resume') throw new Error('unexpected canonical branch');
+          if (s.lease?.holder !== 'scheduled-worker-1-r6-a3-handoff-repair-16') throw new Error('expected A3 recovery lease not held');
+          if (s.lease?.assignmentId !== 'R6-A3-MOBILE-SHELL-REDTEAM') throw new Error('unexpected leased assignment');
+          NODE
+
+      - name: Apply smallest fail-closed clipping repair in working tree
+        id: patch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const cp = require('child_process');
+          const prototypePath = 'tests/e2e/mobile-shell-blue-prototype.spec.js';
+          const redPath = 'tests/e2e/mobile-shell-blue-redteam.spec.js';
+
+          let src = fs.readFileSync(prototypePath, 'utf8');
+          const helperNeedle = "      const contractReason = () => {\n";
+          const helper = `      const withinVisibleContainerBounds = (el) => {\n        if (!(el instanceof Element)) return false;\n        const style = getComputedStyle(container);\n        const clipsX = style.overflowX !== 'visible';\n        const clipsY = style.overflowY !== 'visible';\n        if (!clipsX && !clipsY) return true;\n        const outer = container.getBoundingClientRect();\n        const inner = el.getBoundingClientRect();\n        const epsilon = 1;\n        if (clipsX && (inner.left < outer.left - epsilon || inner.right > outer.right + epsilon)) return false;\n        if (clipsY && (inner.top < outer.top - epsilon || inner.bottom > outer.bottom + epsilon)) return false;\n        return true;\n      };\n\n      const contractReason = () => {\n`;
+          if (!src.includes(helperNeedle)) throw new Error('contractReason insertion point missing');
+          src = src.replace(helperNeedle, helper);
+
+          const sendNeedle = "        if (!visible(send)) return 'send-not-visible';\n";
+          if (!src.includes(sendNeedle)) throw new Error('send visibility line missing');
+          src = src.replace(sendNeedle, sendNeedle + "        if (!withinVisibleContainerBounds(send)) return 'send-clipped';\n");
+
+          const mountNeedle = "        if (position === 'fixed' || position === 'absolute') return 'mount-not-in-flow';\n";
+          if (!src.includes(mountNeedle)) throw new Error('mount position line missing');
+          src = src.replace(mountNeedle, mountNeedle + "        if (!withinVisibleContainerBounds(mount)) return 'mount-clipped';\n");
+          fs.writeFileSync(prototypePath, src);
+
+          const blob = cp.execFileSync('git', ['hash-object', prototypePath], { encoding: 'utf8' }).trim();
+          if (!/^[0-9a-f]{40}$/.test(blob)) throw new Error('invalid prototype blob');
+
+          let red = fs.readFileSync(redPath, 'utf8');
+          const pinRe = /const EXPECTED_GIT_BLOB = '[0-9a-f]{40}';/;
+          if (!pinRe.test(red)) throw new Error('Red Team blob pin missing');
+          red = red.replace(pinRe, `const EXPECTED_GIT_BLOB = '${blob}';`);
+
+          const oldAssertion = `    if (geometry.clipped) {\n      expect(result.status).not.toBe('structural');\n    }\n`;
+          const newAssertion = `    expect(geometry.clipped || result.reason === 'send-clipped').toBe(true);\n    expect(result.status).not.toBe('structural');\n    expect(['send-clipped', 'mount-clipped']).toContain(result.reason);\n`;
+          if (!red.includes(oldAssertion)) throw new Error('Red Team clipping assertion block missing');
+          red = red.replace(oldAssertion, newAssertion);
+          fs.writeFileSync(redPath, red);
+
+          fs.writeFileSync('/tmp/a3-prototype-blob.txt', blob + '\n');
+          fs.writeFileSync('/tmp/a3-redteam-blob.txt', cp.execFileSync('git', ['hash-object', redPath], { encoding: 'utf8' }).trim() + '\n');
+          NODE
+          node --check tests/e2e/mobile-shell-blue-prototype.spec.js
+          node --check tests/e2e/mobile-shell-blue-redteam.spec.js
+
+      - name: Install dependencies
+        id: npmci
+        continue-on-error: true
+        run: npm ci
+
+      - name: Base certification
+        id: base
+        continue-on-error: true
+        run: npm run cert:base
+
+      - name: Syntax and lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Focused Send route lease safety
+        id: safety
+        continue-on-error: true
+        run: npx jest tests/sendtransaction.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand
+
+      - name: Install Chromium and Firefox
+        id: browsers
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run Blue structural suite Chromium and Firefox
+        id: blue
+        continue-on-error: true
+        run: npx playwright test tests/e2e/mobile-shell-blue-prototype.spec.js --project=chromium --project=firefox
+
+      - name: Run A3 Red Team Chromium and Firefox
+        id: red
+        continue-on-error: true
+        run: npx playwright test tests/e2e/mobile-shell-blue-redteam.spec.js --project=chromium --project=firefox
+
+      - name: Upload repair evidence
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-a3-overflow-repair-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+            e2e-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Record durable result, reconcile state and self-remove
+        if: always()
+        shell: bash
+        env:
+          O_GUARD: ${{ steps.guard.outcome }}
+          O_PATCH: ${{ steps.patch.outcome }}
+          O_NPMCI: ${{ steps.npmci.outcome }}
+          O_BASE: ${{ steps.base.outcome }}
+          O_LINT: ${{ steps.lint.outcome }}
+          O_SAFETY: ${{ steps.safety.outcome }}
+          O_BROWSERS: ${{ steps.browsers.outcome }}
+          O_BLUE: ${{ steps.blue.outcome }}
+          O_RED: ${{ steps.red.outcome }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          RESULT=PASS
+          for value in "$O_GUARD" "$O_PATCH" "$O_NPMCI" "$O_BASE" "$O_LINT" "$O_SAFETY" "$O_BROWSERS" "$O_BLUE" "$O_RED"; do
+            if [ "$value" != "success" ]; then RESULT=FAIL; fi
+          done
+
+          PROTOTYPE_BLOB="$(cat /tmp/a3-prototype-blob.txt 2>/dev/null || true)"
+          REDTEAM_BLOB="$(cat /tmp/a3-redteam-blob.txt 2>/dev/null || true)"
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          mkdir -p .gitl/evidence/round-6
+
+          if [ "$RESULT" != "PASS" ]; then
+            git checkout -- tests/e2e/mobile-shell-blue-prototype.spec.js tests/e2e/mobile-shell-blue-redteam.spec.js || true
+          fi
+
+          cat > .gitl/evidence/round-6/worker-4.md <<EOF
+          # Ghost Worker Evidence
+
+          ## Identity
+          - Round: 6
+          - Worker evidence slot: 4
+          - Intended role: Test engineer / Red Team
+          - Executed by: \`scheduled-worker-1-r6-a3-handoff-repair-16\`
+          - Assignment ID: \`R6-A3-MOBILE-SHELL-REDTEAM\`
+          - Started at: 2026-08-07T20:00:16Z
+          - Finished at: $NOW
+
+          ## State Read
+          - Branch: \`agent/8.8-repair-resume\`
+          - Initial A3 carrier result commit: \`6958dbf601cb9c97e735cab0dd516504234f31e4\`
+          - Initial failing run/job: \`31213429856\` / \`92981355836\`
+          - Lease claim commit: \`94d3d9953b893cae3851801a1e64aa4345d8e326\`
+
+          ## Step Performed
+          The first Red Team carrier found one reproducible semantic failure in both Chromium and Firefox: a deliberately overflow-clipped narrow composer could still be reported as \`structural\`. This recovery applied the smallest fixture-only fail-closed correction: when a verified structural container clips an axis, the exact Send and Ghost mount must remain within the container's visible bounds (1 CSS px deterministic tolerance) or structural mode is rejected. The Red oracle was strengthened to require a clipping-specific rejection reason.
+
+          ## Research Sources
+          - Repository brief: Blue is valid only when host controls remain visible/reachable and narrow crowding fails closed.
+          - Initial Red Team run 31213429856: all prerequisite gates passed; only overflow-clipped structural acceptance failed in Chromium and Firefox.
+          - No new external research was performed; executable repair outranked research under maker v1.1 delivery pressure.
+
+          ## Changes
+          - Candidate prototype blob after working-tree repair: \`$PROTOTYPE_BLOB\`
+          - Red Team oracle blob after pin/assertion update: \`$REDTEAM_BLOB\`
+          - Production userscript/extension behavior: unchanged.
+          - Temporary workflow and trigger: removed by this transaction.
+
+          ## Tests
+          - Guard: **$O_GUARD**
+          - Patch/syntax: **$O_PATCH**
+          - npm ci: **$O_NPMCI**
+          - cert:base/generated parity: **$O_BASE**
+          - lint: **$O_LINT**
+          - focused Send/route/lease safety: **$O_SAFETY**
+          - browser install: **$O_BROWSERS**
+          - Blue Chromium+Firefox: **$O_BLUE**
+          - A3 Red Team Chromium+Firefox: **$O_RED**
+          - Repair carrier run: \`${GITHUB_RUN_ID}\`
+          - Job label: \`${GITHUB_JOB}\` (numeric job ID to be bound by successor connector inspection)
+          - Artifact: \`${ARTIFACT_ID:-UNKNOWN}\`
+          - Artifact digest: \`${ARTIFACT_DIGEST:-UNKNOWN}\`
+          - Overall: **$RESULT**
+
+          ## Acceptance Criteria
+          - Reproduce and preserve initial overflow failure: **PASS** — run 31213429856 / job 92981355836.
+          - Host-control churn, whole-row replacement, token loss, cleanup: **$O_RED** as part of Red suite.
+          - Clipped Blue/Send may not remain structural: **$O_RED**.
+          - Existing Blue structural suite remains green: **$O_BLUE**.
+          - Focused Send/route/lease safeguards remain green: **$O_SAFETY**.
+          - Live ChatGPT structural certification: **NOT TESTED / NOT CLAIMED**.
+
+          ## Safety Checks
+          - Send authority unchanged: YES.
+          - CHOICE behavior unchanged: YES.
+          - Route and lease safety unchanged: YES.
+          - No \`main\`, merge, auto-merge, tag, publish, or release action: YES.
+
+          ## Risks and Limits
+          This is deterministic fixture certification only. It does not prove the current authenticated ChatGPT insertion slot, physical Android/WebView, GeckoView/Firefox-Android, or real assistive-technology behavior. The 1 CSS px bound is only deterministic geometry tolerance, not permission to cover or displace host controls.
+
+          ## Recommended Next Action
+          $(if [ "$RESULT" = "PASS" ]; then echo 'Advance to `R6-A4-MOBILE-SHELL-MOBILE-PERF`; do not return to research.'; else echo 'Keep `R6-A3-MOBILE-SHELL-REDTEAM` retry-ready and inspect the exact repair carrier failure before any broader work.'; fi)
+
+          ## Assignment Status
+          - $(if [ "$RESULT" = "PASS" ]; then echo 'submitted'; else echo 'blocked / retry-ready'; fi)
+          EOF
+
+          cat > .gitl/evidence/round-6/a3-overflow-repair-result.md <<EOF
+          # Round 6 A3 Overflow Repair Carrier Result
+          - Result: **$RESULT**
+          - Trigger head: \`${GITHUB_SHA}\`
+          - Initial Red failure: run \`31213429856\` / job \`92981355836\`
+          - Repair run: \`${GITHUB_RUN_ID}\`
+          - Artifact: \`${ARTIFACT_ID:-UNKNOWN}\`
+          - Artifact digest: \`${ARTIFACT_DIGEST:-UNKNOWN}\`
+          - Prototype blob: \`$PROTOTYPE_BLOB\`
+          - Red Team blob: \`$REDTEAM_BLOB\`
+          - Blue suite: **$O_BLUE**
+          - Red Team suite: **$O_RED**
+          EOF
+
+          RESULT="$RESULT" NOW="$NOW" RUN_ID="$GITHUB_RUN_ID" ART_ID="${ARTIFACT_ID:-}" ART_DIGEST_VALUE="${ARTIFACT_DIGEST:-}" PROTO_BLOB="$PROTOTYPE_BLOB" RED_BLOB="$REDTEAM_BLOB" node - <<'NODE'
+          const fs = require('fs');
+          const result = process.env.RESULT;
+          const pass = result === 'PASS';
+          const now = process.env.NOW;
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+          const a3 = plan.assignments.find(a => a.id === 'R6-A3-MOBILE-SHELL-REDTEAM');
+          const a4 = plan.assignments.find(a => a.id === 'R6-A4-MOBILE-SHELL-MOBILE-PERF');
+          if (!a3 || !a4) throw new Error('A3/A4 assignment missing');
+
+          a3.status = pass ? 'submitted' : 'retry-ready';
+          a3.executedBy = 'scheduled-worker-1-r6-a3-handoff-repair-16';
+          a3.initialFailureRun = 31213429856;
+          a3.initialFailureJob = 92981355836;
+          a3.repairRun = Number(process.env.RUN_ID);
+          a3.repairArtifact = process.env.ART_ID ? Number(process.env.ART_ID) : null;
+          a3.repairPrototypeBlob = process.env.PROTO_BLOB || null;
+          a3.repairRedTeamBlob = process.env.RED_BLOB || null;
+          a3.evidencePath = '.gitl/evidence/round-6/worker-4.md';
+          a3.blockedReason = pass ? null : 'A3 overflow repair carrier did not pass all required gates; inspect worker-4 evidence and carrier artifact before retry.';
+          a4.status = pass ? 'ready' : 'waiting';
+
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: pass ? 5 : 4,
+            assignmentId: pass ? 'R6-A4-MOBILE-SHELL-MOBILE-PERF' : 'R6-A3-MOBILE-SHELL-REDTEAM',
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: pass
+              ? 'Execute mobile/browser/accessibility/performance certification against the Red-Team-surviving Blue prototype. Preserve live-host and physical-platform claim limits; do not return to research.'
+              : 'Retry only the concrete A3 repair failure. Preserve the initial clipping falsification and do not broaden scope or return to research.'
+          };
+          plan.deliveryPressure = plan.deliveryPressure || {};
+          plan.deliveryPressure.checkpointStatus = pass ? 'redteam-repair-pass-mobile-perf-ready' : 'redteam-repair-failure-retry-ready';
+          plan.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          plan.deliveryPressure.checkpointDecision = pass
+            ? 'A3 found and repaired a deterministic overflow-clipping false positive; all repair gates passed, so A4 mobile/accessibility/performance is the next release-moving artifact.'
+            : 'A3 repair remains executable after a concrete failure; retry that failure before any research.';
+
+          state.currentStep = pass
+            ? 'R6-A3 Red Team found one real deterministic safety failure: a clipped narrow Blue candidate could be reported structural. The smallest fail-closed repair now rejects clipped exact Send or Ghost mounts inside clipping containers. Repair carrier passed the existing Blue suite and A3 Red Team across Chromium+Firefox; A3 is submitted and A4 is ready. Live ChatGPT binding remains UNKNOWN pending A1X.'
+            : 'R6-A3 Red Team exposed a real overflow-clipping false positive. A smallest fail-closed repair was attempted but did not pass all required carrier gates; A3 remains retry-ready with exact evidence. Live ChatGPT binding remains UNKNOWN pending A1X.';
+          state.nextAction = pass
+            ? 'Execute R6-A4-MOBILE-SHELL-MOBILE-PERF before any research. Measure the surviving Blue candidate under narrow/mobile, keyboard, orientation, large text, reduced motion, browser, and constrained-runtime conditions while preserving zero Send actuation and explicit physical/live-host limits.'
+            : 'Retry R6-A3-MOBILE-SHELL-REDTEAM using the exact worker-4 repair evidence; fix only the concrete remaining failure and rerun the same gates before A4.';
+          state.automaticDispatch.nominalWorker = pass ? 5 : 4;
+          state.automaticDispatch.assignmentId = pass ? 'R6-A4-MOBILE-SHELL-MOBILE-PERF' : 'R6-A3-MOBILE-SHELL-REDTEAM';
+          state.researchFallback.temporarilyIneligible = true;
+          state.researchFallback.reason = pass
+            ? 'A3 is submitted and A4 mobile/accessibility/performance is executable; research may not compete with ready certification work.'
+            : 'A3 has a concrete retry-ready repair path; research may not compete with executable failure recovery.';
+          state.deliveryPressure.checkpointStatus = pass ? 'redteam-repair-pass-mobile-perf-ready' : 'redteam-repair-failure-retry-ready';
+          state.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          state.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          state.deliveryPressure.nextArtifactAssignment = pass ? 'R6-A4-MOBILE-SHELL-MOBILE-PERF' : 'R6-A3-MOBILE-SHELL-REDTEAM';
+          state.deliveryPressure.lastTestableArtifactAt = now;
+          state.deliveryPressure.lastDeliveryDecision = pass
+            ? 'Red Team converted a real clipping false positive into the smallest fail-closed repair and all deterministic Chromium+Firefox gates passed; advance to A4.'
+            : 'A3 clipping repair remains the smallest executable path; retry the exact failure before research.';
+          state.deliveryPressure.evidence = '.gitl/evidence/round-6/worker-4.md';
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = pass
+            ? 'active-prototype-redteam-submitted-mobile-perf-ready-live-certification-pending'
+            : 'active-prototype-redteam-repair-retry-ready-live-certification-pending';
+          state.completedSteps.push({
+            type: pass ? 'round-6-a3-redteam-overflow-repair-pass' : 'round-6-a3-redteam-overflow-repair-attempt',
+            result: pass
+              ? `Initial A3 run 31213429856/job 92981355836 found overflow-clipped structural false positive in Chromium+Firefox. Repair run ${process.env.RUN_ID} passed all gates with prototype blob ${process.env.PROTO_BLOB} and Red blob ${process.env.RED_BLOB}.`
+              : `Initial A3 clipping failure was reproduced and a bounded repair attempt ran as ${process.env.RUN_ID}, but one or more required gates remained failing; see worker-4 evidence.`
+          });
+          state.findings.push({
+            worker: 4,
+            type: 'mobile-shell-blue-overflow-fail-closed',
+            finding: pass
+              ? 'Red Team proved that in-flow alone is insufficient when a verified action row clips overflow: a Blue mount can remain structurally attached yet be unreachable. The repaired deterministic contract rejects structural mode when a clipping container would clip exact Send or the Ghost mount, using only a 1 CSS px deterministic rounding tolerance.'
+              : 'Red Team proved that an overflow-clipped Blue candidate can be falsely reported structural. The first bounded repair did not clear all gates and remains retry-ready.'
+          });
+          for (const p of ['.gitl/evidence/round-6/worker-4.md', '.gitl/evidence/round-6/a3-overflow-repair-result.md']) {
+            if (!state.testEvidence.includes(p)) state.testEvidence.push(p);
+          }
+          state.lease = null;
+          state.blockedReason = pass ? null : 'A3 overflow repair carrier remains failing; exact recovery is retry-ready.';
+          state.verificationSummary.verdict = pass
+            ? 'prototype-redteam-submitted-mobile-perf-ready-live-certification-pending'
+            : 'prototype-redteam-repair-retry-ready-live-certification-pending';
+          state.verificationSummary.nextAssignment = pass ? 'R6-A4-MOBILE-SHELL-MOBILE-PERF' : 'R6-A3-MOBILE-SHELL-REDTEAM';
+          state.verificationSummary.a3Status = pass ? 'submitted' : 'retry-ready';
+          state.verificationSummary.a3InitialRun = 31213429856;
+          state.verificationSummary.a3InitialJob = 92981355836;
+          state.verificationSummary.a3RepairRun = Number(process.env.RUN_ID);
+          state.verificationSummary.a3RepairArtifact = process.env.ART_ID ? Number(process.env.ART_ID) : null;
+          state.verificationSummary.a3RepairArtifactDigest = process.env.ART_DIGEST_VALUE || null;
+          state.verificationSummary.a3RepairPrototypeBlob = process.env.PROTO_BLOB || null;
+          state.verificationSummary.a3RepairRedTeamBlob = process.env.RED_BLOB || null;
+
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-a3-overflow-repair.yml .gitl/evidence/round-6/a3-overflow-repair-trigger.md || true
+          git add .gitl/evidence/round-6/worker-4.md .gitl/evidence/round-6/a3-overflow-repair-result.md .gitl/autopilot-state.json .gitl/orchestration/round-plan.json
+          if [ "$RESULT" = "PASS" ]; then
+            git add tests/e2e/mobile-shell-blue-prototype.spec.js tests/e2e/mobile-shell-blue-redteam.spec.js
+            git commit -m 'fix(gitl): fail closed on clipped Blue structural mounts'
+          else
+            git commit -m 'test(gitl): record blocked A3 overflow repair attempt'
+          fi
+          git push origin HEAD:agent/8.8-repair-resume
+          if [ "$RESULT" != "PASS" ]; then exit 1; fi
