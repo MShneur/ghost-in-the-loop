@@ -27,9 +27,9 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd",
-  "currentStep": "R6-RESEARCH-FALLBACK-CROSS-ADAPTER-CONTRACT-05 completed one bounded non-conflicting research step. Cross-adapter structural mounting must be a separate reviewed capability from existing actuation/input profiles: shared verification/repair invariants may be reused, but each adapter owns current structural discovery and an approved insertion rule. Anchor-smoke evidence cannot be promoted to structural capture or mount certification. ChatGPT remains the first proof target and its exact insertion slot remains UNKNOWN; A1X stays blocked locally and A2 remains waiting.",
-  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written. Otherwise the next eligible wake should perform a sixth materially different bounded fallback, preferably CSP/Trusted-Types/ShadowRoot/userscript compatibility analysis or deterministic cross-adapter conformance-test design. Do not repeat live-capture permission attempts, adoption-drift, Shadow lifecycle, keyboard/reflow, CPU-throttling, or cross-adapter capability/adoption comparison without changed evidence.",
+  "headAtLastHandoff": "2d8384a2c3c7cbe955004daf173decf2079dcfae",
+  "currentStep": "R6-RESEARCH-FALLBACK-CSP-TT-SHADOW-COMPAT-06 completed one bounded non-conflicting compatibility/security research step. A future Shadow-host structural shell must not add new Trusted Types HTML sinks: ShadowRoot.innerHTML is itself a TT-governed injection sink, current Ghost already fails loud when the named gitl-ui policy is blocked, and structural mounting does not require HTML-string parsing. The first structural candidate should therefore use a DOM-built in-flow host/Shadow subtree, preserve extension isolated-world operation, avoid MAIN-world/unsafeWindow dependence, and add exact CSP/TT compatibility falsification without changing current product behavior. A1X remains locally blocked and A2 remains waiting.",
+  "nextAction": "If DQ-R6-LIVE-STRUCTURE-CAPTURE changes because interactive read-only permission or a sufficient sanitized DOM/computed-style/relationship capture becomes available, resume A1X exactly as written and carry the CSP/TT compatibility contract into A2/A3. Otherwise start a new materially different research-novelty round, preferably deterministic structural-conformance test design or Shadow-control accessibility/event-retargeting analysis. Do not repeat the six completed post-A1X fallback modes without changed evidence.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": "research fallback while local capture gate remains unchanged",
@@ -62,7 +62,7 @@
       "physical-device or throttled constrained-hardware evidence",
       "host UI changes, upstream/browser behavior, and real user/community feedback"
     ],
-    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria."
+    "diminishingReturnsRule": "Do not stop after one unproductive wake. Do not repeat a non-discriminating permission-gated browser attempt or unchanged deterministic probe. Research exhaustion requires a complete six-wake round with no material novelty plus the canonical maker criteria. The first six post-A1X fallbacks all produced material novelty, so exhaustion has not begun."
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -127,6 +127,10 @@
     {
       "type": "round-6-research-fallback-cross-adapter-contract-05",
       "result": "A fifth bounded post-A1X fallback compared current Ghost reviewed profiles with maintained multi-platform adoption evidence. It separates reviewed actuation support from reviewed structural-mount authority, defines three evidence levels (anchor smoke, structural capture, mount certification), requires shared invariants plus adapter-owned structural discovery, and proposes only a research-priority expansion order after ChatGPT proof. Evidence commit 2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd; claim commit c2a67cb67ce5e0e577873a41a1e8d5213c9a4d26."
+    },
+    {
+      "type": "round-6-research-fallback-csp-tt-shadow-compat-06",
+      "result": "A sixth materially different post-A1X fallback inspected current Ghost Trusted Types behavior, exact TT tests, MV3 isolated content-script configuration, and primary CSP/ShadowRoot platform documentation. It requires the future structural shell to add no new HTML-string TT sink, provisionally favors a DOM-built in-flow open-Shadow host over shadowRoot.innerHTML templating, preserves the named-policy boundary and extension isolated world, rejects MAIN-world/unsafeWindow as structural prerequisites, and predeclares a CSP/TT compatibility matrix without changing current product behavior. Evidence commit 2d8384a2c3c7cbe955004daf173decf2079dcfae; claim commit 0aabbd794c968ae6803f0ecc99770d77c97b351e."
     }
   ],
   "findings": [
@@ -199,6 +203,11 @@
       "worker": 2,
       "type": "mobile-shell-cross-adapter-structural-capability-boundary",
       "finding": "Existing reviewed input/Send profiles are not structural-mount authorization. Future structural capability must fail closed when absent, reuse shared invariant/repair machinery, and keep adapter-owned discovery/insertion rules. Anchor-smoke selector health is lower evidence than authenticated structural capture, which is lower than mount certification. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy."
+    },
+    {
+      "worker": 6,
+      "type": "mobile-shell-tt-shadow-compat-contract",
+      "finding": "A future structural Shadow host must add no new Trusted Types HTML sink. ShadowRoot.innerHTML remains TT-governed; current Ghost already proves that a restrictive trusted-types allow-list can block gitl-ui and drive existing HTML sinks to fail loud. Prefer a DOM-built in-flow host/Shadow subtree, preserve the named-policy boundary, keep MV3 structural mounting viable in the default isolated content-script world, and do not require MAIN-world/unsafeWindow authority. Browser TT support is broad in 2026, but host CSP enforcement remains site-specific and is not inferred for every adapter."
     }
   ],
   "briefs": [
@@ -213,17 +222,10 @@
     ".gitl/evidence/round-6/research-fallback-02.md",
     ".gitl/evidence/round-6/research-fallback-03.md",
     ".gitl/evidence/round-6/research-fallback-04.md",
-    ".gitl/evidence/round-6/research-fallback-05.md"
+    ".gitl/evidence/round-6/research-fallback-05.md",
+    ".gitl/evidence/round-6/research-fallback-06.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-r6-research-csp-tt-06",
-    "assignmentId": "R6-RESEARCH-FALLBACK-CSP-TT-SHADOW-COMPAT-06",
-    "nominalWorker": 6,
-    "executedRole": "compatibility-security-researcher-with-devils-advocate-lens",
-    "acquiredAt": "2026-08-07T15:49:30Z",
-    "expiresAt": "2026-08-07T16:34:30Z",
-    "inspectedHead": "UNKNOWN-tip; branch remained exactly one commit ahead of 2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd and no open PR used the isolated branch as head"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -249,8 +251,8 @@
     "a1xArtifactSha256": "3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc",
     "a1xDeterministicProbe": "2/2 PASS",
     "a1xLiveAuthenticatedCapture": "UNKNOWN-NOT-OBTAINED-INTERACTIVE-PERMISSION-REQUIRED",
-    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-05.md",
-    "latestResearchFallbackCommit": "2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd",
+    "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-06.md",
+    "latestResearchFallbackCommit": "2d8384a2c3c7cbe955004daf173decf2079dcfae",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
     "deferredRound6Capture": "DQ-R6-LIVE-STRUCTURE-CAPTURE",
@@ -264,6 +266,7 @@
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
     "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Missing structural capability means rail-only. ChatGPT remains first proof target; Claude/Copilot are provisional next capture priorities only; Manus needs fresh structural corroboration; DeepSeek/Gemini need stronger re-review; Perplexity/Grok remain higher-ambiguity; matched-but-unreviewed hosts stay rail-only.",
+    "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. Do not render the Shadow interior through shadowRoot.innerHTML by default; prefer DOM-built nodes and direct handlers, preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Add deterministic no-actuation compatibility cases for ordinary CSP, TT enforcement with gitl-ui allowed, policy-name rejection, limited ShadowRoot.setHTML availability, and extension-isolated execution. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
     "platformClaimLimits": "Chrome Android viewport behavior does not certify WebView. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME combinations, and calibrated low-end-device performance remain separately uncertified."
   },
   "priorRoundVerification": {
