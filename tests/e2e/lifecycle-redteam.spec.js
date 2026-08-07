@@ -112,6 +112,7 @@ function installActuationCounters() {
     send.addEventListener('click', () => { events.click += 1; });
     input.addEventListener('input', () => { events.input += 1; });
     input.addEventListener('keydown', () => { events.keydown += 1; });
+    window.__GITL_Actuation = { events, form, send, input };
   `;
 }
 
@@ -126,6 +127,7 @@ test.describe('Lifecycle Red Team production wake path', () => {
   test('route changes around wake pause stale work and never actuate Send', async ({ page }) => {
     const result = await page.evaluate((counterSource) => {
       eval(counterSource);
+      const { events, input } = window.__GITL_Actuation;
       window.__GITL_RedTeam.prepareWakeState('RUNNING');
       window.__GITL_RedTeam.forceRouteMismatch();
       const before = window.__GITL_RedTeam.counts();
@@ -152,6 +154,7 @@ test.describe('Lifecycle Red Team production wake path', () => {
   test('foreign-lease denial during wake pauses without restarting stale work', async ({ page }) => {
     const result = await page.evaluate((counterSource) => {
       eval(counterSource);
+      const { events, input } = window.__GITL_Actuation;
       window.__GITL_RedTeam.prepareWakeState('RUNNING');
       window.__GITL_RedTeam.forceLeaseDenied();
       const before = window.__GITL_RedTeam.counts();
@@ -178,6 +181,7 @@ test.describe('Lifecycle Red Team production wake path', () => {
   test('dispatching Send discovered on wake becomes uncertain and remains non-actuating', async ({ page }) => {
     const result = await page.evaluate((counterSource) => {
       eval(counterSource);
+      const { events, input } = window.__GITL_Actuation;
       window.__GITL_RedTeam.prepareWakeState('RUNNING');
       window.__GITL_RedTeam.forceDispatchingSend();
       const before = window.__GITL_RedTeam.counts();
