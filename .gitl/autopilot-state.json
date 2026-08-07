@@ -205,14 +205,14 @@
     ".gitl/evidence/round-4/worker-5.md"
   ],
   "lease": {
-    "holder": "scheduled-successor-a4y-handoff-recovery",
-    "nominalWorker": null,
+    "holder": "scheduled-worker-50-a4y-handoff-recovery",
+    "nominalWorker": 6,
     "assignmentId": "R4-A4Y-LIFECYCLE-MOBILE-VIEWPORT-FIXTURE",
-    "intendedRole": "mobile-browser-test-fixture-repair-handoff-recovery",
-    "acquiredAt": "2026-08-07T07:05:12Z",
-    "expiresAt": "2026-08-07T07:50:12Z",
-    "inspectedHead": "355228b1742bfbcd60f2d13fc11ca1f2b250587d",
-    "inspectedHeadEvidence": "Prior A4Y lease expired at 2026-08-07T06:59:30Z. Branch remained identical to 355228b1742bfbcd60f2d13fc11ca1f2b250587d after expiry; PR #20 remained open at that head, and its only workflow run 31153684910 was completed with failure. No active workflow or later branch movement remained."
+    "intendedRole": "devils-advocate-release-auditor-handoff-recovery",
+    "acquiredAt": "2026-08-07T07:50:44Z",
+    "expiresAt": "2026-08-07T08:35:44Z",
+    "inspectedHead": "5017c3e799cbac47562dc0461e80206433749bf8",
+    "inspectedHeadEvidence": "Prior recovery lease expired at 2026-08-07T07:50:12Z. Branch remained identical to 5017c3e799cbac47562dc0461e80206433749bf8 at claim time; PR #20 remained open and unmerged; workflow run 31156472535 on that head was completed with failure; no active workflow or later branch movement remained."
   },
   "blockedReason": null,
   "publishReady": false,
