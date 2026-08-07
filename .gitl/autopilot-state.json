@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1, 2, 3],
+  "completedWorkers": [1, 2, 3, 4],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "5c057fe2235da50c23c800f7c345bc3814f01b3c",
-  "headAtLastHandoff": "8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2",
-  "currentStep": "R5-A3-LONGCHAT-REDTEAM claimed by nominal Worker 6 successor using the test-engineer-red-team role on inspected head d87903ee96b423201320a2414f310361e53afbd7.",
-  "nextAction": "Lease holder performs one bounded adversarial long-chat falsification step against the accepted grouped-selector candidate, preserving all A1/A2 performance and fail-closed safety oracles and without rewriting production.",
+  "headAtLastHandoff": "8fd6517abcd39c022d8d6ce3503c71fcd4035b09",
+  "currentStep": "R5-A3-LONGCHAT-REDTEAM submitted. Exact head 73ec20832e6ae125fd38dd137f315ee695e186b6 passed mixed-selector-tail, heavy DOM replacement, route/lease/uncertain-Send fail-closed, unchanged A2 performance, and focused Send-journal gates. R5-A4-LONGCHAT-MOBILE-PERF is ready.",
+  "nextAction": "Next eligible wake claims R5-A4-LONGCHAT-MOBILE-PERF regardless of timer number and executes exact-head Pixel-7 Chromium-emulation plus desktop-Firefox long-chat evidence where portable, measures resource/usability trends, carries the linear Send-observation cost as a limit, and does not promote emulation into physical-device certification.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
+    "nominalWorker": 5,
+    "assignmentId": "R5-A4-LONGCHAT-MOBILE-PERF",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -117,6 +117,10 @@
     {
       "type": "round-5-a2x-longchat-build-exec",
       "result": "Exact candidate head 9d49e34af07015f8064ac66398004180216efb08 passed run 31169354385/job 92837396863/artifact 8990318746. At 2000 turns answer qSA returned matches fell 6003 -> 2001/sample (66.67% reduction) and p95 2.30 -> 1.00 ms; at 180 turns p95 was 0.40 ms. Focused Jest passed 18/18, full unit passed 477 with 3 TODO, generated parity passed, and safety events were all zero. Worker-3 evidence commit 8465c3a3e470607dd40b62c7a26b4f64f45a0636; plan handoff commit 8734030c37d0c37686e1b6d0a4a0f1c56b7dfca2 activated A3."
+    },
+    {
+      "type": "round-5-a3-longchat-redteam",
+      "result": "Exact head 73ec20832e6ae125fd38dd137f315ee695e186b6 passed run 31171939489/job 92845452541/artifact 8991319478. Mixed selector tails, 12-pass DOM replacement churn, route changes, uncertain Send, and foreign lease conditions preserved newest-answer and fail-closed safety with zero actuation. After churn, 2000-turn answer selection remained 2001 matches/sample with p95 about 2.20 ms; timer/observer counts remained unchanged. Worker-4 evidence commit c332a00f468d6b99529611cfa9d19a20964a9b6e; plan handoff commit 8fd6517abcd39c022d8d6ce3503c71fcd4035b09 activated A4."
     }
   ],
   "findings": [
@@ -169,7 +173,19 @@
       "worker": 3,
       "executedByNominalWorker": 2,
       "type": "long-chat-send-observation-remains-linear",
-      "finding": "The same A2X exact run recorded 8004 qSA matches/sample at 2000 turns in both begin-Send and send-evidence observations, with p95 2.30 ms and 2.80 ms respectively. A3 must attack this remaining cost without weakening the at-most-once Send journal, delivery evidence, route, lease, CHOICE, or uncertainty safeguards."
+      "finding": "A2X recorded 8004 qSA matches/sample at 2000 turns in both begin-Send and send-evidence observations. A3 preserved fail-closed behavior without weakening that journal path; the remaining cost is carried forward as a bounded performance limit rather than treated as solved."
+    },
+    {
+      "worker": 4,
+      "executedByNominalWorker": 6,
+      "type": "long-chat-redteam-pass",
+      "finding": "A3 exact adversarial Chromium on head 73ec20832e6ae125fd38dd137f315ee695e186b6 preserved mixed per-selector tail semantics, newest unfinished-answer authority, unchanged A2 2000-turn performance gates after 12-pass DOM replacement churn, stable timer/observer counts, and fail-closed route/uncertain-Send/foreign-lease behavior with zero actuation."
+    },
+    {
+      "worker": 4,
+      "executedByNominalWorker": 6,
+      "type": "long-chat-send-observation-limit-confirmed",
+      "finding": "The same A3 exact-head repeat measured 8004 qSA matches/sample at 2000 turns for begin-Send and send-evidence observation, with p95 about 6.40 ms and 3.60 ms respectively. This remains a safety-critical performance limit and is not authorization to weaken independent Send confirmation evidence."
     }
   ],
   "briefs": [
@@ -200,17 +216,10 @@
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-1.md",
     ".gitl/evidence/round-5/worker-2.md",
-    ".gitl/evidence/round-5/worker-3.md"
+    ".gitl/evidence/round-5/worker-3.md",
+    ".gitl/evidence/round-5/worker-4.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-longchat-redteam-successor",
-    "nominalWorker": 6,
-    "executedRole": "test-engineer-red-team",
-    "assignmentId": "R5-A3-LONGCHAT-REDTEAM",
-    "acquiredAt": "2026-08-07T10:49:30Z",
-    "expiresAt": "2026-08-07T11:34:30Z",
-    "branchHead": "d87903ee96b423201320a2414f310361e53afbd7"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -221,8 +230,8 @@
     "supervisorEvidence": ".gitl/evidence/round-5/worker-1.md",
     "supervisorEvidenceCommit": "f47d9bf5e699ff377321abd2424e766c0bd12c46",
     "deferredPriorRoundReview": "DQ-R4-LIFECYCLE-REVIEW",
-    "nextAssignment": "R5-A3-LONGCHAT-REDTEAM",
-    "performanceWinner": "A2X accepted the stateless grouped-selector candidate at the current deterministic desktop-Chromium oracle; it is provisional pending Red-Team, mobile/cross-browser, and final audit. It removes redundant overlapping selector streams but does not eliminate history-size scaling.",
+    "nextAssignment": "R5-A4-LONGCHAT-MOBILE-PERF",
+    "performanceWinner": "The stateless grouped-selector candidate remains provisionally accepted at the current deterministic desktop-Chromium oracle after A3 adversarial falsification. It removes redundant overlapping selector streams but does not eliminate history-size scaling; Send-observation scanning remains a known linear limit pending mobile/cross-browser and final audit.",
     "baselineAssignment": "R5-A1-LONGCHAT-BASELINE",
     "baselineEvidence": ".gitl/evidence/round-5/worker-2.md",
     "baselineTestedHead": "747031cc8160ba6febdd6fecb03d597fae36cd66",
@@ -239,7 +248,16 @@
     "builderJobId": 92837396863,
     "builderArtifactId": 8990318746,
     "builderArtifactSha256": "eedfc0019ca9211fde25a442dbfe3a1d472f0c954b1fb8fa72e650f210994bc4",
-    "builderVerdict": "submitted-pass-pending-redteam-mobile-audit"
+    "builderVerdict": "submitted-pass-pending-redteam-mobile-audit",
+    "redteamAssignment": "R5-A3-LONGCHAT-REDTEAM",
+    "redteamEvidence": ".gitl/evidence/round-5/worker-4.md",
+    "redteamEvidenceCommit": "c332a00f468d6b99529611cfa9d19a20964a9b6e",
+    "redteamTestedHead": "73ec20832e6ae125fd38dd137f315ee695e186b6",
+    "redteamRunId": 31171939489,
+    "redteamJobId": 92845452541,
+    "redteamArtifactId": 8991319478,
+    "redteamArtifactSha256": "eb54291a2aa50868b9281982422c548025f77130f1338d671a83094fae4273e3",
+    "redteamVerdict": "submitted-pass-pending-mobile-audit"
   },
   "priorRoundVerification": {
     "round": 4,
