@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
-  "currentStep": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP claimed by a successor researcher/architect wake. Mapping ChatGPT structural mount assumptions and preparing a deterministic no-actuation probe; no product behavior is authorized in A1.",
-  "nextAction": "Complete one bounded R6-A1 research/fixture step, write Worker-2 evidence, mark A1 submitted or blocked truthfully, release the lease, and expose the next dependency-safe assignment.",
+  "headAtLastHandoff": "ee7f74dc8b3591be67261c665f1c9ff74252492e",
+  "currentStep": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP completed its bounded deterministic research/probe step but is blocked on missing durable current authenticated ChatGPT desktop+narrow structure capture. R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE is ready; no product mount selector or insertion slot is authorized yet.",
+  "nextAction": "Next eligible wake claims R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE regardless of timer number, obtains a read-only durable current ChatGPT desktop+narrow structure map with exact active composer/Send relationships and zero actuation, then either submits the live map and exposes A2 or preserves the smallest further capture recovery without guessing.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current claimed wake",
+    "scheduledFor": "next eligible wake",
     "nominalWorker": 2,
-    "assignmentId": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "assignmentId": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -76,84 +76,57 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-review-deferred-local",
     "LONG-CHAT-PERF": "completed-certified-human-review-deferred-local",
-    "MOBILE-SHELL-STRUCTURAL": "active-research-first",
+    "MOBILE-SHELL-STRUCTURAL": "active-research-live-capture-recovery",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
-    {
-      "type": "round-3-rr-certified-human-accepted",
-      "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."
-    },
-    {
-      "type": "round-4-lifecycle-certified",
-      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."
-    },
-    {
-      "type": "round-5-longchat-certified",
-      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."
-    },
-    {
-      "type": "round-6-supervisor-plan",
-      "result": "R6-SUPERVISOR-PLAN read the user mobile-shell brief and current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."
-    }
+    {"type": "round-3-rr-certified-human-accepted", "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."},
+    {"type": "round-4-lifecycle-certified", "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW remains deferred locally."},
+    {"type": "round-5-longchat-certified", "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW remains deferred locally and explicit linear/physical-platform limits remain non-certified."},
+    {"type": "round-6-supervisor-plan", "result": "R6-SUPERVISOR-PLAN read the mobile-shell brief/current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."},
+    {"type": "round-6-a1-deterministic-structure-probe", "result": "R6-A1 committed a read-only desktop+narrow host-structure capture oracle and evidence, compared adapter-owned vs generic inference, and selected ChatGPT Blue only as the smallest architecture to test first. Live authenticated DOM capture was unavailable, so exact current action/header/footer signatures and insertion slot remain UNKNOWN. Probe commits 431670c5951cd9790b8f8e430aa2edf4f3958911 and ed0c23ffcb68c2964139eb094db363f9156e36e7; Worker-2 evidence commit 4d094ad761c0d731bcd73c71c58750b0af3b291a; recovery plan commit ee7f74dc8b3591be67261c665f1c9ff74252492e."}
   ],
   "findings": [
-    {
-      "worker": 6,
-      "type": "long-chat-explicit-uncertified-limits",
-      "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."
-    },
-    {
-      "worker": 1,
-      "type": "mobile-shell-current-baseline",
-      "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."
-    },
-    {
-      "worker": 1,
-      "type": "mobile-shell-round6-architecture-dissent",
-      "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."
-    },
-    {
-      "worker": 1,
-      "type": "orchestration-policy-drift",
-      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."
-    }
+    {"worker": 6, "type": "long-chat-explicit-uncertified-limits", "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."},
+    {"worker": 1, "type": "mobile-shell-current-baseline", "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."},
+    {"worker": 1, "type": "mobile-shell-round6-architecture-dissent", "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."},
+    {"worker": 2, "type": "mobile-shell-a1-live-capture-gap", "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT without user permission. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed."},
+    {"worker": 2, "type": "mobile-shell-a1-smallest-candidate", "finding": "Blue composer action-cell is the smallest architecture/mode to test first because composer/editor/Send anchors have the strongest independent adoption convergence and thumb reach is high. It is not authorized for product implementation until A1X confirms the exact current action row and insertion rule with original Send identity preserved."},
+    {"worker": 2, "type": "mobile-shell-a1-strategy-dissent", "finding": "Explicit ChatGPT adapter-owned discovery is provisionally favored over generic global structural inference because errors near Send have asymmetric consequence and hidden/secondary composers are a reproducible failure class. Teal has weaker current header evidence; Red needs an unverified footer stack and carries greater keyboard/scroll reflow complexity."},
+    {"worker": 1, "type": "orchestration-policy-drift", "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B and current state govern execution until DOCS-RECONCILIATION repairs that drift."}
   ],
-  "briefs": [
-    ".gitl/briefs/mobile-shell-concepts.md"
-  ],
+  "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-6.md",
-    ".gitl/evidence/round-6/worker-1.md"
+    ".gitl/evidence/round-6/worker-1.md",
+    ".gitl/evidence/round-6/worker-2.md"
   ],
-  "lease": {
-    "holder": "scheduled-agent-6-r6-a1-successor",
-    "nominalWorker": 6,
-    "executedAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
-    "intendedRole": "researcher-architect",
-    "acquiredAt": "2026-08-07T12:49:01Z",
-    "expiresAt": "2026-08-07T13:34:01Z",
-    "inspectedHead": "branch was one commit ahead of 5888efcdec6f8e4e05cfb93cd23b02b37272b64a; exact parent SHA to be bound from this claim commit",
-    "scope": "Round-6 A1 research, deterministic host-structure probe/fixture, Worker-2 evidence, plan/state handoff only"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "planning-open-research-first",
+    "verdict": "A1-blocked-live-capture-recovery-ready",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
     "supervisorPlanCommit": "7823a11d63b82531cb26f9e344f596c015fb4400",
+    "researchAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "researchStatus": "blocked-on-live-current-structure-capture",
+    "researchEvidence": ".gitl/evidence/round-6/worker-2.md",
+    "researchEvidenceCommit": "4d094ad761c0d731bcd73c71c58750b0af3b291a",
+    "probeCommits": ["431670c5951cd9790b8f8e430aa2edf4f3958911", "ed0c23ffcb68c2964139eb094db363f9156e36e7"],
+    "recoveryPlanCommit": "ee7f74dc8b3591be67261c665f1c9ff74252492e",
     "deferredRound4Review": "DQ-R4-LIFECYCLE-REVIEW",
     "deferredRound5Review": "DQ-R5-LONGCHAT-REVIEW",
-    "nextAssignment": "R6-A1-MOBILE-SHELL-STRUCTURE-MAP",
+    "nextAssignment": "R6-A1X-MOBILE-SHELL-LIVE-STRUCTURE-CAPTURE",
+    "selectedFirstArchitecture": "ChatGPT-only Blue composer action cell via explicit adapter-owned structural contract, contingent on A1X live evidence; exact insertion slot UNKNOWN",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback.",
-    "roundScope": "Research and, only after A1 evidence, one-platform/one-mode experimental structural prototype plus Red-Team/mobile/audit. Full MOBILE-SHELL-STRUCTURAL completion remains blocked on later required cross-adapter expansion and final program audit."
+    "roundScope": "Research/live capture and, only after exact current structure evidence, one-platform/one-mode experimental structural prototype plus Red-Team/mobile/audit. Full MOBILE-SHELL-STRUCTURAL completion remains blocked on later required cross-adapter expansion and final program audit."
   },
   "priorRoundVerification": {
     "round": 5,
@@ -162,11 +135,7 @@
     "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
     "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
     "deferredQuestion": "DQ-R5-LONGCHAT-REVIEW",
-    "limits": [
-      "History-linear grouped assistant query remains.",
-      "Send-observation remains 8004 matches/sample at 2000 turns.",
-      "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."
-    ]
+    "limits": ["History-linear grouped assistant query remains.", "Send-observation remains 8004 matches/sample at 2000 turns.", "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."]
   },
   "priorPriorRoundVerification": {
     "round": 4,
