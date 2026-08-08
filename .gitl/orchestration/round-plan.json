@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round8-docs-supervisor-submitted-a1-ready",
+    "checkpointStatus": "round8-a1-partial-a1x-lossless-changelog-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while required DOCS-RECONCILIATION, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R8 supervisor inventory found concrete README, architecture, changelog, and orchestration-policy drift and opened the smallest docs-only implementation plus independent audit chain. A post-A4 same-payload ordinary run 31251250525 is additionally red only in the preserved Round-5 A2 hosted timing family; carry it alongside green/red/flaky timing evidence without weakening thresholds or calling it a product regression. R8-A1 docs reconciliation now outranks research; publication remains disabled."
+    "checkpointDecision": "R8-A1 delivered README, architecture, orchestration-policy and bounded candidate-evidence documentation, but did not risk a lossy full-file reconstruction of the large historical CHANGELOG through a replacement-only connector. The smallest falsifiable continuation is R8-A1X: a lossless 8.8-section changelog insertion followed by independent docs audit. Research remains ineligible and publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -121,11 +121,17 @@
   "docsReconciliation": {
     "supervisorEvidence": ".gitl/evidence/round-8/worker-1.md",
     "supervisorEvidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6",
+    "implementationEvidence": ".gitl/evidence/round-8/worker-3.md",
+    "implementationEvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
+    "implementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
+    "implementationStatus": "partial-lossless-changelog-recovery-required",
+    "completedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md"],
+    "remainingDoc": "CHANGELOG.md",
     "inventory": [
-      "README stable install link correctly targets main and must remain stable-channel authority; contributor every-push changelog/devlog rule conflicts with coordination-only .gitl commits and needs clarification; current candidate/non-publication and bounded certification limits are not surfaced.",
-      "docs/ARCHITECTURE.md preserves core safety contracts but lacks the accepted structural-mount authority order, build-identity/provenance contract, and current live/physical certification boundaries; older version anchors risk implying stale authority.",
-      "CHANGELOG.md has an 8.8.0 section but does not reconcile later bounded lifecycle, Long-Chat, mobile-shell structural, BUILD-IDENTITY, dependency/timing limitations, or non-publication status.",
-      ".gitl/orchestration/README.md incorrectly says review-after-round is current and continuous mode is future; canonical state is continuous-local-human-gates with automatic succession and timer cadence not ownership."
+      "README stable install link correctly targets main and must remain stable-channel authority; contributor every-push changelog/devlog rule conflicted with coordination-only .gitl commits and has been clarified; current candidate/non-publication and bounded certification limits are now surfaced.",
+      "docs/ARCHITECTURE.md now records the accepted structural-mount authority order, build-identity/provenance contract, and current live/physical certification boundaries.",
+      "CHANGELOG.md still has an 8.8.0 section that must receive the later bounded lifecycle, Long-Chat, mobile-shell structural, BUILD-IDENTITY, dependency/timing limitation, and non-publication note through a lossless bounded edit.",
+      ".gitl/orchestration/README.md now matches continuous-local-human-gates with automatic succession, timer cadence not ownership, local human gates, Delivery-Pressure and no-stall handoff."
     ],
     "claimLimitLedger": [
       "R4 bounded deterministic lifecycle evidence is not physical freeze/discard/device proof.",
@@ -147,10 +153,10 @@
   "dispatch": {
     "nextWake": "earliest eligible wake",
     "nominalWorker": 3,
-    "assignmentId": "R8-A1-DOCS-RECONCILE",
+    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Perform the docs-only reconciliation defined by the Round-8 supervisor evidence. Preserve stable-main install authority, candidate non-publication, every bounded R4/R5/R6/R7 limit, A2 dependency disposition, all hosted timing dissent including run 31251250525, and publishReady=false. Do not change product/generated/dependency/version/channel semantics."
+    "instruction": "Complete only the missing lossless 8.8 CHANGELOG reconciliation. Preserve all historical changelog content, stable-main authority, candidate non-publication, every bounded R4/R5/R6/R7 limit, A2 dependency disposition and hosted timing dissent including run 31251250525. Do not change product/generated/dependency/version/channel semantics."
   },
   "assignments": [
     {
@@ -173,7 +179,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-documentation-reconciler",
-      "status": "ready",
+      "status": "partial-recovery-ready",
       "program": "DOCS-RECONCILIATION",
       "goal": "Reconcile release-facing and maintainer-facing documentation with the accepted bounded 8.8 evidence without changing product behavior or publication state.",
       "dependencies": ["R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN:submitted"],
@@ -182,7 +188,28 @@
       "prohibitedActions": ["product or generated-runtime changes","package/dependency/version changes","changing stable main install/update URLs to the candidate branch","inventing tag/Release/store publication identity","dropping timing/dependency/live/physical limits","weakening Send/CHOICE/route/lease/uncertainty safeguards","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["README retains main as stable install/update authority and clearly distinguishes the isolated 8.8 candidate from publication","README contributor policy no longer falsely requires DEVLOG/CHANGELOG churn for coordination-only .gitl commits while retaining documentation expectations for product/release-facing changes","docs/ARCHITECTURE.md documents current structural authority/fallback and candidate identity contracts without expanding certification scope","CHANGELOG 8.8 reconciles later implemented/certified work while clearly separating implementation from bounded certification and non-publication","orchestration README matches continuous-local-human-gates, automatic succession, timer-cadence-not-ownership and local-human-gate policy","all R4/R5/R6/R7 limits, A2 advisory disposition and timing dissent including run 31251250525 remain visible or linked in release/maintainer documentation","no product/generated/dependency/version/channel semantics change","exact diff and validation evidence recorded"],
       "requiredEvidence": ["exact docs diff","claim-limit checklist","stable/candidate link check","prohibited-file diff check","validation commands or repository inspections","CI observations if produced"],
-      "fallbackWork": "If a documentation claim cannot be reconciled to evidence, narrow or remove the claim and preserve the conflict in evidence. Do not change product behavior, version, channel or tests to make prose easier."
+      "executedBy": "scheduled-worker-2-r8-a1-docs-reconcile-11",
+      "claimCommit": "abe986b7faa891cbc7da6f3aa9ebc4b9e775aa42",
+      "implementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
+      "evidencePath": ".gitl/evidence/round-8/worker-3.md",
+      "evidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
+      "verdict": "partial-readme-architecture-orchestration-release-boundary-complete-changelog-recovery-required",
+      "fallbackWork": "R8-A1X-CHANGELOG-RECONCILE must finish the one unmet CHANGELOG criterion losslessly; do not broaden into product/version/channel/test changes."
+    },
+    {
+      "id": "R8-A1X-CHANGELOG-RECONCILE",
+      "worker": 3,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "builder-documentation-recovery",
+      "status": "ready",
+      "program": "DOCS-RECONCILIATION",
+      "goal": "Complete the one unmet A1 criterion by applying a lossless bounded update to the existing CHANGELOG 8.8 section and preserving all historical changelog content.",
+      "dependencies": ["R8-A1-DOCS-RECONCILE:partial-recovery-ready"],
+      "mandatoryReads": [".gitl/evidence/round-8/worker-3.md","docs/RELEASE-CANDIDATE-8.8.md","CHANGELOG.md",".gitl/evidence/round-8/worker-1.md"],
+      "allowedFiles": ["CHANGELOG.md",".gitl/**"],
+      "prohibitedActions": ["deleting or rewriting historical changelog entries outside the bounded 8.8 insertion","product/generated/test/dependency/version/channel changes","threshold weakening","main/merge/auto-merge/tag/release/publish"],
+      "acceptanceCriteria": ["CHANGELOG 8.8 states that later lifecycle, long-chat, structural-shell and BUILD-IDENTITY work is candidate implementation/certification evidence, not publication","CHANGELOG links or states the bounded R4/R5/R6/R7 limits including live/physical uncertified scope, Long-Chat linear/timing dissent including run 31251250525, and A2 development-tooling advisory disposition","existing historical CHANGELOG content remains intact except for the bounded 8.8 insertion","stable main/channel/version semantics remain unchanged","exact CHANGELOG diff and no-product-file compare evidence are recorded"],
+      "fallbackWork": "If the active connector still cannot make a lossless bounded CHANGELOG edit, preserve the current docs commits, record the carrier limitation, and hand off the same exact recovery to an eligible patch-capable carrier. Do not replace the historical file with an uncertain reconstruction."
     },
     {
       "id": "R8-A2-DOCS-REDTEAM-AUDIT",
@@ -192,7 +219,7 @@
       "status": "backlog",
       "program": "DOCS-RECONCILIATION",
       "goal": "Independently falsify reconciled documentation against exact R4-R7 evidence and repository identity; close DOCS-RECONCILIATION only at bounded documentation-consistency scope.",
-      "dependencies": ["R8-A1-DOCS-RECONCILE:submitted"],
+      "dependencies": ["R8-A1X-CHANGELOG-RECONCILE:submitted"],
       "prohibitedActions": ["accepting unsupported live/physical/stable-publication/exploitability/performance claims","weakening or deleting dissent to make release prose cleaner","product/test/dependency/version/channel changes","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["trace release-facing claims to exact evidence","verify README install remains stable main","verify candidate 8.8 is not described as published","verify physical/live limits remain explicit","verify Long-Chat linear/send-observation and hosted timing variance remain explicit and no threshold is weakened","verify development-tooling advisories are not presented as either shipped exploitable or universally harmless","verify orchestration policy matches canonical succession/local-human-gate mode","verify docs-only diff contains no product/generated/dependency/version/channel mutation","on acceptance expose FINAL-CERT-PACKAGE planning while keeping publishReady=false"],
       "fallbackWork": "If an overclaim or contradiction remains, expose only the smallest docs-only correction and re-audit it. Do not reopen broad research unless no executable correction exists."
@@ -201,13 +228,13 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R8-A1-DOCS-RECONCILE is an executable release-critical documentation artifact and outranks research.",
+    "reason": "R8-A1X-CHANGELOG-RECONCILE is a safe reversible release-critical documentation recovery and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "round8-docs-supervisor-submitted-a1-ready",
+  "roundDecision": "round8-a1-partial-a1x-lossless-changelog-recovery-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
