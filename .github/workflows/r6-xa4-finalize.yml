@@ -1,0 +1,120 @@
+name: Round 6 XA4 Canonical Handoff Finalizer
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa4-finalize-trigger.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-xa4-finalize
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile XA4 PASS, expose XA5, release lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin agent/8.8-repair-resume
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/agent/8.8-repair-resume)"
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const resultPath = '.gitl/evidence/round-6/xa4-carrier-result.md';
+          const evidencePath = '.gitl/evidence/round-6/cross-adapter-mobile-perf.md';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const result = fs.readFileSync(resultPath,'utf8');
+          const evidence = fs.readFileSync(evidencePath,'utf8');
+          const expectedHolder = 'scheduled-worker-6-r6-xa4-mobile-perf-recovery-04';
+          if (!state.lease || state.lease.holder !== expectedHolder || state.lease.assignmentId !== 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF') throw new Error('XA4 recovery lease no longer owned');
+          if (!result.includes('- Result: **PASS**') || !result.includes('- Run: `31236146715`') || !result.includes('- Job: `93048904768`') || !result.includes('- Artifact: `9015459673`')) throw new Error('XA4 durable result mismatch');
+          if (!evidence.includes('submitted-pending-canonical-handoff')) throw new Error('XA4 evidence does not request canonical PASS handoff');
+          const xa4 = plan.assignments.find(a => a.id === 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF');
+          const xa5 = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+          if (!xa4 || xa4.status !== 'ready' || !xa5 || xa5.status !== 'waiting') throw new Error('XA4/XA5 plan status changed');
+
+          xa4.status = 'submitted';
+          xa4.executedBy = 'gha-r6-xa4-31236146715';
+          xa4.testedHead = '6ab649f6510db2be3dfe918a0f31ec99e5ea789e';
+          xa4.runId = 31236146715;
+          xa4.jobId = 93048904768;
+          xa4.artifactId = 9015459673;
+          xa4.artifactDigest = 'sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4';
+          xa4.gateOutcomes = 'deps=0, syntax=0, base=0, lint=0, unit=0, focused=0, browsers=0, matrix=0';
+          xa4.focusAssertionCommit = '4efa599ca4424cd12e1f87e200f46c65a30f9f00';
+          xa4.evidenceCommit = '7a4db31346c68d3a99dd14e18545cb0df778339d';
+          xa4.blockedReason = null;
+          xa5.status = 'ready';
+
+          plan.deliveryPressure.checkpointStatus = 'cross-adapter-mobile-perf-submitted-final-audit-ready';
+          plan.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          plan.deliveryPressure.checkpointDecision = 'XA4 exact hosted cross-adapter mobile/accessibility/performance run 31236146715 passed; advance directly to XA5 final bounded audit.';
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: 6,
+            assignmentId: 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT',
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: 'Perform the final bounded Round-6 mobile-shell audit before BUILD-IDENTITY. Preserve all live/physical claim gates; close only the deterministic/hosted scope actually evidenced.'
+          };
+          plan.roundDecision = 'cross-adapter-mobile-perf-submitted-final-audit-ready-live-claims-pending';
+
+          state.headAtLastHandoff = '7a4db31346c68d3a99dd14e18545cb0df778339d';
+          state.currentStep = 'R6-XA4 cross-adapter hosted mobile/accessibility/performance recovery run 31236146715 passed all exact gates with strengthened post-reflow focus assertions. XA4 is submitted and R6-XA5-MOBILE-SHELL-FINAL-AUDIT is ready. Live ChatGPT/Claude insertion remains UNKNOWN.';
+          state.nextAction = 'Execute R6-XA5-MOBILE-SHELL-FINAL-AUDIT before any research. Audit exact ChatGPT+Claude deterministic/hosted bindings, preserve live/physical limits, and expose BUILD-IDENTITY only if bounded Round-6 requirements are satisfied.';
+          state.automaticDispatch.nominalWorker = 6;
+          state.automaticDispatch.assignmentId = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+          state.researchFallback.temporarilyIneligible = true;
+          state.researchFallback.reason = 'XA5 final bounded mobile-shell audit is executable; research may not compete.';
+          state.deliveryPressure.checkpointStatus = 'cross-adapter-mobile-perf-submitted-final-audit-ready';
+          state.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          state.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          state.deliveryPressure.nextArtifactAssignment = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+          state.deliveryPressure.lastTestableArtifactAt = '2026-08-08T02:58:52.431Z';
+          state.deliveryPressure.lastDeliveryDecision = 'XA4 exact hosted cross-adapter mobile/accessibility/performance run 31236146715 passed; advance directly to XA5 final bounded audit.';
+          state.deliveryPressure.evidence = '.gitl/evidence/round-6/cross-adapter-mobile-perf.md';
+          state.deliveryPressure.evidenceCommit = '7a4db31346c68d3a99dd14e18545cb0df778339d';
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = 'active-cross-adapter-mobile-perf-submitted-final-audit-ready-live-certification-pending';
+          const completedType = 'round-6-xa4-cross-adapter-mobile-perf-pass';
+          if (!state.completedSteps.some(s => s.type === completedType)) state.completedSteps.push({type:completedType,result:'XA4 recovery run 31236146715/job 93048904768/artifact 9015459673 passed deps/syntax/base/lint/unit/focused/browser/matrix gates on tested head 6ab649f6510db2be3dfe918a0f31ec99e5ea789e. Hosted Pixel-class Chromium, 320 CSS px, 200% text, reduced motion, post-reflow focus, orientation/VisualViewport, Firefox correctness, cleanup/resources, clipping demotion, and Chromium 1x/4x/6x invariant stress passed. Live and physical-platform claims remain uncertified.'});
+          const findingType = 'cross-adapter-xa4-hosted-mobile-perf-pass';
+          if (!state.findings.some(f => f.type === findingType)) state.findings.push({worker:6,type:findingType,finding:'ChatGPT+Claude deterministic cross-adapter candidate passed the bounded XA4 hosted mobile/accessibility/resource matrix. Strengthened assertions preserve editor focus after narrow reflow, native-control growth, VisualViewport signal, and orientation changes. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT/Claude insertion remain uncertified.'});
+          for (const p of ['.gitl/evidence/round-6/cross-adapter-mobile-perf.md','.gitl/evidence/round-6/xa4-carrier-result.md','.gitl/evidence/round-6/xa4-handoff-recovery.md']) if (!state.testEvidence.includes(p)) state.testEvidence.push(p);
+          state.lease = null;
+          state.verificationSummary.verdict = 'cross-adapter-mobile-perf-submitted-final-audit-ready-live-certification-pending';
+          state.verificationSummary.nextAssignment = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+          state.verificationSummary.xa4CrossStatus = 'submitted';
+          state.verificationSummary.xa4CrossTestedHead = '6ab649f6510db2be3dfe918a0f31ec99e5ea789e';
+          state.verificationSummary.xa4CrossRun = 31236146715;
+          state.verificationSummary.xa4CrossJob = 93048904768;
+          state.verificationSummary.xa4CrossArtifact = 9015459673;
+          state.verificationSummary.xa4CrossArtifactDigest = 'sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4';
+          state.verificationSummary.xa4CrossGateOutcomes = 'deps=0, syntax=0, base=0, lint=0, unit=0, focused=0, browsers=0, matrix=0';
+          state.verificationSummary.xa4CrossLiveClaims = 'UNKNOWN-NOT-CLAIMED';
+
+          const recovery = `# XA4 Canonical Handoff Recovery\n\n- Assignment: R6-XA4-CROSS-ADAPTER-MOBILE-PERF\n- Prior lease holder: ${expectedHolder}\n- Durable carrier result commit: 7a4db31346c68d3a99dd14e18545cb0df778339d\n- Exact run/job/artifact: 31236146715 / 93048904768 / 9015459673\n- Artifact digest: sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4\n- Result: PASS\n- Recovery basis: final XA4 evidence exists, records finished execution and explicit lease-release request; this handoff changes coordination only.\n- Action: mark XA4 submitted, expose XA5 ready, reconcile state/plan, release lease.\n- Live ChatGPT/Claude insertion remains UNKNOWN; physical Android/WebView/GeckoView/real IME/AT/calibrated hardware remain uncertified.\n`;
+          fs.writeFileSync('.gitl/evidence/round-6/xa4-handoff-recovery.md', recovery);
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2)+'\n');
+          fs.writeFileSync(planPath, JSON.stringify(plan,null,2)+'\n');
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-xa4-finalize.yml .gitl/evidence/round-6/xa4-finalize-trigger.md || true
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json .gitl/evidence/round-6/xa4-handoff-recovery.md
+          git commit -m 'chore(gitl): finalize XA4 handoff and expose XA5'
+          git push origin HEAD:agent/8.8-repair-resume
