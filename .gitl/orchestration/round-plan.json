@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round7-a1-build-identity-oracle-submitted-a2-dependency-audit-ready",
+    "checkpointStatus": "round7-a2-dependency-audit-submitted-a3-redteam-ci-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while required BUILD-IDENTITY delivery, dependency audit, Red Team, documentation, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R7-A1 produced and falsified a repository-native immutable payload identity oracle, bound it to exact ordinary CI on the tested implementation head, and exposed the lockfile-bound dependency audit before research. Preserve all Round-4/Round-5/Round-6 bounded limits and keep publication disabled."
+    "checkpointDecision": "R7-A2 captured exact lockfile-bound evidence: brace-expansion@1.1.15 and js-yaml@3.14.2 are high-severity indirect nodes in the Jest development graph, while npm audit --omit=dev reports zero vulnerabilities and no concrete path into the immutable shipped payload was established. Shipped exploitability remains UNKNOWN / not claimed; no dependency upgrade was performed. R7-A3 Red Team/clean-CI verification now outranks research and publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -69,7 +69,7 @@
       "Exact current live Claude structural insertion remains uncertified.",
       "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, and calibrated low-end-device performance remain uncertified.",
       "The bounded generic-baseline result is not a universal superiority benchmark.",
-      "Two high-severity npm-audit findings remain for release/dependency audit; no blanket upgrade is authorized."
+      "The exact dependency audit found two high-severity development-tooling nodes but no production-omit-dev vulnerabilities or concrete shipped-payload path; shipped exploitability remains UNKNOWN / not claimed and no blanket upgrade is authorized."
     ]
   },
   "identityContract": {
@@ -86,7 +86,12 @@
     "tagObservation": "latest GitHub tags returned through v7.0.0; tags are not current 8.x identity authority",
     "payloadIdentity": "release version plus exact shippable-payload hashes plus exact Git provenance plus exact certification/test bindings plus explicit channel classification",
     "coordinationHeadRule": "A .gitl-only head movement does not by itself define a new shippable payload.",
-    "dependencyAuditRisk": "Two high-severity npm-audit findings remain UNKNOWN as to exact package identity, shipped exploitability, and correct remediation until R7-A2; no blind upgrade.",
+    "dependencyAuditRisk": "R7-A2 exact audit found brace-expansion@1.1.15 and js-yaml@3.14.2 as indirect Jest-development nodes. npm audit --omit=dev reports zero vulnerabilities; no concrete shipped-payload path was established. Shipped exploitability remains UNKNOWN / not claimed. No blind upgrade.",
+    "dependencyAuditEvidence": ".gitl/evidence/round-7/worker-6-dependency-audit.md",
+    "dependencyAuditRawEvidence": ".gitl/evidence/round-7/dependency-audit.json",
+    "dependencyAuditRawEvidenceCommit": "f39efa7dd006dc641551898de00a156a95160eb2",
+    "dependencyAuditRun": 31250069277,
+    "dependencyAuditJob": 93084916423,
     "publishReady": false,
     "oracleEvidencePath": ".gitl/evidence/round-7/worker-3.md",
     "oracleEvidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c",
@@ -97,11 +102,11 @@
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R7-A2-DEPENDENCY-AUDIT",
+    "nominalWorker": 4,
+    "assignmentId": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Audit the exact lockfile-bound high-severity dependency findings and shipped-payload reachability before research. Do not blind-upgrade dependencies, change product behavior without a reproduced release-relevant dependency risk, or alter publication state."
+    "instruction": "Independently falsify the BUILD-IDENTITY oracle and obtain exact ordinary clean-head CI plus identity-oracle execution on the exact candidate. Preserve the A2 dev-tooling-only bounded disposition, do not weaken mutants/assertions, and keep publication disabled."
   },
   "assignments": [
     {
@@ -163,20 +168,29 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "release-dependency-auditor",
-      "status": "ready",
+      "status": "submitted",
       "program": "BUILD-IDENTITY",
       "goal": "Identify and disposition the two recorded high-severity npm audit findings against the exact candidate without guessing exploitability or performing a blanket upgrade.",
       "dependencies": ["R7-A1-BUILD-IDENTITY-ORACLE:submitted"],
       "prohibitedActions": ["severity-only exploitability claims","blind npm audit fix","dependency upgrade without a concrete release-relevant finding and bounded recovery assignment","product behavior changes unrelated to a reproduced dependency risk","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["capture exact npm audit JSON or equivalent lockfile-bound advisory evidence","identify exact affected packages/paths/advisories","classify dev-build-test-only versus shipped payload reachability with evidence","mark shipped exploitability UNKNOWN unless a concrete path is established","if release-relevant create the smallest repair/test assignment; otherwise record evidence-backed non-shipped disposition","preserve product safety assertions and publishReady=false"],
-      "evidencePath": ".gitl/evidence/round-7/worker-6-dependency-audit.md"
+      "evidencePath": ".gitl/evidence/round-7/worker-6-dependency-audit.md",
+      "rawEvidencePath": ".gitl/evidence/round-7/dependency-audit.json",
+      "executedBy": "scheduled-worker-2-r7-a2-dependency-audit-11",
+      "claimCommit": "fc36fc747149a00e14119f517b1b036406d65451",
+      "carrierCommit": "8783de3310ad90e9cc7725dd432931b12f9133a8",
+      "auditRun": 31250069277,
+      "auditJob": 93084916423,
+      "rawEvidenceCommit": "f39efa7dd006dc641551898de00a156a95160eb2",
+      "evidenceCommit": "2d38e10cffb82945292fbe168ce80150172d398e",
+      "verdict": "submitted-non-shipped-dev-tooling-disposition"
     },
     {
       "id": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "backlog",
+      "status": "ready",
       "program": "BUILD-IDENTITY",
       "goal": "Independently falsify the identity oracle and obtain ordinary clean-head CI plus identity-oracle execution on the exact candidate.",
       "dependencies": ["R7-A1-BUILD-IDENTITY-ORACLE:submitted","R7-A2-DEPENDENCY-AUDIT:submitted-or-recovery-complete"],
@@ -201,13 +215,13 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A2-DEPENDENCY-AUDIT is an executable release-critical evidence assignment and outranks research.",
+    "reason": "R7-A3-BUILD-IDENTITY-REDTEAM-CI is an executable release-critical verification assignment and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "a1-build-identity-oracle-submitted-a2-dependency-audit-ready",
+  "roundDecision": "a2-dependency-audit-submitted-a3-redteam-ci-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
