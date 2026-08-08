@@ -38,13 +38,19 @@ function sha256File(absolutePath) {
   return sha256Buffer(fs.readFileSync(absolutePath));
 }
 
+function comparePaths(a, b) {
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
+}
+
 function sortedPayloadPaths() {
-  return [...PAYLOAD_FILES].sort((a, b) => a.localeCompare(b));
+  return [...PAYLOAD_FILES].sort(comparePaths);
 }
 
 function assertExactIdentityPathSet(record) {
   const expected = sortedPayloadPaths();
-  const actual = (record.payload || []).map((entry) => entry.path).sort((a, b) => a.localeCompare(b));
+  const actual = (record.payload || []).map((entry) => entry.path).sort(comparePaths);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail(`Identity payload path set drift: expected ${expected.join(', ')}, found ${actual.join(', ')}`);
   }
@@ -117,11 +123,11 @@ function listFilesRecursive(rootDir) {
     }
   };
   visit(rootDir, '');
-  return out.sort((a, b) => a.localeCompare(b));
+  return out.sort(comparePaths);
 }
 
 function assertExactPackagePathSet(outDir) {
-  const expected = [...sortedPayloadPaths(), ...METADATA_FILES].sort((a, b) => a.localeCompare(b));
+  const expected = [...sortedPayloadPaths(), ...METADATA_FILES].sort(comparePaths);
   const actual = listFilesRecursive(outDir);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     fail(`Staged path set drift: expected ${expected.join(', ')}, found ${actual.join(', ')}`);
@@ -234,6 +240,7 @@ module.exports = {
   METADATA_FILES,
   SCHEMA,
   assertExactPackagePathSet,
+  comparePaths,
   expectedManifest,
   expectedPayloadEntries,
   expectedSums,
