@@ -38,61 +38,66 @@ jobs:
           const { chromium } = require('@playwright/test');
           const playwrightVersion = require('@playwright/test/package.json').version;
 
-          const raw = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8')
-            .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
-          const mock = fs.readFileSync('tests/e2e/mock-chat.html', 'utf8');
-          const gm = `
-            window.__gmStore = { panelCollapsed: false };
-            window.GM_getValue = (k, d) => window.__gmStore[k] !== undefined ? window.__gmStore[k] : d;
-            window.GM_setValue = (k, v) => { window.__gmStore[k] = v; };
-            window.GM_addStyle = css => { const s=document.createElement('style'); s.textContent=css; (document.head||document.documentElement).appendChild(s); };
-            window.GM_setClipboard = () => {};
-            window.GM_notification = () => {};
-            window.open = () => ({ close() {}, focus() {} });
-          `;
+          (async () => {
+            const raw = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8')
+              .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
+            const mock = fs.readFileSync('tests/e2e/mock-chat.html', 'utf8');
+            const gm = `
+              window.__gmStore = { panelCollapsed: false };
+              window.GM_getValue = (k, d) => window.__gmStore[k] !== undefined ? window.__gmStore[k] : d;
+              window.GM_setValue = (k, v) => { window.__gmStore[k] = v; };
+              window.GM_addStyle = css => { const s=document.createElement('style'); s.textContent=css; (document.head||document.documentElement).appendChild(s); };
+              window.GM_setClipboard = () => {};
+              window.GM_notification = () => {};
+              window.open = () => ({ close() {}, focus() {} });
+            `;
 
-          const caps = {
-            browser: 'playwright-firefox',
-            os: 'Windows',
-            os_version: '11',
-            name: 'Ghost 8.8 privacy-safe remote boot smoke',
-            build: `ghost-next-browserstack-${process.env.GITHUB_RUN_ID}`,
-            project: 'Ghost in the Loop next-update verification',
-            'browserstack.username': process.env.BROWSERSTACK_USERNAME,
-            'browserstack.accessKey': process.env.BROWSERSTACK_ACCESS_KEY,
-            'client.playwrightVersion': playwrightVersion,
-            'browserstack.playwrightVersion': playwrightVersion,
-            'browserstack.console': 'errors',
-            'browserstack.networkLogs': 'false',
-            'browserstack.video': 'true'
-          };
+            const caps = {
+              browser: 'playwright-firefox',
+              os: 'Windows',
+              os_version: '11',
+              name: 'Ghost 8.8 privacy-safe remote boot smoke',
+              build: `ghost-next-browserstack-${process.env.GITHUB_RUN_ID}`,
+              project: 'Ghost in the Loop next-update verification',
+              'browserstack.username': process.env.BROWSERSTACK_USERNAME,
+              'browserstack.accessKey': process.env.BROWSERSTACK_ACCESS_KEY,
+              'client.playwrightVersion': playwrightVersion,
+              'browserstack.playwrightVersion': playwrightVersion,
+              'browserstack.console': 'errors',
+              'browserstack.networkLogs': 'false',
+              'browserstack.video': 'true'
+            };
 
-          if (!caps['browserstack.username'] || !caps['browserstack.accessKey']) {
-            throw new Error('BrowserStack GitHub secrets are missing.');
-          }
+            if (!caps['browserstack.username'] || !caps['browserstack.accessKey']) {
+              throw new Error('BrowserStack GitHub secrets are missing.');
+            }
 
-          let browser;
-          try {
-            browser = await chromium.connect({
-              wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`,
-              timeout: 90000
-            });
-            const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
-            const page = await context.newPage();
-            const pageErrors = [];
-            page.on('pageerror', err => pageErrors.push(String(err && (err.stack || err.message || err))));
+            let browser;
+            try {
+              browser = await chromium.connect({
+                wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`,
+                timeout: 90000
+              });
+              const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
+              const page = await context.newPage();
+              const pageErrors = [];
+              page.on('pageerror', err => pageErrors.push(String(err && (err.stack || err.message || err))));
 
-            await page.addInitScript(gm);
-            await page.addInitScript(raw);
-            await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(mock)}`, { waitUntil: 'domcontentloaded' });
-            await page.locator('#gitl').waitFor({ state: 'visible', timeout: 15000 });
-            const beacon = await page.locator('html').getAttribute('data-gitl-boot');
-            if (beacon !== 'ok:8.8.0') throw new Error(`Unexpected Ghost boot beacon: ${beacon}`);
-            if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
+              await page.addInitScript(gm);
+              await page.addInitScript(raw);
+              await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(mock)}`, { waitUntil: 'domcontentloaded' });
+              await page.locator('#gitl').waitFor({ state: 'visible', timeout: 15000 });
+              const beacon = await page.locator('html').getAttribute('data-gitl-boot');
+              if (beacon !== 'ok:8.8.0') throw new Error(`Unexpected Ghost boot beacon: ${beacon}`);
+              if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
 
-            console.log(`BROWSERSTACK_GHOST_BOOT_PASS browser=playwright-firefox os=Windows-11 playwright=${playwrightVersion} beacon=${beacon}`);
-            await context.close();
-          } finally {
-            if (browser) await browser.close();
-          }
+              console.log(`BROWSERSTACK_GHOST_BOOT_PASS browser=playwright-firefox os=Windows-11 playwright=${playwrightVersion} beacon=${beacon}`);
+              await context.close();
+            } finally {
+              if (browser) await browser.close();
+            }
+          })().catch(error => {
+            console.error(error && (error.stack || error.message || error));
+            process.exitCode = 1;
+          });
           NODE
