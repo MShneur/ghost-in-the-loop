@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  browserstack-firefox-send-evidence:
+  browserstack-chromium-send-evidence:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run privacy-safe pre-dispatch evidence semantics on BrowserStack Firefox
+      - name: Run privacy-safe pre-dispatch evidence semantics on BrowserStack Chromium
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
@@ -81,10 +81,10 @@ jobs:
             const pageUrl = `data:text/html,${encodeURIComponent(`<!doctype html><html><body><main><div id="assistant">Prior response.</div><textarea id="composer"></textarea><button id="send" aria-label="Send message">Send</button></main></body></html>`)}`;
 
             const caps = {
-              browser: 'playwright-firefox',
+              browser: 'playwright-chromium',
               os: 'Windows',
               os_version: '11',
-              name: 'Ghost 8.8 BrowserStack pre-dispatch evidence semantics',
+              name: 'Ghost 8.8 BrowserStack pre-dispatch evidence semantics Chromium',
               build: `ghost-next-browserstack-${process.env.GITHUB_RUN_ID}`,
               project: 'Ghost in the Loop next-update verification',
               'browserstack.username': process.env.BROWSERSTACK_USERNAME,
@@ -167,7 +167,7 @@ jobs:
                 await page.close();
               }
 
-              console.log(`BROWSERSTACK_SEND_EVIDENCE_PARITY_PASS browser=playwright-firefox os=Windows-11 playwright=${playwrightVersion}`);
+              console.log(`BROWSERSTACK_SEND_EVIDENCE_PARITY_PASS browser=playwright-chromium os=Windows-11 playwright=${playwrightVersion}`);
               await context.close();
             } finally {
               if (browser) await browser.close();
