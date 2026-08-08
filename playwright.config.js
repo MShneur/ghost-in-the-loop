@@ -39,9 +39,13 @@ const firefoxAvailable = (() => {
   return false;
 })();
 
+const rootLifecycleMobilePerf = /[\\/]tests[\\/]e2e[\\/]lifecycle-mobile-perf\.spec\.js$/;
+const chromiumOnlyLongChatA2 = /[\\/]tests[\\/]e2e[\\/]long-chat-perf-a2\.spec\.js$/;
+
 const projects = [
   {
     name: 'chromium',
+    testIgnore: [rootLifecycleMobilePerf],
     use: {
       ...devices['Desktop Chrome'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
@@ -64,6 +68,7 @@ const projects = [
 if (firefoxAvailable) {
   projects.push({
     name: 'firefox',
+    testIgnore: [rootLifecycleMobilePerf, chromiumOnlyLongChatA2],
     use: {
       ...devices['Desktop Firefox'],
       viewport: { width: 412, height: 915 },

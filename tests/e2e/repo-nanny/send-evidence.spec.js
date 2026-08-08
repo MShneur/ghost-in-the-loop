@@ -123,6 +123,8 @@ test.describe('pre-dispatch composer evidence', () => {
     expect(delivered).toBe(true);
     expect(result.clicks).toBe(1);
     expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+  });
+
   test('a block-normalized multiline contenteditable prompt verifies and dispatches once', async ({ page }) => {
     await boot(page, CONTENTEDITABLE_PAGE);
     await page.evaluate(() => {
@@ -159,7 +161,5 @@ test.describe('pre-dispatch composer evidence', () => {
     expect(delivered).toBe(true);
     expect(result.clicks).toBe(1);
     expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
-  });
-
   });
 });
