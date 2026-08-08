@@ -4,7 +4,7 @@
   "releaseTarget": "8.8.0",
   "mode": "continuous-local-human-gates",
   "round": 9,
-  "status": "active",
+  "status": "complete",
   "program": "FINAL-CERT-PACKAGE",
   "supervisorWorker": 1,
   "schedule": [
@@ -34,13 +34,15 @@
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "BUILD-IDENTITY": "completed-certified-bounded-nonpublished",
-    "DOCS-RECONCILIATION": "completed-certified-bounded-documentation-consistency-nonpublication"
+    "DOCS-RECONCILIATION": "completed-certified-bounded-documentation-consistency-nonpublication",
+    "FINAL-CERT-PACKAGE": "completed-certified-bounded-nonpublished"
   },
   "releaseBoundaries": {
     "candidateBranch": "agent/8.8-repair-resume",
     "stableBranch": "main",
     "publishReady": false,
     "mainMergeTagReleasePublishAuthorized": false,
+    "projectState": "complete-awaiting-publication-authority",
     "liveChatGPTClaudeStructuralInsertion": "UNKNOWN / NOT CERTIFIED",
     "physicalMobilePlatformCertification": "NOT CERTIFIED",
     "dependencyShippedExploitability": "UNKNOWN / NOT CLAIMED",
@@ -50,10 +52,12 @@
     "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
     "payloadPaths": ["ghost-in-the-loop.user.js","extension/manifest.json","extension/content.js","extension/icon-48.png","extension/icon-96.png"],
     "stagingRoot": "test-results/release-candidate",
-    "requiredMetadata": ["SHA256SUMS", "package-manifest.json"],
+    "requiredMetadata": ["SHA256SUMS","package-manifest.json"],
     "packageNature": "exact-byte staged candidate directory uploaded as CI evidence artifact; not a public installer/store format",
-    "determinism": "staged payload bytes, path set, SHA256SUMS and package-manifest.json must be deterministic; no volatile timestamp in immutable package identity",
-    "artifactDigestRole": "GitHub Actions artifact digest is execution/evidence binding, not canonical immutable payload identity"
+    "determinism": "staged payload bytes, path set, SHA256SUMS and package-manifest.json are deterministic; no volatile timestamp is part of immutable package identity",
+    "artifactDigestRole": "GitHub Actions artifact digest is execution/evidence binding, not canonical immutable payload identity",
+    "sha256SumsSha256": "2c17e9eac4cc465cae1b4e74820b91e4f47b6d94f0d0c30290cb76717f31e6a4",
+    "packageManifestSha256": "d7a4a4c707f0c944b89af2d93f9f22596900d79ec20256eb388231e1ed00a89d"
   },
   "assignments": [
     {
@@ -63,12 +67,9 @@
       "intendedRole": "supervisor-integrator",
       "status": "submitted",
       "program": "FINAL-CERT-PACKAGE",
-      "goal": "Open the smallest evidence-backed final certification, package/checksum, and independent final-audit chain without performing publication.",
-      "dependencies": ["R8-A2-DOCS-REDTEAM-AUDIT:accepted"],
       "evidence": ".gitl/evidence/round-9/worker-1.md",
       "evidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
-      "verdict": "package-checksum-chain-ready",
-      "acceptanceCriteria": ["inventory exact final-cert/package/checksum gates and dependency order","bind package planning to immutable 8.8 candidate payload identity and explicit Git/test provenance","carry all R4-R8 claim limits and hosted timing dissent through run 31256501263","keep live/physical certification pending absent qualifying read-only capture","keep development-tooling advisory shipped exploitability UNKNOWN/not claimed absent concrete shipped path","open smallest package implementation/test plus independent final-audit assignments","keep publishReady=false and perform no publication action"]
+      "verdict": "package-checksum-chain-ready"
     },
     {
       "id": "R9-A1-PACKAGE-CHECKSUM-BUILD",
@@ -77,8 +78,6 @@
       "intendedRole": "builder-release-engineer",
       "status": "submitted",
       "program": "FINAL-CERT-PACKAGE",
-      "goal": "Implement the smallest repository-native release-candidate staging/checksum oracle and ordinary-CI package artifact without changing any immutable candidate payload byte.",
-      "dependencies": ["R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN:submitted"],
       "evidence": ".gitl/evidence/round-9/worker-3.md",
       "evidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67",
       "claimCommit": "065c39e5a4814a65b5bc4d74de469145a3f3751b",
@@ -90,20 +89,9 @@
         "unitBaseIdentityPackage": "success",
         "e2eJob": 93104175498,
         "e2e": "success",
-        "e2eArtifact": 9021986223,
-        "e2eArtifactSha256": "c956d0fc49aef8bb496b6e369d514056dfea64316cb92fd797fc8288716a6ade",
         "packageArtifact": 9021943306,
-        "packageArtifactSha256": "10b5f30b568935fa3af4a329f14f032a37c7208e80add250d778c1a1b710cef5",
-        "baseArtifact": 9021943496,
-        "baseArtifactSha256": "6aa7fd4ab435b94f5245f6115aac8d7139ab0709645f258c9db76a2e02fd04b2",
-        "sha256SumsSha256": "2c17e9eac4cc465cae1b4e74820b91e4f47b6d94f0d0c30290cb76717f31e6a4",
-        "packageManifestSha256": "d7a4a4c707f0c944b89af2d93f9f22596900d79ec20256eb388231e1ed00a89d"
-      },
-      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md",".gitl/evidence/round-7/candidate-identity.json","scripts/build-identity.js","scripts/certify-extension.js","package.json",".github/workflows/test.yml",".gitl/user-directives/2026-08-07-release-pressure.md"],
-      "expectedToolingSurface": ["scripts/package-candidate.js","tests/package-candidate.test.js","package.json package:candidate/package:check scripts",".github/workflows/test.yml package generation/check/upload steps",".gitl/evidence/round-9/**",".gitl/autopilot-state.json",".gitl/orchestration/round-plan.json"],
-      "prohibitedActions": ["modifying any of the five immutable candidate payload bytes","adding or upgrading npm dependencies solely for packaging","changing stable-main install/update authority","weakening Send/CHOICE/route/lease/uncertainty/structural safeguards","weakening accepted Round-5 timing thresholds","main/merge/auto-merge/tag/Release/store/publish"],
-      "acceptanceCriteria": ["stage exactly the five BUILD-IDENTITY payload paths with no extras or omissions","emit deterministic path-sorted SHA256SUMS and deterministic package-manifest.json with release target, bytes, hashes, identity reference, candidate/stable classification and publishReady=false","fail visibly on version drift, generated-content drift, source/staged hash drift, missing/extra payload path, channel confusion, or publication-state drift","npm run cert:base and npm run identity:oracle remain PASS on the implementation head","focused package-oracle tests PASS and prove mutant sensitivity","ordinary CI uploads test-results/release-candidate as a named evidence artifact and records exact run/job/artifact/digest","compare from assignment claim through implementation shows no immutable payload, dependency, version, or stable-channel mutation"],
-      "fallbackWork": "If ordinary CI cannot safely upload the staged directory, still produce and test the deterministic local staging/checksum oracle first, record the exact carrier limitation, and expose only the smallest CI-artifact recovery. Do not broaden into research or public distribution packaging."
+        "packageArtifactSha256": "10b5f30b568935fa3af4a329f14f032a37c7208e80add250d778c1a1b710cef5"
+      }
     },
     {
       "id": "R9-A2-PACKAGE-REDTEAM-CI",
@@ -112,8 +100,6 @@
       "intendedRole": "independent-test-engineer-red-team",
       "status": "submitted",
       "program": "FINAL-CERT-PACKAGE",
-      "goal": "Independently falsify the staged package/checksum oracle and bind exact package artifact plus ordinary CI evidence to the immutable candidate identity.",
-      "dependencies": ["R9-A1-PACKAGE-CHECKSUM-BUILD:submitted"],
       "evidence": ".gitl/evidence/round-9/worker-4.md",
       "evidenceCommit": "4e24d32122e3d83c39a6a735422ffed5448861a0",
       "claimCommit": "ae4f34e8b0e2da0a9e29566d0321eccb8897a07e",
@@ -125,8 +111,6 @@
         "a2PackageArtifact": 9022040766,
         "a2PackageArtifactSha256": "bcf2a78cea3a84a323ed0dd0c8a7e0ab7323a056607a36c9dcc0b0b400cea22c",
         "extractedA1A2PackageDirectories": "byte-identical",
-        "sha256SumsSha256": "2c17e9eac4cc465cae1b4e74820b91e4f47b6d94f0d0c30290cb76717f31e6a4",
-        "packageManifestSha256": "d7a4a4c707f0c944b89af2d93f9f22596900d79ec20256eb388231e1ed00a89d",
         "mutants": "missing-file, extra-file, staged-byte/hash, version, channel-confusion, publishReady, checksum-metadata, manifest-payload-hash all killed"
       },
       "ci": {
@@ -138,37 +122,75 @@
         "e2eExpected": 220,
         "e2eSkipped": 10,
         "e2eUnexpected": 1,
-        "e2eArtifact": 9022080144,
-        "e2eArtifactSha256": "867850dde9c62ec50b12dfa2929f8f34ceaab775e95c7c27508f76072edf4cd6",
         "packageArtifact": 9022040766,
-        "packageArtifactSha256": "bcf2a78cea3a84a323ed0dd0c8a7e0ab7323a056607a36c9dcc0b0b400cea22c",
-        "baseArtifact": 9022040956,
-        "baseArtifactSha256": "894e2d9f471c6d8383d36fb5f986cd91f0bd5fc29c7f189c1f02cb77314f595e",
-        "timingFailure": "Round-5 A2 grouped-selector oracle only: first small p95 0.8999999999941792 ms > 0.875 ms; retry large p95 2.3000000000029104 ms not < 2.3 ms; thresholds unchanged"
-      },
-      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md","R9-A1 evidence selected by canonical state",".gitl/evidence/round-7/candidate-identity.json",".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-8/worker-6.md"],
-      "prohibitedActions": ["weakening package or identity assertions to make CI green","weakening accepted Round-5 timing thresholds","classifying timing-only variance as universal product failure without semantic evidence","ignoring any non-timing Send/CHOICE/route/lease/uncertainty/structural/product failure","main/merge/auto-merge/tag/Release/store/publish"],
-      "acceptanceCriteria": ["kill missing-file, extra-file, staged-byte/hash, version/channel and publishReady mutants","download or independently inspect the exact CI package artifact and verify its staged payload hashes/SHA256SUMS back to candidate-identity.json","bind exact run, jobs, artifact IDs and SHA-256 digests; do not rely on run ID alone","ordinary unit/base/identity/package gates pass on the exact tested head","full E2E result is retained exactly; timing-only red/green variance is classified without threshold weakening, while any non-timing safety/product failure blocks progression","no immutable payload, dependency, version, stable-channel, or publication mutation occurred"]
+        "packageArtifactSha256": "bcf2a78cea3a84a323ed0dd0c8a7e0ab7323a056607a36c9dcc0b0b400cea22c"
+      }
     },
     {
       "id": "R9-A3-FINAL-CERT-PACKAGE-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "ready",
+      "status": "accepted",
       "program": "FINAL-CERT-PACKAGE",
-      "goal": "Independently decide whether the isolated 8.8.0 candidate has a complete bounded non-published final-cert package with exact checksum/provenance/test evidence.",
       "dependencies": ["R9-A2-PACKAGE-REDTEAM-CI:submitted"],
-      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md","R9-A1 evidence selected by canonical state","R9-A2 evidence selected by canonical state",".gitl/evidence/round-7/candidate-identity.json",".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-8/worker-6.md","docs/RELEASE-CANDIDATE-8.8.md"],
-      "prohibitedActions": ["main/merge/auto-merge/tag/Release/store/publish","setting publishReady=true without separate publication authority","promoting exact live ChatGPT/Claude or physical-platform claims without qualifying evidence","weakening Send/CHOICE/route/lease/uncertainty/structural safeguards or Round-5 timing thresholds","rewriting dependency disposition as universally harmless/non-exploitable"],
-      "acceptanceCriteria": ["staged package contains exactly the five immutable certified payload bytes and deterministic checksum/manifest metadata","exact package artifact digest, source identity, Git/test provenance and CI evidence are internally consistent","R4-R8 bounded claim limits and full hosted timing red/green ledger including runs 31256501263 and 31258314731 remain explicit","development-tooling advisories retain bounded non-shipped disposition and shipped exploitability UNKNOWN/not claimed","stable main remains separate and candidate remains non-published","all fail-closed safety invariants remain unchanged","on acceptance mark FINAL-CERT-PACKAGE completed-certified-bounded-nonpublished and project complete-awaiting-publication-authority while preserving publishReady=false","on any contradiction expose only the smallest evidence-linked recovery"],
-      "onAcceptance": {"programStatus":"completed-certified-bounded-nonpublished","projectStatus":"complete-awaiting-publication-authority","publishReady":false,"finalMarker":"[[GITL::HALT]]","haltReason":"All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."}
+      "evidence": ".gitl/evidence/round-9/worker-6.md",
+      "evidenceCommit": "a6b1da829803a8198ca351dfada528fe8cdc2a23",
+      "claimCommit": "12527acdfe4044378eba635528ee25ce17102626",
+      "auditedPreClaimHead": "fb27c0e3ad752094681c9bf580103895d269ad32",
+      "verdict": "accepted-bounded-nonpublished-final-cert-package",
+      "acceptance": {
+        "exactFivePayloadBytes": "pass",
+        "deterministicChecksumManifest": "pass",
+        "packageIdentityProvenanceCiConsistency": "pass",
+        "r4ToR8LimitsPreserved": "pass",
+        "hostedTimingRedGreenLedgerPreserved": "pass",
+        "dependencyDispositionPreserved": "pass",
+        "stableMainSeparate": "pass",
+        "failClosedSafeguardsUnchanged": "pass",
+        "publishReady": false,
+        "livePhysicalClaimsPromoted": false,
+        "publicationAction": "none"
+      },
+      "latestPreAuditCi": {
+        "run": 31258662956,
+        "head": "fb27c0e3ad752094681c9bf580103895d269ad32",
+        "unitBaseIdentityPackageJob": 93105932829,
+        "unitBaseIdentityPackage": "success",
+        "e2eJob": 93105932848,
+        "e2e": "success",
+        "packageArtifact": 9022132642,
+        "packageArtifactSha256": "24ba12ff3ee1d529ed377eb1ea5e5e63aa48210a7f225433c8dee39216e95d9e",
+        "e2eArtifact": 9022168334,
+        "e2eArtifactSha256": "cd9181901b29866b929b2bd3f8aa03b1ac9a293ecdda120edd616588f37373fd"
+      },
+      "onAcceptance": {
+        "programStatus": "completed-certified-bounded-nonpublished",
+        "projectStatus": "complete-awaiting-publication-authority",
+        "publishReady": false,
+        "finalMarker": "[[GITL::HALT]]",
+        "haltReason": "All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."
+      }
     }
   ],
-  "researchFallback": {"enabled":true,"temporarilyIneligible":true,"reason":"R9-A3-FINAL-CERT-PACKAGE-AUDIT is now dependency-ready and outranks research under maker v1.1 Delivery-Pressure.","onlyWhenNoExecutableAssignment":true,"diminishingReturnsRule":"Do not reopen broad research while A3 or an evidence-linked recovery is executable."},
-  "nextAssignment": "R9-A3-FINAL-CERT-PACKAGE-AUDIT",
-  "historyReference": {"preSupervisorPlanCommit":"89cc94df8908c3c544c4bb7b6e4647692d7c74aa","supervisorEvidence":".gitl/evidence/round-9/worker-1.md","a1Evidence":".gitl/evidence/round-9/worker-3.md","a2Evidence":".gitl/evidence/round-9/worker-4.md","a2EvidenceCommit":"4e24d32122e3d83c39a6a735422ffed5448861a0","note":"Prior round assignment history remains immutable in Git and per-round evidence. This plan is intentionally compact and release-path focused."},
+  "researchFallback": {
+    "enabled": false,
+    "temporarilyIneligible": true,
+    "reason": "Authorized 8.8 release-candidate work is complete. Do not reopen broad research inside the frozen candidate; publication is a separate explicit gate.",
+    "onlyWhenNoExecutableAssignment": true
+  },
+  "nextAssignment": null,
+  "historyReference": {
+    "preSupervisorPlanCommit": "89cc94df8908c3c544c4bb7b6e4647692d7c74aa",
+    "supervisorEvidence": ".gitl/evidence/round-9/worker-1.md",
+    "a1Evidence": ".gitl/evidence/round-9/worker-3.md",
+    "a2Evidence": ".gitl/evidence/round-9/worker-4.md",
+    "a3Evidence": ".gitl/evidence/round-9/worker-6.md",
+    "note": "Prior round assignment history remains immutable in Git and per-round evidence. This plan is intentionally compact and release-path focused."
+  },
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate-publication-still-explicit",
   "publishReadyRequiresAllRequiredPrograms": true,
-  "publishReady": false
+  "publishReady": false,
+  "finalMarker": "[[GITL::HALT]]",
+  "haltReason": "All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."
 }
