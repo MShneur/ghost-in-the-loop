@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round7-a2-dependency-audit-submitted-a3-redteam-ci-ready",
+    "checkpointStatus": "round7-a3-redteam-submitted-a4-final-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Research remains lower priority while required BUILD-IDENTITY delivery, dependency audit, Red Team, documentation, certification, packaging, or release-evidence work is executable.",
+    "reenableCondition": "Research remains lower priority while required BUILD-IDENTITY final audit, documentation, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R7-A2 captured exact lockfile-bound evidence: brace-expansion@1.1.15 and js-yaml@3.14.2 are high-severity indirect nodes in the Jest development graph, while npm audit --omit=dev reports zero vulnerabilities and no concrete path into the immutable shipped payload was established. Shipped exploitability remains UNKNOWN / not claimed; no dependency upgrade was performed. R7-A3 Red Team/clean-CI verification now outranks research and publication remains disabled."
+    "checkpointDecision": "R7-A3 independently killed all four required BUILD-IDENTITY mutant families and exact ordinary CI passed on head 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02. The immediately preceding same-payload run 31250247148 failed the preserved Round-5 hosted timing oracle on attempt 1 and passed on attempt 2, so hosted sub-millisecond timing reproducibility remains an explicit release-evidence risk rather than a product regression or grounds to weaken the accepted threshold. R7-A4 final audit now outranks research; publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -98,15 +98,21 @@
     "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
     "testedImplementationHead": "ee7d79a286193de699e3dc049182492a6dbd5b1d",
     "ordinaryCiRun": 31249049293,
-    "ordinaryCiConclusion": "success"
+    "ordinaryCiConclusion": "success",
+    "redTeamEvidencePath": ".gitl/evidence/round-7/worker-4.md",
+    "redTeamEvidenceCommit": "103085ad45455d76a9a6c6144790137342fe6268",
+    "redTeamTestedHead": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
+    "redTeamOrdinaryCiRun": 31250442852,
+    "redTeamOrdinaryCiConclusion": "success",
+    "timingVarianceObservation": "Immediate predecessor run 31250247148 failed only the preserved Round-5 A2 timing oracle on attempt 1 and passed on attempt 2 at the same exact predecessor head; A3 exact-head run passed. Treat as hosted timing reproducibility risk, not a product regression and not permission to loosen the threshold."
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
+    "nominalWorker": 6,
+    "assignmentId": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Independently falsify the BUILD-IDENTITY oracle and obtain exact ordinary clean-head CI plus identity-oracle execution on the exact candidate. Preserve the A2 dev-tooling-only bounded disposition, do not weaken mutants/assertions, and keep publication disabled."
+    "instruction": "Independently audit the immutable payload/provenance/test binding, A2 dependency disposition, all required mutant sensitivity, exact A3 CI evidence, and the contradictory hosted timing observations from run 31250247148 attempt 1 versus attempt 2/A3 run 31250442852. Do not discard the red attempt, weaken Round-5 timing thresholds, promote live/physical claims, or change publication state. Close BUILD-IDENTITY only at supported bounded scope; otherwise expose only the smallest evidence-linked recovery."
   },
   "assignments": [
     {
@@ -190,38 +196,55 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "ready",
+      "status": "submitted",
       "program": "BUILD-IDENTITY",
       "goal": "Independently falsify the identity oracle and obtain ordinary clean-head CI plus identity-oracle execution on the exact candidate.",
       "dependencies": ["R7-A1-BUILD-IDENTITY-ORACLE:submitted","R7-A2-DEPENDENCY-AUDIT:submitted-or-recovery-complete"],
       "prohibitedActions": ["weakening identity mutants or product assertions to make CI green","product behavior changes without a concrete reproduced failure","version/channel changes","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["version-drift mutant killed","generated-content mutant killed","payload-hash mutant killed","channel-confusion mutant killed","ordinary clean-head CI passes on the exact candidate","identity oracle passes on the exact candidate","failed mutant repairs the oracle rather than weakening the safeguard","record exact head/run/job/artifact/log conclusions"],
-      "evidencePath": ".gitl/evidence/round-7/worker-4.md"
+      "evidencePath": ".gitl/evidence/round-7/worker-4.md",
+      "executedBy": "scheduled-worker-3-r7-a3-redteam-ci-04",
+      "claimCommit": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
+      "testedHead": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
+      "evidenceCommit": "103085ad45455d76a9a6c6144790137342fe6268",
+      "ordinaryCiRun": 31250442852,
+      "ordinaryUnitJob": 93085873656,
+      "ordinaryE2eJob": 93085873700,
+      "baseArtifact": 9019830371,
+      "baseArtifactSha256": "2e66ce5895620acfeffa81e5a1dd055189fe576b100f6d8e9743a85d8507a902",
+      "e2eArtifact": 9019874811,
+      "e2eArtifactSha256": "5b9c825c7342533185189193ace814fa7181e2b74453875996cfde1fe97e1789",
+      "mutantResult": "PASS: version/generated-content/payload-hash/channel-confusion mutants killed",
+      "identityOracleResult": "PASS (head-moved-payload-identical)",
+      "ordinaryResult": "success; unit 44/44 suites, 483 passed, 3 todo; focused identity/version 15/15; E2E 221 passed, 10 skipped, 0 failed",
+      "timingVarianceDissent": "Predecessor run 31250247148 attempt 1 failed only the preserved Round-5 A2 timing oracle and attempt 2 passed on the same exact predecessor head. A3 run 31250442852 passed without threshold changes. Carry to A4 as hosted timing reproducibility risk, not product regression.",
+      "verdict": "submitted-redteam-mutants-pass-exact-head-ordinary-ci-green-with-timing-variance-dissent"
     },
     {
       "id": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "backlog",
+      "status": "ready",
       "program": "BUILD-IDENTITY",
       "goal": "Independently audit candidate identity, hashes/provenance, dependency disposition, Red-Team sensitivity, and clean CI; close BUILD-IDENTITY only at the evidence actually obtained.",
       "dependencies": ["R7-A2-DEPENDENCY-AUDIT:submitted","R7-A3-BUILD-IDENTITY-REDTEAM-CI:submitted"],
-      "prohibitedActions": ["inventing publication or store identity","promoting candidate status to stable publication","dropping dependency findings","weakening prior bounded certification limits","main/merge/auto-merge/tag/release/publish"],
-      "acceptanceCriteria": ["identity record is unambiguous and reproducible","payload hashes and provenance match exact tested candidate","dependency findings are remediated with evidence or explicitly evidenced as absent from shipped payload","Red-Team mutants demonstrate oracle sensitivity","ordinary clean-head CI is green","publishReady remains false","on acceptance expose DOCS-RECONCILIATION and do not skip to publication or final release"],
+      "mandatoryReads": [".gitl/evidence/round-7/worker-1.md",".gitl/evidence/round-7/worker-3.md",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-7/worker-4.md",".gitl/evidence/round-7/candidate-identity.json"],
+      "prohibitedActions": ["inventing publication or store identity","promoting candidate status to stable publication","dropping dependency findings","dropping the predecessor timing-failure evidence","weakening the preserved Round-5 timing oracle","weakening prior bounded certification limits","main/merge/auto-merge/tag/release/publish"],
+      "acceptanceCriteria": ["identity record is unambiguous and reproducible","payload hashes and provenance match exact tested candidate","dependency findings are remediated with evidence or explicitly evidenced as absent from shipped payload","Red-Team mutants demonstrate oracle sensitivity","ordinary clean-head CI is green","predecessor timing failure and same-head retry/A3 pass are explicitly reconciled without post-hoc threshold weakening","publishReady remains false","on acceptance expose DOCS-RECONCILIATION and do not skip to publication or final release"],
       "evidencePath": ".gitl/evidence/round-7/worker-6-final-audit.md"
     }
   ],
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A3-BUILD-IDENTITY-REDTEAM-CI is an executable release-critical verification assignment and outranks research.",
+    "reason": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT is an executable release-critical audit and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "a2-dependency-audit-submitted-a3-redteam-ci-ready",
+  "roundDecision": "a3-redteam-submitted-a4-final-audit-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
