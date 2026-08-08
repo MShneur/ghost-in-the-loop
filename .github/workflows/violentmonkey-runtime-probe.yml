@@ -1,0 +1,84 @@
+name: Violentmonkey runtime probe
+
+on:
+  push:
+    branches:
+      - test/violentmonkey-runtime-probe
+
+permissions:
+  contents: read
+
+jobs:
+  verify-violentmonkey-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout Ghost test branch
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install Ghost test dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build pinned Violentmonkey
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/violentmonkey/violentmonkey.git /tmp/violentmonkey
+          cd /tmp/violentmonkey
+          git checkout --detach 1f882e04dd0881e1ce4eea632f341dc16f943635
+          corepack enable
+          corepack prepare pnpm@11.20.0 --activate
+          pnpm install --frozen-lockfile
+          pnpm build
+          test -f dist/manifest.json
+          echo "VIOLENTMONKEY_BUILD_PASS commit=$(git rev-parse HEAD)"
+
+      - name: Launch real Violentmonkey in Playwright Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const path = require('path');
+          const { chromium } = require('@playwright/test');
+
+          (async () => {
+            const extensionPath = '/tmp/violentmonkey/dist';
+            const context = await chromium.launchPersistentContext('', {
+              channel: 'chromium',
+              headless: true,
+              args: [
+                `--disable-extensions-except=${extensionPath}`,
+                `--load-extension=${extensionPath}`,
+              ],
+            });
+
+            let [serviceWorker] = context.serviceWorkers();
+            if (!serviceWorker) {
+              serviceWorker = await context.waitForEvent('serviceworker', { timeout: 30000 });
+            }
+            const workerUrl = serviceWorker.url();
+            const extensionId = new URL(workerUrl).host;
+            if (!extensionId) throw new Error(`Violentmonkey service worker has no extension id: ${workerUrl}`);
+
+            const page = await context.newPage();
+            await page.goto(`chrome-extension://${extensionId}/options/index.html`, { waitUntil: 'domcontentloaded' });
+            if (!page.url().startsWith(`chrome-extension://${extensionId}/`)) {
+              throw new Error(`Could not open Violentmonkey extension page: ${page.url()}`);
+            }
+
+            console.log(`VIOLENTMONKEY_RUNTIME_PASS extensionId=${extensionId} worker=${workerUrl}`);
+            await context.close();
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
