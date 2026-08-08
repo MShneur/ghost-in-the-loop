@@ -29,7 +29,7 @@
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "9ee042cae828e83d6123a78acc7319fcdef67407",
   "currentStep": "R6-XA5Y claimed to repair only the three XA5X-classified ordinary-E2E test routing/structure faults. Product source and existing safety/performance thresholds remain out of scope.",
-  "nextAction": "Apply only the two Playwright project-routing corrections and the Repo-Nanny top-level test-structure correction, then hand off exact clean-head CI verification.",
+  "nextAction": "Apply only the two Playwright project-routing corrections and the Repo-Nanny top-level test-structure correction; then hand off temporary-carrier cleanup before clean-head CI verification.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -459,14 +459,14 @@
     ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md"
   ],
   "lease": {
-    "holder": "gha-r6-xa5y-31240071999",
+    "holder": "gha-r6-xa5y-31242416590",
     "assignmentId": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
     "nominalWorker": 5,
     "executedRole": "successor-test-engineer-ci-repair-with-mobile-browser-lens",
-    "acquiredAt": "2026-08-08T04:42:51Z",
-    "expiresAt": "2026-08-08T05:27:51Z",
-    "inspectedHead": "876c7f3b93238a14507fad5628b1e0b49ee223ee",
-    "activeWorkCheck": "Recovered stale same-assignment lease (scheduled-worker-3-r6-xa5y-e2e-recovery-04 expired 2026-08-08T04:22:30Z) after branch remained stable and no connected workflow/status activity was observed; carrier first semantic mutation is this canonical lease claim."
+    "acquiredAt": "2026-08-08T05:46:06Z",
+    "expiresAt": "2026-08-08T06:31:06Z",
+    "inspectedHead": "425635835a4a240cbacc60abf0372e6676439829",
+    "activeWorkCheck": "Recovered stale same-assignment lease (gha-r6-xa5y-31240071999 expired 2026-08-08T05:27:51Z) after branch remained stable and the prior XA5Y workflow run was completed/failed; carrier first semantic mutation is this canonical lease claim."
   },
   "blockedReason": null,
   "publishReady": false,
