@@ -77,7 +77,7 @@ NODE
   npm run test:unit -- --runInBand 2>&1 | tee test-results/xa2x-carrier/unit.log; UNIT=${PIPESTATUS[0]}
   npx jest tests/sendtransaction.test.js tests/choice-state.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand 2>&1 | tee test-results/xa2x-carrier/focused-safety.log; FOCUSED=${PIPESTATUS[0]}
   npx playwright install --with-deps chromium firefox 2>&1 | tee test-results/xa2x-carrier/browser-install.log; BROWSERS=${PIPESTATUS[0]}
-  npx playwright test tests/e2e/claude-blue-prototype.spec.js --project=chromium --project=firefox 2>&1 | tee test-results/xa2x-carrier/claude-blue-playwright.log; BLUE=${PIPESTATUS[0]}
+  npx playwright test tests/e2e/claude-blue-prototype.spec.js --project=chromium --project=firefox --output=test-results/xa2x-playwright 2>&1 | tee test-results/xa2x-carrier/claude-blue-playwright.log; BLUE=${PIPESTATUS[0]}
   set -e
 
   node - <<NODE
