@@ -209,7 +209,7 @@ async function assertClaudeSemanticAndSafety(page, baselineEvents) {
   expect(g.railConnected).toBe(true);
   await expect(page.locator(CLAUDE_MOUNT).getByRole('button', { name:'Toggle Ghost' })).toHaveCount(1);
   await expect(page.locator(CLAUDE_MOUNT).getByRole('button', { name:'Open Ghost menu' })).toHaveCount(1);
-  await expect(page.getByRole('button', { name:'Send Message', exact:true }).filter({ visible: true })).toHaveCount(1);
+  await expect(page.locator('form[data-claude-composer="active"]').getByRole('button', { name:'Send Message', exact:true })).toHaveCount(1);
   const aria = await page.locator(CLAUDE_MOUNT).ariaSnapshot();
   expect(aria).toContain('button "Toggle Ghost"');
   expect(aria).toContain('button "Open Ghost menu"');
