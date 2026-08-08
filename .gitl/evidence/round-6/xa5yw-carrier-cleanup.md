@@ -23,20 +23,20 @@ This assignment removes only temporary XA5Y execution-carrier residue after XA5Y
 
 1. Removed only the marked `XA5Y_REGISTERED` block from `.github/workflows/test.yml` at commit `057ab1311e4ad69a7637c258ff09bcea1fa705d1`.
 2. Deleted `.github/workflows/r6-xa5y-recovery.yml` at commit `fe580e3b562ac9dd3d389e0a87f559622a34c50b`.
-3. Recorded this cleanup evidence before deleting the temporary XA5Y trigger note, as required by the assignment.
+3. Recorded cleanup evidence before deleting the temporary XA5Y trigger note, then deleted `.gitl/evidence/round-6/xa5y-recovery-trigger.md` at commit `0e2def16d903c3bc34a45ef7628be4672689791e`.
 4. Verified `.github/xa2x-run.sh` remains absent. The cleaned ordinary workflow contains only the normal `unit` and `e2e` jobs; no `xa2x` or `XA5Y_REGISTERED` job is retained.
 
 No product source or test assertion was changed. The already-committed XA5Y Playwright routing and Repo-Nanny declaration repair were not edited by this assignment.
 
 ## Tests and CI
-- Exact workflow-diff scope: PASS by connector-level file replacement/deletion restricted to the two authorized XA5Y workflow surfaces.
+- Exact workflow-diff scope: PASS by connector-level file replacement/deletion restricted to the authorized XA5Y workflow/trigger surfaces.
 - Stale XA2X runner absence: PASS (`.github/xa2x-run.sh` returns not found; cleaned `test.yml` contains no XA2X job).
 - Ordinary clean-head CI: NOT YET CERTIFIED. Push-triggered runs created during coordination cleanup are not accepted as the final clean-head gate until the complete XA5YW handoff is committed and an exact-head run/job/artifact binding is verified by the successor.
 
 ## Acceptance Criteria
 - Delete standalone XA5Y workflow: PASS — `fe580e3b562ac9dd3d389e0a87f559622a34c50b`.
 - Remove only `XA5Y_REGISTERED` block from `test.yml`: PASS — `057ab1311e4ad69a7637c258ff09bcea1fa705d1`.
-- Delete XA5Y trigger note after recording cleanup evidence: IN PROGRESS at first evidence write; final evidence update records the deletion commit.
+- Delete XA5Y trigger note after recording cleanup evidence: PASS — evidence was committed first at `57418952aabc1ecf6e805d293ed1996f0379ef26`; trigger deletion followed at `0e2def16d903c3bc34a45ef7628be4672689791e`.
 - Confirm XA2X workflow/runner residue stays absent: PASS.
 - Hand off exact ordinary clean-head CI verification: PENDING canonical plan/state handoff; no CI PASS is inferred here.
 
@@ -57,7 +57,7 @@ No product source or test assertion was changed. The already-committed XA5Y Play
 - The known high-severity dependency-audit findings remain a later release/dependency-audit risk; this cleanup does not alter dependencies.
 
 ## Recommended Next Action
-After the trigger note is deleted and canonical state/plan are reconciled, execute `R6-XA5YZ-ORDINARY-CI-VERIFY`: bind ordinary `Ghost in the Loop — CI` to the exact final clean head, verify unit/base and full E2E jobs plus artifacts/logs, then retry the bounded final Round-6 audit on green or create only the smallest residual recovery on red.
+After canonical state/plan are reconciled, execute `R6-XA5YZ-ORDINARY-CI-VERIFY`: bind ordinary `Ghost in the Loop — CI` to the exact final clean handoff head, verify unit/base and full E2E jobs plus artifacts/logs, then retry the bounded final Round-6 audit on green or create only the smallest residual recovery on red.
 
 ## Assignment Status
-- `R6-XA5YW-CARRIER-CLEANUP`: cleanup files removed; final coordination handoff pending.
+- `R6-XA5YW-CARRIER-CLEANUP`: cleanup complete; final coordination handoff pending.
