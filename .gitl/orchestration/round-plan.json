@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "final-audit-submitted-ci-hygiene-recovery-ready",
+    "checkpointStatus": "ci-hygiene-cleanup-complete-e2e-test-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Research remains lower priority while R6-XA2X through the cross-adapter build/test/audit sequence contains dependency-ready work.",
+    "reenableCondition": "Research remains lower priority while XA5Y ordinary-E2E test recovery is dependency-ready.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket deterministic prototype-development gate",
-    "checkpointDecision": "XA5 accepts the deterministic/hosted cross-adapter candidate only at bounded scope but rejects Round-6 closure until stale XA2X carrier residue is removed and ordinary clean-head CI is green or a reproduced failure is explicitly recovered."
+    "checkpointDecision": "XA5X removed stale XA2X CI residue and proved ordinary unit/base green, but full ordinary E2E reproduced three bounded test-routing/structure failure classes. Execute XA5Y test-only recovery before Round-6 closure or BUILD-IDENTITY."
   },
   "requiredPrograms": [
     {
@@ -209,11 +209,11 @@
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 1,
-    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
+    "nominalWorker": 4,
+    "assignmentId": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Perform the smallest CI-hygiene recovery first: remove stale XA2X workflow residue, run ordinary clean-head CI, preserve every safety assertion, and create a smaller recovery from any reproduced failure. Do not research."
+    "instruction": "Repair the three exact test-only failures classified by XA5X, preserve all original safety/performance assertions, rerun ordinary clean-head CI, and do not research."
   },
   "assignments": [
     {
@@ -1142,7 +1142,7 @@
       "worker": 1,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "ci-hygiene-test-verifier",
-      "status": "ready",
+      "status": "blocked",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Remove residual temporary XA2X CI machinery and obtain ordinary clean-head CI on the isolated branch before Round-6 closure, classifying any reproduced failure without weakening safety semantics.",
       "dependencies": [
@@ -1178,10 +1178,78 @@
         "exact GitHub Actions clean-head bindings"
       ],
       "fallbackWork": "A remaining ordinary-CI failure creates the smallest evidence-linked recovery; research does not outrank this executable hygiene/test path.",
-      "evidencePath": ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md"
+      "evidencePath": ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
+      "executedBy": "scheduled-worker-3-r6-xa5x-ci-hygiene-04",
+      "cleanupCommit": "53f49b2e7302317aa5bda9623cc2447a9b86659e",
+      "testedHead": "53f49b2e7302317aa5bda9623cc2447a9b86659e",
+      "runId": 31237140275,
+      "unitJobId": 93051648790,
+      "e2eJobId": 93051648781,
+      "artifactId": 9015838307,
+      "artifactDigest": "sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921",
+      "evidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407",
+      "blockedReason": "Stale XA2X workflow residue was removed and the ordinary unit/base job passed, but full ordinary E2E reproduced six failures in three bounded test-harness/project-routing classes. Round-6 closure remains blocked until XA5Y repairs those test-only causes and ordinary clean-head CI is green."
+    },
+    {
+      "id": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
+      "worker": 4,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "test-engineer-ci-repair",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Repair only the three exact ordinary-E2E test routing/structure failures classified by XA5X, then rerun ordinary clean-head CI without changing product semantics or weakening any safety/performance oracle.",
+      "dependencies": [
+        "R6-XA5X-CI-HYGIENE-RECOVERY:blocked"
+      ],
+      "mandatoryReads": [
+        ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
+        ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md",
+        "playwright.config.js",
+        "tests/e2e/lifecycle-mobile-perf.spec.js",
+        "tests/e2e/long-chat-perf-a2.spec.js",
+        "tests/e2e/repo-nanny/send-evidence.spec.js",
+        ".gitl/evidence/round-5/worker-3.md"
+      ],
+      "allowedFiles": [
+        "playwright.config.js",
+        "tests/e2e/lifecycle-mobile-perf.spec.js",
+        "tests/e2e/long-chat-perf-a2.spec.js",
+        "tests/e2e/repo-nanny/send-evidence.spec.js",
+        ".github/workflows/**",
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product source changes",
+        "loosening lifecycle mobile assertions instead of correcting project routing",
+        "loosening or recalibrating Round-5 A2 timing thresholds",
+        "weakening Repo-Nanny Send evidence assertions or expected one-click/one-confirmation behavior",
+        "dropping the separate Firefox long-chat correctness lane",
+        "weakening Send/CHOICE/route/lease/uncertainty, exact identity, clipping, demotion, accessibility, or fail-closed assertions",
+        "promoting deterministic/hosted evidence to live or physical certification",
+        "main/merge/auto-merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "root tests/e2e/lifecycle-mobile-perf.spec.js executes only in the intended chromium-mobile project while the separate long-chat lifecycle/mobile Firefox correctness lane remains covered",
+        "tests/e2e/long-chat-perf-a2.spec.js executes only in Chromium, matching its exact Round-5 certification command, with all existing numerical thresholds unchanged",
+        "Repo-Nanny send-evidence tests are top-level sibling declarations and preserve every existing Send evidence assertion",
+        "ordinary clean-head unit/base and full npm run test:e2e are green on the isolated branch",
+        "stale XA2X runner/job residue remains absent",
+        "record exact clean-head run/job/artifact/log conclusions",
+        "only after ordinary clean-head CI is green may the final bounded Round-6 audit be reconsidered"
+      ],
+      "requiredTests": [
+        "npm ci",
+        "npm run cert:base",
+        "npm run lint",
+        "npm run test:unit -- --runInBand",
+        "npm run test:e2e",
+        "exact GitHub Actions clean-head bindings"
+      ],
+      "fallbackWork": "Any new deterministic failure after the three test-only corrections creates the smallest evidence-linked recovery. Do not broaden product semantics or weaken assertions to obtain green CI.",
+      "evidencePath": ".gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md"
     }
   ],
-  "roundDecision": "final-audit-submitted-ci-hygiene-recovery-ready-live-claims-pending",
+  "roundDecision": "final-audit-ci-hygiene-cleaned-e2e-test-recovery-ready-live-claims-pending",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized",
   "publishReadyRequiresAllRequiredPrograms": true

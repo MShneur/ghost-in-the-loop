@@ -27,14 +27,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "90666906269d54fdb5463f05054be639effb4908",
-  "currentStep": "R6-XA5 final bounded audit accepted the exact ChatGPT+Claude deterministic/hosted evidence but found clean-head CI/carrier hygiene incomplete: stale xa2x workflow residue remains and ordinary E2E job 93037980915 failed. Round-6 closure is withheld; XA5X cleanup/clean-head CI recovery is ready.",
-  "nextAction": "Execute R6-XA5X-CI-HYGIENE-RECOVERY before research or BUILD-IDENTITY. Remove only stale XA2X CI residue, run ordinary clean-head CI, classify any reproduced failures, and preserve all fail-closed/live/physical claim limits.",
+  "headAtLastHandoff": "9ee042cae828e83d6123a78acc7319fcdef67407",
+  "currentStep": "R6-XA5X removed stale XA2X CI residue and ran ordinary clean-head CI on cleanup head 53f49b2e7302317aa5bda9623cc2447a9b86659e. Unit/base job 93051648790 passed; full E2E job 93051648781 failed with 215 passed, 10 skipped, 6 failed. Exact logs classify all failures into three test-only causes: root lifecycle-mobile fixture collected in desktop projects, Repo-Nanny send-evidence nested test declaration, and Chromium-only R5 A2 timing oracle collected in Firefox. XA5Y is ready; no product failure is inferred and no assertion was weakened.",
+  "nextAction": "Execute R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY before research or BUILD-IDENTITY. Correct only the three classified test routing/structure faults, preserve every existing safety/timing assertion, rerun ordinary clean-head CI, and bind exact run/job/artifact evidence.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 1,
-    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
+    "nominalWorker": 4,
+    "assignmentId": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "XA5X CI-hygiene/ordinary-clean-head verification is executable; research may not compete.",
+    "reason": "XA5Y ordinary-E2E test recovery is executable; research may not compete.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,17 +72,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "final-audit-submitted-ci-hygiene-recovery-ready",
+    "checkpointStatus": "ci-hygiene-cleanup-complete-e2e-test-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA5X-CI-HYGIENE-RECOVERY",
+    "nextArtifactAssignment": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
     "lastDeliveryReviewAt": "2026-08-08T03:17:42.883Z",
-    "lastTestableArtifactAt": "2026-08-08T02:58:52.431Z",
-    "lastDeliveryDecision": "Do not close Round 6 or advance to BUILD-IDENTITY until stale temporary XA2X CI residue is removed and ordinary clean-head CI is verified; execute XA5X rather than research.",
-    "evidence": ".gitl/evidence/round-6/final-mobile-shell-audit.md",
-    "evidenceCommit": "90666906269d54fdb5463f05054be639effb4908"
+    "lastTestableArtifactAt": "2026-08-08T03:28:39Z",
+    "lastDeliveryDecision": "XA5X removed stale XA2X residue and classified the remaining ordinary E2E failures as three bounded test routing/structure faults. Do not research; execute XA5Y test-only recovery and rerun clean-head CI before Round-6 closure.",
+    "evidence": ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
+    "evidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-final-audit-ci-hygiene-cleaned-e2e-test-recovery-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -219,6 +219,10 @@
     {
       "type": "round-6-xa5-final-audit-needs-ci-hygiene-recovery",
       "result": "XA5 independently rechecked current deterministic source blobs and exact assignment-specific Actions jobs for ChatGPT A2X, Claude XA2X, cross-adapter XA3, and XA4. Bounded deterministic/hosted claims remain accepted, live/physical claims remain UNKNOWN/not certified, but Round-6 closure is withheld because .github/workflows/test.yml retains a dead xa2x job referencing removed .github/xa2x-run.sh and ordinary E2E job 93037980915 concluded failure. XA5X is ready."
+    },
+    {
+      "type": "round-6-xa5x-ci-hygiene-cleanup-e2e-failure-classified",
+      "result": "XA5X removed stale XA2X workflow residue in 53f49b2e7302317aa5bda9623cc2447a9b86659e. Ordinary clean-head run 31237140275 had unit/base job 93051648790 PASS and E2E job 93051648781 FAIL with 215 passed, 10 skipped, 6 failed; artifact 9015838307, sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921. Exact logs classify the six failures into three test-only causes: lifecycle mobile fixture routed into desktop Chromium/Firefox, nested Repo-Nanny Playwright test declaration, and Chromium-only R5 A2 timing oracle routed into Firefox. Evidence commit 9ee042cae828e83d6123a78acc7319fcdef67407; XA5Y ready."
     }
   ],
   "findings": [
@@ -396,6 +400,21 @@
       "worker": 6,
       "type": "round-6-final-audit-ci-hygiene-blocker",
       "finding": "Final audit found a release-hygiene blocker rather than a deterministic structural-candidate failure: stale XA2X registered-CI residue remains in test.yml while its runner is absent, and the ordinary E2E job on XA2X run 31232161711 failed even though the exact XA2X job passed. Clean-head ordinary CI must be restored/verified before MOBILE-SHELL-STRUCTURAL can close."
+    },
+    {
+      "worker": 3,
+      "type": "xa5x-lifecycle-mobile-project-routing",
+      "finding": "Ordinary full E2E collected the root lifecycle-mobile Pixel-class fixture in desktop Chromium and Firefox, where its explicit device-profile assertions necessarily fail; the same fixture passed in chromium-mobile. Repair project routing, not lifecycle product semantics."
+    },
+    {
+      "worker": 3,
+      "type": "xa5x-repo-nanny-nested-test-declaration",
+      "finding": "Repo-Nanny send-evidence.spec.js is missing the close of the preceding test before declaring the contenteditable case, producing Playwright nested-test errors in Chromium, chromium-mobile, and Firefox. Repair test structure without changing Send evidence assertions."
+    },
+    {
+      "worker": 3,
+      "type": "xa5x-r5-a2-firefox-oracle-scope-drift",
+      "finding": "The Round-5 A2 numerical timing oracle was historically certified with --project=chromium but ordinary full E2E also collected it in Firefox, where its Chromium p95 threshold fails. Preserve the threshold and scope the exact timing oracle to Chromium; retain the separate Firefox long-chat correctness lane."
     }
   ],
   "briefs": [
@@ -435,19 +454,11 @@
     ".gitl/evidence/round-6/cross-adapter-mobile-perf.md",
     ".gitl/evidence/round-6/xa4-carrier-result.md",
     ".gitl/evidence/round-6/xa4-handoff-recovery.md",
-    ".gitl/evidence/round-6/final-mobile-shell-audit.md"
+    ".gitl/evidence/round-6/final-mobile-shell-audit.md",
+    ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
+    ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-3-r6-xa5x-ci-hygiene-04",
-    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
-    "nominalWorker": 3,
-    "executedRole": "successor-ci-hygiene-test-verifier-with-builder-lens",
-    "acquiredAt": "2026-08-08T03:20:00Z",
-    "expiresAt": "2026-08-08T04:05:00Z",
-    "inspectedHead": "5cd1ad8e0bc0f6251ca00f18fa45c3b137d62404",
-    "inspectedStateBlob": "7841298b15e799ff736b4f7c19ad0f79167e628d",
-    "activeWorkCheck": "Canonical lease was null; XA5 handoff finalizer run 31236913929 completed successfully and released its lease; branch stabilized at 5cd1ad8e0bc0f6251ca00f18fa45c3b137d62404 across repeated checks; XA5X is the earliest ready executable assignment and research fallback is ineligible."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -493,7 +504,7 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA5X-CI-HYGIENE-RECOVERY",
+    "nextAssignment": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
     "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -585,11 +596,18 @@
     "xa5FinalAuditVerdict": "NEEDS-CI-HYGIENE-RECOVERY",
     "xa5AcceptedScope": "deterministic-hosted-cross-adapter-only",
     "xa5LiveClaims": "UNKNOWN-NOT-CLAIMED",
-    "cleanHeadCiStatus": "NOT-SATISFIED",
-    "staleXa2xWorkflowResidue": "PRESENT-test.yml-references-missing-.github/xa2x-run.sh",
-    "ordinaryE2eJob": 93037980915,
-    "ordinaryE2eConclusion": "failure",
-    "xa5FinalEvidenceCommit": "90666906269d54fdb5463f05054be639effb4908"
+    "cleanHeadCiStatus": "FAIL-CLASSIFIED-TEST-RECOVERY-READY",
+    "staleXa2xWorkflowResidue": "REMOVED",
+    "ordinaryE2eJob": 93051648781,
+    "ordinaryE2eConclusion": "failure-215-passed-10-skipped-6-failed",
+    "xa5FinalEvidenceCommit": "90666906269d54fdb5463f05054be639effb4908",
+    "ordinaryCiRun": 31237140275,
+    "ordinaryUnitJob": 93051648790,
+    "ordinaryUnitConclusion": "success",
+    "ordinaryE2eArtifact": 9015838307,
+    "ordinaryE2eArtifactDigest": "sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921",
+    "xa5xStatus": "blocked-classified-test-recovery-ready",
+    "xa5xEvidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407"
   },
   "priorRoundVerification": {
     "round": 5,
