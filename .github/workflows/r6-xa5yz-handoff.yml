@@ -1,0 +1,222 @@
+name: R6 XA5YZ Handoff Patch
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - .github/workflows/r6-xa5yz-handoff.yml
+
+permissions:
+  contents: write
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/8.8-repair-resume
+          fetch-depth: 0
+      - name: Guard canonical lease and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json', 'utf8'));
+          if (state.branch !== 'agent/8.8-repair-resume') throw new Error('wrong branch in canonical state');
+          if (!state.lease) throw new Error('canonical lease missing');
+          if (state.lease.holder !== 'scheduled-successor-r6-xa5yz-ci-verify-05') throw new Error(`unexpected lease holder: ${state.lease.holder}`);
+          if (state.lease.assignmentId !== 'R6-XA5YZ-ORDINARY-CI-VERIFY') throw new Error(`unexpected assignment lease: ${state.lease.assignmentId}`);
+          const evidence = fs.readFileSync('.gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md', 'utf8');
+          for (const token of ['31243297853','93067642887','93067642856','9017679611','9017711998','1a10c592c7023ee01b71b133762ebcb628f550bc']) {
+            if (!evidence.includes(token)) throw new Error(`missing XA5YZ evidence token ${token}`);
+          }
+          NODE
+      - name: Reconcile canonical plan and state while lease remains held
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+
+          const cleanHead = '1a10c592c7023ee01b71b133762ebcb628f550bc';
+          const evidencePath = '.gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md';
+          const evidenceCommit = 'fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0';
+          const runId = 31243297853;
+          const unitJobId = 93067642887;
+          const e2eJobId = 93067642856;
+          const unitArtifactId = 9017679611;
+          const unitArtifactDigest = 'sha256:21010b0264391dc3f10b30555d30e58e4667183ef95c1fde985a4bedece1445a';
+          const e2eArtifactId = 9017711998;
+          const e2eArtifactDigest = 'sha256:29a71737b4a40bf13ba69fc5abc3be76bb18d185e82633e57587a76fe84b65d0';
+          const retryId = 'R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY';
+
+          if (!state.lease || state.lease.holder !== 'scheduled-successor-r6-xa5yz-ci-verify-05') throw new Error('lease changed before handoff patch');
+
+          plan.deliveryPressure.checkpointStatus = 'xa5yz-clean-head-ci-pass-final-audit-retry-ready';
+          plan.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          plan.deliveryPressure.reenableCondition = 'Research remains lower priority while the final bounded Round-6 audit retry is ready.';
+          plan.deliveryPressure.checkpointDecision = 'Exact ordinary clean-head CI passed on the final XA5YW handoff head. Retry the final bounded Round-6 audit before BUILD-IDENTITY; preserve all live/physical claim limits.';
+
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: 6,
+            assignmentId: retryId,
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: 'Retry the final bounded Round-6 mobile-shell audit using the exact green clean-head XA5YZ evidence before BUILD-IDENTITY or research.'
+          };
+
+          const xa5y = plan.assignments.find(a => a.id === 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY');
+          const xa5yz = plan.assignments.find(a => a.id === 'R6-XA5YZ-ORDINARY-CI-VERIFY');
+          if (!xa5y || !xa5yz) throw new Error('required XA5Y/XA5YZ assignment missing');
+
+          xa5y.status = 'submitted';
+          xa5y.blockedReason = null;
+          xa5y.cleanHeadVerifiedHead = cleanHead;
+          xa5y.cleanHeadVerifyEvidence = evidencePath;
+          xa5y.cleanHeadVerifyRun = runId;
+          xa5y.cleanHeadVerifyUnitJob = unitJobId;
+          xa5y.cleanHeadVerifyE2eJob = e2eJobId;
+
+          xa5yz.status = 'submitted';
+          xa5yz.executedBy = 'scheduled-successor-r6-xa5yz-ci-verify-05';
+          xa5yz.claimCommit = '6c96ed40a4cc9b1268ddc9bcb455668ed9138d21';
+          xa5yz.testedHead = cleanHead;
+          xa5yz.runId = runId;
+          xa5yz.unitJobId = unitJobId;
+          xa5yz.e2eJobId = e2eJobId;
+          xa5yz.unitArtifactId = unitArtifactId;
+          xa5yz.unitArtifactDigest = unitArtifactDigest;
+          xa5yz.e2eArtifactId = e2eArtifactId;
+          xa5yz.e2eArtifactDigest = e2eArtifactDigest;
+          xa5yz.unitResult = '43/43 suites passed; 477 passed; 3 todo; 480 total';
+          xa5yz.e2eResult = '221 passed; 10 skipped; 0 failed';
+          xa5yz.evidenceCommit = evidenceCommit;
+          xa5yz.blockedReason = null;
+
+          let retry = plan.assignments.find(a => a.id === retryId);
+          if (!retry) {
+            retry = {
+              id: retryId,
+              worker: 6,
+              claimableByAnyEligibleWorker: true,
+              intendedRole: 'devils-advocate-release-auditor',
+              status: 'ready',
+              program: 'MOBILE-SHELL-STRUCTURAL',
+              goal: 'Retry the final bounded Round-6 audit now that exact ordinary clean-head CI is green; decide whether MOBILE-SHELL-STRUCTURAL may close at deterministic/hosted scope and expose BUILD-IDENTITY, while preserving live/physical claim gates.',
+              dependencies: ['R6-XA5YZ-ORDINARY-CI-VERIFY:submitted'],
+              mandatoryReads: [
+                '.gitl/evidence/round-6/final-mobile-shell-audit.md',
+                '.gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md',
+                '.gitl/evidence/round-6/cross-adapter-mobile-perf.md',
+                '.gitl/evidence/round-6/cross-adapter-redteam.md',
+                '.gitl/evidence/round-6/xa5y-test-fix.md',
+                '.gitl/user-directives/2026-08-07-release-pressure.md'
+              ],
+              allowedFiles: ['.gitl/**'],
+              prohibitedActions: [
+                'product source or test-semantic changes',
+                'promoting deterministic fixtures to live-host certification',
+                'promoting hosted emulation to physical-platform certification',
+                'weakening Send/CHOICE/route/lease/uncertainty, exact identity, demotion, clipping, accessibility, or timing/safety safeguards',
+                'main/merge/auto-merge/tag/release/publish'
+              ],
+              acceptanceCriteria: [
+                'independently re-read the original final audit and the exact green XA5YZ ordinary-CI evidence',
+                'verify the clean-head CI hygiene blocker is resolved without test/product semantic weakening',
+                're-audit exact ChatGPT+Claude deterministic/hosted source/test/run bindings and specialized->standard->rail authority separation',
+                'reject unsupported live/universal/physical claims and preserve local live-capture gates',
+                'if bounded Round-6 requirements are satisfied close MOBILE-SHELL-STRUCTURAL only at that bounded scope and expose BUILD-IDENTITY',
+                'if evidence remains contradictory create only the smallest explicit recovery'
+              ],
+              requiredEvidence: [
+                'original audit delta',
+                'XA5YZ run/job/artifact bindings',
+                'accepted/rejected claims',
+                'remaining local certification gates',
+                'program completion or smallest recovery decision'
+              ],
+              fallbackWork: 'Any contradictory or missing evidence creates the smallest bounded recovery; do not reopen research while a concrete audit/recovery path exists.',
+              evidencePath: '.gitl/evidence/round-6/final-mobile-shell-audit-retry.md'
+            };
+            plan.assignments.push(retry);
+          } else {
+            retry.status = 'ready';
+          }
+          plan.roundDecision = 'xa5yz-clean-head-ci-pass-final-audit-retry-ready-live-claims-pending';
+
+          state.currentStep = 'R6-XA5YZ-ORDINARY-CI-VERIFY passed exact ordinary clean-head CI on the final XA5YW handoff head: unit/base and full E2E are green with the three XA5X test-only failure classes resolved. Final bounded Round-6 audit retry is now the evidence gate.';
+          state.nextAction = 'Execute R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY before BUILD-IDENTITY or research. Re-audit the exact green clean-head evidence and existing ChatGPT+Claude deterministic/hosted evidence; preserve live/physical claim limits.';
+          state.automaticDispatch = {
+            enabled: true,
+            scheduledFor: 'next eligible wake',
+            nominalWorker: 6,
+            assignmentId: retryId,
+            claimableByAnyEligibleWorker: true,
+            holdForbiddenReasons: state.automaticDispatch.holdForbiddenReasons,
+            holdRequiredReasons: state.automaticDispatch.holdRequiredReasons
+          };
+          state.researchFallback.temporarilyIneligible = true;
+          state.researchFallback.reason = 'Final bounded Round-6 audit retry is executable after exact green clean-head CI; research may not compete.';
+          state.deliveryPressure.checkpointStatus = 'xa5yz-clean-head-ci-pass-final-audit-retry-ready';
+          state.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          state.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          state.deliveryPressure.nextArtifactAssignment = retryId;
+          state.deliveryPressure.lastTestableArtifactAt = '2026-08-08T06:13:01Z';
+          state.deliveryPressure.lastDeliveryDecision = 'Exact ordinary clean-head CI is green on the final XA5YW handoff head. Retry the final bounded Round-6 audit before BUILD-IDENTITY; preserve all live/physical claim limits.';
+          state.deliveryPressure.evidence = evidencePath;
+          state.deliveryPressure.evidenceCommit = evidenceCommit;
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = 'active-xa5yz-clean-ci-pass-final-audit-retry-ready-live-certification-pending';
+
+          if (!state.completedSteps.some(s => s.type === 'round-6-xa5yz-ordinary-clean-head-ci-pass')) {
+            state.completedSteps.push({
+              type: 'round-6-xa5yz-ordinary-clean-head-ci-pass',
+              result: `Exact ordinary clean-head run ${runId} on ${cleanHead} passed unit/base job ${unitJobId} and E2E job ${e2eJobId}; E2E 221 passed, 10 skipped, 0 failed. Artifacts ${unitArtifactId}/${e2eArtifactId}. Evidence commit ${evidenceCommit}. Final bounded Round-6 audit retry is ready; live/physical claims remain uncertified.`
+            });
+          }
+          if (!state.findings.some(f => f.type === 'xa5yz-clean-head-ci-green')) {
+            state.findings.push({
+              worker: 4,
+              type: 'xa5yz-clean-head-ci-green',
+              finding: 'Ordinary clean-head CI is green on the exact final XA5YW handoff head after the three test-only XA5Y corrections: unit/base passed and full E2E passed 221/221 executed tests with 10 skips. This resolves the CI-hygiene blocker but does not certify live ChatGPT/Claude structure or physical platforms.'
+            });
+          }
+          if (!state.testEvidence.includes(evidencePath)) state.testEvidence.push(evidencePath);
+          state.verificationSummary.verdict = 'final-audit-retry-ready-after-exact-green-clean-head-ci-live-certification-pending';
+          state.verificationSummary.nextAssignment = retryId;
+          state.verificationSummary.roundScope = 'ChatGPT and Claude deterministic cross-adapter prototype/Red-Team/mobile evidence plus exact ordinary clean-head CI are green. Final bounded Round-6 audit retry remains before program closure. Live evidence is still required only for live-host certification claims that depend on it.';
+          state.verificationSummary.deliveryPressureConstraints = 'Executable final bounded Round-6 audit retry outranks research. Preserve explicit limits for unproven physical/live claims and expose BUILD-IDENTITY only if that audit accepts bounded Round-6 completion.';
+          state.verificationSummary.cleanHeadCiStatus = 'PASS-EXACT-ORDINARY-CLEAN-HEAD';
+          state.verificationSummary.ordinaryCiRun = runId;
+          state.verificationSummary.ordinaryUnitJob = unitJobId;
+          state.verificationSummary.ordinaryUnitConclusion = 'success-43-of-43-suites-477-passed-3-todo';
+          state.verificationSummary.ordinaryE2eJob = e2eJobId;
+          state.verificationSummary.ordinaryE2eConclusion = 'success-221-passed-10-skipped-0-failed';
+          state.verificationSummary.ordinaryUnitArtifact = unitArtifactId;
+          state.verificationSummary.ordinaryUnitArtifactDigest = unitArtifactDigest;
+          state.verificationSummary.ordinaryE2eArtifact = e2eArtifactId;
+          state.verificationSummary.ordinaryE2eArtifactDigest = e2eArtifactDigest;
+          state.verificationSummary.xa5yStatus = 'submitted-clean-head-ci-green';
+          state.verificationSummary.xa5yzStatus = 'submitted';
+          state.verificationSummary.xa5yzTestedHead = cleanHead;
+          state.verificationSummary.xa5yzEvidence = evidencePath;
+          state.verificationSummary.xa5yzEvidenceCommit = evidenceCommit;
+          state.verificationSummary.xa5rStatus = 'ready';
+
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          NODE
+          git config user.name "gitl-xa5yz-handoff"
+          git config user.email "gitl-xa5yz-handoff@users.noreply.github.com"
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json
+          git diff --cached --exit-code && { echo 'No handoff changes staged'; exit 1; } || true
+          git commit -m "chore(gitl): submit XA5YZ and expose final audit retry"
+          git push origin HEAD:agent/8.8-repair-resume
