@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [1, 3],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -18,73 +18,46 @@
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md",
-  "mandatoryReads": [
-    ".gitl/orchestration/task-prompts.md",
-    ".gitl/orchestration/round-plan.json",
-    ".gitl/orchestration/agent-succession-rule.md",
-    ".gitl/orchestration/evidence-contract.md",
-    ".gitl/deferred-questions.md",
-    ".gitl/user-directives/2026-08-07-release-pressure.md"
-  ],
+  "mandatoryReads": [".gitl/orchestration/task-prompts.md",".gitl/orchestration/round-plan.json",".gitl/orchestration/agent-succession-rule.md",".gitl/orchestration/evidence-contract.md",".gitl/deferred-questions.md",".gitl/user-directives/2026-08-07-release-pressure.md"],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
-  "headAtLastHandoff": "c4a62aa4c5ca46120e59a8304d338b9208e146a2",
-  "currentStep": "R9-A1-PACKAGE-CHECKSUM-BUILD is actively claimed under the shared lease by a successor worker using the builder/release-engineer role. The bounded task is to stage exactly the five immutable BUILD-IDENTITY payload files, emit deterministic SHA256SUMS and package-manifest.json, prove fail-closed mutant sensitivity, and wire the staged directory into ordinary CI as evidence only. publishReady remains false.",
-  "nextAction": "Complete R9-A1-PACKAGE-CHECKSUM-BUILD on the isolated branch, run focused/base/identity/package gates, obtain ordinary CI artifact evidence, record exact hashes and run/job/artifact IDs, then submit A1 and expose R9-A2-PACKAGE-REDTEAM-CI. Do not modify immutable payload bytes, dependencies, version, stable-main authority, fail-closed safeguards, timing thresholds, or any publication target.",
+  "headAtLastHandoff": "4c052c7550273565f5134f2a6ab8dbe4b6559dd0",
+  "currentStep": "R9-A1-PACKAGE-CHECKSUM-BUILD is submitted at bounded non-published evidence scope. The deterministic five-file staging/checksum oracle, mutant tests, ordinary-CI package artifact, and exact artifact digests are durable. R9-A2-PACKAGE-REDTEAM-CI is dependency-ready for independent falsification. publishReady remains false.",
+  "nextAction": "Claim R9-A2-PACKAGE-REDTEAM-CI under a fresh shared lease. Independently inspect the exact package artifact, bind staged bytes/SHA256SUMS/package manifest to candidate-identity.json, re-kill package mutants, retain the exact full E2E outcome, and block on any non-timing safety/product contradiction. Do not modify immutable payload bytes, dependencies, version, stable-main authority, fail-closed safeguards, timing thresholds, or publication state.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "current leased wake",
-    "nominalWorker": 3,
-    "assignmentId": "R9-A1-PACKAGE-CHECKSUM-BUILD",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 4,
+    "assignmentId": "R9-A2-PACKAGE-REDTEAM-CI",
     "claimableByAnyEligibleWorker": true,
-    "holdForbiddenReasons": [
-      "missed prior worker slot",
-      "nominal role mismatch",
-      "local or already-answered human question",
-      "previous failed timing-only test with a bounded ready package assignment",
-      "missing live capture when deterministic release-path work is ready",
-      "research opportunity while executable package/checksum work exists"
-    ],
-    "holdRequiredReasons": [
-      "valid lease plus active evidence on conflicting work",
-      "active branch-changing workflow on the relevant head owned by conflicting work",
-      "consistent branch movement proving current conflicting work",
-      "true project-wide irreversible or publication gate"
-    ]
+    "holdForbiddenReasons": ["missed prior worker slot","nominal role mismatch","local or already-answered human question","previous timing-only hosted failure when bounded package Red-Team work is ready","missing live capture when deterministic package certification work is ready","research opportunity while executable package Red-Team work exists"],
+    "holdRequiredReasons": ["valid lease plus active evidence on conflicting work","active branch-changing workflow on the relevant head owned by conflicting work","consistent branch movement proving current conflicting work","true project-wide irreversible or publication gate"]
   },
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R9-A1-PACKAGE-CHECKSUM-BUILD is a safe reversible falsifiable release artifact and outranks research under maker v1.1 Delivery-Pressure.",
+    "reason": "R9-A2-PACKAGE-REDTEAM-CI is dependency-ready and outranks research under maker v1.1 Delivery-Pressure.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
-    "diminishingReturnsRule": "Do not reopen broad research while A1/A2/A3 or an evidence-linked recovery is executable."
+    "diminishingReturnsRule": "Do not reopen broad research while A2/A3 or an evidence-linked recovery is executable."
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round9-a1-package-build-claimed",
+    "checkpointStatus": "round9-a1-package-submitted-a2-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R9-A1-PACKAGE-CHECKSUM-BUILD",
+    "nextArtifactAssignment": "R9-A2-PACKAGE-REDTEAM-CI",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
     "lastDeliveryReviewAt": "2026-08-08T12:21:12Z",
-    "lastTestableArtifactAt": "2026-08-08T12:11:01Z",
-    "lastDeliveryDecision": "FINAL-CERT-PACKAGE will close the exact remaining release gap with a deterministic staged five-file candidate package, SHA256SUMS/package manifest, package-oracle mutant tests, exact CI artifact binding, and independent final audit. No public archive/store format is invented because the current stable userscript is raw-main and Firefox is documented as a temporary unpacked extension. Publication remains a separate explicit gate.",
-    "evidence": ".gitl/evidence/round-9/worker-1.md",
-    "evidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356"
+    "lastTestableArtifactAt": "2026-08-08T12:45:43Z",
+    "lastDeliveryDecision": "A deterministic exact-byte five-payload candidate package with SHA256SUMS/package manifest and ordinary-CI evidence now exists. Independent Red-Team package/artifact verification is the smallest remaining falsifiable release-path artifact. Publication remains a separate explicit gate.",
+    "evidence": ".gitl/evidence/round-9/worker-3.md",
+    "evidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67"
   },
   "requiredProgramsMayNotBeDropped": true,
-  "requiredPrograms": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
+  "requiredPrograms": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "programStatus": {
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
@@ -92,7 +65,7 @@
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "BUILD-IDENTITY": "completed-certified-bounded-nonpublished",
     "DOCS-RECONCILIATION": "completed-certified-bounded-documentation-consistency-nonpublication",
-    "FINAL-CERT-PACKAGE": "active-package-a1-claimed"
+    "FINAL-CERT-PACKAGE": "active-package-a1-submitted-a2-ready"
   },
   "certificationLimits": {
     "round4": "Accepted only at bounded deterministic/hosted lifecycle scope; no physical Android discard/freeze, real browser scheduler, GeckoView/Firefox-Android, or calibrated low-end hardware certification.",
@@ -125,7 +98,7 @@
     "evidence": ".gitl/evidence/round-7/worker-6-dependency-audit.md",
     "auditRun": 31250069277,
     "auditJob": 93084916423,
-    "highFindings": ["brace-expansion@1.1.15", "js-yaml@3.14.2"],
+    "highFindings": ["brace-expansion@1.1.15","js-yaml@3.14.2"],
     "classification": "indirect Jest development-tooling graph",
     "omitDevVulnerabilities": 0,
     "concreteShippedPayloadPath": false,
@@ -148,23 +121,26 @@
   },
   "packagePlan": {
     "stagingRoot": "test-results/release-candidate",
-    "payloadPaths": [
-      "ghost-in-the-loop.user.js",
-      "extension/manifest.json",
-      "extension/content.js",
-      "extension/icon-48.png",
-      "extension/icon-96.png"
-    ],
-    "metadata": ["SHA256SUMS", "package-manifest.json"],
+    "payloadPaths": ["ghost-in-the-loop.user.js","extension/manifest.json","extension/content.js","extension/icon-48.png","extension/icon-96.png"],
+    "metadata": ["SHA256SUMS","package-manifest.json"],
     "packageNature": "exact-byte staged candidate directory uploaded as CI evidence artifact; not a public installer/store format",
-    "nextAssignments": [
-      "R9-A1-PACKAGE-CHECKSUM-BUILD",
-      "R9-A2-PACKAGE-REDTEAM-CI",
-      "R9-A3-FINAL-CERT-PACKAGE-AUDIT"
-    ],
-    "planCommit": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
+    "nextAssignments": ["R9-A2-PACKAGE-REDTEAM-CI","R9-A3-FINAL-CERT-PACKAGE-AUDIT"],
     "supervisorEvidence": ".gitl/evidence/round-9/worker-1.md",
-    "supervisorEvidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356"
+    "supervisorEvidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
+    "a1Evidence": ".gitl/evidence/round-9/worker-3.md",
+    "a1EvidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67",
+    "a1ClaimCommit": "065c39e5a4814a65b5bc4d74de469145a3f3751b",
+    "a1ImplementationHead": "2c01b492ab59c2ab48c90cac0d7cdc9acc516105",
+    "ciRun": 31257960286,
+    "unitBaseIdentityPackageJob": 93104175525,
+    "e2eJob": 93104175498,
+    "e2eAtA1Submission": "in-progress",
+    "packageArtifact": 9021943306,
+    "packageArtifactSha256": "10b5f30b568935fa3af4a329f14f032a37c7208e80add250d778c1a1b710cef5",
+    "baseArtifact": 9021943496,
+    "baseArtifactSha256": "6aa7fd4ab435b94f5245f6115aac8d7139ab0709645f258c9db76a2e02fd04b2",
+    "sha256SumsSha256": "2c17e9eac4cc465cae1b4e74820b91e4f47b6d94f0d0c30290cb76717f31e6a4",
+    "packageManifestSha256": "d7a4a4c707f0c944b89af2d93f9f22596900d79ec20256eb388231e1ed00a89d"
   },
   "safetyBoundaries": {
     "send": "unchanged exact reviewed authority; no structural inheritance",
@@ -188,6 +164,7 @@
     "round7DependencyAudit": ".gitl/evidence/round-7/worker-6-dependency-audit.md",
     "round8DocsAudit": ".gitl/evidence/round-8/worker-6.md",
     "round9Supervisor": ".gitl/evidence/round-9/worker-1.md",
+    "round9A1": ".gitl/evidence/round-9/worker-3.md",
     "releaseCandidateBoundary": "docs/RELEASE-CANDIDATE-8.8.md"
   },
   "historyReference": {
@@ -195,34 +172,24 @@
     "supervisorLeaseClaimCommit": "ba0f3f13329cbcd6a6a30ec5869a4f97953147d2",
     "supervisorEvidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
     "supervisorPlanCommit": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
-    "note": "Detailed prior completed-step/findings ledgers remain immutable in Git history and per-round .gitl/evidence files. Round-9 state is intentionally compact while preserving all active authority, evidence, certification limits, timing/dependency dissent, and publication safeguards."
+    "a1LeaseClaimCommit": "065c39e5a4814a65b5bc4d74de469145a3f3751b",
+    "a1ImplementationHead": "2c01b492ab59c2ab48c90cac0d7cdc9acc516105",
+    "a1EvidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67",
+    "a1PlanHandoffCommit": "4c052c7550273565f5134f2a6ab8dbe4b6559dd0",
+    "note": "Detailed prior completed-step/findings ledgers remain immutable in Git history and per-round evidence files."
   },
-  "lease": {
-    "holder": "scheduled-successor-r9-a1-package-build-04",
-    "assignmentId": "R9-A1-PACKAGE-CHECKSUM-BUILD",
-    "intendedRole": "builder-release-engineer",
-    "executedRole": "builder-release-engineer-successor",
-    "nominalWorker": 5,
-    "acquiredAt": "2026-08-08T12:40:00Z",
-    "expiresAt": "2026-08-08T13:25:00Z",
-    "inspectedHead": "c4a62aa4c5ca46120e59a8304d338b9208e146a2"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 9,
     "program": "FINAL-CERT-PACKAGE",
-    "status": "package-a1-claimed",
-    "nextAssignment": "R9-A1-PACKAGE-CHECKSUM-BUILD",
-    "supervisorEvidence": ".gitl/evidence/round-9/worker-1.md",
-    "supervisorEvidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
-    "planCommit": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
-    "latestOrdinaryCi": {
-      "run": 31257078397,
-      "head": "c4a62aa4c5ca46120e59a8304d338b9208e146a2",
-      "unitBaseIdentity": "success",
-      "e2e": "success"
-    },
+    "status": "package-a1-submitted-a2-ready",
+    "nextAssignment": "R9-A2-PACKAGE-REDTEAM-CI",
+    "a1Evidence": ".gitl/evidence/round-9/worker-3.md",
+    "a1EvidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67",
+    "a1ImplementationHead": "2c01b492ab59c2ab48c90cac0d7cdc9acc516105",
+    "latestPackageCi": {"run":31257960286,"head":"2c01b492ab59c2ab48c90cac0d7cdc9acc516105","unitBaseIdentityPackage":"success","e2e":"in-progress-at-a1-handoff","packageArtifact":9021943306,"packageArtifactSha256":"10b5f30b568935fa3af4a329f14f032a37c7208e80add250d778c1a1b710cef5"},
     "publishReady": false
   }
 }
