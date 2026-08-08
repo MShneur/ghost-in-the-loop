@@ -135,7 +135,15 @@
     "round7PlanHandoffCommit": "98d4482d5baf236d20865b14fde307c396be6275",
     "note": "Detailed Round-3 through Round-7 evidence remains immutable in Git history and per-round .gitl/evidence. State is compacted to active release-critical facts without dropping required programs or prior certification limits."
   },
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-6-r8-docs-supervisor-plan-05",
+    "assignmentId": "R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN",
+    "role": "supervisor-integrator-successor",
+    "nominalWorker": 6,
+    "acquiredAt": "2026-08-08T09:50:30Z",
+    "expiresAt": "2026-08-08T10:35:30Z",
+    "inspectedHead": "c3cd41b89914e3a5a9f299c57f2d271973100567"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
