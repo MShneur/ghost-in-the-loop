@@ -437,7 +437,16 @@
     ".gitl/evidence/round-6/xa4-handoff-recovery.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "gha-r6-xa5-handoff-31236913929",
+    "nominalWorker": 6,
+    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "role": "handoff-evidence-binding-reconcile",
+    "acquiredAt": "2026-08-08T03:18:51.349Z",
+    "expiresAt": "2026-08-08T04:03:51.349Z",
+    "headAtClaim": "286b461bbe0afbd4c56b82fdf91b4421ac9433ab",
+    "inspectedHead": "286b461bbe0afbd4c56b82fdf91b4421ac9433ab"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
