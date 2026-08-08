@@ -1064,7 +1064,7 @@ Export is no longer a silent mystery. Users see what's happening, how far along 
 
 ### Added — export progress overlay ("the Veil")
 - Screen dims softly; a 👻 with a spinning ring sits center-stage with a named step list: Reading chat → Opening thinking blocks → Collecting every message → Building your file (✓ done / ▶ current)
-- **Real progress bar** with % — computed from the actual page length on virtualized chats; indeterminate slide animation when a phase has no measurable length
+- **Real progress bar** + % — computed from the actual page length on virtualized chats; indeterminate slide animation when a phase has no measurable length
 - **Stall watchdog**: quiet for 8s → "Still working — the page is slow. Don't reload." Quiet for 25s → "This looks stuck. Cancel is safe — Ghost keeps what it collected."
 - **Safe Cancel**: aborts the harvest mid-scroll and exports everything collected so far — no more page reloads out of uncertainty
 
@@ -1216,11 +1216,11 @@ Built from real-world Manus testing: actual exported files and saved page DOM dr
 - Collapsible panel with single play/pause button when minimized
 - 5 position presets (4 corners + bottom bar)
 - Drag-to-reposition
-- Keyboard shortcuts (Alt+P toggle, Alt+S stop)
+- Keyboard shortcuts: Alt+P toggle, Alt+S stop
 - Completion chime
 
 ### Firefox Extension
-- Updated MV3 wrapper with GM↔browser.storage shim
+- Updated MV3 wrapper with GM↔browser.storage.local shim
 
 ---
 
