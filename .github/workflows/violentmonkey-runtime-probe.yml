@@ -28,7 +28,7 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Build pinned Violentmonkey
+      - name: Build pinned Violentmonkey MV3 and verify manifest contract
         shell: bash
         run: |
           set -euo pipefail
@@ -38,16 +38,25 @@ jobs:
           corepack enable
           corepack prepare pnpm@11.20.0 --activate
           pnpm install --frozen-lockfile
-          pnpm build
+          pnpm build:mv3
           test -f dist/manifest.json
+          node <<'NODE'
+          const manifest = require('/tmp/violentmonkey/dist/manifest.json');
+          if (manifest.manifest_version !== 3) {
+            throw new Error(`Expected MV3 manifest, got ${manifest.manifest_version}`);
+          }
+          if (!manifest.background || typeof manifest.background.service_worker !== 'string' || !manifest.background.service_worker) {
+            throw new Error(`Expected MV3 background.service_worker, got ${JSON.stringify(manifest.background || null)}`);
+          }
+          console.log(`VIOLENTMONKEY_MV3_MANIFEST_PASS serviceWorker=${manifest.background.service_worker}`);
+          NODE
           echo "VIOLENTMONKEY_BUILD_PASS commit=$(git rev-parse HEAD)"
 
-      - name: Launch real Violentmonkey in Playwright Chromium
+      - name: Launch real Violentmonkey MV3 in Playwright Chromium
         shell: bash
         run: |
           set -euo pipefail
           node <<'NODE'
-          const path = require('path');
           const { chromium } = require('@playwright/test');
 
           (async () => {
