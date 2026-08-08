@@ -28,7 +28,7 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "7a4db31346c68d3a99dd14e18545cb0df778339d",
-  "currentStep": "R6-XA4 cross-adapter hosted mobile/accessibility/performance recovery run 31236146715 passed all exact gates with strengthened post-reflow focus assertions. XA4 is submitted and R6-XA5-MOBILE-SHELL-FINAL-AUDIT is ready. Live ChatGPT/Claude insertion remains UNKNOWN.",
+  "currentStep": "R6-XA5 final bounded audit claimed after active-work exclusion found no lease and a stable isolated-branch head. Audit only; no product mutation.",
   "nextAction": "Execute R6-XA5-MOBILE-SHELL-FINAL-AUDIT before any research. Audit exact ChatGPT+Claude deterministic/hosted bindings, preserve live/physical limits, and expose BUILD-IDENTITY only if bounded Round-6 requirements are satisfied.",
   "automaticDispatch": {
     "enabled": true,
@@ -427,7 +427,16 @@
     ".gitl/evidence/round-6/xa4-carrier-result.md",
     ".gitl/evidence/round-6/xa4-handoff-recovery.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "gha-r6-xa5-31236866121",
+    "nominalWorker": 6,
+    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "role": "devils-advocate-release-auditor-successor",
+    "acquiredAt": "2026-08-08T03:17:37.142Z",
+    "expiresAt": "2026-08-08T04:02:37.142Z",
+    "headAtClaim": "f511b8844be267408eb722f58ba1d068cdd1d4f1",
+    "inspectedHead": "f511b8844be267408eb722f58ba1d068cdd1d4f1"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
