@@ -188,7 +188,16 @@
     ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-4-r7-supervisor-build-identity-01",
+    "assignmentId": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
+    "nominalWorker": 1,
+    "executedRole": "successor-supervisor-integrator",
+    "acquiredAt": "2026-08-08T07:24:40Z",
+    "expiresAt": "2026-08-08T08:09:40Z",
+    "inspectedHead": "58bc3e0b2e7e0d6dfddffcbc06984534d6412b91",
+    "activeWorkCheck": "Canonical lease was null, the isolated branch remained stable at 58bc3e0b2e7e0d6dfddffcbc06984534d6412b91 across repeated reads, and no conflicting branch-changing status was evidenced. Lease covers R7 supervisor BUILD-IDENTITY planning/evidence/state/plan handoff only."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
