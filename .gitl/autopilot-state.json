@@ -142,14 +142,14 @@
     "note": "Detailed prior-round evidence remains immutable in Git history and per-round .gitl/evidence. State is compacted to active release-critical facts without dropping required programs or certification limits."
   },
   "lease": {
-    "holder": "scheduled-worker-5-r8-a1x-lossless-recovery-05",
+    "holder": "scheduled-worker-5-r8-a1x-handoff-recovery-06",
     "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
     "intendedRole": "builder-documentation-recovery",
-    "executedRole": "successor-builder-documentation-recovery",
+    "executedRole": "successor-handoff-recovery-release-evidence-verifier",
     "nominalWorker": 5,
-    "acquiredAt": "2026-08-08T10:41:33Z",
-    "expiresAt": "2026-08-08T11:26:33Z",
-    "inspectedHead": "e6221c0317682f9a998e4fc8eecb1db8c9857325"
+    "acquiredAt": "2026-08-08T11:40:49Z",
+    "expiresAt": "2026-08-08T12:25:49Z",
+    "inspectedHead": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c"
   },
   "blockedReason": null,
   "publishReady": false,
