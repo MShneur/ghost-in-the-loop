@@ -33,6 +33,15 @@ jobs:
         run: npm run test:unit
       - name: Run BUILD-IDENTITY oracle
         run: npm run identity:oracle
+      - name: Build and verify release-candidate package
+        run: npm run package:oracle
+      - name: Upload release candidate package evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-candidate-package
+          path: test-results/release-candidate/
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload base certification artifact
         if: always()
         uses: actions/upload-artifact@v4
