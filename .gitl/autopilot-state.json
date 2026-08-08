@@ -437,7 +437,17 @@
     ".gitl/evidence/round-6/xa4-handoff-recovery.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-3-r6-xa5x-ci-hygiene-04",
+    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
+    "nominalWorker": 3,
+    "executedRole": "successor-ci-hygiene-test-verifier-with-builder-lens",
+    "acquiredAt": "2026-08-08T03:20:00Z",
+    "expiresAt": "2026-08-08T04:05:00Z",
+    "inspectedHead": "5cd1ad8e0bc0f6251ca00f18fa45c3b137d62404",
+    "inspectedStateBlob": "7841298b15e799ff736b4f7c19ad0f79167e628d",
+    "activeWorkCheck": "Canonical lease was null; XA5 handoff finalizer run 31236913929 completed successfully and released its lease; branch stabilized at 5cd1ad8e0bc0f6251ca00f18fa45c3b137d62404 across repeated checks; XA5X is the earliest ready executable assignment and research fallback is ineligible."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
