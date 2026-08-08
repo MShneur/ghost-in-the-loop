@@ -7,9 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [
-    1
-  ],
+  "completedWorkers": [1],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -28,8 +26,8 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "4613b7d5254a72b5cf332317aab8b3e3eb155bd7",
-  "currentStep": "R6-XA3 cross-adapter Red Team run 31233469721 passed at deterministic fixture scope. ChatGPT+Claude specialized-first safety/demotion matrix survived; R6-XA4-CROSS-ADAPTER-MOBILE-PERF is ready. Live ChatGPT/Claude insertion remains UNKNOWN.",
-  "nextAction": "Execute R6-XA4-CROSS-ADAPTER-MOBILE-PERF before any research.",
+  "currentStep": "R6-XA4 expired lease recovered after no branch movement since 2026-08-08T02:12:25Z, no connected commit status/PR workflow activity, and no durable XA4 evidence. Continue the existing cross-adapter mobile/accessibility/performance fixture before research; live ChatGPT/Claude insertion remains UNKNOWN.",
+  "nextAction": "Execute and verify R6-XA4-CROSS-ADAPTER-MOBILE-PERF on the existing fixture artifact before any research.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
@@ -77,23 +75,15 @@
     "researchFallbackTemporarilyIneligible": true,
     "nextArtifactAssignment": "R6-XA4-CROSS-ADAPTER-MOBILE-PERF",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
-    "makerVersionObserved": "v1.1 canonical maker fetched first in the XA1 successor wake",
+    "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
     "lastDeliveryReviewAt": "2026-08-07T20:59:00Z",
-    "lastTestableArtifactAt": "2026-08-08T01:48:28Z",
-    "lastDeliveryDecision": "XA3 run 31233469721 passed; advance directly to XA4.",
+    "lastTestableArtifactAt": "2026-08-08T02:12:25Z",
+    "lastDeliveryDecision": "XA3 passed and XA4 has an executable cross-adapter mobile/performance fixture. Recover the expired XA4 lease and verify that artifact before any research.",
     "evidence": ".gitl/evidence/round-6/cross-adapter-redteam.md",
     "evidenceCommit": "3c4e95bac72cd9913f0012ab755fd25cacbf42fd"
   },
   "requiredProgramsMayNotBeDropped": true,
-  "requiredPrograms": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
+  "requiredPrograms": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "programStatus": {
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
@@ -159,7 +149,7 @@
     {"worker":3,"type":"mobile-shell-a2x-exact-repository-pass","finding":"Guarded exact repository carrier run 31212815306/job 92979379882 passed candidate ancestry/scope, cert:base, lint, full unit, focused Send/CHOICE/route/lease/uncertainty, and all five Blue prototype cases in both Chromium and Firefox. Live-host binding remains separately uncertified."},
     {"worker":4,"type":"mobile-shell-blue-overflow-fail-closed","finding":"Red Team proved that in-flow alone is insufficient when a verified action row clips overflow: a Blue mount can remain structurally attached yet be unreachable. The repaired deterministic contract rejects structural mode when a clipping container would clip exact Send or the Ghost mount, using only a 1 CSS px deterministic rounding tolerance."},
     {"worker":5,"type":"mobile-shell-a4-hosted-mobile-perf-pass","finding":"The exact repaired deterministic Blue candidate passed hosted Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape viewport geometry, deterministic VisualViewport signal, desktop Firefox semantics, resource cleanup, zero passive Send actuation, and Chromium 1x/4x/6x CPU invariant stress. The first carrier revealed and repaired only a double-counting orientation oracle. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT insertion remain uncertified."},
-    {"worker":6,"type":"mobile-shell-a5-bounded-audit-acceptance","finding":"Independent A5 audit accepts the repaired ChatGPT Blue candidate at the executed deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and GitHub Actions bindings. It explicitly rejects promotion to live ChatGPT, universal cross-site, physical Android/WebView/GeckoView, real IME/AT, or calibrated-hardware certification and keeps MOBILE-SHELL-STRUCTURAL active for cross-adapter expansion plus a later final audit."},
+    {"worker":6,"type":"mobile-shell-a5-bounded-audit-acceptance","finding":"Independent A5 audit accepts the repaired ChatGPT Blue candidate only at deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and GitHub Actions bindings. It explicitly rejects promotion to live ChatGPT, universal cross-site, physical Android/WebView/GeckoView, real IME/AT, or calibrated-hardware certification and keeps MOBILE-SHELL-STRUCTURAL active for cross-adapter expansion plus a later final audit."},
     {"worker":6,"type":"mobile-shell-site-specific-first-runner-policy","finding":"For the required cross-adapter expansion, a certified site-specific structural runner may run before the standard structural protocol only when both reviewed site identity and current structural capability/signature checks satisfy that runner's certified contract and evidence shows measurable site-specific advantage. The standard adapter-aware structural protocol is second; the existing rail is the fail-closed third path. Structural authority remains separate from Send actuation authority, and no site inherits another site's insertion rule by analogy."},
     {"worker":6,"type":"release-dependency-audit-risk","finding":"A2X and A4 npm install logs report two high-severity npm audit findings. Package identities, shipped exploitability, and remediation are not established by A5 and are therefore UNKNOWN rather than silently accepted. Carry this into existing final release/dependency certification; do not run an unattended blanket dependency upgrade merely to clear the warning."},
     {"worker":2,"type":"cross-adapter-plan-claude-first","finding":"The bounded cross-adapter proof is ChatGPT deterministic evidence plus one independently specified Claude structural contract. Certified site-specific runners outrank the standard protocol only with adapter-owned current signature evidence and measurable benefit; all failures demote to standard then rail."},
@@ -201,15 +191,15 @@
     ".gitl/evidence/round-6/cross-adapter-redteam.md"
   ],
   "lease": {
-    "holder": "scheduled-worker-6-r6-xa4-mobile-perf-03",
+    "holder": "scheduled-worker-6-r6-xa4-mobile-perf-recovery-04",
     "assignmentId": "R6-XA4-CROSS-ADAPTER-MOBILE-PERF",
     "nominalWorker": 6,
-    "executedRole": "successor-mobile-browser-accessibility-performance-with-release-auditor-lens",
-    "acquiredAt": "2026-08-08T02:03:32Z",
-    "expiresAt": "2026-08-08T02:48:32Z",
-    "inspectedHead": "e3c3cc57dda1f9057c7e2ff4a8990c4fb61ec851",
-    "inspectedStateBlob": "5a019127c15a6db1d09526dc939b7ee6ecfc8915",
-    "activeWorkCheck": "Canonical lease was null; XA3 final handoff head e3c3cc57dda1f9057c7e2ff4a8990c4fb61ec851 was stable; XA3 exact run 31233469721 is complete; connected commit status and PR-workflow surfaces showed no conflicting active work; XA4 is the earliest ready assignment."
+    "executedRole": "successor-devils-advocate-release-auditor-with-mobile-performance-lens",
+    "acquiredAt": "2026-08-08T02:50:29Z",
+    "expiresAt": "2026-08-08T03:35:29Z",
+    "inspectedHead": "be5e0911c955d81fc7bbf8f32dba31068ea58a52",
+    "inspectedStateBlob": "5ed6f5390305dd9e0d5adc469d9a7cf009e4de59",
+    "activeWorkCheck": "Prior XA4 lease expired at 2026-08-08T02:48:32Z. Branch head remained be5e0911c955d81fc7bbf8f32dba31068ea58a52 since 2026-08-08T02:12:25Z; combined commit status and PR-triggered workflow surfaces were empty; no cross-adapter-mobile-perf evidence existed. Recovery therefore proceeds before research."
   },
   "blockedReason": null,
   "publishReady": false,
