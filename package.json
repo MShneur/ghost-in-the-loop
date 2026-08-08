@@ -10,11 +10,14 @@
     "cert:manifest-audit": "node scripts/certify-extension.js manifest",
     "cert:artifact-index": "node scripts/certify-extension.js artifacts --out test-results/extension-artifact-index.json",
     "cert:base": "npm run cert:preflight && npm run build:extension && npm run check:generated && npm run cert:manifest-audit && npm run cert:artifact-index",
+    "identity:write": "node scripts/build-identity.js --write .gitl/evidence/round-7/candidate-identity.json",
+    "identity:check": "node scripts/build-identity.js --check .gitl/evidence/round-7/candidate-identity.json",
+    "identity:oracle": "npm run cert:base && npx jest tests/version.test.js tests/build-identity.test.js --runInBand && npm run identity:check",
     "test": "npm run check:generated && jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
     "test:all": "jest && playwright test",
-    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js && node --check scripts/certify-extension.js"
+    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js && node --check scripts/certify-extension.js && node --check scripts/build-identity.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
