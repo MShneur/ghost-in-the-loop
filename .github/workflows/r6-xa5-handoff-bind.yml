@@ -1,0 +1,93 @@
+name: Round 6 XA5 Evidence Binding Finalizer
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.github/workflows/r6-xa5-handoff-bind.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-xa5-evidence-bind
+  cancel-in-progress: false
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Claim short handoff-reconciliation lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='agent/8.8-repair-resume'
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const xa5 = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+          const xa5x = plan.assignments.find(a => a.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          if (state.lease) throw new Error('conflicting lease appeared');
+          if (!xa5 || xa5.status !== 'submitted' || !xa5x || xa5x.status !== 'ready') throw new Error('XA5 handoff changed');
+          if (!fs.existsSync('.gitl/evidence/round-6/final-mobile-shell-audit.md')) throw new Error('XA5 evidence missing');
+          const now = new Date();
+          state.lease = {
+            holder: `gha-r6-xa5-handoff-${process.env.GITHUB_RUN_ID}`,
+            nominalWorker: 6,
+            assignmentId: 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT',
+            role: 'handoff-evidence-binding-reconcile',
+            acquiredAt: now.toISOString(),
+            expiresAt: new Date(now.getTime()+45*60*1000).toISOString(),
+            headAtClaim: process.env.GITHUB_SHA,
+            inspectedHead: process.env.GITHUB_SHA
+          };
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2)+'\n');
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .gitl/autopilot-state.json
+          git commit -m 'chore(gitl): claim XA5 handoff binding lease'
+          git push origin HEAD:"$BRANCH"
+      - name: Bind evidence commit and release lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          BRANCH='agent/8.8-repair-resume'
+          EVIDENCE_COMMIT='90666906269d54fdb5463f05054be639effb4908'
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          git cat-file -e "${EVIDENCE_COMMIT}^{commit}"
+          test "$(git show "${EVIDENCE_COMMIT}:.gitl/evidence/round-6/final-mobile-shell-audit.md" | grep -c '^# Ghost Worker Evidence — R6 XA5 Final Mobile-Shell Audit$')" = 1
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const evidenceCommit = '90666906269d54fdb5463f05054be639effb4908';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const holder = `gha-r6-xa5-handoff-${process.env.GITHUB_RUN_ID}`;
+          if (!state.lease || state.lease.holder !== holder || state.lease.assignmentId !== 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT') throw new Error('handoff lease not owned');
+          const xa5 = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+          const xa5x = plan.assignments.find(a => a.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          if (!xa5 || xa5.status !== 'submitted' || !xa5x || xa5x.status !== 'ready') throw new Error('handoff state changed');
+          xa5.evidenceCommit = evidenceCommit;
+          state.headAtLastHandoff = evidenceCommit;
+          state.deliveryPressure.evidenceCommit = evidenceCommit;
+          state.verificationSummary.xa5FinalEvidenceCommit = evidenceCommit;
+          state.lease = null;
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2)+'\n');
+          fs.writeFileSync(planPath, JSON.stringify(plan,null,2)+'\n');
+          NODE
+          git rm -f .github/workflows/r6-xa5-handoff-bind.yml
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json
+          git commit -m 'chore(gitl): bind XA5 audit evidence commit'
+          git push origin HEAD:"$BRANCH"
