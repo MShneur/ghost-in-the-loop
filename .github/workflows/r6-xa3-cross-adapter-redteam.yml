@@ -1,0 +1,298 @@
+name: Round 6 XA3 Cross-Adapter Red Team
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa3-cross-adapter-trigger.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r6-xa3-cross-adapter-redteam
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Guard branch, lease, plan, and oracle ancestry
+        id: guard
+        shell: bash
+        env:
+          BRANCH: agent/8.8-repair-resume
+          EXPECTED_ORACLE: 5fb354e29c6a99a81c2de394031a6e12900e3f98
+          EXPECTED_LEASE_HOLDER: scheduled-worker-3-r6-xa3-cross-adapter-redteam-04
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$BRANCH"
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          git merge-base --is-ancestor "$EXPECTED_ORACLE" HEAD
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json', 'utf8'));
+          const plan = JSON.parse(fs.readFileSync('.gitl/orchestration/round-plan.json', 'utf8'));
+          const lease = state.lease;
+          if (state.branch !== 'agent/8.8-repair-resume' || state.status !== 'active' || state.publishReady) {
+            throw new Error('Project state is not eligible for XA3');
+          }
+          if (!lease || lease.holder !== process.env.EXPECTED_LEASE_HOLDER || lease.assignmentId !== 'R6-XA3-CROSS-ADAPTER-REDTEAM') {
+            throw new Error('XA3 lease is not held by the expected worker');
+          }
+          if (Date.parse(lease.expiresAt) <= Date.now()) throw new Error('XA3 lease expired before carrier start');
+          const xa3 = plan.assignments.find(a => a.id === 'R6-XA3-CROSS-ADAPTER-REDTEAM');
+          const xa4 = plan.assignments.find(a => a.id === 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF');
+          if (!xa3 || xa3.status !== 'ready' || !xa4 || xa4.status !== 'waiting') {
+            throw new Error('XA3/XA4 canonical plan state changed');
+          }
+          NODE
+          echo "TESTED_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        id: deps
+        continue-on-error: true
+        shell: bash
+        run: npm ci
+
+      - name: Cross-adapter oracle syntax
+        id: syntax
+        continue-on-error: true
+        shell: bash
+        run: node --check tests/e2e/cross-adapter-redteam.spec.js
+
+      - name: Base certification and generated parity
+        id: base
+        continue-on-error: true
+        shell: bash
+        run: npm run cert:base
+
+      - name: Repository syntax and lint
+        id: lint
+        continue-on-error: true
+        shell: bash
+        run: npm run lint
+
+      - name: Focused Send CHOICE route lease uncertainty regressions
+        id: focused
+        continue-on-error: true
+        shell: bash
+        run: npx jest tests/sendtransaction.test.js tests/choice-state.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand
+
+      - name: Install Chromium and Firefox
+        id: browsers
+        continue-on-error: true
+        shell: bash
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run cross-adapter matrix and mutant oracles
+        id: matrix
+        continue-on-error: true
+        shell: bash
+        run: >-
+          npx playwright test
+          tests/e2e/mobile-shell-blue-prototype.spec.js
+          tests/e2e/mobile-shell-blue-redteam.spec.js
+          tests/e2e/claude-structure-contract.spec.js
+          tests/e2e/claude-blue-prototype.spec.js
+          tests/e2e/cross-adapter-redteam.spec.js
+          --project=chromium --project=firefox
+
+      - name: Upload exact-head XA3 evidence
+        id: upload
+        if: always() && steps.guard.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-xa3-${{ github.run_id }}
+          path: |
+            test-results/
+            e2e-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Record result, reconcile state and plan, and self-remove
+        if: always() && steps.guard.outcome == 'success'
+        shell: bash
+        env:
+          BRANCH: agent/8.8-repair-resume
+          DEPS: ${{ steps.deps.outcome }}
+          SYNTAX: ${{ steps.syntax.outcome }}
+          BASE: ${{ steps.base.outcome }}
+          LINT: ${{ steps.lint.outcome }}
+          FOCUSED: ${{ steps.focused.outcome }}
+          BROWSERS: ${{ steps.browsers.outcome }}
+          MATRIX: ${{ steps.matrix.outcome }}
+          UPLOAD: ${{ steps.upload.outcome }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          if [ "$(git rev-parse origin/$BRANCH)" != "$TESTED_HEAD" ]; then
+            echo 'Branch changed after XA3 carrier start; refusing competing handoff.' >&2
+            exit 2
+          fi
+
+          RESULT=PASS
+          for value in "$DEPS" "$SYNTAX" "$BASE" "$LINT" "$FOCUSED" "$BROWSERS" "$MATRIX" "$UPLOAD"; do
+            if [ "$value" != success ]; then RESULT=FAIL; fi
+          done
+
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          AUTH="Authorization: Bearer ${GH_TOKEN}"
+          JOB_ID=''
+          ARTIFACT_ID=''
+          ARTIFACT_DIGEST=''
+          ARTIFACT_NAME="r6-xa3-${GITHUB_RUN_ID}"
+          for i in 1 2 3 4 5 6; do
+            JOB_JSON=$(curl -fsSL -H "$AUTH" -H 'X-GitHub-Api-Version: 2022-11-28' "$API/actions/runs/${GITHUB_RUN_ID}/jobs") || JOB_JSON='{}'
+            JOB_ID=$(printf '%s' "$JOB_JSON" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const x=(j.jobs||[]).find(v=>v.name==='verify')||(j.jobs||[])[0];process.stdout.write(x?String(x.id):'')}catch{}})")
+            ART_JSON=$(curl -fsSL -H "$AUTH" -H 'X-GitHub-Api-Version: 2022-11-28' "$API/actions/runs/${GITHUB_RUN_ID}/artifacts") || ART_JSON='{}'
+            ARTIFACT_ID=$(printf '%s' "$ART_JSON" | ART_NAME="$ARTIFACT_NAME" node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const x=(j.artifacts||[]).find(v=>v.name===process.env.ART_NAME);process.stdout.write(x?String(x.id):'')}catch{}})")
+            ARTIFACT_DIGEST=$(printf '%s' "$ART_JSON" | ART_NAME="$ARTIFACT_NAME" node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{const j=JSON.parse(s);const x=(j.artifacts||[]).find(v=>v.name===process.env.ART_NAME);process.stdout.write(x&&x.digest?String(x.digest):'')}catch{}})")
+            if [ -n "$JOB_ID" ] && [ -n "$ARTIFACT_ID" ]; then break; fi
+            sleep 2
+          done
+          if [ -z "$JOB_ID" ] || [ -z "$ARTIFACT_ID" ]; then RESULT=FAIL; fi
+
+          FINISHED=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          export RESULT FINISHED JOB_ID ARTIFACT_ID ARTIFACT_DIGEST ARTIFACT_NAME DEPS SYNTAX BASE LINT FOCUSED BROWSERS MATRIX UPLOAD
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+          const result = process.env.RESULT;
+          const pass = result === 'PASS';
+          const runId = Number(process.env.GITHUB_RUN_ID);
+          const jobId = Number(process.env.JOB_ID || 0);
+          const artifactId = Number(process.env.ARTIFACT_ID || 0);
+          const digest = process.env.ARTIFACT_DIGEST || '';
+          const testedHead = process.env.TESTED_HEAD;
+          const finished = process.env.FINISHED;
+          const xa3 = plan.assignments.find(a => a.id === 'R6-XA3-CROSS-ADAPTER-REDTEAM');
+          const xa4 = plan.assignments.find(a => a.id === 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF');
+          if (!xa3 || !xa4) throw new Error('Missing XA3/XA4 assignments');
+
+          xa3.executedBy = `gha-r6-xa3-${runId}`;
+          xa3.testedHead = testedHead;
+          xa3.runId = runId;
+          xa3.jobId = jobId;
+          xa3.artifactId = artifactId;
+          xa3.artifactDigest = digest;
+          xa3.evidencePath = '.gitl/evidence/round-6/cross-adapter-redteam.md';
+          xa3.gateOutcomes = `deps=${process.env.DEPS}, syntax=${process.env.SYNTAX}, base=${process.env.BASE}, lint=${process.env.LINT}, focused=${process.env.FOCUSED}, browsers=${process.env.BROWSERS}, matrix=${process.env.MATRIX}, upload=${process.env.UPLOAD}`;
+
+          if (pass) {
+            xa3.status = 'submitted';
+            xa3.blockedReason = null;
+            xa4.status = 'ready';
+            state.currentStep = `R6-XA3 cross-adapter Red Team run ${runId} passed at deterministic fixture scope. ChatGPT+Claude specialized-first safety/demotion matrix survived; R6-XA4-CROSS-ADAPTER-MOBILE-PERF is ready. Live ChatGPT/Claude insertion remains UNKNOWN.`;
+            state.nextAction = 'Execute R6-XA4-CROSS-ADAPTER-MOBILE-PERF before any research.';
+            state.automaticDispatch = { ...(state.automaticDispatch || {}), enabled: true, scheduledFor: 'next eligible wake', nominalWorker: 5, assignmentId: 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF', claimableByAnyEligibleWorker: true };
+            state.researchFallback = { ...(state.researchFallback || {}), temporarilyIneligible: true, reason: 'XA4 cross-adapter mobile/performance certification is executable; research may not compete.' };
+            state.deliveryPressure = { ...(state.deliveryPressure || {}), checkpointStatus: 'cross-adapter-redteam-submitted-mobile-perf-ready', researchOnlyWakesSinceLastProductTestPackageArtifact: 0, researchFallbackTemporarilyIneligible: true, nextArtifactAssignment: 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF', lastTestableArtifactAt: finished, lastDeliveryDecision: `XA3 run ${runId} passed; advance directly to XA4.`, evidence: '.gitl/evidence/round-6/cross-adapter-redteam.md' };
+            state.programStatus['MOBILE-SHELL-STRUCTURAL'] = 'active-cross-adapter-redteam-submitted-mobile-perf-ready-live-certification-pending';
+            state.verificationSummary = { ...(state.verificationSummary || {}), verdict: 'cross-adapter-redteam-submitted-mobile-perf-ready-live-certification-pending', nextAssignment: 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF', xa3CrossStatus: 'submitted', xa3CrossTestedHead: testedHead, xa3CrossRun: runId, xa3CrossJob: jobId, xa3CrossArtifact: artifactId, xa3CrossArtifactDigest: digest, xa3CrossGenericBaseline: 'global-first visible-editor inference: 1/2 deterministic adapter fixtures misselected; adapter-owned scoped identity/signature resolver: 0/2', xa3CrossLiveClaims: 'UNKNOWN-NOT-CLAIMED' };
+            if (!state.completedSteps.some(x => x.type === 'round-6-xa3-cross-adapter-redteam-pass')) state.completedSteps.push({ type: 'round-6-xa3-cross-adapter-redteam-pass', result: `XA3 run ${runId}/job ${jobId}/artifact ${artifactId} passed the ChatGPT+Claude deterministic specialized-first/demotion, mutant, cleanup, and focused-safety matrix. The bounded generic H2 baseline misselected 1/2 fixtures while adapter-owned scoped resolution misselected 0/2; this is not a performance claim against a future stronger standard protocol.` });
+            if (!state.findings.some(x => x.type === 'cross-adapter-redteam-specialized-first')) state.findings.push({ worker: 4, type: 'cross-adapter-redteam-specialized-first', finding: 'Cross-adapter Red Team preserved exact Send/zero-actuation and specialized->standard->rail demotion across ChatGPT+Claude deterministic fixtures. A bounded global-first-editor baseline misselected the Claude decoy (1/2 fixture error) while adapter-owned scoped identity/signature resolution was 0/2; this measures one locality/safety advantage only and does not benchmark a future stronger standard protocol.' });
+          } else {
+            xa3.status = 'blocked';
+            xa3.blockedReason = `XA3 carrier run ${runId} failed one or more exact gates: ${xa3.gateOutcomes}. Preserve failure; do not advance XA4.`;
+            xa4.status = 'waiting';
+            let repair = plan.assignments.find(a => a.id === 'R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR');
+            if (!repair) {
+              repair = {
+                id: 'R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR', worker: 4, claimableByAnyEligibleWorker: true,
+                intendedRole: 'test-engineer-red-team-repair', status: 'ready', program: 'MOBILE-SHELL-STRUCTURAL',
+                goal: 'Diagnose the exact XA3 failing gate; repair only carrier/oracle infrastructure unless a deterministic candidate semantic failure is reproduced, in which case apply the smallest fail-closed source/test repair.',
+                dependencies: ['R6-XA3-CROSS-ADAPTER-REDTEAM:blocked'],
+                allowedFiles: ['tests/**','.github/workflows/**','.gitl/evidence/round-6/**','.gitl/orchestration/round-plan.json','.gitl/autopilot-state.json'],
+                prohibitedActions: ['weakening Send/CHOICE/route/lease/uncertainty or structural assertions','promoting fixture results to live-host claims','main/merge/auto-merge/tag/release/publish'],
+                evidencePath: '.gitl/evidence/round-6/cross-adapter-redteam-repair.md'
+              };
+              const idx = plan.assignments.indexOf(xa3);
+              plan.assignments.splice(idx + 1, 0, repair);
+            } else repair.status = 'ready';
+            state.currentStep = `R6-XA3 cross-adapter Red Team run ${runId} failed at least one exact gate. XA4 remains waiting; XA3Y bounded recovery is ready.`;
+            state.nextAction = 'Execute R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR before research.';
+            state.automaticDispatch = { ...(state.automaticDispatch || {}), enabled: true, scheduledFor: 'next eligible wake', nominalWorker: 4, assignmentId: 'R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR', claimableByAnyEligibleWorker: true };
+            state.researchFallback = { ...(state.researchFallback || {}), temporarilyIneligible: true, reason: 'XA3Y bounded recovery is executable; research may not compete.' };
+            state.deliveryPressure = { ...(state.deliveryPressure || {}), checkpointStatus: 'cross-adapter-redteam-failed-recovery-ready', researchOnlyWakesSinceLastProductTestPackageArtifact: 0, researchFallbackTemporarilyIneligible: true, nextArtifactAssignment: 'R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR', lastTestableArtifactAt: finished, lastDeliveryDecision: `XA3 run ${runId} failed; preserve exact failure and execute XA3Y before research.`, evidence: '.gitl/evidence/round-6/cross-adapter-redteam.md' };
+          }
+          state.lease = null;
+          if (!state.testEvidence.includes('.gitl/evidence/round-6/cross-adapter-redteam.md')) state.testEvidence.push('.gitl/evidence/round-6/cross-adapter-redteam.md');
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          NODE
+
+          cat > .gitl/evidence/round-6/cross-adapter-redteam.md <<EOF
+          # Ghost Worker Evidence — R6 XA3 Cross-Adapter Red Team
+
+          ## Identity
+          - Round: 6
+          - Intended role: Test engineer / Red Team
+          - Executed by: \`gha-r6-xa3-${GITHUB_RUN_ID}\`
+          - Assignment: \`R6-XA3-CROSS-ADAPTER-REDTEAM\`
+          - Finished: \`${FINISHED}\`
+          - Exact tested head: \`${TESTED_HEAD}\`
+
+          ## Step Performed
+          Executed the accepted ChatGPT Blue candidate/Red-Team fixture, Claude structural contract/Blue candidate, and the XA3 cross-adapter meta-oracle together in Chromium and Firefox. The new oracle pins all accepted fixture blobs, tests identity/signature demotion policy, cross-checks mutant/resource/passive-actuation coverage, and measures the predeclared generic H2 global-first-editor baseline against adapter-owned scoped resolution.
+
+          ## Tests
+          - Result: **${RESULT}**
+          - npm ci: **${DEPS}**
+          - XA3 oracle syntax: **${SYNTAX}**
+          - cert:base/generated parity: **${BASE}**
+          - repository lint: **${LINT}**
+          - focused Send/CHOICE/route/lease/uncertainty: **${FOCUSED}**
+          - Chromium+Firefox install: **${BROWSERS}**
+          - cross-adapter Playwright matrix: **${MATRIX}**
+          - artifact upload: **${UPLOAD}**
+          - Run/job/artifact: \`${GITHUB_RUN_ID}\` / \`${JOB_ID}\` / \`${ARTIFACT_ID}\`
+          - Artifact digest: \`${ARTIFACT_DIGEST}\`
+
+          ## Acceptance Criteria
+          - Wrong site/signature cannot select specialized runner: **${MATRIX}**
+          - Missing/stale/clipped/ambiguous signatures demote: **${MATRIX}**
+          - Decoy/hidden-secondary composer cannot gain structural authority: **${MATRIX}**
+          - Exact Send/native-control and zero-actuation invariants: **${MATRIX}**
+          - Rerender/cleanup/resource accounting: **${MATRIX}**
+          - Oracle mutant sensitivity across accepted ChatGPT+Claude fixtures: **${MATRIX}**
+          - Specialized-vs-generic H2 locality measurement: on the deterministic two-adapter decoy set, global-first visible-editor inference is predeclared to misselect 1/2 fixtures while adapter-owned scoped identity/signature resolution misselects 0/2. This is a bounded safety/locality comparison, not a performance or universal superiority claim against a future stronger standard protocol.
+          - Live ChatGPT/Claude insertion: **UNKNOWN / NOT CLAIMED**
+
+          ## Safety Checks
+          Send authority, CHOICE, route, lease, uncertainty, clipping, exact-identity, and rail fail-closed behavior were not weakened. No main/merge/auto-merge/tag/publish/release action occurred.
+
+          ## Risks and Limits
+          Deterministic fixture evidence is not live-host certification. Physical Android/WebView/GeckoView, real IME/assistive technology, calibrated hardware, and current live ChatGPT/Claude insertion remain uncertified. The H2 comparison covers only a deliberately weak generic global-first-editor baseline; it does not prove that every possible standard structural protocol is inferior.
+
+          ## Recommended Next Action
+          $(if [ "$RESULT" = PASS ]; then echo 'Execute R6-XA4-CROSS-ADAPTER-MOBILE-PERF before research.'; else echo 'Execute R6-XA3Y-CROSS-ADAPTER-REDTEAM-REPAIR before research and preserve the exact failure.'; fi)
+
+          ## Assignment Status
+          - $(if [ "$RESULT" = PASS ]; then echo 'submitted'; else echo 'blocked'; fi)
+          EOF
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-xa3-cross-adapter-redteam.yml .gitl/evidence/round-6/xa3-cross-adapter-trigger.md || true
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json .gitl/evidence/round-6/cross-adapter-redteam.md
+          git commit -m "test(gitl): record XA3 cross-adapter Red Team ${RESULT}"
+          git push origin HEAD:"$BRANCH"
