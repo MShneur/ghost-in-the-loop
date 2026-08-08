@@ -3,13 +3,11 @@
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "status": "active",
-  "round": 6,
+  "round": 7,
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [
-    1
-  ],
+  "completedWorkers": [1],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -20,86 +18,53 @@
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "agentSuccessionRule": ".gitl/orchestration/agent-succession-rule.md",
-  "mandatoryReads": [
-    ".gitl/orchestration/task-prompts.md",
-    ".gitl/orchestration/round-plan.json",
-    ".gitl/orchestration/agent-succession-rule.md",
-    ".gitl/deferred-questions.md"
-  ],
+  "mandatoryReads": [".gitl/orchestration/task-prompts.md",".gitl/orchestration/round-plan.json",".gitl/orchestration/agent-succession-rule.md",".gitl/deferred-questions.md"],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "b9c14feb1834ee5784d3bd82564e0de62a57f0ce",
-  "currentStep": "R6-XA5YZ-ORDINARY-CI-VERIFY passed exact ordinary clean-head CI on the final XA5YW handoff head: unit/base and full E2E are green with the three XA5X test-only failure classes resolved. Final bounded Round-6 audit retry is now the evidence gate.",
-  "nextAction": "Execute R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY before BUILD-IDENTITY or research. Re-audit the exact green clean-head evidence and existing ChatGPT+Claude deterministic/hosted evidence; preserve live/physical claim limits.",
+  "headAtLastHandoff": "7d818c8b3674747f62035b7115575f46584ba28a",
+  "currentStep": "R6-XA5R accepted MOBILE-SHELL-STRUCTURAL at bounded deterministic/hosted cross-adapter scope after independent re-audit and exact clean-head CI. Round 7 BUILD-IDENTITY supervisor planning is ready; live/physical structural claims remain local certification gates.",
+  "nextAction": "Execute R7-SUPERVISOR-BUILD-IDENTITY-PLAN before research. Inspect canonical build/candidate/channel identity and open evidence-backed BUILD-IDENTITY assignments; keep publishReady=false and preserve all prior claim limits.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
+    "nominalWorker": 1,
+    "assignmentId": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
     "claimableByAnyEligibleWorker": true,
-    "holdForbiddenReasons": [
-      "missed prior worker slot",
-      "nominal role mismatch",
-      "local or already-answered human question",
-      "previous failed test with a ready recovery",
-      "previous blocked assignment with dependency-safe continuation",
-      "missing live capture when deterministic prototype verification is ready",
-      "research opportunity while an executable verification assignment is ready"
-    ],
-    "holdRequiredReasons": [
-      "valid lease plus active evidence on conflicting work",
-      "active branch-changing workflow on the relevant head",
-      "consistent branch movement proving current conflicting work",
-      "true project-wide human decision or irreversible/publication/security gate"
-    ]
+    "holdForbiddenReasons": ["missed prior worker slot","nominal role mismatch","local or already-answered human question","previous failed test with a ready recovery","previous blocked assignment with dependency-safe continuation","missing live capture when deterministic prototype verification is ready","research opportunity while an executable verification assignment is ready"],
+    "holdRequiredReasons": ["valid lease plus active evidence on conflicting work","active branch-changing workflow on the relevant head","consistent branch movement proving current conflicting work","true project-wide human decision or irreversible/publication/security gate"]
   },
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "Final bounded Round-6 audit retry is executable after exact green clean-head CI; research may not compete.",
-    "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
+    "reason": "Required BUILD-IDENTITY supervisor planning is executable after bounded Round-6 completion; research may not compete.",
+    "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
-    "topics": [
-      "adapter-specific host structural mount contracts",
-      "header/composer/footer layout discovery and verification",
-      "scoped MutationObserver and ResizeObserver repair patterns",
-      "mobile keyboard, orientation, large-text, and narrow-width behavior",
-      "physical-device or throttled constrained-hardware evidence",
-      "host UI changes, upstream/browser behavior, and real user/community feedback"
-    ],
+    "topics": ["adapter-specific host structural mount contracts","header/composer/footer layout discovery and verification","scoped MutationObserver and ResizeObserver repair patterns","mobile keyboard, orientation, large-text, and narrow-width behavior","physical-device or throttled constrained-hardware evidence","host UI changes, upstream/browser behavior, and real user/community feedback"],
     "diminishingReturnsRule": "Do not stop after one unproductive wake. Research exhaustion still requires a complete six-wake no-novelty round plus canonical criteria. Delivery-pressure checkpoints take precedence whenever a safe executable artifact or verification path exists."
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "xa5yz-clean-head-ci-pass-final-audit-retry-ready",
+    "checkpointStatus": "round6-final-audit-accepted-build-identity-supervisor-plan-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
+    "nextArtifactAssignment": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
-    "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
-    "lastDeliveryReviewAt": "2026-08-08T03:17:42.883Z",
+    "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
+    "lastDeliveryReviewAt": "2026-08-08T06:40:29Z",
     "lastTestableArtifactAt": "2026-08-08T06:13:01Z",
-    "lastDeliveryDecision": "Exact ordinary clean-head CI is green on the final XA5YW handoff head. Retry the final bounded Round-6 audit before BUILD-IDENTITY; preserve all live/physical claim limits.",
-    "evidence": ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
-    "evidenceCommit": "fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0"
+    "lastDeliveryDecision": "XA5R accepted MOBILE-SHELL-STRUCTURAL at bounded deterministic/hosted cross-adapter scope after exact ordinary clean-head CI resolved the prior hygiene blocker. Advance BUILD-IDENTITY before research; preserve all live/physical limits.",
+    "evidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
+    "evidenceCommit": "aa220f6a3f195783319cd5355c3cfc7d0636f08e"
   },
   "requiredProgramsMayNotBeDropped": true,
-  "requiredPrograms": [
-    "RR-E2E-FAULTS",
-    "LIFECYCLE-FROZEN-DISCARDED",
-    "LONG-CHAT-PERF",
-    "MOBILE-SHELL-STRUCTURAL",
-    "BUILD-IDENTITY",
-    "DOCS-RECONCILIATION",
-    "FINAL-CERT-PACKAGE"
-  ],
+  "requiredPrograms": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "programStatus": {
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-xa5yz-clean-ci-pass-final-audit-retry-ready-live-certification-pending",
-    "BUILD-IDENTITY": "backlog",
+    "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
+    "BUILD-IDENTITY": "ready-supervisor-plan",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
   },
@@ -135,7 +100,8 @@
     {"type":"round-6-xa5-final-audit-needs-ci-hygiene-recovery","result":"XA5 independently rechecked current deterministic source blobs and exact assignment-specific Actions jobs for ChatGPT A2X, Claude XA2X, cross-adapter XA3, and XA4. Bounded deterministic/hosted claims remain accepted, live/physical claims remain UNKNOWN/not certified, but Round-6 closure is withheld because .github/workflows/test.yml retains a dead xa2x job referencing removed .github/xa2x-run.sh and ordinary E2E job 93037980915 concluded failure. XA5X is ready."},
     {"type":"round-6-xa5x-ci-hygiene-cleanup-e2e-failure-classified","result":"XA5X removed stale XA2X workflow residue in 53f49b2e7302317aa5bda9623cc2447a9b86659e. Ordinary clean-head run 31237140275 had unit/base job 93051648790 PASS and E2E job 93051648781 FAIL with 215 passed, 10 skipped, 6 failed; artifact 9015838307, sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921. Exact logs classify the six failures into three test-only causes: lifecycle mobile fixture routed into desktop Chromium/Firefox, nested Repo-Nanny Playwright test declaration, and Chromium-only R5 A2 timing oracle routed into Firefox. Evidence commit 9ee042cae828e83d6123a78acc7319fcdef67407; XA5Y ready."},
     {"type":"round-6-xa5yw-carrier-cleanup","result":"XA5YW removed only temporary XA5Y carrier residue under lease scheduled-worker-6-r6-xa5yw-cleanup-05: registered job cleanup commit 057ab1311e4ad69a7637c258ff09bcea1fa705d1, standalone workflow deletion fe580e3b562ac9dd3d389e0a87f559622a34c50b, trigger deletion 0e2def16d903c3bc34a45ef7628be4672689791e, evidence commit ba8d477b48b7884055d4804f247ebce184c3205d. Product/test semantics were unchanged; exact ordinary clean-head CI remains the next evidence gate."},
-    {"type":"round-6-xa5yz-ordinary-clean-head-ci-pass","result":"Exact ordinary clean-head run 31243297853 on 1a10c592c7023ee01b71b133762ebcb628f550bc passed unit/base job 93067642887 and E2E job 93067642856; E2E 221 passed, 10 skipped, 0 failed. Artifacts 9017679611/9017711998. Evidence commit fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0. Final bounded Round-6 audit retry is ready; live/physical claims remain uncertified."}
+    {"type":"round-6-xa5yz-ordinary-clean-head-ci-pass","result":"Exact ordinary clean-head run 31243297853 on 1a10c592c7023ee01b71b133762ebcb628f550bc passed unit/base job 93067642887 and E2E job 93067642856; E2E 221 passed, 10 skipped, 0 failed. Artifacts 9017679611/9017711998. Evidence commit fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0. Final bounded Round-6 audit retry is ready; live/physical claims remain uncertified."},
+    {"type":"round-6-xa5r-final-audit-retry-accepted-bounded","result":"R6-XA5R independently re-audited the original final audit, exact clean-head XA5YZ CI, current ChatGPT+Claude deterministic source blobs, cross-adapter Red-Team/mobile evidence, and current workflow hygiene. The prior CI-hygiene blocker is resolved without product/test-semantic weakening. MOBILE-SHELL-STRUCTURAL is completed/certified only at bounded deterministic/hosted cross-adapter scope; live/physical claims remain uncertified. Evidence commit aa220f6a3f195783319cd5355c3cfc7d0636f08e; Round-7 plan commit 7d818c8b3674747f62035b7115575f46584ba28a."}
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."},
@@ -176,7 +142,8 @@
     {"worker":3,"type":"xa5x-lifecycle-mobile-project-routing","finding":"Ordinary full E2E collected the root lifecycle-mobile Pixel-class fixture in desktop Chromium and Firefox, where its explicit device-profile assertions necessarily fail; the same fixture passed in chromium-mobile. Repair project routing, not lifecycle product semantics."},
     {"worker":3,"type":"xa5x-repo-nanny-nested-test-declaration","finding":"Repo-Nanny send-evidence.spec.js is missing the close of the preceding test before declaring the contenteditable case, producing Playwright nested-test errors in Chromium, chromium-mobile, and Firefox. Repair test structure without changing Send evidence assertions."},
     {"worker":3,"type":"xa5x-r5-a2-firefox-oracle-scope-drift","finding":"The Round-5 A2 numerical timing oracle was historically certified with --project=chromium but ordinary full E2E also collected it in Firefox, where its Chromium p95 threshold fails. Preserve the threshold and scope the exact timing oracle to Chromium; retain the separate Firefox long-chat correctness lane."},
-    {"worker":4,"type":"xa5yz-clean-head-ci-green","finding":"Ordinary clean-head CI is green on the exact final XA5YW handoff head after the three test-only XA5Y corrections: unit/base passed and full E2E passed 221/221 executed tests with 10 skips. This resolves the CI-hygiene blocker but does not certify live ChatGPT/Claude structure or physical platforms."}
+    {"worker":4,"type":"xa5yz-clean-head-ci-green","finding":"Ordinary clean-head CI is green on the exact final XA5YW handoff head after the three test-only XA5Y corrections: unit/base passed and full E2E passed 221/221 executed tests with 10 skips. This resolves the CI-hygiene blocker but does not certify live ChatGPT/Claude structure or physical platforms."},
+    {"worker":5,"type":"round-6-xa5r-final-audit-retry-accepted-bounded","finding":"Independent XA5R review finds the original CI-hygiene blocker resolved by exact ordinary clean-head run 31243297853 and current workflow hygiene, with no product/test-semantic changes after tested head 1a10c592c7023ee01b71b133762ebcb628f550bc. The ChatGPT+Claude structural program is complete only at bounded deterministic/hosted scope; exact live insertion and physical-platform claims remain uncertified."}
   ],
   "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [
@@ -218,24 +185,16 @@
     ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md",
     ".gitl/evidence/round-6/xa5y-test-fix.md",
     ".gitl/evidence/round-6/xa5yw-carrier-cleanup.md",
-    ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md"
+    ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
+    ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-5-r6-xa5r-final-audit-retry-04",
-    "assignmentId": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
-    "nominalWorker": 6,
-    "executedRole": "successor-devils-advocate-release-auditor",
-    "acquiredAt": "2026-08-08T06:40:29Z",
-    "expiresAt": "2026-08-08T07:25:29Z",
-    "inspectedHead": "b91dc52d5c29192914bc4cc861f92b788960e2b1",
-    "activeWorkCheck": "Canonical lease was null after XA5YZ handoff, branch head remained b91dc52d5c29192914bc4cc861f92b788960e2b1 across repeated reads, and no conflicting branch-changing work was evidenced. Lease covers XA5R audit evidence/state/plan handoff only."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "final-audit-retry-ready-after-exact-green-clean-head-ci-live-certification-pending",
+    "verdict": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -255,8 +214,8 @@
     "liveCaptureAuthorization": "AUTHORIZED-READ-ONLY-ZERO-ACTUATION",
     "latestResearchFallback": ".gitl/evidence/round-6/research-fallback-10.md",
     "latestResearchFallbackCommit": "cb7e8ddf550802e3954e28418ac43230252f6e85",
-    "deliveryPressureEvidence": ".gitl/evidence/round-6/claude-structure-contract.md",
-    "deliveryPressureEvidenceCommit": "3c4e95bac72cd9913f0012ab755fd25cacbf42fd",
+    "deliveryPressureEvidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
+    "deliveryPressureEvidenceCommit": "aa220f6a3f195783319cd5355c3cfc7d0636f08e",
     "resolvedRound4Review": "DQ-R4-LIFECYCLE-REVIEW:accepted-bounded",
     "resolvedRound5Review": "DQ-R5-LONGCHAT-REVIEW:accepted-bounded",
     "resolvedRound6CaptureAuthorization": "DQ-R6-LIVE-STRUCTURE-CAPTURE:read-only-authorized-live-evidence-not-obtained",
@@ -272,17 +231,17 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
-    "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
+    "nextAssignment": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
+    "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 independently proves the site-specific capability-selection contract at deterministic fixture scope. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "ChatGPT and Claude deterministic cross-adapter prototype/Red-Team/mobile evidence plus exact ordinary clean-head CI are green. Final bounded Round-6 audit retry remains before program closure. Live evidence is still required only for live-host certification claims that depend on it.",
-    "deliveryPressureConstraints": "Executable final bounded Round-6 audit retry outranks research. Preserve explicit limits for unproven physical/live claims and expose BUILD-IDENTITY only if that audit accepts bounded Round-6 completion.",
+    "roundScope": "ChatGPT and Claude deterministic cross-adapter prototype/Red-Team/mobile evidence plus exact ordinary clean-head CI are accepted at bounded deterministic/hosted scope. Live evidence remains required only for live-host certification claims that depend on it.",
+    "deliveryPressureConstraints": "Required BUILD-IDENTITY supervisor planning outranks research after bounded Round-6 completion. Preserve explicit limits for unproven physical/live claims and keep publication disabled.",
     "structuralHostPrimitive": "Current deterministic prototype: ordinary in-flow div with one open ShadowRoot plus an external mount-manager closure, fixture-only verified-container token, exact caller-supplied Send node, no live selector binding, direct callback controls, scoped MutationObserver/ResizeObserver, coalesced generation-guarded repair, no host style mutation, and explicit rejection/fallback reasons.",
     "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; callbacks schedule/coalesce rather than synchronously resize; the implementation suppresses its own Ghost-only reposition mutation to avoid self-repair loops; Shadow controls bind directly to supplied reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
     "constrainedRuntimeConstraints": "Tier A: Chromium-only Playwright CDP at CPU rates 1x/4x/6x, identical structural/safety assertions, stable mount/observer/listener/pending-repair counts, zero Send-adjacent actuation, clean throttle/session teardown, and descriptive timing only. Tier B: separate physical Android/AVD evidence when a device claim is required. Do not promote Pixel emulation or hosted CPU throttle to physical-device certification; do not attach CDP throttle claims to Firefox.",
-    "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. A certified site-specific runner may outrank the standard structural protocol only when reviewed site identity plus current structural capability/signature checks pass and predeclared evidence shows measurable benefit. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Specialized verification failure demotes to the standard adapter-aware structural protocol; missing/failed standard structural capability means rail-only. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy.",
+    "crossAdapterConstraints": "Reviewed actuation/input profiles do not grant structural mutation authority. Use three evidence stages: anchor smoke (no mutation authority), adapter-specific authenticated structural capture, then mount certification. A certified site-specific runner may outrank the standard adapter-aware structural protocol only when reviewed site identity plus current structural capability/signature checks pass and predeclared evidence shows measurable benefit. Shared code may own invariant checks/repair/teardown, but each adapter owns structural discovery and approved insertion rules. Specialized verification failure demotes to the standard adapter-aware structural protocol; missing/failed standard structural capability means rail-only. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy.",
     "siteSpecificFirstRunnerPolicy": "Runner order: (1) certified site-specific structural runner when site identity and current certified structure checks both pass; (2) standard adapter-aware structural protocol; (3) existing rail fallback. A specialized runner earns first position through measurable superiority such as fewer DOM assumptions, exact Send preservation, smaller observer churn, native reachability/mobile reflow, exact teardown, cross-browser falsification, and maintenance resilience. Hostname alone and reviewed Send authority are insufficient.",
     "compatibilityConstraints": "Future structural shell must add no new Trusted Types HTML sink. The deterministic prototype uses DOM-created Shadow nodes and textContent, not shadowRoot.innerHTML. Preserve the existing named-policy boundary, avoid a permissive default policy, keep extension mounting viable in isolated content-script world, and do not require unsafeWindow/MAIN-world authority. Existing whole-product blocked-policy behavior remains fail-loud and is not reclassified as a current PASS.",
     "interactionAccessibilityConstraints": "Shadow DOM is not an event-safety boundary. The deterministic prototype keeps delegatesFocus false, does not autofocus on mount/repair, uses explicit type=button controls with local names, and A4 hosted Chromium+desktop-Firefox semantic/focus checks passed with exact Send identity and zero passive actuation. Physical AT mappings remain separately uncertified.",
@@ -390,7 +349,13 @@
     "xa5yzTestedHead": "1a10c592c7023ee01b71b133762ebcb628f550bc",
     "xa5yzEvidence": ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
     "xa5yzEvidenceCommit": "fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0",
-    "xa5rStatus": "ready"
+    "xa5rStatus": "submitted",
+    "xa5rClaimCommit": "75d78922db648467b3a449067bf735a873339678",
+    "xa5rEvidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
+    "xa5rEvidenceCommit": "aa220f6a3f195783319cd5355c3cfc7d0636f08e",
+    "xa5rAuditVerdict": "accepted-bounded-deterministic-hosted-cross-adapter",
+    "xa5rLiveClaims": "UNKNOWN-NOT-CLAIMED",
+    "buildIdentityStatus": "ready-supervisor-plan"
   },
   "priorRoundVerification": {
     "round": 5,
