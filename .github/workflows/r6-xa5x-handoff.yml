@@ -1,0 +1,217 @@
+name: Round 6 XA5X Handoff
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa5x-handoff-trigger.md'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: r6-xa5x-handoff
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: agent/8.8-repair-resume
+      EVIDENCE_COMMIT: 9ee042cae828e83d6123a78acc7319fcdef67407
+      CLEANUP_COMMIT: 53f49b2e7302317aa5bda9623cc2447a9b86659e
+      CLEAN_HEAD_RUN: '31237140275'
+      UNIT_JOB: '93051648790'
+      E2E_JOB: '93051648781'
+      E2E_ARTIFACT: '9015838307'
+      E2E_DIGEST: 'sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard lease and evidence ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          git merge-base --is-ancestor "$EVIDENCE_COMMIT" HEAD
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json','utf8'));
+          const plan = JSON.parse(fs.readFileSync('.gitl/orchestration/round-plan.json','utf8'));
+          const lease = state.lease;
+          if (!lease || lease.holder !== 'scheduled-worker-3-r6-xa5x-ci-hygiene-04' || lease.assignmentId !== 'R6-XA5X-CI-HYGIENE-RECOVERY') {
+            throw new Error('Expected XA5X lease is not held');
+          }
+          const xa5x = plan.assignments.find(a => a.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          if (!xa5x || xa5x.status !== 'ready') throw new Error('XA5X plan status changed unexpectedly');
+          NODE
+
+      - name: Reconcile plan and state, expose XA5Y, release lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const evidenceCommit = process.env.EVIDENCE_COMMIT;
+          const cleanupCommit = process.env.CLEANUP_COMMIT;
+          const runId = Number(process.env.CLEAN_HEAD_RUN);
+          const unitJob = Number(process.env.UNIT_JOB);
+          const e2eJob = Number(process.env.E2E_JOB);
+          const artifactId = Number(process.env.E2E_ARTIFACT);
+          const digest = process.env.E2E_DIGEST;
+
+          const xa5x = plan.assignments.find(a => a.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          xa5x.status = 'blocked';
+          xa5x.executedBy = 'scheduled-worker-3-r6-xa5x-ci-hygiene-04';
+          xa5x.cleanupCommit = cleanupCommit;
+          xa5x.testedHead = cleanupCommit;
+          xa5x.runId = runId;
+          xa5x.unitJobId = unitJob;
+          xa5x.e2eJobId = e2eJob;
+          xa5x.artifactId = artifactId;
+          xa5x.artifactDigest = digest;
+          xa5x.evidenceCommit = evidenceCommit;
+          xa5x.blockedReason = 'Stale XA2X workflow residue was removed and the ordinary unit/base job passed, but full ordinary E2E reproduced six failures in three bounded test-harness/project-routing classes. Round-6 closure remains blocked until XA5Y repairs those test-only causes and ordinary clean-head CI is green.';
+
+          if (!plan.assignments.some(a => a.id === 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY')) {
+            plan.assignments.push({
+              id: 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY',
+              worker: 4,
+              claimableByAnyEligibleWorker: true,
+              intendedRole: 'test-engineer-ci-repair',
+              status: 'ready',
+              program: 'MOBILE-SHELL-STRUCTURAL',
+              goal: 'Repair only the three exact ordinary-E2E test routing/structure failures classified by XA5X, then rerun ordinary clean-head CI without changing product semantics or weakening any safety/performance oracle.',
+              dependencies: ['R6-XA5X-CI-HYGIENE-RECOVERY:blocked'],
+              mandatoryReads: [
+                '.gitl/evidence/round-6/ci-carrier-hygiene-recovery.md',
+                '.gitl/evidence/round-6/xa5x-clean-head-ci-result.md',
+                'playwright.config.js',
+                'tests/e2e/lifecycle-mobile-perf.spec.js',
+                'tests/e2e/long-chat-perf-a2.spec.js',
+                'tests/e2e/repo-nanny/send-evidence.spec.js',
+                '.gitl/evidence/round-5/worker-3.md'
+              ],
+              allowedFiles: [
+                'playwright.config.js',
+                'tests/e2e/lifecycle-mobile-perf.spec.js',
+                'tests/e2e/long-chat-perf-a2.spec.js',
+                'tests/e2e/repo-nanny/send-evidence.spec.js',
+                '.github/workflows/**',
+                '.gitl/**'
+              ],
+              prohibitedActions: [
+                'product source changes',
+                'loosening lifecycle mobile assertions instead of correcting project routing',
+                'loosening or recalibrating Round-5 A2 timing thresholds',
+                'weakening Repo-Nanny Send evidence assertions or expected one-click/one-confirmation behavior',
+                'dropping the separate Firefox long-chat correctness lane',
+                'weakening Send/CHOICE/route/lease/uncertainty, exact identity, clipping, demotion, accessibility, or fail-closed assertions',
+                'promoting deterministic/hosted evidence to live or physical certification',
+                'main/merge/auto-merge/tag/release/publish'
+              ],
+              acceptanceCriteria: [
+                'root tests/e2e/lifecycle-mobile-perf.spec.js executes only in the intended chromium-mobile project while the separate long-chat lifecycle/mobile Firefox correctness lane remains covered',
+                'tests/e2e/long-chat-perf-a2.spec.js executes only in Chromium, matching its exact Round-5 certification command, with all existing numerical thresholds unchanged',
+                'Repo-Nanny send-evidence tests are top-level sibling declarations and preserve every existing Send evidence assertion',
+                'ordinary clean-head unit/base and full npm run test:e2e are green on the isolated branch',
+                'stale XA2X runner/job residue remains absent',
+                'record exact clean-head run/job/artifact/log conclusions',
+                'only after ordinary clean-head CI is green may the final bounded Round-6 audit be reconsidered'
+              ],
+              requiredTests: [
+                'npm ci',
+                'npm run cert:base',
+                'npm run lint',
+                'npm run test:unit -- --runInBand',
+                'npm run test:e2e',
+                'exact GitHub Actions clean-head bindings'
+              ],
+              fallbackWork: 'Any new deterministic failure after the three test-only corrections creates the smallest evidence-linked recovery. Do not broaden product semantics or weaken assertions to obtain green CI.',
+              evidencePath: '.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md'
+            });
+          }
+
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: 4,
+            assignmentId: 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY',
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: 'Repair the three exact test-only failures classified by XA5X, preserve all original safety/performance assertions, rerun ordinary clean-head CI, and do not research.'
+          };
+          plan.deliveryPressure.checkpointStatus = 'ci-hygiene-cleanup-complete-e2e-test-recovery-ready';
+          plan.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          plan.deliveryPressure.reenableCondition = 'Research remains lower priority while XA5Y ordinary-E2E test recovery is dependency-ready.';
+          plan.deliveryPressure.checkpointDecision = 'XA5X removed stale XA2X CI residue and proved ordinary unit/base green, but full ordinary E2E reproduced three bounded test-routing/structure failure classes. Execute XA5Y test-only recovery before Round-6 closure or BUILD-IDENTITY.';
+          plan.roundDecision = 'final-audit-ci-hygiene-cleaned-e2e-test-recovery-ready-live-claims-pending';
+
+          state.headAtLastHandoff = evidenceCommit;
+          state.currentStep = 'R6-XA5X removed stale XA2X CI residue and ran ordinary clean-head CI on cleanup head 53f49b2e7302317aa5bda9623cc2447a9b86659e. Unit/base job 93051648790 passed; full E2E job 93051648781 failed with 215 passed, 10 skipped, 6 failed. Exact logs classify all failures into three test-only causes: root lifecycle-mobile fixture collected in desktop projects, Repo-Nanny send-evidence nested test declaration, and Chromium-only R5 A2 timing oracle collected in Firefox. XA5Y is ready; no product failure is inferred and no assertion was weakened.';
+          state.nextAction = 'Execute R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY before research or BUILD-IDENTITY. Correct only the three classified test routing/structure faults, preserve every existing safety/timing assertion, rerun ordinary clean-head CI, and bind exact run/job/artifact evidence.';
+          state.automaticDispatch = {
+            enabled: true,
+            scheduledFor: 'next eligible wake',
+            nominalWorker: 4,
+            assignmentId: 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY',
+            claimableByAnyEligibleWorker: true,
+            holdForbiddenReasons: state.automaticDispatch.holdForbiddenReasons,
+            holdRequiredReasons: state.automaticDispatch.holdRequiredReasons
+          };
+          state.researchFallback.temporarilyIneligible = true;
+          state.researchFallback.reason = 'XA5Y ordinary-E2E test recovery is executable; research may not compete.';
+          state.deliveryPressure.checkpointStatus = 'ci-hygiene-cleanup-complete-e2e-test-recovery-ready';
+          state.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          state.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          state.deliveryPressure.nextArtifactAssignment = 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY';
+          state.deliveryPressure.lastTestableArtifactAt = '2026-08-08T03:28:39Z';
+          state.deliveryPressure.lastDeliveryDecision = 'XA5X removed stale XA2X residue and classified the remaining ordinary E2E failures as three bounded test routing/structure faults. Do not research; execute XA5Y test-only recovery and rerun clean-head CI before Round-6 closure.';
+          state.deliveryPressure.evidence = '.gitl/evidence/round-6/ci-carrier-hygiene-recovery.md';
+          state.deliveryPressure.evidenceCommit = evidenceCommit;
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = 'active-final-audit-ci-hygiene-cleaned-e2e-test-recovery-ready-live-certification-pending';
+          state.completedSteps.push({
+            type: 'round-6-xa5x-ci-hygiene-cleanup-e2e-failure-classified',
+            result: `XA5X removed stale XA2X workflow residue in ${cleanupCommit}. Ordinary clean-head run ${runId} had unit/base job ${unitJob} PASS and E2E job ${e2eJob} FAIL with 215 passed, 10 skipped, 6 failed; artifact ${artifactId}, ${digest}. Exact logs classify the six failures into three test-only causes: lifecycle mobile fixture routed into desktop Chromium/Firefox, nested Repo-Nanny Playwright test declaration, and Chromium-only R5 A2 timing oracle routed into Firefox. Evidence commit ${evidenceCommit}; XA5Y ready.`
+          });
+          state.findings.push(
+            { worker: 3, type: 'xa5x-lifecycle-mobile-project-routing', finding: 'Ordinary full E2E collected the root lifecycle-mobile Pixel-class fixture in desktop Chromium and Firefox, where its explicit device-profile assertions necessarily fail; the same fixture passed in chromium-mobile. Repair project routing, not lifecycle product semantics.' },
+            { worker: 3, type: 'xa5x-repo-nanny-nested-test-declaration', finding: 'Repo-Nanny send-evidence.spec.js is missing the close of the preceding test before declaring the contenteditable case, producing Playwright nested-test errors in Chromium, chromium-mobile, and Firefox. Repair test structure without changing Send evidence assertions.' },
+            { worker: 3, type: 'xa5x-r5-a2-firefox-oracle-scope-drift', finding: 'The Round-5 A2 numerical timing oracle was historically certified with --project=chromium but ordinary full E2E also collected it in Firefox, where its Chromium p95 threshold fails. Preserve the threshold and scope the exact timing oracle to Chromium; retain the separate Firefox long-chat correctness lane.' }
+          );
+          for (const p of ['.gitl/evidence/round-6/ci-carrier-hygiene-recovery.md','.gitl/evidence/round-6/xa5x-clean-head-ci-result.md']) {
+            if (!state.testEvidence.includes(p)) state.testEvidence.push(p);
+          }
+          state.lease = null;
+          state.verificationSummary.nextAssignment = 'R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY';
+          state.verificationSummary.cleanHeadCiStatus = 'FAIL-CLASSIFIED-TEST-RECOVERY-READY';
+          state.verificationSummary.staleXa2xWorkflowResidue = 'REMOVED';
+          state.verificationSummary.ordinaryCiRun = runId;
+          state.verificationSummary.ordinaryUnitJob = unitJob;
+          state.verificationSummary.ordinaryUnitConclusion = 'success';
+          state.verificationSummary.ordinaryE2eJob = e2eJob;
+          state.verificationSummary.ordinaryE2eConclusion = 'failure-215-passed-10-skipped-6-failed';
+          state.verificationSummary.ordinaryE2eArtifact = artifactId;
+          state.verificationSummary.ordinaryE2eArtifactDigest = digest;
+          state.verificationSummary.xa5xStatus = 'blocked-classified-test-recovery-ready';
+          state.verificationSummary.xa5xEvidenceCommit = evidenceCommit;
+
+          fs.writeFileSync(planPath, JSON.stringify(plan,null,2) + '\n');
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2) + '\n');
+          NODE
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-xa5x-handoff.yml .gitl/evidence/round-6/xa5x-handoff-trigger.md
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json
+          git commit -m 'chore(gitl): hand off XA5X failure classification to XA5Y'
+          git push origin HEAD:"$BRANCH"
