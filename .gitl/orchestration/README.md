@@ -1,134 +1,135 @@
 # Ghost Autonomous Round Orchestrator
 
-This directory is the durable control plane for six staggered ChatGPT scheduled workers. It is separate from product code but authoritative for autonomous planning, assignments, evidence, and stopping behavior.
+This directory is the durable control plane for the staggered ChatGPT workers that continue Ghost in the Loop 8.8. It is separate from product code but authoritative for autonomous planning, assignments, evidence, leases, and stopping behavior together with `.gitl/autopilot-state.json`, the current round plan, the canonical Personal-Forge maker, and explicit user directives.
 
-## Operating model
+## Current operating model
 
-Six hourly scheduled tasks run ten minutes apart:
+The canonical operating mode is **`continuous-local-human-gates`**.
 
-1. `:00` — Supervisor / integrator
-2. `:10` — Researcher / architect
-3. `:20` — Builder
-4. `:30` — Test engineer / Red Team
-5. `:40` — Mobile, browser, accessibility, and performance specialist
-6. `:50` — Devil's Advocate / release auditor
+Six scheduled wakes normally provide these perspectives:
 
-The supervisor is the only role that may create, reorder, accept, reject, reopen, or retire official roadmap tasks. Specialists may recommend work, but they act only on assignments recorded in `round-plan.json`.
+1. Supervisor / integrator
+2. Researcher / architect
+3. Builder
+4. Test engineer / Red Team
+5. Mobile, browser, accessibility, and performance specialist
+6. Devil's Advocate / release auditor
+
+The timer slot is **wake cadence, not assignment ownership**. The earliest dependency-ready assignment controls scope. Any eligible successor may execute a missed, delayed, failed, or abandoned assignment when the succession and lease rules permit it, while preserving that assignment's intended role, method, acceptance criteria, evidence path, and safety limits.
+
+The **supervisor function** remains the roadmap authority: supervisor assignments create, reorder, accept, reject, reopen, or retire official roadmap work. That authority belongs to the supervisor assignment, not permanently to one timer identity. An eligible successor executing a missed supervisor assignment acts in the supervisor role for that bounded step.
 
 ## Canonical files
 
-- `../autopilot-state.json` — authoritative round, branch, lease, and stop state.
-- `round-plan.json` — required programs, backlog, assignments, dependencies, acceptance criteria, and evidence status.
-- `task-prompts.md` — the universal copy-paste prompt for all six scheduled tasks.
-- `evidence-contract.md` — required durable output format for every worker.
-- `../briefs/` — user requirements and exploratory product briefs supplied to workers.
-- `../evidence/round-N/worker-W.md` — worker evidence for later supervisor, auditor, and human review.
+- `../autopilot-state.json` — authoritative round, branch, lease, stop state, dispatch, and current evidence limits.
+- `round-plan.json` — required programs, assignments, dependencies, acceptance criteria, and evidence status.
+- `task-prompts.md` — universal worker execution contract.
+- `evidence-contract.md` — durable evidence format.
+- `agent-succession-rule.md` — active-work exclusion, stale/incomplete-handoff recovery, and successor behavior.
+- `../deferred-questions.md` — local human questions and their resolutions.
+- `../user-directives/` — explicit user authority that can refine the operating policy without weakening platform safety.
+- `../briefs/` — user requirements and exploratory product briefs.
+- `../evidence/round-N/` — durable worker evidence for supervisor, auditor, and human review.
 
-Chat summaries are not authoritative. GitHub state, commits, CI, and evidence files are authoritative.
+Chat summaries are convenience only. GitHub state, commits, CI, and durable evidence are authoritative.
 
-## Supervisor algorithm
+## Assignment selection and succession
 
-At the start of a round, Worker 1:
+At every wake:
 
-1. Reads state, branch head, recent commits, CI, required programs, backlog, briefs, and previous evidence.
-2. Verifies or rejects previous claims.
-3. Selects a dependency-safe slice of work.
-4. Assigns one bounded task to Workers 2–5 and an audit task to Worker 6.
-5. Gives every assignment an ID, goal, rationale, dependencies, allowed files, prohibited actions, acceptance criteria, required tests, and fallback work.
-6. Updates `round-plan.json` and releases the lease.
-7. Does not silently remove a user-required program.
+1. Read the latest canonical maker first, then state, plan, succession rule, task prompt, evidence contract, deferred questions, applicable user directives, and assignment-linked evidence/briefs.
+2. Check the shared lease, branch movement, and GitHub Actions for genuine active conflicting work.
+3. Find the **earliest dependency-ready** assignment whose status is `ready`, `retry-ready`, or equivalent.
+4. Execute that assignment even if its intended worker number differs from the current timer slot.
+5. Preserve assignment scope. A role mismatch, missed timer, previous failed test with a ready recovery, or already-answered/local human question is not a reason to stall.
+6. A failed or blocked step must become durable evidence and expose the smallest dependency-safe continuation rather than being narrated as success.
 
-The supervisor normally does not implement product code. It may repair orchestration files when necessary.
+A valid active lease plus evidence of continuing conflicting work requires `HOLD`. An expired or stale lease is not reclaimed merely because time passed: inspect branch/workflow activity first. An incomplete handoff may be repaired before nominal expiry only when durable evidence proves the holder finished and no continuing work exists, as defined by `agent-succession-rule.md`.
 
-## Specialist algorithm
+## Shared lease
 
-Workers 2–5:
+There is one shared lease for repository and coordination writes.
 
-1. Read their exact assignment.
-2. Exit without writes when no assignment is ready.
-3. Claim the shared lease before any write.
-4. Perform one bounded task only.
-5. Record research, commits, tests, CI run IDs, risks, and limitations.
-6. Write `.gitl/evidence/round-N/worker-W.md`.
-7. Mark the assignment `submitted`, not `accepted`.
-8. Release the lease.
+Before writing, a worker must:
 
-Worker 6 independently audits the round. It assumes claims are unproven until commits, diffs, tests, CI, and evidence files support them. It marks assignments `accepted`, `rejected`, or `needs-more-evidence`, then sets the round to `awaiting-human-verification`.
+1. Re-read the latest state and branch head.
+2. Check branch-changing workflow activity and recent branch movement.
+3. Claim the 45-minute shared lease against the latest state-file blob/commit.
+4. Record holder, assignment, intended/executed role, nominal worker, acquisition/expiry, and inspected head.
+5. Re-read state to confirm ownership before other writes.
 
-## No-stall handoff rule
+A worker must stop if unexpected conflicting branch movement appears after acquisition. It must release the lease during the durable handoff, or record an explicit incomplete-handoff object if that transaction cannot be completed.
 
-A scheduled worker must never leave the round waiting on work that already has a durable commit or a documented blocker.
+## Local human gates
 
-Before ending its invocation, every worker must:
+Human questions are **local gates by default**, not global freezes.
 
-1. Commit all authorized completed work and durable evidence to the isolated branch.
-2. Update `round-plan.json` and `autopilot-state.json` with the exact result.
-3. Mark the assignment `submitted` when its required gates pass, or `blocked` when they do not.
-4. Record the blocker, affected commits, unrun or failing tests, and the exact continuation step.
+A question blocks only the branch or decision that actually depends on it. Independent reversible work continues when dependencies allow. The deferred queue records the question, affected decision, fallback behavior, and eventual answer. Only a genuine project-wide irreversible/publication/security decision should globally stop independent work.
+
+The accepted Round-4 and Round-5 review decisions remain bounded to their recorded evidence. Round-6 read-only live inspection is authorized when a functioning carrier exists; absence of qualifying live capture limits live-host certification but does not prohibit deterministic fixture/release-path work.
+
+## Delivery-Pressure Checkpoint
+
+The canonical Personal-Forge maker v1.1 Delivery-Pressure Checkpoint applies.
+
+Research fallback is temporarily ineligible whenever a safe, reversible implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence artifact is dependency-ready. A delivery review is forced after the maker's pressure threshold (including six research-only wakes or twelve hours without delivery review), and the smallest falsifiable artifact takes priority over another research loop.
+
+Research fallback is still available when no executable assignment exists, but it must never compete with active implementation/test/release work or invent a global blocker from missing local/live evidence.
+
+## No-stall durable handoff
+
+Before ending a write-bearing wake, the worker must complete as much of this transaction as the connector permits:
+
+1. Commit the implementation/artifact and required evidence.
+2. Update the current assignment status.
+3. Activate the earliest dependency-safe successor.
+4. Update state `currentStep` and `nextAction`.
 5. Release the lease.
-6. Make the next dependency-safe worker `ready` when that worker can test, diagnose, falsify, or continue from the blocked evidence without pretending the blocked work passed.
+6. Re-read canonical state to verify the handoff.
 
-A blocked assignment is not completion and must not be accepted as success. It is, however, a valid durable handoff when the next worker's assignment explicitly permits `submitted-or-blocked` and requires preservation of the unresolved limitation.
+If an operation fails, write an explicit incomplete-handoff record so the next worker can recover it immediately. Work must not exist only in chat.
 
-No worker may end with repository changes existing only in chat, an assignment still marked `ready`, or a next worker left unable to act because bookkeeping was omitted.
+## Evidence and test discipline
 
-## Required product programs
+Use Repo Nanny when available, sweep before patching, reproduce before repair, inspect adjacent damage, and distinguish repository evidence, external evidence, and inference.
 
-The supervisor must keep all release-critical programs in the plan until they are completed or the user explicitly changes scope.
+Do not claim a test passed without an exact command result, CI run/job, or recorded artifact. Stale-head, queued, cancelled, unrelated, or synthetic-only evidence cannot be promoted beyond what it proves. For product changes, use applicable syntax, generated parity, unit, base certification, browser, mobile, version, packaging, and checksum gates.
 
-The current required programs include:
+When local execution is unavailable, a temporary guarded GitHub Actions carrier may be used only within the active assignment's permissions. It must guard the expected head, preserve logs/artifacts, remove temporary machinery, and obtain ordinary clean-head CI before certification when required.
+
+## Required release programs
+
+Do not silently remove or defer release-critical programs listed by the current plan, including:
 
 - Repair & Resume browser fault injection.
-- Frozen and discarded page lifecycle recovery.
-- Long-chat observation and rendering performance.
-- Host-affixed mobile shell research, implementation, and certification.
+- Frozen/discarded lifecycle recovery.
+- Long-chat and constrained-device performance.
+- Host-affixed structural mobile-shell work.
 - Build/candidate/channel identity.
 - Documentation reconciliation.
 - Final certification, packaging, and checksums.
 
 ### Host-affixed mobile shell
 
-The mobile shell is mandatory work on top of the existing 8.8 roadmap, not merely an optional note.
+Teal is a real child in the host header action row. Blue is a real final cell in the host composer action row. Red is a real sibling row beneath the composer that expands the host footer upward. Blue and red must participate in normal host layout and must not become viewport overlays.
 
-Workers must read `../briefs/mobile-shell-concepts.md`. The intended mounts are:
-
-- Teal: a real child in the host header action row.
-- Blue: a real final cell in the host composer action row.
-- Red: a real sibling row beneath the composer that expands the host footer upward.
-
-Blue and red must not be implemented as viewport overlays. The work must be decomposed across rounds into research, structural mount infrastructure, implementation, adversarial testing, mobile/accessibility/performance certification, cross-adapter expansion, and final audit.
-
-The rail may remain a compatibility fallback when a site cannot pass structural mount verification.
-
-## Lease rules
-
-- One active lease for all repository and coordination writes.
-- Default lease duration: 45 minutes.
-- A fresh lease blocks every other worker.
-- An expired lease may be reclaimed only after checking branch movement and active GitHub Actions.
-- A worker must stop if the branch head changed unexpectedly after lease acquisition.
-- Every lease update must use the latest file SHA or equivalent conflict-safe write.
-
-## GitHub Actions
-
-When local Git, npm, or Playwright is unavailable, workers may use a temporary guarded workflow on the isolated branch. Product changes may be committed only after required gates pass. Temporary carrier scripts and self-applying workflows must be removed before ordinary clean-head CI.
+Accepted structural authority remains fail-closed: a certified site-specific runner requires reviewed site identity plus adapter-owned structural capability/signature; otherwise it demotes to the standard adapter-aware protocol, then to the existing rail fallback when structural verification is absent or uncertain. Structural-mount authority never grants Send authority, and original Send-node identity remains protected.
 
 ## Safety boundaries
 
 Workers must never:
 
-- Modify `main`.
-- Merge or enable auto-merge.
-- Tag, publish, or create a GitHub Release.
-- Replace or clone host Send controls for the structural UI.
-- Weaken Send, CHOICE, route, lease, or uncertainty safeguards to satisfy tests.
-- Expand scope without supervisor approval.
-- Claim tests or sources they did not verify.
+- modify `main`;
+- merge or enable auto-merge;
+- tag, publish, create a GitHub Release, or change the stable public userscript channel;
+- replace or clone host Send controls for structural UI;
+- weaken Send, CHOICE, route, shared-lease, uncertainty, exact-identity, structural-demotion, or other fail-closed safeguards to obtain a pass;
+- silently lower an accepted test threshold to hide hosted variance;
+- expand certification beyond exact evidence;
+- claim sources, tests, hardware, live-site behavior, or publication state they did not verify.
 
-## Round modes
+## Round completion and audit
 
-`review-after-round` is the current mode. After Worker 6 finishes, all tasks no-op until human review in ChatGPT.
+Rounds may proceed continuously without a global review stop. A round closes only after its audit assignment evaluates the bounded objective and its evidence. If a genuine local human decision remains, queue it and block only dependent work. If execution evidence fails or is missing, activate a recovery before closure unless an actual human/irreversible gate prevents that recovery.
 
-During review, ChatGPT can read the state, round plan, worker evidence, commits, and CI; explain what happened; reject unsupported work; and write corrections to the isolated branch when the user asks.
-
-A future `continuous` mode may let the next supervisor run open another round automatically, but only after the review-after-round workflow proves reliable.
+`[[GITL::PROCEED]]`, `[[GITL::CHOICE]]`, `[[GITL::HOLD]]`, and `[[GITL::HALT]]` retain the meanings defined by `task-prompts.md`; the marker is an execution-state summary, not a substitute for the durable repository handoff.
