@@ -73,7 +73,7 @@ jobs:
 
   xa2x:
     name: XA2X Claude Blue Exact Verification
-    if: github.actor != 'github-actions[bot]' && startsWith(github.event.head_commit.message, 'test(gitl): arm XA2X via registered CI')
+    if: "${{ github.actor != 'github-actions[bot]' && startsWith(github.event.head_commit.message, 'test(gitl): arm XA2X via registered CI') }}"
     permissions:
       contents: write
       actions: read
@@ -87,6 +87,24 @@ jobs:
         with:
           node-version: '20'
           cache: npm
+      - name: Repair malformed canonical state bootstrap
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const p = '.gitl/autopilot-state.json';
+          let s = fs.readFileSync(p, 'utf8');
+          try {
+            JSON.parse(s);
+          } catch (err) {
+            const marker = 'Evidence commit 3c4e95bac72cd9913f0012ab755fd25cacbf42fd; plan handoff commit 4613b7d5254a72b5cf332317aab8b3e3eb155bd7."';
+            const needle = `${marker}\n  ],\n  "findings": [`;
+            if (!s.includes(needle)) throw err;
+            s = s.replace(needle, `${marker}}\n  ],\n  "findings": [`);
+            JSON.parse(s);
+            fs.writeFileSync(p, s);
+          }
+          NODE
       - name: Recover lease, claim XA2X, and run exact gates
         id: xa2xtest
         shell: bash
