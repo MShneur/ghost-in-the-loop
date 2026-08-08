@@ -14,14 +14,14 @@ const RAW = fs.readFileSync(path.join(__dirname, '../../../ghost-in-the-loop.use
   .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
 
 const EXPOSE = `
-  window.__GITL_TestSend = async text => {
+  window.__GITL_TestSend = async (text, options = {}) => {
     PLAT.reviewed = true;
     PLAT.input = ['#composer'];
     PLAT.send = ['#send'];
     PLAT.stop = ['#stop'];
     PLAT.assistant = ['#assistant'];
     PLAT.dispatchFallback = null;
-    PLAT.useCE = false;
+    PLAT.useCE = !!options.contenteditable;
     PLAT.useNS = false;
     Object.assign(GHOST.loop, {
       state: 'RUNNING', phase: 'idle', isSending: false,
@@ -61,10 +61,18 @@ const PAGE = `data:text/html,${encodeURIComponent(`<!doctype html><html><body>
   </main>
 </body></html>`)}`;
 
-async function boot(page) {
+const CONTENTEDITABLE_PAGE = `data:text/html,${encodeURIComponent(`<!doctype html><html><body>
+  <main>
+    <div id="assistant">Prior response.</div>
+    <div id="composer" contenteditable="true"></div>
+    <button id="send" aria-label="Send message">Send</button>
+  </main>
+</body></html>`)}`;
+
+async function boot(page, url = PAGE) {
   await page.addInitScript(GM);
   await page.addInitScript(SCRIPT);
-  await page.goto(PAGE);
+  await page.goto(url);
   await page.waitForTimeout(700);
 }
 
@@ -110,6 +118,44 @@ test.describe('pre-dispatch composer evidence', () => {
     });
 
     const delivered = await page.evaluate(() => window.__GITL_TestSend('Complete staged prompt'));
+    const result = await page.evaluate(() => ({ clicks: window.__sendClicks, state: window.__GITL_TestState() }));
+
+    expect(delivered).toBe(true);
+    expect(result.clicks).toBe(1);
+    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+  });
+
+  test('a block-normalized multiline contenteditable prompt verifies and dispatches once', async ({ page }) => {
+    await boot(page, CONTENTEDITABLE_PAGE);
+    await page.evaluate(() => {
+      window.__sendClicks = 0;
+      const input = document.getElementById('composer');
+      let normalized = false;
+      input.addEventListener('input', () => {
+        if (normalized) return;
+        const visible = input.innerText || input.textContent || '';
+        if (!visible.includes('Read the GitHub assignment.')) return;
+        normalized = true;
+        const first = document.createElement('p');
+        first.textContent = 'Start the scheduled worker.';
+        const second = document.createElement('p');
+        second.textContent = 'Read the GitHub assignment.';
+        input.replaceChildren(first, second);
+      });
+      document.getElementById('send').addEventListener('click', () => {
+        window.__sendClicks += 1;
+        input.replaceChildren();
+        const stop = document.createElement('button');
+        stop.id = 'stop';
+        stop.textContent = 'Stop';
+        document.body.appendChild(stop);
+      });
+    });
+
+    const delivered = await page.evaluate(() => window.__GITL_TestSend(
+      'Start the scheduled worker.\nRead the GitHub assignment.',
+      { contenteditable: true }
+    ));
     const result = await page.evaluate(() => ({ clicks: window.__sendClicks, state: window.__GITL_TestState() }));
 
     expect(delivered).toBe(true);

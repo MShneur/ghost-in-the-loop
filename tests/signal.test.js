@@ -62,13 +62,11 @@ describe('detectSignal — halt-first invariant', () => {
     expect(r2.signal).toBe('halt');
   });
 
-  test('fuzzy proceed: "shall i continue" contributes but needs threshold', () => {
-    // Fuzzy alone scores 2, threshold is 3 — returns none without another signal
+  test('user-decision question enters CHOICE and beats a proceed cue', () => {
     const r = detectSignal(longPrefix + ' shall i continue');
-    expect(['proceed', 'none']).toContain(r.signal);
-    // Combined with sigil it crosses threshold
+    expect(r.signal).toBe('choice');
     const r2 = detectSignal(longPrefix + ' [[GITL::PROCEED]] shall i continue');
-    expect(r2.signal).toBe('proceed');
+    expect(r2.signal).toBe('choice');
   });
 
   test('progress bar mid-run contributes but needs threshold', () => {
@@ -117,9 +115,11 @@ describe('detectSignal — confidence levels', () => {
     expect(sigil.confidence).toBeGreaterThan(legacy.confidence);
   });
 
-  test('combined sigil + fuzzy boosts confidence', () => {
-    const combined = detectSignal(longPrefix + ' [[GITL::PROCEED]] shall i continue');
-    const single   = detectSignal(longPrefix + ' [[GITL::PROCEED]]');
-    expect(combined.confidence).toBeGreaterThan(single.confidence);
+  test('explicit CHOICE marker is stronger than a fuzzy choice request', () => {
+    const fuzzy = detectSignal(longPrefix + ' shall i continue');
+    const explicit = detectSignal(longPrefix + ' [[GITL::CHOICE]]');
+    expect(fuzzy.signal).toBe('choice');
+    expect(explicit.signal).toBe('choice');
+    expect(explicit.confidence).toBeGreaterThan(fuzzy.confidence);
   });
 });
