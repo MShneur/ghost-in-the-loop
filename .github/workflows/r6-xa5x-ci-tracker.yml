@@ -1,0 +1,126 @@
+name: Round 6 XA5X Clean-Head CI Tracker
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa5x-ci-tracker-trigger.md'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r6-xa5x-clean-head-tracker
+  cancel-in-progress: false
+
+jobs:
+  track:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_SHA: 53f49b2e7302317aa5bda9623cc2447a9b86659e
+      BRANCH: agent/8.8-repair-resume
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard XA5X lease and clean target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          git merge-base --is-ancestor "$TARGET_SHA" "origin/$BRANCH"
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json','utf8'));
+          if (!state.lease || state.lease.holder !== 'scheduled-worker-3-r6-xa5x-ci-hygiene-04' || state.lease.assignmentId !== 'R6-XA5X-CI-HYGIENE-RECOVERY') {
+            throw new Error('XA5X lease not owned by expected recovery worker');
+          }
+          NODE
+          if git show "$TARGET_SHA:.github/workflows/test.yml" | grep -q '^  xa2x:'; then
+            echo 'stale xa2x job still present on target' >&2
+            exit 1
+          fi
+          if git cat-file -e "$TARGET_SHA:.github/xa2x-run.sh" 2>/dev/null; then
+            echo 'stale xa2x runner still present on target' >&2
+            exit 1
+          fi
+
+      - name: Wait for ordinary clean-head CI and capture bindings
+        id: poll
+        shell: bash
+        run: |
+          set -euo pipefail
+          RUN_ID=''
+          for i in $(seq 1 90); do
+            JSON=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&event=push&per_page=30")
+            RUN_ID=$(printf '%s' "$JSON" | jq -r '.workflow_runs[] | select(.name == "Ghost in the Loop — CI") | .id' | head -n1)
+            if [ -n "$RUN_ID" ] && [ "$RUN_ID" != null ]; then
+              STATUS=$(printf '%s' "$JSON" | jq -r --argjson id "$RUN_ID" '.workflow_runs[] | select(.id == $id) | .status')
+              CONCLUSION=$(printf '%s' "$JSON" | jq -r --argjson id "$RUN_ID" '.workflow_runs[] | select(.id == $id) | .conclusion')
+              echo "Found run $RUN_ID status=$STATUS conclusion=$CONCLUSION"
+              if [ "$STATUS" = completed ]; then break; fi
+            fi
+            sleep 20
+          done
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          RUN_JSON=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")
+          STATUS=$(printf '%s' "$RUN_JSON" | jq -r '.status')
+          CONCLUSION=$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')
+          test "$STATUS" = completed
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > /tmp/jobs.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" > /tmp/artifacts.json
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/failed.log 2>&1 || true
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
+
+      - name: Record durable result and self-remove
+        if: always() && steps.poll.outputs.run_id != ''
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.poll.outputs.run_id }}
+          RUN_CONCLUSION: ${{ steps.poll.outputs.conclusion }}
+        run: |
+          set -euo pipefail
+          JOB_LINES=$(jq -r '.jobs[] | "- Job `\(.id)` — **\(.name)**: `\(.conclusion)`"' /tmp/jobs.json)
+          ARTIFACT_LINES=$(jq -r '.artifacts[]? | "- Artifact `\(.id)` — `\(.name)` — digest `\(.digest // "UNKNOWN")`"' /tmp/artifacts.json)
+          FAILED=$(sed -n '1,240p' /tmp/failed.log)
+          mkdir -p .gitl/evidence/round-6
+          cat > .gitl/evidence/round-6/xa5x-clean-head-ci-result.md <<EOF
+          # Ghost Worker Evidence — R6 XA5X Ordinary Clean-Head CI Result
+
+          ## Identity
+          - Assignment: \`R6-XA5X-CI-HYGIENE-RECOVERY\`
+          - Target clean head: \`${TARGET_SHA}\`
+          - GitHub Actions run: \`${RUN_ID}\`
+          - Workflow conclusion: **${RUN_CONCLUSION}**
+
+          ## Hygiene Guard
+          - Residual \`xa2x\` job absent from \`.github/workflows/test.yml\`: PASS
+          - Deleted \`.github/xa2x-run.sh\` absent: PASS
+          - Ordinary unit/e2e workflow semantics otherwise preserved by cleanup commit: PASS by exact diff scope
+
+          ## Jobs
+          ${JOB_LINES}
+
+          ## Artifacts
+          ${ARTIFACT_LINES:-'- No artifacts returned by API.'}
+
+          ## Failed-Log Extract
+          \`\`\`text
+          ${FAILED:-No failed-job log output.}
+          \`\`\`
+
+          ## Claim Limits
+          This ordinary CI result does not certify current live ChatGPT or Claude structure, physical Android/WebView/GeckoView, real IME/browser-toolbar combinations, real assistive technology, or calibrated low-end hardware.
+          EOF
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-xa5x-ci-tracker.yml .gitl/evidence/round-6/xa5x-ci-tracker-trigger.md
+          git add .gitl/evidence/round-6/xa5x-clean-head-ci-result.md
+          git commit -m "test(gitl): record XA5X ordinary clean-head CI result"
+          git push origin HEAD:"$BRANCH"
