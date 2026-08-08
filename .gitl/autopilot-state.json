@@ -132,7 +132,15 @@
     "detailedPreRound7StateCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "note": "Detailed Round-3 through Round-6 completed-step/finding/evidence ledger remains immutable in Git history and per-round .gitl/evidence. Round-7 state is compacted to active release-critical facts without dropping required programs or prior certification limits."
   },
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r7-a4-final-audit-03",
+    "assignmentId": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
+    "role": "devils-advocate-release-auditor-successor",
+    "nominalWorker": 5,
+    "acquiredAt": "2026-08-08T09:41:30Z",
+    "expiresAt": "2026-08-08T10:26:30Z",
+    "inspectedHead": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
