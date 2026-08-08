@@ -3,7 +3,7 @@
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "mode": "continuous-local-human-gates",
-  "round": 7,
+  "round": 8,
   "status": "active",
   "supervisorWorker": 1,
   "schedule": [
@@ -40,36 +40,37 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round7-a3-redteam-submitted-a4-final-audit-ready",
+    "checkpointStatus": "round7-a4-build-identity-accepted-round8-docs-supervisor-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Research remains lower priority while required BUILD-IDENTITY final audit, documentation, certification, packaging, or release-evidence work is executable.",
+    "reenableCondition": "Research remains lower priority while required DOCS-RECONCILIATION, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R7-A3 independently killed all four required BUILD-IDENTITY mutant families and exact ordinary CI passed on head 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02. The immediately preceding same-payload run 31250247148 failed the preserved Round-5 hosted timing oracle on attempt 1 and passed on attempt 2, so hosted sub-millisecond timing reproducibility remains an explicit release-evidence risk rather than a product regression or grounds to weaken the accepted threshold. R7-A4 final audit now outranks research; publication remains disabled."
+    "checkpointDecision": "R7-A4 independently accepted BUILD-IDENTITY at bounded immutable-payload/provenance-and-test-binding/candidate-channel/non-published scope. Current pre-audit head 75b0a7c9aedce61f09b953d3f452e832a03d4fa7 passed ordinary CI in run 31250770870. Hosted Long-Chat timing variance remains explicit release evidence: predecessor coordination head 7fe9fd47885170bdda48e10348e5c410cf84e7df failed the preserved A2 timing gate in run 31250736801, while later same-payload evidence passed overall with a different timing case flaky. Do not weaken thresholds. DOCS-RECONCILIATION supervisor planning now outranks research; publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
     {"id":"LIFECYCLE-FROZEN-DISCARDED","title":"Frozen and discarded page lifecycle research and recovery","status":"completed","releaseCritical":true,"certifiedRound":4,"humanReview":"accepted-bounded","humanAccepted":true,"resolvedQuestion":"DQ-R4-LIFECYCLE-REVIEW"},
     {"id":"LONG-CHAT-PERF","title":"Long-conversation observation, scanning, rendering, timer, and constrained-device performance","status":"completed","releaseCritical":true,"certifiedRound":5,"humanReview":"accepted-bounded","humanAccepted":true,"resolvedQuestion":"DQ-R5-LONGCHAT-REVIEW"},
     {"id":"MOBILE-SHELL-STRUCTURAL","title":"Host-affixed mobile Ghost shell research, implementation, and certification","status":"completed","releaseCritical":true,"userRequired":true,"brief":".gitl/briefs/mobile-shell-concepts.md","certifiedRound":6,"certificationScope":"bounded-deterministic-hosted-cross-adapter","liveHostCertification":"pending-local-gate"},
-    {"id":"BUILD-IDENTITY","title":"Canonical build, candidate, and release-channel identity","status":"active","releaseCritical":true},
-    {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation","status":"backlog","releaseCritical":true},
+    {"id":"BUILD-IDENTITY","title":"Canonical build, candidate, and release-channel identity","status":"completed","releaseCritical":true,"certifiedRound":7,"certificationScope":"bounded-immutable-payload-provenance-test-binding-candidate-channel-nonpublished"},
+    {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation","status":"active","releaseCritical":true},
     {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"backlog","releaseCritical":true}
   ],
   "priorityOrder": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "priorRound": {
-    "round": 6,
-    "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
-    "auditAssignment": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
-    "auditEvidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
-    "auditEvidenceCommit": "aa220f6a3f195783319cd5355c3cfc7d0636f08e",
+    "round": 7,
+    "program": "BUILD-IDENTITY",
+    "verdict": "completed-certified-bounded-nonpublished",
+    "auditAssignment": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
+    "auditEvidence": ".gitl/evidence/round-7/worker-6-final-audit.md",
+    "auditEvidenceCommit": "15e82ef79fec5388f19aee881056d03f93f471ac",
     "explicitLimits": [
-      "Exact current live ChatGPT structural insertion remains uncertified.",
-      "Exact current live Claude structural insertion remains uncertified.",
+      "The machine-readable identity record binds immutable shipped payload bytes at an earlier provenance head while exact later CI heads are separately bound; coordination-only head movement is intentionally reported as head-moved-payload-identical rather than exact-head provenance.",
+      "brace-expansion@1.1.15 and js-yaml@3.14.2 remain real high-severity nodes in the Jest development graph; npm audit --omit=dev is clean and no concrete shipped-payload path is established, while shipped exploitability remains UNKNOWN / not claimed.",
+      "Hosted sub-millisecond/millisecond Long-Chat timing reproducibility remains variable across same-payload ordinary CI; the accepted Round-5 numerical thresholds were not weakened.",
+      "Exact current live ChatGPT and Claude structural insertion remains uncertified.",
       "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, and calibrated low-end-device performance remain uncertified.",
-      "The bounded generic-baseline result is not a universal superiority benchmark.",
-      "The exact dependency audit found two high-severity development-tooling nodes but no production-omit-dev vulnerabilities or concrete shipped-payload path; shipped exploitability remains UNKNOWN / not claimed and no blanket upgrade is authorized."
+      "Candidate identity is not publication identity; publishReady remains false and no tag, Release, store, merge, or main-channel publication is authorized."
     ]
   },
   "identityContract": {
@@ -96,6 +97,7 @@
     "oracleEvidencePath": ".gitl/evidence/round-7/worker-3.md",
     "oracleEvidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c",
     "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
+    "identityRecordProvenanceHead": "30c49f690afb14683014e0a7c40c5c2093aaba2a",
     "testedImplementationHead": "ee7d79a286193de699e3dc049182492a6dbd5b1d",
     "ordinaryCiRun": 31249049293,
     "ordinaryCiConclusion": "success",
@@ -104,15 +106,20 @@
     "redTeamTestedHead": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
     "redTeamOrdinaryCiRun": 31250442852,
     "redTeamOrdinaryCiConclusion": "success",
-    "timingVarianceObservation": "Immediate predecessor run 31250247148 failed only the preserved Round-5 A2 timing oracle on attempt 1 and passed on attempt 2 at the same exact predecessor head; A3 exact-head run passed. Treat as hosted timing reproducibility risk, not a product regression and not permission to loosen the threshold."
+    "finalAuditEvidencePath": ".gitl/evidence/round-7/worker-6-final-audit.md",
+    "finalAuditEvidenceCommit": "15e82ef79fec5388f19aee881056d03f93f471ac",
+    "latestPreAuditHead": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
+    "latestPreAuditOrdinaryCiRun": 31250770870,
+    "latestPreAuditOrdinaryCiConclusion": "success",
+    "timingVarianceObservation": "Run 31250247148 attempt 1 failed the preserved Round-5 A2 timing oracle and attempt 2 passed on the same predecessor head; A3 exact-head run 31250442852 passed; later coordination head 7fe9fd47885170bdda48e10348e5c410cf84e7df failed the preserved A2 timing gate in run 31250736801; pre-audit head 75b0a7c9aedce61f09b953d3f452e832a03d4fa7 passed run 31250770870 overall while one separate heavy-DOM-replacement Long-Chat timing case was flaky. Treat as hosted timing reproducibility risk, not product regression and not permission to loosen the threshold."
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Independently audit the immutable payload/provenance/test binding, A2 dependency disposition, all required mutant sensitivity, exact A3 CI evidence, and the contradictory hosted timing observations from run 31250247148 attempt 1 versus attempt 2/A3 run 31250442852. Do not discard the red attempt, weaken Round-5 timing thresholds, promote live/physical claims, or change publication state. Close BUILD-IDENTITY only at supported bounded scope; otherwise expose only the smallest evidence-linked recovery."
+    "instruction": "Open the smallest evidence-backed DOCS-RECONCILIATION roadmap from the accepted bounded BUILD-IDENTITY handoff. Preserve every bounded R4/R5/R6/R7 limit, the A2 development-tooling advisory disposition, all timing-variance dissent, candidate-versus-stable publication separation, and publishReady=false. Do not modify product behavior or publish."
   },
   "assignments": [
     {
@@ -142,17 +149,7 @@
       "mandatoryReads": [".gitl/evidence/round-7/worker-1.md","package.json","package-lock.json","ghost-in-the-loop.user.js","extension/manifest.json","extension/content.js","scripts/build-extension.js","scripts/certify-extension.js","tests/version.test.js"],
       "allowedFiles": ["scripts/**","tests/**","package.json",".gitl/**",".github/workflows/**"],
       "prohibitedActions": ["product behavior changes","version bump","changing @updateURL/@downloadURL or channel identity","hand-editing generated extension/content.js","dependency upgrade","weakening Send/CHOICE/route/lease/uncertainty or prior bounded limits","main/merge/auto-merge/tag/release/publish"],
-      "acceptanceCriteria": [
-        "machine-readable identity artifact records version, candidate channel, stable channel observation, exact provenance head, and exact shippable payload hashes",
-        "oracle reuses or invokes existing version consistency, cert:base, and generated-parity checks rather than replacing them with weaker logic",
-        "deliberate version drift fails visibly",
-        "deliberate generated-content drift fails visibly",
-        "deliberate payload-hash drift fails visibly",
-        "deliberate candidate-versus-stable channel confusion fails visibly",
-        "coordination-only head movement is distinguished from shippable payload movement",
-        "product semantics and dependencies remain unchanged",
-        "record exact commands/head/run/job/artifact for any CI execution"
-      ],
+      "acceptanceCriteria": ["machine-readable identity artifact records version, candidate channel, stable channel observation, exact provenance head, and exact shippable payload hashes","oracle reuses or invokes existing version consistency, cert:base, and generated-parity checks rather than replacing them with weaker logic","deliberate version drift fails visibly","deliberate generated-content drift fails visibly","deliberate payload-hash drift fails visibly","deliberate candidate-versus-stable channel confusion fails visibly","coordination-only head movement is distinguished from shippable payload movement","product semantics and dependencies remain unchanged","record exact commands/head/run/job/artifact for any CI execution"],
       "requiredEvidence": ["machine-readable identity record","exact payload hashes","mutant/falsification results","exact provenance","candidate/stable channel classification","execution bindings"],
       "fallbackWork": "If an identity source conflicts, preserve the conflict exactly and create the smallest evidence-linked identity recovery. Do not guess, bump the version, edit publication URLs, or publish.",
       "evidencePath": ".gitl/evidence/round-7/worker-3.md",
@@ -225,26 +222,54 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "ready",
+      "status": "accepted",
       "program": "BUILD-IDENTITY",
       "goal": "Independently audit candidate identity, hashes/provenance, dependency disposition, Red-Team sensitivity, and clean CI; close BUILD-IDENTITY only at the evidence actually obtained.",
       "dependencies": ["R7-A2-DEPENDENCY-AUDIT:submitted","R7-A3-BUILD-IDENTITY-REDTEAM-CI:submitted"],
       "mandatoryReads": [".gitl/evidence/round-7/worker-1.md",".gitl/evidence/round-7/worker-3.md",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-7/worker-4.md",".gitl/evidence/round-7/candidate-identity.json"],
       "prohibitedActions": ["inventing publication or store identity","promoting candidate status to stable publication","dropping dependency findings","dropping the predecessor timing-failure evidence","weakening the preserved Round-5 timing oracle","weakening prior bounded certification limits","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["identity record is unambiguous and reproducible","payload hashes and provenance match exact tested candidate","dependency findings are remediated with evidence or explicitly evidenced as absent from shipped payload","Red-Team mutants demonstrate oracle sensitivity","ordinary clean-head CI is green","predecessor timing failure and same-head retry/A3 pass are explicitly reconciled without post-hoc threshold weakening","publishReady remains false","on acceptance expose DOCS-RECONCILIATION and do not skip to publication or final release"],
-      "evidencePath": ".gitl/evidence/round-7/worker-6-final-audit.md"
+      "evidencePath": ".gitl/evidence/round-7/worker-6-final-audit.md",
+      "executedBy": "scheduled-successor-r7-a4-final-audit-03",
+      "claimCommit": "012012dab52408f4a0a51b73d8a785602f661897",
+      "evidenceCommit": "15e82ef79fec5388f19aee881056d03f93f471ac",
+      "preAuditHead": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
+      "preAuditOrdinaryCiRun": 31250770870,
+      "preAuditUnitJob": 93086684148,
+      "preAuditE2eJob": 93086684177,
+      "preAuditBaseArtifact": 9019925369,
+      "preAuditBaseArtifactSha256": "343fe64d180bf6681443039f7261928393c879cdc4dc3d86fc34573c3d679001",
+      "preAuditE2eArtifact": 9019971885,
+      "preAuditE2eArtifactSha256": "c0ddfaa4b4334c2a65b286689de26228047234ba3d22ad96fa1c50837a63df30",
+      "additionalTimingDissent": "Coordination-only head 7fe9fd47885170bdda48e10348e5c410cf84e7df failed ordinary run 31250736801 solely in the preserved Round-5 A2 timing family (small p95 about 1.4 ms, Playwright retry about 3.6 ms against <=0.875 ms); next same-payload handoff head 75b0a7c9aedce61f09b953d3f452e832a03d4fa7 passed ordinary run 31250770870 overall, while a separate heavy-DOM-replacement Long-Chat timing case was flaky. Preserve as hosted timing reproducibility risk; do not weaken thresholds.",
+      "verdict": "accepted-bounded-immutable-payload-provenance-test-binding-candidate-channel-nonpublished"
+    },
+    {
+      "id": "R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN",
+      "worker": 1,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "supervisor-integrator",
+      "status": "ready",
+      "program": "DOCS-RECONCILIATION",
+      "goal": "Open the smallest evidence-backed documentation reconciliation chain after bounded BUILD-IDENTITY completion without changing product behavior or publication state.",
+      "dependencies": ["R7-A4-BUILD-IDENTITY-FINAL-AUDIT:accepted"],
+      "mandatoryReads": [".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-7/candidate-identity.json",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",".gitl/evidence/round-5/worker-6.md",".gitl/evidence/round-4/worker-6.md","README.md","ARCHITECTURE.md","CHANGELOG.md"],
+      "prohibitedActions": ["product behavior changes during supervisor planning","inventing stable/publication/store identity","dropping timing/dependency/live/physical limits","weakening Send/CHOICE/route/lease/uncertainty safeguards","main/merge/auto-merge/tag/release/publish"],
+      "acceptanceCriteria": ["inventory user-facing and maintainer-facing docs that can contradict the accepted 8.8 evidence","preserve candidate-versus-stable/non-published identity separation","preserve all bounded R4/R5/R6/R7 limits and A2/timing dissent","open a dependency-safe docs-only reconciliation and independent audit chain","keep FINAL-CERT-PACKAGE required but not activated before docs reconciliation","keep publishReady=false"],
+      "requiredEvidence": ["documentation drift inventory","bounded docs roadmap","claim-limit ledger","dependency/timing/live-limit carry-forward","next ready docs assignment"],
+      "fallbackWork": "If documentation authority conflicts, preserve the conflict exactly and create the smallest docs-only evidence recovery. Do not change product semantics or publication state to make documentation easier."
     }
   ],
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT is an executable release-critical audit and outranks research.",
-    "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
+    "reason": "R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN is an executable release-critical handoff and outranks research.",
+    "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "a3-redteam-submitted-a4-final-audit-ready",
+  "roundDecision": "round7-build-identity-accepted-round8-docs-supervisor-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
