@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
-  "headAtLastHandoff": "94dd4ed6352060685a578ce41abaa914e83092c9",
-  "currentStep": "R8-A1X-CHANGELOG-RECONCILE was attempted under a fresh shared lease. The connected GitHub writer still exposes complete-file replacement only for existing files, and a second connected browser carrier required interactive user input that scheduled runtime cannot provide. To preserve the historical CHANGELOG losslessly, no CHANGELOG mutation was made. Carrier evidence is durable and the same bounded A1X assignment is retry-ready only for a patch-capable or otherwise provably lossless carrier. Research remains ineligible and publishReady remains false.",
-  "nextAction": "Claim R8-A1X-CHANGELOG-RECONCILE only when a patch-capable or otherwise provably lossless carrier is available. Insert only the already-specified bounded 8.8 candidate/certification note into the existing CHANGELOG section, preserve every historical entry outside that insertion, retain all R4/R5/R6/R7 limits, A2 development-tooling advisory disposition, hosted timing dissent including run 31251250525, candidate non-publication and stable-main authority, record exact CHANGELOG diff/no-product evidence, then expose R8-A2-DOCS-REDTEAM-AUDIT. Do not repeat an uncertain complete-file reconstruction through the replacement-only connector.",
+  "headAtLastHandoff": "fd87ec92a80a8713727e5f3d7d9a4d05072f4273",
+  "currentStep": "R8-A1X-CHANGELOG-RECONCILE is submitted after stale-handoff recovery. The prior holder completed a compare-verified bounded CHANGELOG insertion but left plan/state and the lease unreconciled. After lease expiry and a no-activity check, this wake independently verified the authoritative A1X compare as CHANGELOG.md only with 12 additions and 0 deletions, durably corrected the prior evidence's 14-addition count without erasing the original record, retained the implementation-head E2E-red and later evidence-only-head green CI observations, marked A1X submitted, exposed R8-A2-DOCS-REDTEAM-AUDIT, and released the shared lease. publishReady remains false.",
+  "nextAction": "Claim R8-A2-DOCS-REDTEAM-AUDIT under a fresh shared lease. Independently falsify README.md, docs/ARCHITECTURE.md, docs/RELEASE-CANDIDATE-8.8.md, .gitl/orchestration/README.md, and CHANGELOG.md against exact R4-R7 evidence. Reject any wording that upgrades bounded evidence into live/physical/stable-publication/exploitability/universally-stable-timing claims. Retain the corrected 12-addition insertion-only A1X diff, implementation-head red and evidence-head green CI, stable-main authority, dependency/timing dissent, all fail-closed safeguards, and publishReady=false. On acceptance expose FINAL-CERT-PACKAGE planning; otherwise expose only the smallest docs-only correction.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake with patch-capable carrier",
-    "nominalWorker": 3,
-    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 6,
+    "assignmentId": "R8-A2-DOCS-REDTEAM-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -53,7 +53,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R8-A1X-CHANGELOG-RECONCILE remains a safe reversible release-critical documentation recovery in principle and must be retried with a patch-capable carrier; it outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
+    "reason": "R8-A2-DOCS-REDTEAM-AUDIT is dependency-ready release-critical certification work and outranks research under maker v1.1 Delivery-Pressure.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -62,17 +62,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round8-a1x-carrier-blocked-patch-capable-retry-ready",
+    "checkpointStatus": "round8-a1x-submitted-a2-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R8-A1X-CHANGELOG-RECONCILE",
+    "nextArtifactAssignment": "R8-A2-DOCS-REDTEAM-AUDIT",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
     "lastDeliveryReviewAt": "2026-08-08T10:32:50Z",
-    "lastTestableArtifactAt": "2026-08-08T09:36:18Z",
-    "lastDeliveryDecision": "A1X was actively attempted rather than replaced by research. The available GitHub writer could only replace the full historical CHANGELOG, while the connected browser edit carrier required interactive input unavailable to scheduled runtime. The file was left intact, the carrier failure was recorded durably, and A1X remains retry-ready only for a patch-capable/provably lossless carrier. Publication remains disabled.",
-    "evidence": ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
-    "evidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6"
+    "lastTestableArtifactAt": "2026-08-08T11:02:46Z",
+    "lastDeliveryDecision": "A1X completed as a real release artifact rather than research fallback. After the original lossless-recovery holder stopped before handoff, the expired lease was recovered only after branch/workflow inactivity was verified. The authoritative GitHub compare proves an insertion-only CHANGELOG delta of 12 additions and 0 deletions; the prior 14-addition evidence count is corrected by durable recovery evidence. A1X is submitted, A2 independent docs Red Team is ready, publication remains disabled.",
+    "evidence": ".gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md",
+    "evidenceCommit": "cd024f4c3743339648f35b58a72225ac70c40752"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -90,7 +90,7 @@
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "BUILD-IDENTITY": "completed-certified-bounded-nonpublished",
-    "DOCS-RECONCILIATION": "active-a1x-carrier-blocked-patch-capable-retry-ready",
+    "DOCS-RECONCILIATION": "active-a1x-submitted-a2-ready",
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
@@ -101,7 +101,8 @@
     {"type":"round-7-build-identity-completed-bounded","result":"BUILD-IDENTITY accepted only at bounded immutable-payload/provenance-and-test-binding/candidate-channel/non-published scope; dependency and hosted-timing dissent retained."},
     {"type":"round-8-docs-supervisor-plan","result":"Claimed supervisor assignment at 7bf75807870f3a7dc5b204194de0766eb695508b, wrote documentation drift/claim-limit evidence bba48b7da83ef927c5102233569bf7b427daf3a6, and opened R8-A1 docs reconciliation plus dependency-blocked R8-A2 independent docs audit in plan commit 7ee4a07d192d9e32c856b44dae9aab2bd7c38865."},
     {"type":"round-8-a1-docs-partial","result":"Lease claim abe986b7faa891cbc7da6f3aa9ebc4b9e775aa42 delivered README, architecture, orchestration-policy and bounded 8.8 candidate-evidence docs through implementation head 15d355adcbcf0e44e4c181876e4fba5367cb1d19; worker evidence f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc records exact allowed-file diff and the one remaining lossless CHANGELOG recovery."},
-    {"type":"round-8-a1x-carrier-attempt","result":"Claimed A1X at 1a6f20fb4f5752a8d0832a17595d9312af1c2200, confirmed replacement-only GitHub writes cannot safely reconstruct the historical CHANGELOG, tested a second connected GitHub editor carrier which was unavailable in scheduled non-interactive runtime, left CHANGELOG unchanged, recorded evidence at 00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6, and made the same assignment retry-ready for a patch-capable carrier in plan commit 94dd4ed6352060685a578ce41abaa914e83092c9."}
+    {"type":"round-8-a1x-carrier-attempt","result":"Claimed A1X at 1a6f20fb4f5752a8d0832a17595d9312af1c2200, confirmed replacement-only GitHub writes cannot safely reconstruct the historical CHANGELOG, tested a second connected GitHub editor carrier which was unavailable in scheduled non-interactive runtime, left CHANGELOG unchanged, recorded evidence at 00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6, and made the same assignment retry-ready for a patch-capable carrier in plan commit 94dd4ed6352060685a578ce41abaa914e83092c9."},
+    {"type":"round-8-a1x-lossless-submitted","result":"Successor holder claimed A1X at 5f6935b3c620e3a952de0b8879b05af98003878c, produced final CHANGELOG implementation 8cb248a2c0fa23c506b8ae913a3ac0525a350990 and evidence head 486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c, then stopped before canonical handoff. After the lease expired and no continuing branch/workflow activity remained, recovery claim 03e0d1c265654d2088d828f21b5db8df1912f95a independently verified the authoritative base-to-implementation diff as CHANGELOG.md only with 12 additions and 0 deletions, wrote correction/recovery evidence cd024f4c3743339648f35b58a72225ac70c40752, submitted A1X and exposed A2 in plan commit fd87ec92a80a8713727e5f3d7d9a4d05072f4273."}
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"History-linear grouped assistant query and high Send-observation work remain recorded Round-5 limits; no physical Android/GeckoView/calibrated-hardware/Ghost-causal-dominance certification."},
@@ -111,8 +112,10 @@
     {"worker":6,"type":"hosted-timing-reproducibility","finding":"Same-payload ordinary CI has both red and green observations in the preserved Round-5 timing family. In addition to runs 31250247148 and 31250736801/31250770870, A4 claim-head run 31251250525 failed only the preserved A2 timing oracle. This is timing reproducibility evidence, not a demonstrated product regression and not permission to weaken thresholds."},
     {"worker":3,"type":"github-actions-runtime-hygiene","finding":"GitHub Actions reports checkout/setup-node/upload-artifact v4 target deprecated Node 20 action runtime and are forced onto Node 24, while project commands execute under setup-node Node 20.20.2. Treat as tooling hygiene; no product-failure causality established."},
     {"worker":1,"type":"round8-docs-drift","finding":"README contributor/release framing, docs/ARCHITECTURE authority/certification framing, CHANGELOG 8.8 completeness, and .gitl/orchestration/README mode/succession prose contain concrete drift requiring docs-only reconciliation before FINAL-CERT-PACKAGE."},
-    {"worker":3,"type":"round8-a1-lossless-changelog-carrier-limit","finding":"README, architecture, orchestration policy and bounded candidate evidence are reconciled. CHANGELOG remains the sole unmet A1 criterion because the connected file writer exposes full replacement rather than a bounded patch; risking silent deletion of historical entries was rejected. R8-A1X carries the exact lossless insertion forward."},
-    {"worker":3,"type":"round8-a1x-patch-carrier-required","finding":"A fresh A1X attempt confirmed both available carriers are insufficient for a lossless bounded historical CHANGELOG edit in scheduled runtime: GitHub contents writes require full replacement and the connected browser editor requires interactive user input. CHANGELOG was left intact; retry requires a patch-capable/provably lossless carrier rather than another reconstruction attempt."}
+    {"worker":3,"type":"round8-a1-lossless-changelog-carrier-limit","finding":"README, architecture, orchestration policy and bounded candidate evidence are reconciled. CHANGELOG was the sole unmet A1 criterion and required a lossless bounded recovery rather than an uncertain historical-file rewrite."},
+    {"worker":3,"type":"round8-a1x-patch-carrier-required","finding":"An initial A1X attempt confirmed both then-available carriers were insufficient for a lossless bounded historical CHANGELOG edit in scheduled runtime; that earlier blocker is retained as historical evidence."},
+    {"worker":5,"type":"round8-a1x-lossless-recovery","finding":"Later A1X recovery used compare-verified full-file transport and restored all unrelated historical drift. The authoritative final compare from 5f6935b3c620e3a952de0b8879b05af98003878c to 8cb248a2c0fa23c506b8ae913a3ac0525a350990 changes only CHANGELOG.md with 12 additions and 0 deletions. Prior evidence claiming 14 additions is superseded on that numerical point by .gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md."},
+    {"worker":5,"type":"round8-a1x-ci-red-green","finding":"A1X implementation head 8cb248a2c0fa23c506b8ae913a3ac0525a350990 had ordinary CI run 31254004451 with unit/base success and E2E failure. Evidence-only head 486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c had ordinary CI run 31254107047 success in both jobs. Preserve both observations; do not weaken timing thresholds or claim universal hosted timing stability."}
   ],
   "briefs": [
     ".gitl/briefs/mobile-shell-concepts.md"
@@ -131,7 +134,9 @@
     ".gitl/evidence/round-7/worker-6-final-audit.md",
     ".gitl/evidence/round-8/worker-1.md",
     ".gitl/evidence/round-8/worker-3.md",
-    ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md"
+    ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
+    ".gitl/evidence/round-8/worker-5-a1x-lossless-recovery.md",
+    ".gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md"
   ],
   "historyReference": {
     "detailedPreRound7StateCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
@@ -139,25 +144,19 @@
     "round8SupervisorEvidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6",
     "round8A1PartialEvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
     "round8A1xCarrierEvidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
+    "round8A1xFinalEvidenceCommit": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
+    "round8A1xHandoffRecoveryEvidenceCommit": "cd024f4c3743339648f35b58a72225ac70c40752",
+    "round8A1xSubmissionPlanCommit": "fd87ec92a80a8713727e5f3d7d9a4d05072f4273",
     "note": "Detailed prior-round evidence remains immutable in Git history and per-round .gitl/evidence. State is compacted to active release-critical facts without dropping required programs or certification limits."
   },
-  "lease": {
-    "holder": "scheduled-worker-5-r8-a1x-handoff-recovery-06",
-    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
-    "intendedRole": "builder-documentation-recovery",
-    "executedRole": "successor-handoff-recovery-release-evidence-verifier",
-    "nominalWorker": 5,
-    "acquiredAt": "2026-08-08T11:40:49Z",
-    "expiresAt": "2026-08-08T12:25:49Z",
-    "inspectedHead": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 8,
     "program": "DOCS-RECONCILIATION",
-    "status": "a1x-carrier-blocked-patch-capable-retry-ready",
-    "nextAssignment": "R8-A1X-CHANGELOG-RECONCILE",
+    "status": "a1x-submitted-a2-ready",
+    "nextAssignment": "R8-A2-DOCS-REDTEAM-AUDIT",
     "supervisorEvidence": ".gitl/evidence/round-8/worker-1.md",
     "supervisorEvidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6",
     "supervisorPlanCommit": "7ee4a07d192d9e32c856b44dae9aab2bd7c38865",
@@ -165,13 +164,25 @@
     "a1EvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
     "a1ImplementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
     "a1PlanRecoveryCommit": "52edf1e5fe5f9b59d2ad7d120d648d93d1267e4c",
-    "a1xClaimCommit": "1a6f20fb4f5752a8d0832a17595d9312af1c2200",
+    "a1xInitialClaimCommit": "1a6f20fb4f5752a8d0832a17595d9312af1c2200",
     "a1xCarrierEvidence": ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
     "a1xCarrierEvidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
     "a1xPlanHandoffCommit": "94dd4ed6352060685a578ce41abaa914e83092c9",
-    "a1xCarrierResult": "replacement-only GitHub writer plus non-interactive browser editor cannot safely make the bounded historical CHANGELOG insertion; no CHANGELOG mutation; patch-capable carrier required",
-    "a1CompletedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md"],
-    "a1RemainingDoc": "CHANGELOG.md",
+    "a1xFinalClaimCommit": "5f6935b3c620e3a952de0b8879b05af98003878c",
+    "a1xImplementationHead": "8cb248a2c0fa23c506b8ae913a3ac0525a350990",
+    "a1xFinalEvidence": ".gitl/evidence/round-8/worker-5-a1x-lossless-recovery.md",
+    "a1xFinalEvidenceCommit": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
+    "a1xHandoffRecoveryClaim": "03e0d1c265654d2088d828f21b5db8df1912f95a",
+    "a1xHandoffRecoveryEvidence": ".gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md",
+    "a1xHandoffRecoveryEvidenceCommit": "cd024f4c3743339648f35b58a72225ac70c40752",
+    "a1xSubmissionPlanCommit": "fd87ec92a80a8713727e5f3d7d9a4d05072f4273",
+    "a1xCarrierResult": "completed-lossless-compare-verified; authoritative diff CHANGELOG.md only, 12 additions, 0 deletions; prior 14-addition evidence count corrected durably",
+    "a1CompletedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md","CHANGELOG.md"],
+    "a1RemainingDoc": null,
+    "a1xImplementationOrdinaryCiRun": 31254004451,
+    "a1xImplementationOrdinaryCiConclusion": "failure-e2e-red-unit-base-green",
+    "a1xEvidenceHeadOrdinaryCiRun": 31254107047,
+    "a1xEvidenceHeadOrdinaryCiConclusion": "success",
     "buildIdentityVerdict": "completed-certified-bounded-nonpublished",
     "candidateVersion": "8.8.0",
     "stableMainVersionObserved": "8.7.1",
@@ -182,11 +193,9 @@
     "identityRecordProvenanceHead": "30c49f690afb14683014e0a7c40c5c2093aaba2a",
     "identityRelation": "later exact tested/coordination heads preserve the same immutable payload; the oracle reports head-moved-payload-identical rather than falsely claiming exact-head provenance",
     "a2Disposition": "brace-expansion@1.1.15 and js-yaml@3.14.2 are indirect Jest-development nodes; production omit-dev audit has zero vulnerabilities; no concrete shipped-payload path established; shipped exploitability UNKNOWN / not claimed; no dependency upgrade performed",
-    "timingVarianceEvidence": "Runs include 31250247148 attempt-1 timing-only red then same-head green retry; 31250442852 green; 31250736801 timing-only red; 31250770870 green overall with separate timing flake; and later same-payload A4 claim-head run 31251250525 timing-only red. Preserve as hosted reproducibility risk; do not weaken thresholds.",
+    "timingVarianceEvidence": "Runs include 31250247148 attempt-1 timing-only red then same-head green retry; 31250442852 green; 31250736801 timing-only red; 31250770870 green overall with separate timing flake; later same-payload A4 claim-head run 31251250525 timing-only red; and A1X has implementation-head red run 31254004451 followed by evidence-only-head green run 31254107047. Preserve as hosted reproducibility risk; do not weaken thresholds or invent a universal-stability claim.",
     "preA1xHandoffOrdinaryCiRun": 31252763408,
     "preA1xHandoffOrdinaryCiConclusion": "success",
-    "a1xClaimOrdinaryCiRun": 31252980720,
-    "a1xClaimOrdinaryCiConclusionAtEvidenceWrite": "in_progress",
     "postAuditClaimHead": "012012dab52408f4a0a51b73d8a785602f661897",
     "postAuditClaimOrdinaryCiRun": 31251250525,
     "postAuditClaimUnitJob": 93087860958,
