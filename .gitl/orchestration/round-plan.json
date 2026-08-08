@@ -48,13 +48,7 @@
   },
   "packageContract": {
     "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
-    "payloadPaths": [
-      "ghost-in-the-loop.user.js",
-      "extension/manifest.json",
-      "extension/content.js",
-      "extension/icon-48.png",
-      "extension/icon-96.png"
-    ],
+    "payloadPaths": ["ghost-in-the-loop.user.js","extension/manifest.json","extension/content.js","extension/icon-48.png","extension/icon-96.png"],
     "stagingRoot": "test-results/release-candidate",
     "requiredMetadata": ["SHA256SUMS", "package-manifest.json"],
     "packageNature": "exact-byte staged candidate directory uploaded as CI evidence artifact; not a public installer/store format",
@@ -74,60 +68,39 @@
       "evidence": ".gitl/evidence/round-9/worker-1.md",
       "evidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
       "verdict": "package-checksum-chain-ready",
-      "acceptanceCriteria": [
-        "inventory exact final-cert/package/checksum gates and dependency order",
-        "bind package planning to immutable 8.8 candidate payload identity and explicit Git/test provenance",
-        "carry all R4-R8 claim limits and hosted timing dissent through run 31256501263",
-        "keep live/physical certification pending absent qualifying read-only capture",
-        "keep development-tooling advisory shipped exploitability UNKNOWN/not claimed absent concrete shipped path",
-        "open smallest package implementation/test plus independent final-audit assignments",
-        "keep publishReady=false and perform no publication action"
-      ]
+      "acceptanceCriteria": ["inventory exact final-cert/package/checksum gates and dependency order","bind package planning to immutable 8.8 candidate payload identity and explicit Git/test provenance","carry all R4-R8 claim limits and hosted timing dissent through run 31256501263","keep live/physical certification pending absent qualifying read-only capture","keep development-tooling advisory shipped exploitability UNKNOWN/not claimed absent concrete shipped path","open smallest package implementation/test plus independent final-audit assignments","keep publishReady=false and perform no publication action"]
     },
     {
       "id": "R9-A1-PACKAGE-CHECKSUM-BUILD",
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-release-engineer",
-      "status": "ready",
+      "status": "submitted",
       "program": "FINAL-CERT-PACKAGE",
       "goal": "Implement the smallest repository-native release-candidate staging/checksum oracle and ordinary-CI package artifact without changing any immutable candidate payload byte.",
       "dependencies": ["R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN:submitted"],
-      "mandatoryReads": [
-        ".gitl/evidence/round-9/worker-1.md",
-        ".gitl/evidence/round-7/candidate-identity.json",
-        "scripts/build-identity.js",
-        "scripts/certify-extension.js",
-        "package.json",
-        ".github/workflows/test.yml",
-        ".gitl/user-directives/2026-08-07-release-pressure.md"
-      ],
-      "expectedToolingSurface": [
-        "scripts/package-candidate.js",
-        "tests/package-candidate.test.js",
-        "package.json package:candidate/package:check scripts",
-        ".github/workflows/test.yml package generation/check/upload steps",
-        ".gitl/evidence/round-9/**",
-        ".gitl/autopilot-state.json",
-        ".gitl/orchestration/round-plan.json"
-      ],
-      "prohibitedActions": [
-        "modifying any of the five immutable candidate payload bytes",
-        "adding or upgrading npm dependencies solely for packaging",
-        "changing stable-main install/update authority",
-        "weakening Send/CHOICE/route/lease/uncertainty/structural safeguards",
-        "weakening accepted Round-5 timing thresholds",
-        "main/merge/auto-merge/tag/Release/store/publish"
-      ],
-      "acceptanceCriteria": [
-        "stage exactly the five BUILD-IDENTITY payload paths with no extras or omissions",
-        "emit deterministic path-sorted SHA256SUMS and deterministic package-manifest.json with release target, bytes, hashes, identity reference, candidate/stable classification and publishReady=false",
-        "fail visibly on version drift, generated-content drift, source/staged hash drift, missing/extra payload path, channel confusion, or publication-state drift",
-        "npm run cert:base and npm run identity:oracle remain PASS on the implementation head",
-        "focused package-oracle tests PASS and prove mutant sensitivity",
-        "ordinary CI uploads test-results/release-candidate as a named evidence artifact and records exact run/job/artifact/digest",
-        "compare from assignment claim through implementation shows no immutable payload, dependency, version, or stable-channel mutation"
-      ],
+      "evidence": ".gitl/evidence/round-9/worker-3.md",
+      "evidenceCommit": "0b3ac0337f0c923f6e75e443d2b4b4771c741d67",
+      "claimCommit": "065c39e5a4814a65b5bc4d74de469145a3f3751b",
+      "implementationHead": "2c01b492ab59c2ab48c90cac0d7cdc9acc516105",
+      "verdict": "submitted-deterministic-five-file-package-checksum-build",
+      "ci": {
+        "run": 31257960286,
+        "unitBaseIdentityPackageJob": 93104175525,
+        "unitBaseIdentityPackage": "success",
+        "e2eJob": 93104175498,
+        "e2eAtSubmission": "in-progress",
+        "packageArtifact": 9021943306,
+        "packageArtifactSha256": "10b5f30b568935fa3af4a329f14f032a37c7208e80add250d778c1a1b710cef5",
+        "baseArtifact": 9021943496,
+        "baseArtifactSha256": "6aa7fd4ab435b94f5245f6115aac8d7139ab0709645f258c9db76a2e02fd04b2",
+        "sha256SumsSha256": "2c17e9eac4cc465cae1b4e74820b91e4f47b6d94f0d0c30290cb76717f31e6a4",
+        "packageManifestSha256": "d7a4a4c707f0c944b89af2d93f9f22596900d79ec20256eb388231e1ed00a89d"
+      },
+      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md",".gitl/evidence/round-7/candidate-identity.json","scripts/build-identity.js","scripts/certify-extension.js","package.json",".github/workflows/test.yml",".gitl/user-directives/2026-08-07-release-pressure.md"],
+      "expectedToolingSurface": ["scripts/package-candidate.js","tests/package-candidate.test.js","package.json package:candidate/package:check scripts",".github/workflows/test.yml package generation/check/upload steps",".gitl/evidence/round-9/**",".gitl/autopilot-state.json",".gitl/orchestration/round-plan.json"],
+      "prohibitedActions": ["modifying any of the five immutable candidate payload bytes","adding or upgrading npm dependencies solely for packaging","changing stable-main install/update authority","weakening Send/CHOICE/route/lease/uncertainty/structural safeguards","weakening accepted Round-5 timing thresholds","main/merge/auto-merge/tag/Release/store/publish"],
+      "acceptanceCriteria": ["stage exactly the five BUILD-IDENTITY payload paths with no extras or omissions","emit deterministic path-sorted SHA256SUMS and deterministic package-manifest.json with release target, bytes, hashes, identity reference, candidate/stable classification and publishReady=false","fail visibly on version drift, generated-content drift, source/staged hash drift, missing/extra payload path, channel confusion, or publication-state drift","npm run cert:base and npm run identity:oracle remain PASS on the implementation head","focused package-oracle tests PASS and prove mutant sensitivity","ordinary CI uploads test-results/release-candidate as a named evidence artifact and records exact run/job/artifact/digest","compare from assignment claim through implementation shows no immutable payload, dependency, version, or stable-channel mutation"],
       "fallbackWork": "If ordinary CI cannot safely upload the staged directory, still produce and test the deterministic local staging/checksum oracle first, record the exact carrier limitation, and expose only the smallest CI-artifact recovery. Do not broaden into research or public distribution packaging."
     },
     {
@@ -135,32 +108,13 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "independent-test-engineer-red-team",
-      "status": "backlog",
+      "status": "ready",
       "program": "FINAL-CERT-PACKAGE",
       "goal": "Independently falsify the staged package/checksum oracle and bind exact package artifact plus ordinary CI evidence to the immutable candidate identity.",
       "dependencies": ["R9-A1-PACKAGE-CHECKSUM-BUILD:submitted"],
-      "mandatoryReads": [
-        ".gitl/evidence/round-9/worker-1.md",
-        "R9-A1 evidence selected by canonical state",
-        ".gitl/evidence/round-7/candidate-identity.json",
-        ".gitl/evidence/round-7/worker-6-final-audit.md",
-        ".gitl/evidence/round-8/worker-6.md"
-      ],
-      "prohibitedActions": [
-        "weakening package or identity assertions to make CI green",
-        "weakening accepted Round-5 timing thresholds",
-        "classifying timing-only variance as universal product failure without semantic evidence",
-        "ignoring any non-timing Send/CHOICE/route/lease/uncertainty/structural/product failure",
-        "main/merge/auto-merge/tag/Release/store/publish"
-      ],
-      "acceptanceCriteria": [
-        "kill missing-file, extra-file, staged-byte/hash, version/channel and publishReady mutants",
-        "download or independently inspect the exact CI package artifact and verify its staged payload hashes/SHA256SUMS back to candidate-identity.json",
-        "bind exact run, jobs, artifact IDs and SHA-256 digests; do not rely on run ID alone",
-        "ordinary unit/base/identity/package gates pass on the exact tested head",
-        "full E2E result is retained exactly; timing-only red/green variance is classified without threshold weakening, while any non-timing safety/product failure blocks progression",
-        "no immutable payload, dependency, version, stable-channel, or publication mutation occurred"
-      ]
+      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md","R9-A1 evidence selected by canonical state",".gitl/evidence/round-7/candidate-identity.json",".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-8/worker-6.md"],
+      "prohibitedActions": ["weakening package or identity assertions to make CI green","weakening accepted Round-5 timing thresholds","classifying timing-only variance as universal product failure without semantic evidence","ignoring any non-timing Send/CHOICE/route/lease/uncertainty/structural/product failure","main/merge/auto-merge/tag/Release/store/publish"],
+      "acceptanceCriteria": ["kill missing-file, extra-file, staged-byte/hash, version/channel and publishReady mutants","download or independently inspect the exact CI package artifact and verify its staged payload hashes/SHA256SUMS back to candidate-identity.json","bind exact run, jobs, artifact IDs and SHA-256 digests; do not rely on run ID alone","ordinary unit/base/identity/package gates pass on the exact tested head","full E2E result is retained exactly; timing-only red/green variance is classified without threshold weakening, while any non-timing safety/product failure blocks progression","no immutable payload, dependency, version, stable-channel, or publication mutation occurred"]
     },
     {
       "id": "R9-A3-FINAL-CERT-PACKAGE-AUDIT",
@@ -171,55 +125,15 @@
       "program": "FINAL-CERT-PACKAGE",
       "goal": "Independently decide whether the isolated 8.8.0 candidate has a complete bounded non-published final-cert package with exact checksum/provenance/test evidence.",
       "dependencies": ["R9-A2-PACKAGE-REDTEAM-CI:submitted"],
-      "mandatoryReads": [
-        ".gitl/evidence/round-9/worker-1.md",
-        "R9-A1 evidence selected by canonical state",
-        "R9-A2 evidence selected by canonical state",
-        ".gitl/evidence/round-7/candidate-identity.json",
-        ".gitl/evidence/round-7/worker-6-final-audit.md",
-        ".gitl/evidence/round-7/worker-6-dependency-audit.md",
-        ".gitl/evidence/round-8/worker-6.md",
-        "docs/RELEASE-CANDIDATE-8.8.md"
-      ],
-      "prohibitedActions": [
-        "main/merge/auto-merge/tag/Release/store/publish",
-        "setting publishReady=true without separate publication authority",
-        "promoting exact live ChatGPT/Claude or physical-platform claims without qualifying evidence",
-        "weakening Send/CHOICE/route/lease/uncertainty/structural safeguards or Round-5 timing thresholds",
-        "rewriting dependency disposition as universally harmless/non-exploitable"
-      ],
-      "acceptanceCriteria": [
-        "staged package contains exactly the five immutable certified payload bytes and deterministic checksum/manifest metadata",
-        "exact package artifact digest, source identity, Git/test provenance and CI evidence are internally consistent",
-        "R4-R8 bounded claim limits and full hosted timing red/green ledger including run 31256501263 remain explicit",
-        "development-tooling advisories retain bounded non-shipped disposition and shipped exploitability UNKNOWN/not claimed",
-        "stable main remains separate and candidate remains non-published",
-        "all fail-closed safety invariants remain unchanged",
-        "on acceptance mark FINAL-CERT-PACKAGE completed-certified-bounded-nonpublished and project complete-awaiting-publication-authority while preserving publishReady=false",
-        "on any contradiction expose only the smallest evidence-linked recovery"
-      ],
-      "onAcceptance": {
-        "programStatus": "completed-certified-bounded-nonpublished",
-        "projectStatus": "complete-awaiting-publication-authority",
-        "publishReady": false,
-        "finalMarker": "[[GITL::HALT]]",
-        "haltReason": "All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."
-      }
+      "mandatoryReads": [".gitl/evidence/round-9/worker-1.md","R9-A1 evidence selected by canonical state","R9-A2 evidence selected by canonical state",".gitl/evidence/round-7/candidate-identity.json",".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-8/worker-6.md","docs/RELEASE-CANDIDATE-8.8.md"],
+      "prohibitedActions": ["main/merge/auto-merge/tag/Release/store/publish","setting publishReady=true without separate publication authority","promoting exact live ChatGPT/Claude or physical-platform claims without qualifying evidence","weakening Send/CHOICE/route/lease/uncertainty/structural safeguards or Round-5 timing thresholds","rewriting dependency disposition as universally harmless/non-exploitable"],
+      "acceptanceCriteria": ["staged package contains exactly the five immutable certified payload bytes and deterministic checksum/manifest metadata","exact package artifact digest, source identity, Git/test provenance and CI evidence are internally consistent","R4-R8 bounded claim limits and full hosted timing red/green ledger including run 31256501263 remain explicit","development-tooling advisories retain bounded non-shipped disposition and shipped exploitability UNKNOWN/not claimed","stable main remains separate and candidate remains non-published","all fail-closed safety invariants remain unchanged","on acceptance mark FINAL-CERT-PACKAGE completed-certified-bounded-nonpublished and project complete-awaiting-publication-authority while preserving publishReady=false","on any contradiction expose only the smallest evidence-linked recovery"],
+      "onAcceptance": {"programStatus":"completed-certified-bounded-nonpublished","projectStatus":"complete-awaiting-publication-authority","publishReady":false,"finalMarker":"[[GITL::HALT]]","haltReason":"All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."}
     }
   ],
-  "researchFallback": {
-    "enabled": true,
-    "temporarilyIneligible": true,
-    "reason": "R9-A1-PACKAGE-CHECKSUM-BUILD is a safe reversible falsifiable package artifact and outranks research under maker v1.1 Delivery-Pressure.",
-    "onlyWhenNoExecutableAssignment": true,
-    "diminishingReturnsRule": "Do not reopen broad research while A1/A2/A3 or an evidence-linked recovery is executable."
-  },
-  "nextAssignment": "R9-A1-PACKAGE-CHECKSUM-BUILD",
-  "historyReference": {
-    "preSupervisorPlanCommit": "89cc94df8908c3c544c4bb7b6e4647692d7c74aa",
-    "supervisorEvidence": ".gitl/evidence/round-9/worker-1.md",
-    "note": "Prior round assignment history remains immutable in Git and per-round evidence. This plan is intentionally compact and release-path focused."
-  },
+  "researchFallback": {"enabled":true,"temporarilyIneligible":true,"reason":"R9-A2-PACKAGE-REDTEAM-CI is now dependency-ready and outranks research under maker v1.1 Delivery-Pressure.","onlyWhenNoExecutableAssignment":true,"diminishingReturnsRule":"Do not reopen broad research while A1/A2/A3 or an evidence-linked recovery is executable."},
+  "nextAssignment": "R9-A2-PACKAGE-REDTEAM-CI",
+  "historyReference": {"preSupervisorPlanCommit":"89cc94df8908c3c544c4bb7b6e4647692d7c74aa","supervisorEvidence":".gitl/evidence/round-9/worker-1.md","a1Evidence":".gitl/evidence/round-9/worker-3.md","note":"Prior round assignment history remains immutable in Git and per-round evidence. This plan is intentionally compact and release-path focused."},
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate-publication-still-explicit",
   "publishReadyRequiresAllRequiredPrograms": true,
   "publishReady": false
