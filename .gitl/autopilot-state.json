@@ -141,7 +141,16 @@
     "round8A1xCarrierEvidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
     "note": "Detailed prior-round evidence remains immutable in Git history and per-round .gitl/evidence. State is compacted to active release-critical facts without dropping required programs or certification limits."
   },
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-5-r8-a1x-lossless-recovery-05",
+    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
+    "intendedRole": "builder-documentation-recovery",
+    "executedRole": "successor-builder-documentation-recovery",
+    "nominalWorker": 5,
+    "acquiredAt": "2026-08-08T10:41:33Z",
+    "expiresAt": "2026-08-08T11:26:33Z",
+    "inspectedHead": "e6221c0317682f9a998e4fc8eecb1db8c9857325"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
