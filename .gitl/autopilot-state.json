@@ -189,14 +189,14 @@
     ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md"
   ],
   "lease": {
-    "holder": "scheduled-worker-4-r7-supervisor-build-identity-01",
+    "holder": "scheduled-successor-r7-build-identity-supervisor-recovery-11",
     "assignmentId": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
     "nominalWorker": 1,
     "executedRole": "successor-supervisor-integrator",
-    "acquiredAt": "2026-08-08T07:24:40Z",
-    "expiresAt": "2026-08-08T08:09:40Z",
-    "inspectedHead": "58bc3e0b2e7e0d6dfddffcbc06984534d6412b91",
-    "activeWorkCheck": "Canonical lease was null, the isolated branch remained stable at 58bc3e0b2e7e0d6dfddffcbc06984534d6412b91 across repeated reads, and no conflicting branch-changing status was evidenced. Lease covers R7 supervisor BUILD-IDENTITY planning/evidence/state/plan handoff only."
+    "acquiredAt": "2026-08-08T08:16:10Z",
+    "expiresAt": "2026-08-08T09:01:10Z",
+    "inspectedHead": "b3c8d8aaaef1f999df2f5fef9ebc92665e455898",
+    "activeWorkCheck": "Recovered the expired same-assignment lease after expiry at 2026-08-08T08:09:40Z. The isolated branch remained stable at b3c8d8aaaef1f999df2f5fef9ebc92665e455898, and the latest branch workflow run 31246325049 had completed at 2026-08-08T07:34:52Z with no later branch-changing activity. Lease covers R7 supervisor BUILD-IDENTITY planning/evidence/state/plan handoff only."
   },
   "blockedReason": null,
   "publishReady": false,
