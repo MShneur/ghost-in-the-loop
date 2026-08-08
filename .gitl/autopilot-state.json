@@ -27,14 +27,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "9ee042cae828e83d6123a78acc7319fcdef67407",
-  "currentStep": "R6-XA5YW-CARRIER-CLEANUP claimed on the isolated branch to remove only temporary XA5Y workflow/trigger/registered-job residue. Product source, tests, Send/CHOICE/route/lease/uncertainty safeguards, and timing/safety thresholds remain out of scope.",
-  "nextAction": "Remove only the standalone XA5Y workflow, the marked XA5Y_REGISTERED block in test.yml, and the temporary XA5Y trigger note; record cleanup evidence, then hand off exact ordinary clean-head CI verification.",
+  "headAtLastHandoff": "b44e23afab83c4a613d4aa22914ee63275baa71a",
+  "currentStep": "R6-XA5YW-CARRIER-CLEANUP completed on the isolated branch: temporary XA5Y standalone workflow, registered job, and trigger residue are removed; product source, tests, Send/CHOICE/route/lease/uncertainty safeguards, and timing/safety thresholds were unchanged. Exact ordinary clean-head CI is now the evidence gate.",
+  "nextAction": "Execute R6-XA5YZ-ORDINARY-CI-VERIFY before research or BUILD-IDENTITY. Bind ordinary Ghost in the Loop — CI to the exact final clean handoff head; on green retry the final bounded Round-6 audit, on red create only the smallest residual recovery.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 4,
-    "assignmentId": "R6-XA5YW-CARRIER-CLEANUP",
+    "assignmentId": "R6-XA5YZ-ORDINARY-CI-VERIFY",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "XA5YW carrier cleanup is executable; research may not compete.",
+    "reason": "XA5YZ ordinary clean-head CI verification is executable; research may not compete.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,17 +72,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "xa5y-test-fix-committed-carrier-cleanup-ready",
+    "checkpointStatus": "xa5yw-carrier-cleanup-submitted-clean-ci-verification-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA5YW-CARRIER-CLEANUP",
+    "nextArtifactAssignment": "R6-XA5YZ-ORDINARY-CI-VERIFY",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
     "lastDeliveryReviewAt": "2026-08-08T03:17:42.883Z",
     "lastTestableArtifactAt": "2026-08-08T05:46:08.475Z",
-    "lastDeliveryDecision": "XA5Y committed only the three classified test routing/structure corrections. Remove temporary carrier residue before clean-head CI verification.",
-    "evidence": ".gitl/evidence/round-6/xa5y-test-fix.md",
-    "evidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407"
+    "lastDeliveryDecision": "Temporary XA5Y carrier residue is removed. Exact ordinary clean-head CI is the next evidence gate before final bounded Round-6 audit retry.",
+    "evidence": ".gitl/evidence/round-6/xa5yw-carrier-cleanup.md",
+    "evidenceCommit": "ba8d477b48b7884055d4804f247ebce184c3205d"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-final-audit-ci-hygiene-cleaned-e2e-test-recovery-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-xa5y-test-fix-clean-ci-verification-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -223,6 +223,10 @@
     {
       "type": "round-6-xa5x-ci-hygiene-cleanup-e2e-failure-classified",
       "result": "XA5X removed stale XA2X workflow residue in 53f49b2e7302317aa5bda9623cc2447a9b86659e. Ordinary clean-head run 31237140275 had unit/base job 93051648790 PASS and E2E job 93051648781 FAIL with 215 passed, 10 skipped, 6 failed; artifact 9015838307, sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921. Exact logs classify the six failures into three test-only causes: lifecycle mobile fixture routed into desktop Chromium/Firefox, nested Repo-Nanny Playwright test declaration, and Chromium-only R5 A2 timing oracle routed into Firefox. Evidence commit 9ee042cae828e83d6123a78acc7319fcdef67407; XA5Y ready."
+    },
+    {
+      "type": "round-6-xa5yw-carrier-cleanup",
+      "result": "XA5YW removed only temporary XA5Y carrier residue under lease scheduled-worker-6-r6-xa5yw-cleanup-05: registered job cleanup commit 057ab1311e4ad69a7637c258ff09bcea1fa705d1, standalone workflow deletion fe580e3b562ac9dd3d389e0a87f559622a34c50b, trigger deletion 0e2def16d903c3bc34a45ef7628be4672689791e, evidence commit ba8d477b48b7884055d4804f247ebce184c3205d. Product/test semantics were unchanged; exact ordinary clean-head CI remains the next evidence gate."
     }
   ],
   "findings": [
@@ -457,24 +461,16 @@
     ".gitl/evidence/round-6/final-mobile-shell-audit.md",
     ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
     ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md",
-    ".gitl/evidence/round-6/xa5y-test-fix.md"
+    ".gitl/evidence/round-6/xa5y-test-fix.md",
+    ".gitl/evidence/round-6/xa5yw-carrier-cleanup.md"
   ],
-  "lease": {
-    "holder": "scheduled-worker-6-r6-xa5yw-cleanup-05",
-    "assignmentId": "R6-XA5YW-CARRIER-CLEANUP",
-    "nominalWorker": 6,
-    "executedRole": "successor-ci-hygiene-coordination-repair-with-release-auditor-lens",
-    "acquiredAt": "2026-08-08T05:55:35Z",
-    "expiresAt": "2026-08-08T06:40:35Z",
-    "inspectedHead": "2aa8778d9449500117a78a7e2d70cc8e80379752",
-    "activeWorkCheck": "Canonical lease was null; XA5YW was the earliest ready assignment; branch head was stable at 2aa8778d9449500117a78a7e2d70cc8e80379752 and connected GitHub reported zero in-progress Actions on the isolated branch before claim."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending",
+    "verdict": "final-audit-submitted-ci-hygiene-recovered-clean-ci-verification-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -514,12 +510,12 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA5YW-CARRIER-CLEANUP",
+    "nextAssignment": "R6-XA5YZ-ORDINARY-CI-VERIFY",
     "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
-    "roundScope": "ChatGPT deterministic prototype verification, Red Team, mobile/accessibility/performance, and bounded A5 audit are complete. Cross-adapter planning and XA1 Claude contract are submitted; XA2 is ready. Full MOBILE-SHELL-STRUCTURAL completion still requires the Claude prototype/Red-Team/mobile sequence and a later final audit, plus live evidence wherever a live-host claim depends on it.",
-    "deliveryPressureConstraints": "A2X/A3/A4/XA1 produced executed artifacts and A5 independently accepted the bounded ChatGPT candidate. Do not return to research while XA2 or its cross-adapter successors are executable. Do not add speculative release-critical programs; use explicit limits for unproven physical/live claims and move to later BUILD-IDENTITY only after Round 6's required cross-adapter expansion and final audit are complete.",
+    "roundScope": "ChatGPT and Claude deterministic cross-adapter prototype/Red-Team/mobile evidence and the bounded final audit are complete, but Round-6 closure remains gated on ordinary clean-head CI after XA5Y/XA5YW recovery. Live evidence remains required only for any live-host certification claim that depends on it.",
+    "deliveryPressureConstraints": "Executable XA5YZ clean-head CI verification outranks research. Do not add speculative release-critical programs; preserve explicit limits for unproven physical/live claims and move to BUILD-IDENTITY only after the final bounded Round-6 audit is retried on exact green clean-head evidence.",
     "structuralHostPrimitive": "Current deterministic prototype: ordinary in-flow div with one open ShadowRoot plus an external mount-manager closure, fixture-only verified-container token, exact caller-supplied Send node, no live selector binding, direct callback controls, scoped MutationObserver/ResizeObserver, coalesced generation-guarded repair, no host style mutation, and explicit rejection/fallback reasons.",
     "repairConstraints": "Generation/current-container revalidation before writes; one scoped MutationObserver and one ResizeObserver owned by the mount manager; callbacks schedule/coalesce rather than synchronously resize; the implementation suppresses its own Ghost-only reposition mutation to avoid self-repair loops; Shadow controls bind directly to supplied reviewed Ghost handlers; any verification failure removes only Ghost-owned structure and restores the rail.",
     "mobileReflowConstraints": "Treat VisualViewport/keyboard geometry as verification input, not placement authority; support visual-only and layout-resize keyboard models; never change host viewport/VirtualKeyboard policy; VirtualKeyboard optional-only; gate at 320-CSS-pixel-equivalent reflow and 200% text; coalesce resize/orientation verification; fail closed when Blue/Red crowding or clearance cannot be proven.",
@@ -606,7 +602,7 @@
     "xa5FinalAuditVerdict": "NEEDS-CI-HYGIENE-RECOVERY",
     "xa5AcceptedScope": "deterministic-hosted-cross-adapter-only",
     "xa5LiveClaims": "UNKNOWN-NOT-CLAIMED",
-    "cleanHeadCiStatus": "FAIL-CLASSIFIED-TEST-RECOVERY-READY",
+    "cleanHeadCiStatus": "PENDING-CLEAN-HEAD-VERIFY",
     "staleXa2xWorkflowResidue": "REMOVED",
     "ordinaryE2eJob": 93051648781,
     "ordinaryE2eConclusion": "failure-215-passed-10-skipped-6-failed",
@@ -618,8 +614,12 @@
     "ordinaryE2eArtifactDigest": "sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921",
     "xa5xStatus": "blocked-classified-test-recovery-ready",
     "xa5xEvidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407",
-    "xa5yStatus": "blocked-test-fix-committed-carrier-cleanup-ready",
-    "xa5yTestedHead": "7648979cd90122901b19c03dd1e7e2f7ff391223"
+    "xa5yStatus": "blocked-clean-ci-verification-ready",
+    "xa5yTestedHead": "7648979cd90122901b19c03dd1e7e2f7ff391223",
+    "xa5ywStatus": "submitted",
+    "xa5ywCleanupEvidence": ".gitl/evidence/round-6/xa5yw-carrier-cleanup.md",
+    "xa5ywCleanupEvidenceCommit": "ba8d477b48b7884055d4804f247ebce184c3205d",
+    "xa5yzStatus": "ready"
   },
   "priorRoundVerification": {
     "round": 5,
