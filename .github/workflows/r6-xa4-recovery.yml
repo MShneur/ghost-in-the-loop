@@ -107,6 +107,7 @@ jobs:
           RESULT=FAIL
           if [ -f xa4-carrier-results/gates.json ]; then RESULT=$(node -p "require('./xa4-carrier-results/gates.json').result"); fi
           JOB_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" --jq '.jobs[] | select(.name=="verify") | .id' | head -n1)
+          export JOB_ID
           mkdir -p .gitl/evidence/round-6
           node <<'NODE'
           const fs = require('fs');
