@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round7-build-identity-supervisor-submitted-a1-oracle-ready",
+    "checkpointStatus": "round7-a1-build-identity-oracle-submitted-a2-dependency-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while required BUILD-IDENTITY delivery, dependency audit, Red Team, documentation, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "Round-7 supervisor established an evidence-backed BUILD-IDENTITY contract and exposed a falsifiable identity-oracle artifact before research. Preserve all Round-4/Round-5/Round-6 bounded limits and keep publication disabled."
+    "checkpointDecision": "R7-A1 produced and falsified a repository-native immutable payload identity oracle, bound it to exact ordinary CI on the tested implementation head, and exposed the lockfile-bound dependency audit before research. Preserve all Round-4/Round-5/Round-6 bounded limits and keep publication disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -87,15 +87,21 @@
     "payloadIdentity": "release version plus exact shippable-payload hashes plus exact Git provenance plus exact certification/test bindings plus explicit channel classification",
     "coordinationHeadRule": "A .gitl-only head movement does not by itself define a new shippable payload.",
     "dependencyAuditRisk": "Two high-severity npm-audit findings remain UNKNOWN as to exact package identity, shipped exploitability, and correct remediation until R7-A2; no blind upgrade.",
-    "publishReady": false
+    "publishReady": false,
+    "oracleEvidencePath": ".gitl/evidence/round-7/worker-3.md",
+    "oracleEvidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c",
+    "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
+    "testedImplementationHead": "ee7d79a286193de699e3dc049182492a6dbd5b1d",
+    "ordinaryCiRun": 31249049293,
+    "ordinaryCiConclusion": "success"
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R7-A1-BUILD-IDENTITY-ORACLE",
+    "nominalWorker": 6,
+    "assignmentId": "R7-A2-DEPENDENCY-AUDIT",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Build and falsify the smallest repository-native candidate identity oracle before research. Do not change product behavior, version, channel URLs, dependencies, or publication state."
+    "instruction": "Audit the exact lockfile-bound high-severity dependency findings and shipped-payload reachability before research. Do not blind-upgrade dependencies, change product behavior without a reproduced release-relevant dependency risk, or alter publication state."
   },
   "assignments": [
     {
@@ -118,7 +124,7 @@
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-test-engineer",
-      "status": "ready",
+      "status": "submitted",
       "program": "BUILD-IDENTITY",
       "goal": "Create the smallest repository-native falsifiable identity oracle and machine-readable candidate identity record without changing product semantics or publication state.",
       "dependencies": ["R7-SUPERVISOR-BUILD-IDENTITY-PLAN:submitted"],
@@ -138,14 +144,26 @@
       ],
       "requiredEvidence": ["machine-readable identity record","exact payload hashes","mutant/falsification results","exact provenance","candidate/stable channel classification","execution bindings"],
       "fallbackWork": "If an identity source conflicts, preserve the conflict exactly and create the smallest evidence-linked identity recovery. Do not guess, bump the version, edit publication URLs, or publish.",
-      "evidencePath": ".gitl/evidence/round-7/worker-3.md"
+      "evidencePath": ".gitl/evidence/round-7/worker-3.md",
+      "executedBy": "scheduled-worker-5-r7-a1-build-identity-oracle-04",
+      "claimCommit": "cc5d9362313c164ba67e5b01ec18ba67428cf05d",
+      "implementationHead": "ee7d79a286193de699e3dc049182492a6dbd5b1d",
+      "evidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c",
+      "ordinaryCiRun": 31249049293,
+      "ordinaryUnitJob": 93082348817,
+      "ordinaryE2eJob": 93082348718,
+      "baseArtifact": 9019411850,
+      "baseArtifactSha256": "c281904cf69a147c7f6e6d4b969486acda5f21f2a4c6584c261e4cac0bd64523",
+      "e2eArtifact": 9019454463,
+      "e2eArtifactSha256": "c80050621de4a39b036dba468085d2632d3b901a8c682bc5c09cb5a607495715",
+      "verdict": "submitted-oracle-and-mutants-pass-exact-head-ordinary-ci-green"
     },
     {
       "id": "R7-A2-DEPENDENCY-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "release-dependency-auditor",
-      "status": "backlog",
+      "status": "ready",
       "program": "BUILD-IDENTITY",
       "goal": "Identify and disposition the two recorded high-severity npm audit findings against the exact candidate without guessing exploitability or performing a blanket upgrade.",
       "dependencies": ["R7-A1-BUILD-IDENTITY-ORACLE:submitted"],
@@ -183,13 +201,13 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A1-BUILD-IDENTITY-ORACLE is an executable falsifiable delivery artifact and outranks research.",
+    "reason": "R7-A2-DEPENDENCY-AUDIT is an executable release-critical evidence assignment and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "build-identity-supervisor-submitted-a1-oracle-ready",
+  "roundDecision": "a1-build-identity-oracle-submitted-a2-dependency-audit-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
