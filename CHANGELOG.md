@@ -222,8 +222,7 @@ updated `tests/sendtransaction.test.js` contract.
 
 Field feedback: the Run tab showed **Play + Pause + Stop** as three buttons —
 "why do we have play, pause, resume AND stop?" The primary button was already
-wired to the state-aware `primaryAction` toggle, so the separate Pause button
-was redundant. Consolidated to a **single state-driven button** that reads live
+wired to the state-aware `primaryAction` toggle, so the separate Pause button was redundant. Consolidated to a **single state-driven button** that reads live
 state, plus a separate Stop:
 
 - IDLE / COMPLETE → **▶ Start**
@@ -910,7 +909,7 @@ From Replit e2e round 3.
 - Export returning early on a page with zero messages is correct behavior, not a defect. An empty conversation has nothing to export.
 
 ### Tests
-- `tests/e2e/behavior.spec.js` added.
+`tests/e2e/behavior.spec.js` added.
 
 ## [7.0.0-patch3] — Own-UI selector exclusion (2026-06-13)
 
@@ -1064,7 +1063,7 @@ Export is no longer a silent mystery. Users see what's happening, how far along 
 
 ### Added — export progress overlay ("the Veil")
 - Screen dims softly; a 👻 with a spinning ring sits center-stage with a named step list: Reading chat → Opening thinking blocks → Collecting every message → Building your file (✓ done / ▶ current)
-- **Real progress bar** + % — computed from the actual page length on virtualized chats; indeterminate slide animation when a phase has no measurable length
+- **Real progress bar** with % — computed from the actual page length on virtualized chats; indeterminate slide animation when a phase has no measurable length
 - **Stall watchdog**: quiet for 8s → "Still working — the page is slow. Don't reload." Quiet for 25s → "This looks stuck. Cancel is safe — Ghost keeps what it collected."
 - **Safe Cancel**: aborts the harvest mid-scroll and exports everything collected so far — no more page reloads out of uncertainty
 
