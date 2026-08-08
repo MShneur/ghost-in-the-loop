@@ -1,0 +1,225 @@
+name: Round 6 XA5 Final Mobile-Shell Audit
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.github/workflows/r6-xa5-final-audit.yml'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r6-xa5-final-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard head and claim XA5 lease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH='agent/8.8-repair-resume'
+          ASSIGN='R6-XA5-MOBILE-SHELL-FINAL-AUDIT'
+          HOLDER="gha-r6-xa5-${GITHUB_RUN_ID}"
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const assignment = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+          if (state.branch !== 'agent/8.8-repair-resume' || state.status !== 'active' || state.publishReady) throw new Error('project state not eligible');
+          if (state.lease) throw new Error(`conflicting lease present: ${JSON.stringify(state.lease)}`);
+          if (!assignment || assignment.status !== 'ready') throw new Error('XA5 is no longer ready');
+          const xa4 = plan.assignments.find(a => a.id === 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF');
+          if (!xa4 || xa4.status !== 'submitted') throw new Error('XA4 dependency changed');
+          const now = new Date();
+          const expires = new Date(now.getTime() + 45 * 60 * 1000);
+          state.lease = {
+            holder: `gha-r6-xa5-${process.env.GITHUB_RUN_ID}`,
+            nominalWorker: 6,
+            assignmentId: 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT',
+            role: 'devils-advocate-release-auditor-successor',
+            acquiredAt: now.toISOString(),
+            expiresAt: expires.toISOString(),
+            headAtClaim: process.env.GITHUB_SHA,
+            inspectedHead: process.env.GITHUB_SHA
+          };
+          state.currentStep = 'R6-XA5 final bounded audit claimed after active-work exclusion found no lease and a stable isolated-branch head. Audit only; no product mutation.';
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2)+'\n');
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .gitl/autopilot-state.json
+          git commit -m 'chore(gitl): claim XA5 final audit lease'
+          git push origin HEAD:"$BRANCH"
+
+      - name: Audit exact bindings and reconcile bounded verdict
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH='agent/8.8-repair-resume'
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+
+          # Exact current source/test bindings must still match the reviewed deterministic artifacts.
+          test "$(git hash-object tests/e2e/mobile-shell-blue-prototype.spec.js)" = '53cc902428a3fc1496a83ad1bf0bd1bbe6752c84'
+          test "$(git hash-object tests/e2e/mobile-shell-blue-redteam.spec.js)" = 'b8b5048dbc042626294423e28b337eb27d6c6b63'
+          test "$(git hash-object tests/e2e/mobile-shell-blue-mobile-perf.spec.js)" = '8231a2aea014dcaedba9c38c25b4249f56bc9646'
+          test "$(git hash-object tests/e2e/claude-structure-contract.spec.js)" = 'd6fbadcdf80b7c7e212b9278bfa88f1418ca00fe'
+          test "$(git hash-object tests/e2e/claude-blue-prototype.spec.js)" = '88277ddbcb268e7a25a9b2f54197f8fc08c4ddcc'
+          test "$(git hash-object tests/e2e/cross-adapter-redteam.spec.js)" = '64c099b51fedfdfb7f86a76d4142f092dde20129'
+          test "$(git hash-object tests/e2e/cross-adapter-mobile-perf.spec.js)" = '542e54145944f8ab2f32a126179a4afed063bcce'
+
+          # Connected Actions bindings: the bounded assignment-specific jobs are green.
+          A2X=$(gh api repos/${GITHUB_REPOSITORY}/actions/jobs/92979379882 --jq '.conclusion')
+          XA2X=$(gh api repos/${GITHUB_REPOSITORY}/actions/jobs/93037980854 --jq '.conclusion')
+          XA3=$(gh api repos/${GITHUB_REPOSITORY}/actions/jobs/93041660298 --jq '.conclusion')
+          XA4=$(gh api repos/${GITHUB_REPOSITORY}/actions/jobs/93048904768 --jq '.conclusion')
+          ORDINARY_E2E=$(gh api repos/${GITHUB_REPOSITORY}/actions/jobs/93037980915 --jq '.conclusion')
+          test "$A2X" = success
+          test "$XA2X" = success
+          test "$XA3" = success
+          test "$XA4" = success
+          test "$ORDINARY_E2E" = failure
+
+          # Carrier hygiene is not satisfied on this head: a dead XA2X job remains but its runner was removed.
+          grep -q '^  xa2x:' .github/workflows/test.yml
+          grep -q '\.github/xa2x-run\.sh' .github/workflows/test.yml
+          test ! -e .github/xa2x-run.sh
+
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const evidencePath = '.gitl/evidence/round-6/final-mobile-shell-audit.md';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const holder = `gha-r6-xa5-${process.env.GITHUB_RUN_ID}`;
+          if (!state.lease || state.lease.holder !== holder || state.lease.assignmentId !== 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT') throw new Error('XA5 lease not owned');
+          if (Date.parse(state.lease.expiresAt) <= Date.now()) throw new Error('XA5 lease expired');
+          const xa5 = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+          if (!xa5 || xa5.status !== 'ready') throw new Error('XA5 status changed');
+
+          const auditHead = require('child_process').execSync('git rev-parse HEAD').toString().trim();
+          const finished = new Date().toISOString();
+          const evidence = `# Ghost Worker Evidence — R6 XA5 Final Mobile-Shell Audit\n\n## Identity\n- Round: 6\n- Assignment: R6-XA5-MOBILE-SHELL-FINAL-AUDIT\n- Executed by: ${holder}\n- Audited coordination head: ${auditHead}\n- Finished: ${finished}\n\n## Verdict\n**NEEDS-RECOVERY before MOBILE-SHELL-STRUCTURAL may close.** The deterministic/hosted ChatGPT+Claude structural candidate remains accepted at its explicitly bounded scope, but ordinary clean-head CI/carrier hygiene is not yet satisfied. No live-host or physical-platform claim is promoted.\n\n## Exact Source/Test Bindings\nCurrent branch blob checks passed for the reviewed deterministic paths:\n- ChatGPT Blue: 53cc902428a3fc1496a83ad1bf0bd1bbe6752c84\n- ChatGPT Red Team: b8b5048dbc042626294423e28b337eb27d6c6b63\n- ChatGPT mobile/perf: 8231a2aea014dcaedba9c38c25b4249f56bc9646\n- Claude structure contract: d6fbadcdf80b7c7e212b9278bfa88f1418ca00fe\n- Claude Blue: 88277ddbcb268e7a25a9b2f54197f8fc08c4ddcc\n- Cross-adapter Red Team: 64c099b51fedfdfb7f86a76d4142f092dde20129\n- Cross-adapter mobile/perf: 542e54145944f8ab2f32a126179a4afed063bcce\n\n## Actions Bindings Rechecked\n- ChatGPT A2X: run 31212815306 / job 92979379882 / artifact 9007360537 / sha256:9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb — job conclusion success.\n- Claude XA2X: run 31232161711 / job 93037980854 / artifact 9014184272 / sha256:3f4ba74aed0043a80cfce65bac4b7b38262fbd409557abfb983046663c105292 — job conclusion success.\n- Cross-adapter XA3: run 31233469721 / job 93041660298 / artifact 9014621827 / sha256:a4cf8cd699ba2dd0d00f9367dd237c4de34ca4722ff4ecc9822c5cc828e8ef24 — job conclusion success.\n- Cross-adapter XA4: run 31236146715 / job 93048904768 / artifact 9015459673 / sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4 — job conclusion success.\n\n## Accepted Bounded Claims\n- One independently specified non-ChatGPT path exists: Claude has its own deterministic capability contract and Blue fixture; it does not inherit ChatGPT insertion rules.\n- Certified site-specific -> standard adapter-aware structural protocol -> rail remains the authority order. Wrong/stale/missing/clipped/ambiguous signatures demote rather than guessing.\n- Exact Send identity, zero passive actuation, scoped repair/cleanup, native-control reachability, 320 CSS px/200% text/reduced-motion/focus checks, desktop Firefox correctness, and Chromium 1x/4x/6x invariant stress are supported only at their recorded deterministic/hosted scopes.\n- The weak generic global-first-editor H2 baseline was measurably worse on the bounded deterministic fixture comparison (1/2 misselection versus 0/2 adapter-owned); this is not a universal performance claim.\n\n## Rejected / Unknown Claims\n- Current live ChatGPT insertion: UNKNOWN / NOT CERTIFIED.\n- Current live Claude insertion: UNKNOWN / NOT CERTIFIED.\n- Physical Android/WebView/GeckoView, real IME/browser-toolbar combinations, real assistive technology, and calibrated low-end hardware: NOT CERTIFIED.\n- Fixture evidence does not enable live structural activation.\n\n## Release/CI Hygiene Blocker\nCurrent .github/workflows/test.yml still contains the temporary XA2X registered-CI job and references .github/xa2x-run.sh, while that runner file is absent. Temporary carrier cleanup is therefore incomplete.\n\nThe ordinary E2E job attached to Claude XA2X run 31232161711 (job 93037980915) concluded failure while the assignment-specific XA2X job passed. Connected log review recorded 197 passed, 7 skipped, 7 failed. Failures included mobile-profile assertions executing in desktop projects, volatile long-chat timing thresholds, and a repo-nanny Send-evidence test declaration error. These failures are not converted into a product-candidate failure, but they prevent a clean-head ordinary-CI claim.\n\n## Dependency Audit Risk\nTwo high-severity npm audit findings remain recorded from prior install logs. Package identity/exploitability/remediation remain outside this bounded audit; do not blanket-upgrade unattended.\n\n## Smallest Recovery\nR6-XA5X-CI-HYGIENE-RECOVERY must remove only the residual XA2X workflow job, run ordinary clean-head CI on the isolated branch, preserve the full existing safety assertions, and classify any remaining ordinary E2E failure before Round 6 can close. If failures remain, create the smallest test/config/product recovery from reproduced evidence rather than weakening gates. Research remains lower priority.\n`;
+          fs.writeFileSync(evidencePath, evidence);
+
+          xa5.status = 'submitted';
+          xa5.executedBy = holder;
+          xa5.auditHead = auditHead;
+          xa5.finishedAt = finished;
+          xa5.verdict = 'needs-ci-hygiene-recovery';
+          xa5.acceptedScope = 'deterministic-hosted-cross-adapter-only';
+          xa5.liveHostCertification = 'UNKNOWN-NOT-CLAIMED';
+          xa5.cleanHeadCi = 'NOT-SATISFIED';
+
+          let xa5x = plan.assignments.find(a => a.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          if (!xa5x) {
+            xa5x = {
+              id: 'R6-XA5X-CI-HYGIENE-RECOVERY',
+              worker: 1,
+              claimableByAnyEligibleWorker: true,
+              intendedRole: 'ci-hygiene-test-verifier',
+              status: 'ready',
+              program: 'MOBILE-SHELL-STRUCTURAL',
+              goal: 'Remove residual temporary XA2X CI machinery and obtain ordinary clean-head CI on the isolated branch before Round-6 closure, classifying any reproduced failure without weakening safety semantics.',
+              dependencies: ['R6-XA5-MOBILE-SHELL-FINAL-AUDIT:submitted'],
+              allowedFiles: ['.github/workflows/test.yml','tests/e2e/**','playwright.config.js','.gitl/**'],
+              prohibitedActions: [
+                'product source changes unless a reproduced ordinary-CI failure proves the smallest product repair is necessary',
+                'dropping or weakening Send/CHOICE/route/lease/uncertainty assertions',
+                'loosening exact identity, clipping, demotion, mobile, or accessibility assertions merely to make CI green',
+                'promoting deterministic/hosted evidence to live or physical certification',
+                'main/merge/auto-merge/tag/release/publish'
+              ],
+              acceptanceCriteria: [
+                'remove the residual xa2x job from .github/workflows/test.yml and leave no reference to the deleted .github/xa2x-run.sh',
+                'leave ordinary unit/e2e workflow semantics intact apart from the proven stale-carrier cleanup',
+                'run ordinary clean-head base certification/lint/unit/full npm run test:e2e on the isolated branch',
+                'record exact clean-head run/job/artifact/log conclusions',
+                'if ordinary E2E fails, classify each reproduced failure and create the smallest bounded recovery rather than weakening assertions',
+                'only after clean-head ordinary CI is green and temporary machinery is absent may MOBILE-SHELL-STRUCTURAL closure be reconsidered'
+              ],
+              requiredTests: [
+                'npm ci',
+                'npm run cert:base',
+                'npm run lint',
+                'npm run test:unit -- --runInBand',
+                'npm run test:e2e',
+                'exact GitHub Actions clean-head bindings'
+              ],
+              fallbackWork: 'A remaining ordinary-CI failure creates the smallest evidence-linked recovery; research does not outrank this executable hygiene/test path.',
+              evidencePath: '.gitl/evidence/round-6/ci-carrier-hygiene-recovery.md'
+            };
+            plan.assignments.push(xa5x);
+          } else {
+            xa5x.status = 'ready';
+          }
+
+          plan.deliveryPressure.checkpointStatus = 'final-audit-submitted-ci-hygiene-recovery-ready';
+          plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          plan.deliveryPressure.checkpointDecision = 'XA5 accepts the deterministic/hosted cross-adapter candidate only at bounded scope but rejects Round-6 closure until stale XA2X carrier residue is removed and ordinary clean-head CI is green or a reproduced failure is explicitly recovered.';
+          plan.dispatch = {
+            nextWake: 'earliest eligible wake',
+            nominalWorker: 1,
+            assignmentId: 'R6-XA5X-CI-HYGIENE-RECOVERY',
+            automatic: true,
+            claimableByAnyEligibleWorker: true,
+            instruction: 'Perform the smallest CI-hygiene recovery first: remove stale XA2X workflow residue, run ordinary clean-head CI, preserve every safety assertion, and create a smaller recovery from any reproduced failure. Do not research.'
+          };
+          plan.roundDecision = 'final-audit-submitted-ci-hygiene-recovery-ready-live-claims-pending';
+
+          state.currentStep = 'R6-XA5 final bounded audit accepted the exact ChatGPT+Claude deterministic/hosted evidence but found clean-head CI/carrier hygiene incomplete: stale xa2x workflow residue remains and ordinary E2E job 93037980915 failed. Round-6 closure is withheld; XA5X cleanup/clean-head CI recovery is ready.';
+          state.nextAction = 'Execute R6-XA5X-CI-HYGIENE-RECOVERY before research or BUILD-IDENTITY. Remove only stale XA2X CI residue, run ordinary clean-head CI, classify any reproduced failures, and preserve all fail-closed/live/physical claim limits.';
+          state.automaticDispatch.nominalWorker = 1;
+          state.automaticDispatch.assignmentId = 'R6-XA5X-CI-HYGIENE-RECOVERY';
+          state.researchFallback.temporarilyIneligible = true;
+          state.researchFallback.reason = 'XA5X CI-hygiene/ordinary-clean-head verification is executable; research may not compete.';
+          state.deliveryPressure.checkpointStatus = 'final-audit-submitted-ci-hygiene-recovery-ready';
+          state.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+          state.deliveryPressure.nextArtifactAssignment = 'R6-XA5X-CI-HYGIENE-RECOVERY';
+          state.deliveryPressure.lastDeliveryReviewAt = finished;
+          state.deliveryPressure.lastDeliveryDecision = 'Do not close Round 6 or advance to BUILD-IDENTITY until stale temporary XA2X CI residue is removed and ordinary clean-head CI is verified; execute XA5X rather than research.';
+          state.deliveryPressure.evidence = evidencePath;
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = 'active-final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending';
+          const completedType = 'round-6-xa5-final-audit-needs-ci-hygiene-recovery';
+          if (!state.completedSteps.some(s => s.type === completedType)) state.completedSteps.push({type:completedType,result:'XA5 independently rechecked current deterministic source blobs and exact assignment-specific Actions jobs for ChatGPT A2X, Claude XA2X, cross-adapter XA3, and XA4. Bounded deterministic/hosted claims remain accepted, live/physical claims remain UNKNOWN/not certified, but Round-6 closure is withheld because .github/workflows/test.yml retains a dead xa2x job referencing removed .github/xa2x-run.sh and ordinary E2E job 93037980915 concluded failure. XA5X is ready.'});
+          const findingType = 'round-6-final-audit-ci-hygiene-blocker';
+          if (!state.findings.some(f => f.type === findingType)) state.findings.push({worker:6,type:findingType,finding:'Final audit found a release-hygiene blocker rather than a deterministic structural-candidate failure: stale XA2X registered-CI residue remains in test.yml while its runner is absent, and the ordinary E2E job on XA2X run 31232161711 failed even though the exact XA2X job passed. Clean-head ordinary CI must be restored/verified before MOBILE-SHELL-STRUCTURAL can close.'});
+          if (!state.testEvidence.includes(evidencePath)) state.testEvidence.push(evidencePath);
+          state.verificationSummary.verdict = 'final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending';
+          state.verificationSummary.nextAssignment = 'R6-XA5X-CI-HYGIENE-RECOVERY';
+          state.verificationSummary.xa5FinalStatus = 'submitted';
+          state.verificationSummary.xa5FinalAuditVerdict = 'NEEDS-CI-HYGIENE-RECOVERY';
+          state.verificationSummary.xa5AcceptedScope = 'deterministic-hosted-cross-adapter-only';
+          state.verificationSummary.xa5LiveClaims = 'UNKNOWN-NOT-CLAIMED';
+          state.verificationSummary.cleanHeadCiStatus = 'NOT-SATISFIED';
+          state.verificationSummary.staleXa2xWorkflowResidue = 'PRESENT-test.yml-references-missing-.github/xa2x-run.sh';
+          state.verificationSummary.ordinaryE2eJob = 93037980915;
+          state.verificationSummary.ordinaryE2eConclusion = 'failure';
+          state.lease = null;
+          fs.writeFileSync(statePath, JSON.stringify(state,null,2)+'\n');
+          fs.writeFileSync(planPath, JSON.stringify(plan,null,2)+'\n');
+          NODE
+
+          git rm -f .github/workflows/r6-xa5-final-audit.yml
+          git add .gitl/autopilot-state.json .gitl/orchestration/round-plan.json .gitl/evidence/round-6/final-mobile-shell-audit.md
+          git commit -m 'chore(gitl): submit XA5 audit and expose CI hygiene recovery'
+          git push origin HEAD:"$BRANCH"
