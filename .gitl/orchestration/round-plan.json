@@ -985,7 +985,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-red-team",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Falsify certified-site-specific-first selection and demotion across the accepted ChatGPT fixture and Claude fixture/candidate, ensuring optimization cannot bypass universal safety invariants.",
       "dependencies": [
@@ -1021,14 +1021,22 @@
         "exact CI bindings"
       ],
       "fallbackWork": "Every reproducible failure creates the smallest bounded recovery and blocks XA4 until repaired.",
-      "evidencePath": ".gitl/evidence/round-6/cross-adapter-redteam.md"
+      "evidencePath": ".gitl/evidence/round-6/cross-adapter-redteam.md",
+      "executedBy": "gha-r6-xa3-31233469721",
+      "testedHead": "0f9683d19cf85899e20162eb072a0800fbd12777",
+      "runId": 31233469721,
+      "jobId": 93041660298,
+      "artifactId": 9014621827,
+      "artifactDigest": "sha256:a4cf8cd699ba2dd0d00f9367dd237c4de34ca4722ff4ecc9822c5cc828e8ef24",
+      "gateOutcomes": "deps=success, syntax=success, base=success, lint=success, focused=success, browsers=success, matrix=success, upload=success",
+      "blockedReason": null
     },
     {
       "id": "R6-XA4-CROSS-ADAPTER-MOBILE-PERF",
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "waiting",
+      "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Certify the surviving ChatGPT+Claude deterministic cross-adapter candidate at hosted narrow/mobile/accessibility/resource/constrained-runtime scope while preserving physical/live claim limits.",
       "dependencies": [
