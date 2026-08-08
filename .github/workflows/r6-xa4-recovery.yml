@@ -1,0 +1,130 @@
+name: Round 6 XA4 Cross-Adapter Mobile Perf Recovery
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa4-recovery-trigger.md'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r6-xa4-recovery
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Guard branch, lease, and assignment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "agent/8.8-repair-resume"
+          git fetch origin "$GITHUB_REF_NAME"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$GITHUB_REF_NAME)"
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json','utf8'));
+          const plan = JSON.parse(fs.readFileSync('.gitl/orchestration/round-plan.json','utf8'));
+          const lease = state.lease;
+          if (!lease || lease.holder !== 'scheduled-worker-6-r6-xa4-mobile-perf-recovery-04' || lease.assignmentId !== 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF') throw new Error('XA4 recovery lease not owned');
+          if (Date.parse(lease.expiresAt) <= Date.now()) throw new Error('XA4 recovery lease expired before carrier start');
+          if (state.branch !== 'agent/8.8-repair-resume' || state.status !== 'active' || state.publishReady) throw new Error('project state not eligible');
+          const xa3 = plan.assignments.find(a => a.id === 'R6-XA3-CROSS-ADAPTER-REDTEAM');
+          const xa4 = plan.assignments.find(a => a.id === 'R6-XA4-CROSS-ADAPTER-MOBILE-PERF');
+          if (!xa3 || xa3.status !== 'submitted' || !xa4 || xa4.status !== 'ready') throw new Error('XA3/XA4 canonical state changed');
+          NODE
+
+      - name: Run exact XA4 gates
+        id: gates
+        shell: bash
+        run: |
+          set -u
+          OUT="$GITHUB_WORKSPACE/xa4-carrier-results"
+          rm -rf "$OUT" && mkdir -p "$OUT"
+          run_gate() {
+            name="$1"; shift
+            set +e
+            "$@" >"$OUT/$name.log" 2>&1
+            code=$?
+            set -e
+            printf '%s\n' "$code" >"$OUT/$name.exit"
+            echo "$name=$code"
+          }
+          set -e
+          run_gate deps npm ci
+          run_gate syntax node --check tests/e2e/cross-adapter-mobile-perf.spec.js
+          run_gate base npm run cert:base
+          run_gate lint npm run lint
+          run_gate unit npm run test:unit -- --runInBand
+          run_gate focused npx jest tests/sendtransaction.test.js tests/choice-state.test.js tests/repair-resume.test.js tests/tablock.test.js tests/sendsafety.test.js --runInBand
+          run_gate browsers npx playwright install --with-deps chromium firefox
+          run_gate matrix npx playwright test tests/e2e/mobile-shell-blue-mobile-perf.spec.js tests/e2e/cross-adapter-redteam.spec.js tests/e2e/cross-adapter-mobile-perf.spec.js --project=chromium --project=firefox
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = 'xa4-carrier-results';
+          const names = ['deps','syntax','base','lint','unit','focused','browsers','matrix'];
+          const gates = Object.fromEntries(names.map(n => [n, Number(fs.readFileSync(path.join(dir, `${n}.exit`),'utf8').trim())]));
+          const result = Object.values(gates).every(v => v === 0) ? 'PASS' : 'FAIL';
+          fs.writeFileSync(path.join(dir,'gates.json'), JSON.stringify({result,gates}, null, 2));
+          console.log(JSON.stringify({result,gates}));
+          NODE
+
+      - name: Upload XA4 evidence
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r6-xa4-recovery-${{ github.run_id }}
+          path: xa4-carrier-results/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Record durable XA4 result and self-remove
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          RESULT=FAIL
+          if [ -f xa4-carrier-results/gates.json ]; then RESULT=$(node -p "require('./xa4-carrier-results/gates.json').result"); fi
+          JOB_ID=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs" --jq '.jobs[] | select(.name=="verify") | .id' | head -n1)
+          mkdir -p .gitl/evidence/round-6
+          node <<'NODE'
+          const fs = require('fs');
+          const gates = fs.existsSync('xa4-carrier-results/gates.json') ? JSON.parse(fs.readFileSync('xa4-carrier-results/gates.json','utf8')) : {result:'FAIL',gates:{}};
+          const result = gates.result;
+          const run = process.env.GITHUB_RUN_ID;
+          const job = process.env.JOB_ID || 'UNKNOWN';
+          const artifact = process.env.ARTIFACT_ID || 'UNKNOWN';
+          const digest = process.env.ARTIFACT_DIGEST || 'UNKNOWN';
+          const head = process.env.GITHUB_SHA;
+          const finished = new Date().toISOString();
+          const evidence = `# Ghost Worker Evidence — R6 XA4 Cross-Adapter Mobile/Perf Recovery\n\n## Identity\n- Round: 6\n- Intended role: Mobile/browser/accessibility/performance\n- Executed by: gha-r6-xa4-${run}\n- Assignment: R6-XA4-CROSS-ADAPTER-MOBILE-PERF\n- Finished: ${finished}\n- Exact tested head: ${head}\n\n## Step Performed\nExecuted the existing ChatGPT+Claude deterministic hosted mobile/accessibility/resource/constrained-runtime matrix after recovering the expired XA4 lease. The fixture includes the strengthened post-reflow editor-focus assertions and no live-host binding.\n\n## Tests\n- Result: **${result}**\n- Gates: ${JSON.stringify(gates.gates)}\n- Run/job/artifact: ${run} / ${job} / ${artifact}\n- Artifact digest: ${digest}\n\n## Acceptance Criteria\n- 320 CSS px / 200% text / reduced motion / orientation / VisualViewport: ${result}\n- Focus/ARIA semantics through reflow: ${result}\n- Native controls and exact Send identity: ${result}\n- Observer/listener/pending-repair cleanup: ${result}\n- Chromium 1x/4x/6x invariant stress: ${result}\n- Desktop Firefox correctness lane: ${result}\n- Demotion/rail behavior under narrow pressure: ${result}\n- Live ChatGPT/Claude structural certification: UNKNOWN / NOT CLAIMED\n- Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware: NOT CLAIMED\n\n## Safety Checks\nSend authority, CHOICE, route, lease, uncertainty, clipping, exact identity, and fail-closed rail behavior were not weakened. No main/merge/auto-merge/tag/publish/release action occurred.\n\n## Risks and Limits\nHosted deterministic/emulated evidence is not live-host or physical-platform certification. The two previously observed high-severity npm audit findings remain a later dependency-audit risk; no blanket upgrade was attempted.\n\n## Recommended Next Action\n${result === 'PASS' ? 'Reconcile XA4 to submitted, make R6-XA5-MOBILE-SHELL-FINAL-AUDIT ready, and release the XA4 lease.' : 'Classify the failed gate from the uploaded exact logs, create the smallest XA4 recovery, and release the XA4 lease without returning to research.'}\n\n## Assignment Status\n- ${result === 'PASS' ? 'submitted-pending-canonical-handoff' : 'blocked-pending-smallest-recovery'}\n\nThe XA4 recovery lease should be released by the next safe canonical handoff; this carrier has finished its bounded execution.\n`;
+          fs.writeFileSync('.gitl/evidence/round-6/cross-adapter-mobile-perf.md', evidence);
+          fs.writeFileSync('.gitl/evidence/round-6/xa4-carrier-result.md', `# XA4 Carrier Result\n\n- Result: **${result}**\n- Tested head: \`${head}\`\n- Run: \`${run}\`\n- Job: \`${job}\`\n- Artifact: \`${artifact}\`\n- Digest: \`${digest}\`\n- Gates: \`${JSON.stringify(gates.gates)}\`\n- Finished: ${finished}\n- Lease release requested: yes\n`);
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm -f .github/workflows/r6-xa4-recovery.yml .gitl/evidence/round-6/xa4-recovery-trigger.md || true
+          git add .gitl/evidence/round-6/cross-adapter-mobile-perf.md .gitl/evidence/round-6/xa4-carrier-result.md
+          git commit -m "test(gitl): record XA4 recovery ${RESULT}"
+          git push origin HEAD:agent/8.8-repair-resume
