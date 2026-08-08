@@ -394,14 +394,14 @@
     ".gitl/evidence/round-6/xa1-claude-contract-carrier-result.md"
   ],
   "lease": {
-    "holder": "gha-r6-xa2x-31229752290",
+    "holder": "gha-r6-xa2x-31232161711",
     "assignmentId": "R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY",
     "nominalWorker": 1,
     "executedRole": "successor-builder-test-verifier-with-supervisor-integrator-lens",
-    "acquiredAt": "2026-08-08T00:19:14Z",
-    "expiresAt": "2026-08-08T01:04:14Z",
-    "inspectedHead": "a7719accab9f8345073928de116d9a421f8894ab",
-    "recoveredExpiredLease": "scheduled-worker-2-r6-xa2-claude-blue-21/R6-XA2-CLAUDE-BLUE-PROTOTYPE/2026-08-07T22:54:24Z",
+    "acquiredAt": "2026-08-08T01:14:25Z",
+    "expiresAt": "2026-08-08T01:59:25Z",
+    "inspectedHead": "cbaa03675b2eedaea4143c8dbe2951d08dd7e175",
+    "recoveredExpiredLease": "gha-r6-xa2x-31229752290/R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY/2026-08-08T01:04:14Z",
     "activeWorkCheck": "Prior XA2 lease was expired; XA2 evidence was final; canonical plan had XA2 blocked/XA2X ready; branch was stable at registered-CI arm head."
   },
   "blockedReason": null,
