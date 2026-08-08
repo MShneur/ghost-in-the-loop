@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "cross-adapter-mobile-perf-submitted-final-audit-ready",
+    "checkpointStatus": "final-audit-submitted-ci-hygiene-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while R6-XA2X through the cross-adapter build/test/audit sequence contains dependency-ready work.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket deterministic prototype-development gate",
-    "checkpointDecision": "XA4 exact hosted cross-adapter mobile/accessibility/performance run 31236146715 passed; advance directly to XA5 final bounded audit."
+    "checkpointDecision": "XA5 accepts the deterministic/hosted cross-adapter candidate only at bounded scope but rejects Round-6 closure until stale XA2X carrier residue is removed and ordinary clean-head CI is green or a reproduced failure is explicitly recovered."
   },
   "requiredPrograms": [
     {
@@ -209,11 +209,11 @@
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Perform the final bounded Round-6 mobile-shell audit before BUILD-IDENTITY. Preserve all live/physical claim gates; close only the deterministic/hosted scope actually evidenced."
+    "instruction": "Perform the smallest CI-hygiene recovery first: remove stale XA2X workflow residue, run ordinary clean-head CI, preserve every safety assertion, and create a smaller recovery from any reproduced failure. Do not research."
   },
   "assignments": [
     {
@@ -1091,7 +1091,7 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Perform the final bounded Round-6 audit after cross-adapter evidence, accepting only exact proven structural claims and deciding whether MOBILE-SHELL-STRUCTURAL may close or needs the smallest remaining recovery.",
       "dependencies": [
@@ -1127,10 +1127,60 @@
         "program completion or smallest recovery decision"
       ],
       "fallbackWork": "Missing/contradictory evidence creates a bounded recovery; do not close Round 6 because schedule slots fired.",
-      "evidencePath": ".gitl/evidence/round-6/final-mobile-shell-audit.md"
+      "evidencePath": ".gitl/evidence/round-6/final-mobile-shell-audit.md",
+      "executedBy": "gha-r6-xa5-31236866121",
+      "auditHead": "669100d0238a0883b57d820e94c69d08fc500a9d",
+      "finishedAt": "2026-08-08T03:17:42.883Z",
+      "verdict": "needs-ci-hygiene-recovery",
+      "acceptedScope": "deterministic-hosted-cross-adapter-only",
+      "liveHostCertification": "UNKNOWN-NOT-CLAIMED",
+      "cleanHeadCi": "NOT-SATISFIED"
+    },
+    {
+      "id": "R6-XA5X-CI-HYGIENE-RECOVERY",
+      "worker": 1,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "ci-hygiene-test-verifier",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Remove residual temporary XA2X CI machinery and obtain ordinary clean-head CI on the isolated branch before Round-6 closure, classifying any reproduced failure without weakening safety semantics.",
+      "dependencies": [
+        "R6-XA5-MOBILE-SHELL-FINAL-AUDIT:submitted"
+      ],
+      "allowedFiles": [
+        ".github/workflows/test.yml",
+        "tests/e2e/**",
+        "playwright.config.js",
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product source changes unless a reproduced ordinary-CI failure proves the smallest product repair is necessary",
+        "dropping or weakening Send/CHOICE/route/lease/uncertainty assertions",
+        "loosening exact identity, clipping, demotion, mobile, or accessibility assertions merely to make CI green",
+        "promoting deterministic/hosted evidence to live or physical certification",
+        "main/merge/auto-merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "remove the residual xa2x job from .github/workflows/test.yml and leave no reference to the deleted .github/xa2x-run.sh",
+        "leave ordinary unit/e2e workflow semantics intact apart from the proven stale-carrier cleanup",
+        "run ordinary clean-head base certification/lint/unit/full npm run test:e2e on the isolated branch",
+        "record exact clean-head run/job/artifact/log conclusions",
+        "if ordinary E2E fails, classify each reproduced failure and create the smallest bounded recovery rather than weakening assertions",
+        "only after clean-head ordinary CI is green and temporary machinery is absent may MOBILE-SHELL-STRUCTURAL closure be reconsidered"
+      ],
+      "requiredTests": [
+        "npm ci",
+        "npm run cert:base",
+        "npm run lint",
+        "npm run test:unit -- --runInBand",
+        "npm run test:e2e",
+        "exact GitHub Actions clean-head bindings"
+      ],
+      "fallbackWork": "A remaining ordinary-CI failure creates the smallest evidence-linked recovery; research does not outrank this executable hygiene/test path.",
+      "evidencePath": ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md"
     }
   ],
-  "roundDecision": "cross-adapter-mobile-perf-submitted-final-audit-ready-live-claims-pending",
+  "roundDecision": "final-audit-submitted-ci-hygiene-recovery-ready-live-claims-pending",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized",
   "publishReadyRequiresAllRequiredPrograms": true

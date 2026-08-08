@@ -28,13 +28,13 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "7a4db31346c68d3a99dd14e18545cb0df778339d",
-  "currentStep": "R6-XA5 final bounded audit claimed after active-work exclusion found no lease and a stable isolated-branch head. Audit only; no product mutation.",
-  "nextAction": "Execute R6-XA5-MOBILE-SHELL-FINAL-AUDIT before any research. Audit exact ChatGPT+Claude deterministic/hosted bindings, preserve live/physical limits, and expose BUILD-IDENTITY only if bounded Round-6 requirements are satisfied.",
+  "currentStep": "R6-XA5 final bounded audit accepted the exact ChatGPT+Claude deterministic/hosted evidence but found clean-head CI/carrier hygiene incomplete: stale xa2x workflow residue remains and ordinary E2E job 93037980915 failed. Round-6 closure is withheld; XA5X cleanup/clean-head CI recovery is ready.",
+  "nextAction": "Execute R6-XA5X-CI-HYGIENE-RECOVERY before research or BUILD-IDENTITY. Remove only stale XA2X CI residue, run ordinary clean-head CI, classify any reproduced failures, and preserve all fail-closed/live/physical claim limits.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R6-XA5X-CI-HYGIENE-RECOVERY",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "XA5 final bounded mobile-shell audit is executable; research may not compete.",
+    "reason": "XA5X CI-hygiene/ordinary-clean-head verification is executable; research may not compete.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,16 +72,16 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "cross-adapter-mobile-perf-submitted-final-audit-ready",
+    "checkpointStatus": "final-audit-submitted-ci-hygiene-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "nextArtifactAssignment": "R6-XA5X-CI-HYGIENE-RECOVERY",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
-    "lastDeliveryReviewAt": "2026-08-07T20:59:00Z",
+    "lastDeliveryReviewAt": "2026-08-08T03:17:42.883Z",
     "lastTestableArtifactAt": "2026-08-08T02:58:52.431Z",
-    "lastDeliveryDecision": "XA4 exact hosted cross-adapter mobile/accessibility/performance run 31236146715 passed; advance directly to XA5 final bounded audit.",
-    "evidence": ".gitl/evidence/round-6/cross-adapter-mobile-perf.md",
+    "lastDeliveryDecision": "Do not close Round 6 or advance to BUILD-IDENTITY until stale temporary XA2X CI residue is removed and ordinary clean-head CI is verified; execute XA5X rather than research.",
+    "evidence": ".gitl/evidence/round-6/final-mobile-shell-audit.md",
     "evidenceCommit": "7a4db31346c68d3a99dd14e18545cb0df778339d"
   },
   "requiredProgramsMayNotBeDropped": true,
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-cross-adapter-mobile-perf-submitted-final-audit-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -215,6 +215,10 @@
     {
       "type": "round-6-xa4-cross-adapter-mobile-perf-pass",
       "result": "XA4 recovery run 31236146715/job 93048904768/artifact 9015459673 passed deps/syntax/base/lint/unit/focused/browser/matrix gates on tested head 6ab649f6510db2be3dfe918a0f31ec99e5ea789e. Hosted Pixel-class Chromium, 320 CSS px, 200% text, reduced motion, post-reflow focus, orientation/VisualViewport, Firefox correctness, cleanup/resources, clipping demotion, and Chromium 1x/4x/6x invariant stress passed. Live and physical-platform claims remain uncertified."
+    },
+    {
+      "type": "round-6-xa5-final-audit-needs-ci-hygiene-recovery",
+      "result": "XA5 independently rechecked current deterministic source blobs and exact assignment-specific Actions jobs for ChatGPT A2X, Claude XA2X, cross-adapter XA3, and XA4. Bounded deterministic/hosted claims remain accepted, live/physical claims remain UNKNOWN/not certified, but Round-6 closure is withheld because .github/workflows/test.yml retains a dead xa2x job referencing removed .github/xa2x-run.sh and ordinary E2E job 93037980915 concluded failure. XA5X is ready."
     }
   ],
   "findings": [
@@ -387,6 +391,11 @@
       "worker": 6,
       "type": "cross-adapter-xa4-hosted-mobile-perf-pass",
       "finding": "ChatGPT+Claude deterministic cross-adapter candidate passed the bounded XA4 hosted mobile/accessibility/resource matrix. Strengthened assertions preserve editor focus after narrow reflow, native-control growth, VisualViewport signal, and orientation changes. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT/Claude insertion remain uncertified."
+    },
+    {
+      "worker": 6,
+      "type": "round-6-final-audit-ci-hygiene-blocker",
+      "finding": "Final audit found a release-hygiene blocker rather than a deterministic structural-candidate failure: stale XA2X registered-CI residue remains in test.yml while its runner is absent, and the ordinary E2E job on XA2X run 31232161711 failed even though the exact XA2X job passed. Clean-head ordinary CI must be restored/verified before MOBILE-SHELL-STRUCTURAL can close."
     }
   ],
   "briefs": [
@@ -425,24 +434,16 @@
     ".gitl/evidence/round-6/cross-adapter-redteam.md",
     ".gitl/evidence/round-6/cross-adapter-mobile-perf.md",
     ".gitl/evidence/round-6/xa4-carrier-result.md",
-    ".gitl/evidence/round-6/xa4-handoff-recovery.md"
+    ".gitl/evidence/round-6/xa4-handoff-recovery.md",
+    ".gitl/evidence/round-6/final-mobile-shell-audit.md"
   ],
-  "lease": {
-    "holder": "gha-r6-xa5-31236866121",
-    "nominalWorker": 6,
-    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
-    "role": "devils-advocate-release-auditor-successor",
-    "acquiredAt": "2026-08-08T03:17:37.142Z",
-    "expiresAt": "2026-08-08T04:02:37.142Z",
-    "headAtClaim": "f511b8844be267408eb722f58ba1d068cdd1d4f1",
-    "inspectedHead": "f511b8844be267408eb722f58ba1d068cdd1d4f1"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "cross-adapter-mobile-perf-submitted-final-audit-ready-live-certification-pending",
+    "verdict": "final-audit-submitted-ci-hygiene-recovery-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -482,7 +483,7 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
+    "nextAssignment": "R6-XA5X-CI-HYGIENE-RECOVERY",
     "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -569,7 +570,15 @@
     "xa4CrossArtifact": 9015459673,
     "xa4CrossArtifactDigest": "sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4",
     "xa4CrossGateOutcomes": "deps=0, syntax=0, base=0, lint=0, unit=0, focused=0, browsers=0, matrix=0",
-    "xa4CrossLiveClaims": "UNKNOWN-NOT-CLAIMED"
+    "xa4CrossLiveClaims": "UNKNOWN-NOT-CLAIMED",
+    "xa5FinalStatus": "submitted",
+    "xa5FinalAuditVerdict": "NEEDS-CI-HYGIENE-RECOVERY",
+    "xa5AcceptedScope": "deterministic-hosted-cross-adapter-only",
+    "xa5LiveClaims": "UNKNOWN-NOT-CLAIMED",
+    "cleanHeadCiStatus": "NOT-SATISFIED",
+    "staleXa2xWorkflowResidue": "PRESENT-test.yml-references-missing-.github/xa2x-run.sh",
+    "ordinaryE2eJob": 93037980915,
+    "ordinaryE2eConclusion": "failure"
   },
   "priorRoundVerification": {
     "round": 5,
