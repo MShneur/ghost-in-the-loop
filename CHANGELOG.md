@@ -222,7 +222,8 @@ updated `tests/sendtransaction.test.js` contract.
 
 Field feedback: the Run tab showed **Play + Pause + Stop** as three buttons —
 "why do we have play, pause, resume AND stop?" The primary button was already
-wired to the state-aware `primaryAction` toggle, so the separate Pause button was redundant. Consolidated to a **single state-driven button** that reads live
+wired to the state-aware `primaryAction` toggle, so the separate Pause button
+was redundant. Consolidated to a **single state-driven button** that reads live
 state, plus a separate Stop:
 
 - IDLE / COMPLETE → **▶ Start**
@@ -909,7 +910,7 @@ From Replit e2e round 3.
 - Export returning early on a page with zero messages is correct behavior, not a defect. An empty conversation has nothing to export.
 
 ### Tests
-`tests/e2e/behavior.spec.js` added.
+- `tests/e2e/behavior.spec.js` added.
 
 ## [7.0.0-patch3] — Own-UI selector exclusion (2026-06-13)
 
