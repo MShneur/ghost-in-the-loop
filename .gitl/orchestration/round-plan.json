@@ -3,7 +3,7 @@
   "project": "ghost-in-the-loop",
   "releaseTarget": "8.8.0",
   "mode": "continuous-local-human-gates",
-  "round": 8,
+  "round": 9,
   "status": "active",
   "supervisorWorker": 1,
   "schedule": [
@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round8-a1x-submitted-a2-ready",
+    "checkpointStatus": "round8-docs-accepted-final-cert-supervisor-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Research remains lower priority while required DOCS-RECONCILIATION, certification, packaging, or release-evidence work is executable.",
+    "reenableCondition": "Research remains lower priority while required certification, packaging, checksum, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R8-A1X is now submitted after compare-verified lossless CHANGELOG recovery. GitHub's authoritative base-to-implementation compare reports exactly one changed file with 12 additions and 0 deletions; stale evidence claiming 14 additions is corrected by durable handoff-recovery evidence. The implementation-head CI red and evidence-only-head CI green are both retained. R8-A2 independent docs Red Team is now ready; research remains ineligible and publication remains disabled."
+    "checkpointDecision": "R8-A2 independently accepted DOCS-RECONCILIATION at bounded documentation-consistency scope. Stable-main/candidate separation, R4-R7 claim limits, development-tooling advisory disposition, hosted timing dissent, and fail-closed safeguards remain explicit. New same-payload timing-only red evidence from runs 31254004451 and 31255746448 is retained alongside green run 31254107047; thresholds were not weakened. FINAL-CERT-PACKAGE supervisor planning is dependency-ready, research remains ineligible, and publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -53,24 +53,23 @@
     {"id":"LONG-CHAT-PERF","title":"Long-conversation observation, scanning, rendering, timer, and constrained-device performance","status":"completed","releaseCritical":true,"certifiedRound":5,"humanReview":"accepted-bounded","humanAccepted":true,"resolvedQuestion":"DQ-R5-LONGCHAT-REVIEW"},
     {"id":"MOBILE-SHELL-STRUCTURAL","title":"Host-affixed mobile Ghost shell research, implementation, and certification","status":"completed","releaseCritical":true,"userRequired":true,"brief":".gitl/briefs/mobile-shell-concepts.md","certifiedRound":6,"certificationScope":"bounded-deterministic-hosted-cross-adapter","liveHostCertification":"pending-local-gate"},
     {"id":"BUILD-IDENTITY","title":"Canonical build, candidate, and release-channel identity","status":"completed","releaseCritical":true,"certifiedRound":7,"certificationScope":"bounded-immutable-payload-provenance-test-binding-candidate-channel-nonpublished"},
-    {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation","status":"active","releaseCritical":true},
-    {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"backlog","releaseCritical":true}
+    {"id":"DOCS-RECONCILIATION","title":"Architecture, README, help, changelog, protocol, and orchestration-policy reconciliation","status":"completed","releaseCritical":true,"certifiedRound":8,"certificationScope":"bounded-documentation-consistency-nonpublication"},
+    {"id":"FINAL-CERT-PACKAGE","title":"Full certification, release audit, package, and SHA-256 verification","status":"active","releaseCritical":true}
   ],
   "priorityOrder": ["RR-E2E-FAULTS","LIFECYCLE-FROZEN-DISCARDED","LONG-CHAT-PERF","MOBILE-SHELL-STRUCTURAL","BUILD-IDENTITY","DOCS-RECONCILIATION","FINAL-CERT-PACKAGE"],
   "priorRound": {
-    "round": 7,
-    "program": "BUILD-IDENTITY",
-    "verdict": "completed-certified-bounded-nonpublished",
-    "auditAssignment": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
-    "auditEvidence": ".gitl/evidence/round-7/worker-6-final-audit.md",
-    "auditEvidenceCommit": "15e82ef79fec5388f19aee881056d03f93f471ac",
+    "round": 8,
+    "program": "DOCS-RECONCILIATION",
+    "verdict": "completed-certified-bounded-documentation-consistency-nonpublication",
+    "auditAssignment": "R8-A2-DOCS-REDTEAM-AUDIT",
+    "auditEvidence": ".gitl/evidence/round-8/worker-6.md",
+    "auditEvidenceCommit": "22763c1fe12ff1ca7dbebc9942f04a614df2851d",
     "explicitLimits": [
-      "The machine-readable identity record binds immutable shipped payload bytes at an earlier provenance head while exact later CI heads are separately bound; coordination-only head movement is intentionally reported as head-moved-payload-identical rather than exact-head provenance.",
-      "brace-expansion@1.1.15 and js-yaml@3.14.2 remain real high-severity nodes in the Jest development graph; npm audit --omit=dev is clean and no concrete shipped-payload path is established, while shipped exploitability remains UNKNOWN / not claimed.",
-      "Hosted sub-millisecond/millisecond Long-Chat timing reproducibility remains variable across same-payload ordinary CI; the accepted Round-5 numerical thresholds were not weakened.",
-      "Exact current live ChatGPT and Claude structural insertion remains uncertified.",
-      "Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, and calibrated low-end-device performance remain uncertified.",
-      "Candidate identity is not publication identity; publishReady remains false and no tag, Release, store, merge, or main-channel publication is authorized."
+      "Documentation consistency is not publication authority; publishReady remains false and stable install/update authority remains main.",
+      "Exact current live ChatGPT/Claude insertion and physical Android/WebView/GeckoView, real IME/browser-toolbar, assistive-technology, and calibrated low-end-device claims remain uncertified.",
+      "Long-Chat answer lookup and Send observation remain history-linear at the recorded envelope; same-payload hosted timing includes contradictory red/green observations and accepted thresholds were not weakened.",
+      "brace-expansion@1.1.15 and js-yaml@3.14.2 remain real high-severity Jest-development nodes; no concrete shipped-payload path was established and shipped exploitability remains UNKNOWN / not claimed.",
+      "Later timing observations extend the release-evidence ledger without falsifying the non-exhaustive documentation claim that hosted timing reproducibility is variable."
     ]
   },
   "identityContract": {
@@ -116,7 +115,7 @@
     "postAuditClaimOrdinaryCiConclusion": "failure-timing-only",
     "postAuditClaimE2eArtifact": 9020109219,
     "postAuditClaimE2eArtifactSha256": "8366016a7101945cfefab0ed2c66e721b81cb9793f48194c7bab012538022f40",
-    "timingVarianceObservation": "Run 31250247148 attempt 1 failed the preserved Round-5 A2 timing oracle and attempt 2 passed on the same predecessor head; A3 exact-head run 31250442852 passed; coordination head 7fe9fd47885170bdda48e10348e5c410cf84e7df failed the preserved A2 timing gate in run 31250736801; pre-audit head 75b0a7c9aedce61f09b953d3f452e832a03d4fa7 passed run 31250770870 overall with a separate heavy-DOM-replacement Long-Chat timing case flaky; later same-payload A4 claim head 012012dab52408f4a0a51b73d8a785602f661897 failed run 31251250525 only in the preserved A2 timing family. Treat all of this as hosted timing reproducibility risk, not product regression and not permission to loosen the threshold."
+    "timingVarianceObservation": "Run 31250247148 attempt 1 failed the preserved Round-5 A2 timing oracle and attempt 2 passed on the same predecessor head; A3 exact-head run 31250442852 passed; coordination head 7fe9fd47885170bdda48e10348e5c410cf84e7df failed the preserved A2 timing gate in run 31250736801; pre-audit head 75b0a7c9aedce61f09b953d3f452e832a03d4fa7 passed run 31250770870 overall with a separate heavy-DOM-replacement Long-Chat timing case flaky; later same-payload A4 claim head 012012dab52408f4a0a51b73d8a785602f661897 failed run 31251250525 only in the preserved A2 timing family; A1X implementation head 8cb248a2c0fa23c506b8ae913a3ac0525a350990 failed only that timing family in run 31254004451 and evidence-only head 486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c passed run 31254107047; pre-A2 handoff head bbb51a235fa570ed72423fb0aebaf95668881e06 failed only that timing family in run 31255746448. Treat all of this as hosted timing reproducibility risk, not product regression and not permission to loosen the threshold."
   },
   "docsReconciliation": {
     "supervisorEvidence": ".gitl/evidence/round-8/worker-1.md",
@@ -124,7 +123,7 @@
     "implementationEvidence": ".gitl/evidence/round-8/worker-3.md",
     "implementationEvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
     "implementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
-    "implementationStatus": "a1x-submitted-a2-ready",
+    "implementationStatus": "completed-certified-bounded-documentation-consistency",
     "a1xCarrierEvidence": ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
     "a1xCarrierEvidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
     "a1xFinalEvidence": ".gitl/evidence/round-8/worker-5-a1x-lossless-recovery.md",
@@ -135,16 +134,23 @@
     "a1xImplementationHead": "8cb248a2c0fa23c506b8ae913a3ac0525a350990",
     "a1xAuthoritativeDiff": "CHANGELOG.md only; 12 additions; 0 deletions; insertion-only",
     "a1xImplementationOrdinaryCiRun": 31254004451,
-    "a1xImplementationOrdinaryCiConclusion": "failure-e2e-red-unit-base-green",
+    "a1xImplementationOrdinaryCiConclusion": "failure-timing-only-e2e-red-unit-base-green",
     "a1xEvidenceHead": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
     "a1xEvidenceHeadOrdinaryCiRun": 31254107047,
     "a1xEvidenceHeadOrdinaryCiConclusion": "success",
+    "preAuditHandoffHead": "bbb51a235fa570ed72423fb0aebaf95668881e06",
+    "preAuditHandoffOrdinaryCiRun": 31255746448,
+    "preAuditHandoffOrdinaryCiConclusion": "failure-timing-only-e2e-red-unit-base-green",
+    "auditEvidence": ".gitl/evidence/round-8/worker-6.md",
+    "auditEvidenceCommit": "22763c1fe12ff1ca7dbebc9942f04a614df2851d",
+    "auditVerdict": "accepted-bounded-documentation-consistency-nonpublication",
     "completedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md","CHANGELOG.md"],
     "remainingDoc": null,
     "inventory": [
-      "README stable install link correctly targets main and must remain stable-channel authority; contributor every-push changelog/devlog rule conflicted with coordination-only .gitl commits and has been clarified; current candidate/non-publication and bounded certification limits are surfaced.",
+      "README stable install link targets main and current candidate/non-publication and bounded certification limits are surfaced; coordination-only .gitl commits no longer force release-ledger churn.",
       "docs/ARCHITECTURE.md records the accepted structural-mount authority order, build-identity/provenance contract, and current live/physical certification boundaries.",
-      "CHANGELOG.md now contains the bounded 8.8 release-candidate evidence boundary. Authoritative compare from A1X claim to implementation is insertion-only: 12 additions, 0 deletions. Prior evidence claiming 14 additions is corrected by the durable handoff-recovery record. Candidate non-publication, R4/R5/R6/R7 limits, dependency disposition, and hosted timing dissent are preserved.",
+      "docs/RELEASE-CANDIDATE-8.8.md accurately carries bounded R4-R7 scope, linear Long-Chat limits, hosted timing variance, dependency disposition, candidate/stable separation and non-publication. Its timing-run list is explicitly non-exhaustive via 'including'; later timing observations extend the final evidence ledger rather than falsifying the prose.",
+      "CHANGELOG.md contains the bounded 8.8 release-candidate evidence boundary. Authoritative compare from A1X claim to implementation is insertion-only: 12 additions, 0 deletions.",
       ".gitl/orchestration/README.md matches continuous-local-human-gates with automatic succession, timer cadence not ownership, local human gates, Delivery-Pressure and no-stall handoff."
     ],
     "claimLimitLedger": [
@@ -152,7 +158,7 @@
       "R5 grouped-selector improvement remains history-linear; Send-observation linear work and hosted timing variance remain explicit limits.",
       "R6 structural shell is deterministic/hosted ChatGPT+Claude scope only; exact live insertion and physical-platform claims remain uncertified; structural authority does not grant Send authority.",
       "R7 candidate 8.8.0 is isolated and non-published; stable main remains the install/update channel until an authorized publication step.",
-      "A2 development-tooling advisories remain real; no concrete shipped path is established and shipped exploitability remains UNKNOWN/not claimed.",
+      "Development-tooling advisories remain real; no concrete shipped path is established and shipped exploitability remains UNKNOWN/not claimed.",
       "All red/green/flaky hosted timing observations must be carried without threshold weakening.",
       "publishReady remains false."
     ]
@@ -166,11 +172,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 6,
-    "assignmentId": "R8-A2-DOCS-REDTEAM-AUDIT",
+    "nominalWorker": 1,
+    "assignmentId": "R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Independently falsify the reconciled README, architecture, release-candidate note, orchestration README, and CHANGELOG against exact R4-R7 evidence. Reject unsupported live/physical/stable-publication/exploitability/performance claims; retain the implementation-head red and evidence-head green CI observations, the corrected 12-addition insertion-only CHANGELOG diff, all dependency/timing dissent, stable-main authority, and publishReady=false. If an overclaim remains, expose only the smallest docs-only correction."
+    "instruction": "Open the smallest evidence-backed FINAL-CERT-PACKAGE chain. Carry immutable candidate identity/provenance, exact package/checksum bindings, all R4-R8 certification limits, the complete hosted timing red/green ledger through run 31255746448, development-tooling advisory disposition, live/physical uncertified scope, stable-main authority and publishReady=false. Planning must not merge, tag, publish, create a Release, or infer publication authority."
   },
   "assignments": [
     {
@@ -244,25 +250,45 @@
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-docs-auditor",
-      "status": "ready",
+      "status": "accepted",
       "program": "DOCS-RECONCILIATION",
       "goal": "Independently falsify reconciled documentation against exact R4-R7 evidence and repository identity; close DOCS-RECONCILIATION only at bounded documentation-consistency scope.",
       "dependencies": ["R8-A1X-CHANGELOG-RECONCILE:submitted"],
       "prohibitedActions": ["accepting unsupported live/physical/stable-publication/exploitability/performance claims","weakening or deleting dissent to make release prose cleaner","product/test/dependency/version/channel changes","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["trace release-facing claims to exact evidence","verify README install remains stable main","verify candidate 8.8 is not described as published","verify physical/live limits remain explicit","verify Long-Chat linear/send-observation and hosted timing variance remain explicit and no threshold is weakened","verify development-tooling advisories are not presented as either shipped exploitable or universally harmless","verify orchestration policy matches canonical succession/local-human-gate mode","verify docs-only diff contains no product/generated/dependency/version/channel mutation","on acceptance expose FINAL-CERT-PACKAGE planning while keeping publishReady=false"],
-      "fallbackWork": "If an overclaim or contradiction remains, expose only the smallest docs-only correction and re-audit it. Do not reopen broad research unless no executable correction exists."
+      "executedBy": "scheduled-successor-r8-a2-docs-redteam-07",
+      "claimCommit": "6b46a0c9b6e07013061457c5ac5754a566dc3c31",
+      "evidencePath": ".gitl/evidence/round-8/worker-6.md",
+      "evidenceCommit": "22763c1fe12ff1ca7dbebc9942f04a614df2851d",
+      "preAuditHandoffOrdinaryCiRun": 31255746448,
+      "preAuditHandoffOrdinaryCiConclusion": "failure-timing-only-e2e-red-unit-base-green",
+      "verdict": "accepted-bounded-documentation-consistency-nonpublication"
+    },
+    {
+      "id": "R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN",
+      "worker": 1,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "supervisor-integrator",
+      "status": "ready",
+      "program": "FINAL-CERT-PACKAGE",
+      "goal": "Open the smallest evidence-backed final certification, packaging, checksum, and independent release-audit chain without performing publication.",
+      "dependencies": ["R8-A2-DOCS-REDTEAM-AUDIT:accepted"],
+      "mandatoryReads": [".gitl/evidence/round-8/worker-6.md",".gitl/evidence/round-7/worker-6-final-audit.md",".gitl/evidence/round-7/worker-6-dependency-audit.md",".gitl/evidence/round-7/candidate-identity.json","docs/RELEASE-CANDIDATE-8.8.md",".gitl/user-directives/2026-08-07-release-pressure.md"],
+      "prohibitedActions": ["main/merge/auto-merge/tag/release/publish","changing stable-main install/update authority","weakening Send/CHOICE/route/lease/uncertainty/structural safeguards","weakening accepted timing thresholds","promoting live/physical claims without qualifying evidence","blind dependency upgrades"],
+      "acceptanceCriteria": ["inventory exact final-cert/package/checksum gates and dependency order","bind final package planning to immutable 8.8 candidate payload identity and explicit Git/test provenance","carry all R4-R8 claim limits and exact timing red/green ledger through run 31255746448","keep live/physical certification pending unless qualifying read-only capture exists","keep development-tooling advisory exploitability UNKNOWN/not claimed absent a concrete shipped path","open the smallest implementation/test/package and independent final-audit assignments","keep publishReady=false and perform no publication action"],
+      "fallbackWork": "If final packaging cannot yet be falsifiably bound to the candidate identity, expose only the smallest package/checksum or evidence-binding recovery. Do not reopen broad research while such work is executable."
     }
   ],
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R8-A2-DOCS-REDTEAM-AUDIT is a dependency-ready release-critical certification artifact and outranks research.",
+    "reason": "R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN is dependency-ready release-critical planning and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "round8-a1x-submitted-a2-ready",
+  "roundDecision": "round8-docs-accepted-round9-final-cert-supervisor-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
