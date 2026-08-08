@@ -27,12 +27,12 @@
     ".gitl/user-directives/2026-08-07-release-pressure.md"
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
-  "headAtLastHandoff": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
-  "currentStep": "R9-SUPERVISOR-FINAL-CERT-PACKAGE-PLAN is submitted. The supervisor inventoried the existing cert:base and BUILD-IDENTITY primitives, identified the narrow missing release artifact as exact-byte candidate staging plus deterministic SHA256SUMS/package-manifest verification and CI artifact binding, preserved all R4-R8 limits and the expanded hosted timing ledger through run 31256501263, and opened the dependency-ordered A1 package build, A2 independent Red Team/CI, and A3 final release audit chain. publishReady remains false.",
-  "nextAction": "Claim R9-A1-PACKAGE-CHECKSUM-BUILD under a fresh shared lease. Implement the smallest deterministic staging/checksum oracle for exactly the five immutable BUILD-IDENTITY payload files, wire its check and package upload into ordinary CI, prove mutant sensitivity, and record exact run/job/artifact/digest evidence. Do not modify immutable payload bytes, dependencies, version, stable-main authority, fail-closed safeguards, timing thresholds, or any publication target.",
+  "headAtLastHandoff": "c4a62aa4c5ca46120e59a8304d338b9208e146a2",
+  "currentStep": "R9-A1-PACKAGE-CHECKSUM-BUILD is actively claimed under the shared lease by a successor worker using the builder/release-engineer role. The bounded task is to stage exactly the five immutable BUILD-IDENTITY payload files, emit deterministic SHA256SUMS and package-manifest.json, prove fail-closed mutant sensitivity, and wire the staged directory into ordinary CI as evidence only. publishReady remains false.",
+  "nextAction": "Complete R9-A1-PACKAGE-CHECKSUM-BUILD on the isolated branch, run focused/base/identity/package gates, obtain ordinary CI artifact evidence, record exact hashes and run/job/artifact IDs, then submit A1 and expose R9-A2-PACKAGE-REDTEAM-CI. Do not modify immutable payload bytes, dependencies, version, stable-main authority, fail-closed safeguards, timing thresholds, or any publication target.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "next eligible wake",
+    "scheduledFor": "current leased wake",
     "nominalWorker": 3,
     "assignmentId": "R9-A1-PACKAGE-CHECKSUM-BUILD",
     "claimableByAnyEligibleWorker": true,
@@ -63,7 +63,7 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round9-supervisor-submitted-package-a1-ready",
+    "checkpointStatus": "round9-a1-package-build-claimed",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "nextArtifactAssignment": "R9-A1-PACKAGE-CHECKSUM-BUILD",
@@ -92,7 +92,7 @@
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "BUILD-IDENTITY": "completed-certified-bounded-nonpublished",
     "DOCS-RECONCILIATION": "completed-certified-bounded-documentation-consistency-nonpublication",
-    "FINAL-CERT-PACKAGE": "active-package-a1-ready"
+    "FINAL-CERT-PACKAGE": "active-package-a1-claimed"
   },
   "certificationLimits": {
     "round4": "Accepted only at bounded deterministic/hosted lifecycle scope; no physical Android discard/freeze, real browser scheduler, GeckoView/Firefox-Android, or calibrated low-end hardware certification.",
@@ -197,23 +197,31 @@
     "supervisorPlanCommit": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
     "note": "Detailed prior completed-step/findings ledgers remain immutable in Git history and per-round .gitl/evidence files. Round-9 state is intentionally compact while preserving all active authority, evidence, certification limits, timing/dependency dissent, and publication safeguards."
   },
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-successor-r9-a1-package-build-04",
+    "assignmentId": "R9-A1-PACKAGE-CHECKSUM-BUILD",
+    "intendedRole": "builder-release-engineer",
+    "executedRole": "builder-release-engineer-successor",
+    "nominalWorker": 5,
+    "acquiredAt": "2026-08-08T12:40:00Z",
+    "expiresAt": "2026-08-08T13:25:00Z",
+    "inspectedHead": "c4a62aa4c5ca46120e59a8304d338b9208e146a2"
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 9,
     "program": "FINAL-CERT-PACKAGE",
-    "status": "supervisor-submitted-package-a1-ready",
+    "status": "package-a1-claimed",
     "nextAssignment": "R9-A1-PACKAGE-CHECKSUM-BUILD",
     "supervisorEvidence": ".gitl/evidence/round-9/worker-1.md",
     "supervisorEvidenceCommit": "cf88d671f07086bd3cc66050ecf52dfaa7851356",
     "planCommit": "e3a4c6727fc249819b816c63be1eb5dc33219aa8",
     "latestOrdinaryCi": {
-      "run": 31256501263,
-      "head": "89cc94df8908c3c544c4bb7b6e4647692d7c74aa",
+      "run": 31257078397,
+      "head": "c4a62aa4c5ca46120e59a8304d338b9208e146a2",
       "unitBaseIdentity": "success",
-      "e2e": "failure-timing-only",
-      "e2eSummary": "220 passed, 10 skipped, 1 failed in preserved R5 A2 hosted wall-clock timing oracle; first large p95 2.4ms vs <2.3ms, retry small p95 0.9ms vs <=0.875ms; no threshold change."
+      "e2e": "success"
     },
     "publishReady": false
   }
