@@ -1,0 +1,37 @@
+name: BrowserStack credential check
+
+on:
+  push:
+    branches:
+      - test/browserstack-auth-check
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-browserstack-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify required GitHub secrets are present
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          test -n "$BROWSERSTACK_USERNAME"
+          test -n "$BROWSERSTACK_ACCESS_KEY"
+          echo "BrowserStack secret names resolved in GitHub Actions."
+
+      - name: Authenticate to BrowserStack Automate Plan API
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          code=$(curl --silent --show-error --output /tmp/browserstack-plan.json --write-out '%{http_code}' \
+            --user "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            https://api.browserstack.com/automate/plan.json)
+          if [ "$code" != "200" ]; then
+            echo "BrowserStack authentication failed with HTTP $code."
+            exit 1
+          fi
+          node -e "const p=require('/tmp/browserstack-plan.json'); console.log('BrowserStack authentication PASS. Plan:', p.automate_plan || 'unknown', '| max parallels:', p.parallel_sessions_max_allowed ?? 'unknown');"
