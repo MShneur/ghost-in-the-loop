@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "xa5yw-carrier-cleanup-submitted-clean-ci-verification-ready",
+    "checkpointStatus": "xa5yz-clean-head-ci-pass-final-audit-retry-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "reenableCondition": "Research remains lower priority while XA5YZ ordinary clean-head CI verification is ready.",
+    "reenableCondition": "Research remains lower priority while the final bounded Round-6 audit retry is ready.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket deterministic prototype-development gate",
-    "checkpointDecision": "Temporary XA5Y carrier residue is removed. Exact ordinary clean-head CI is the next evidence gate before the final bounded Round-6 audit can be retried."
+    "checkpointDecision": "Exact ordinary clean-head CI passed on the final XA5YW handoff head. Retry the final bounded Round-6 audit before BUILD-IDENTITY; preserve all live/physical claim limits."
   },
   "requiredPrograms": [
     {
@@ -209,11 +209,11 @@
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R6-XA5YZ-ORDINARY-CI-VERIFY",
+    "nominalWorker": 6,
+    "assignmentId": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Verify ordinary clean-head CI for the exact final XA5YW handoff head before research or BUILD-IDENTITY; classify any residual failure without weakening assertions."
+    "instruction": "Retry the final bounded Round-6 mobile-shell audit using the exact green clean-head XA5YZ evidence before BUILD-IDENTITY or research."
   },
   "assignments": [
     {
@@ -1195,7 +1195,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-ci-repair",
-      "status": "blocked",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Repair only the three exact ordinary-E2E test routing/structure failures classified by XA5X, then rerun ordinary clean-head CI without changing product semantics or weakening any safety/performance oracle.",
       "dependencies": [
@@ -1250,7 +1250,12 @@
       "executedBy": "gha-r6-xa5y-31242416590",
       "fixCommit": "7648979cd90122901b19c03dd1e7e2f7ff391223",
       "testedHead": "7648979cd90122901b19c03dd1e7e2f7ff391223",
-      "blockedReason": "The three XA5X-classified test-only corrections are committed and temporary XA5Y carrier residue is removed by XA5YW; ordinary clean-head CI verification is now the remaining gate."
+      "blockedReason": null,
+      "cleanHeadVerifiedHead": "1a10c592c7023ee01b71b133762ebcb628f550bc",
+      "cleanHeadVerifyEvidence": ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
+      "cleanHeadVerifyRun": 31243297853,
+      "cleanHeadVerifyUnitJob": 93067642887,
+      "cleanHeadVerifyE2eJob": 93067642856
     },
     {
       "id": "R6-XA5YW-CARRIER-CLEANUP",
@@ -1306,7 +1311,7 @@
       "worker": 4,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "test-engineer-ci-verifier",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Bind the ordinary clean-head CI run for the exact final XA5YW handoff head, then either retry the final bounded Round-6 audit on green or expose the smallest residual recovery on red.",
       "dependencies": [
@@ -1336,10 +1341,71 @@
         "exact GitHub Actions run/job/artifact/log bindings"
       ],
       "fallbackWork": "A remaining ordinary-CI failure creates the smallest evidence-linked recovery; research does not outrank this executable verification path.",
-      "evidencePath": ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md"
+      "evidencePath": ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
+      "executedBy": "scheduled-successor-r6-xa5yz-ci-verify-05",
+      "claimCommit": "6c96ed40a4cc9b1268ddc9bcb455668ed9138d21",
+      "testedHead": "1a10c592c7023ee01b71b133762ebcb628f550bc",
+      "runId": 31243297853,
+      "unitJobId": 93067642887,
+      "e2eJobId": 93067642856,
+      "unitArtifactId": 9017679611,
+      "unitArtifactDigest": "sha256:21010b0264391dc3f10b30555d30e58e4667183ef95c1fde985a4bedece1445a",
+      "e2eArtifactId": 9017711998,
+      "e2eArtifactDigest": "sha256:29a71737b4a40bf13ba69fc5abc3be76bb18d185e82633e57587a76fe84b65d0",
+      "unitResult": "43/43 suites passed; 477 passed; 3 todo; 480 total",
+      "e2eResult": "221 passed; 10 skipped; 0 failed",
+      "evidenceCommit": "fe5dfcca44cfd0d9bd5d53bcd58d2156ef06b4a0",
+      "blockedReason": null
+    },
+    {
+      "id": "R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY",
+      "worker": 6,
+      "claimableByAnyEligibleWorker": true,
+      "intendedRole": "devils-advocate-release-auditor",
+      "status": "ready",
+      "program": "MOBILE-SHELL-STRUCTURAL",
+      "goal": "Retry the final bounded Round-6 audit now that exact ordinary clean-head CI is green; decide whether MOBILE-SHELL-STRUCTURAL may close at deterministic/hosted scope and expose BUILD-IDENTITY, while preserving live/physical claim gates.",
+      "dependencies": [
+        "R6-XA5YZ-ORDINARY-CI-VERIFY:submitted"
+      ],
+      "mandatoryReads": [
+        ".gitl/evidence/round-6/final-mobile-shell-audit.md",
+        ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
+        ".gitl/evidence/round-6/cross-adapter-mobile-perf.md",
+        ".gitl/evidence/round-6/cross-adapter-redteam.md",
+        ".gitl/evidence/round-6/xa5y-test-fix.md",
+        ".gitl/user-directives/2026-08-07-release-pressure.md"
+      ],
+      "allowedFiles": [
+        ".gitl/**"
+      ],
+      "prohibitedActions": [
+        "product source or test-semantic changes",
+        "promoting deterministic fixtures to live-host certification",
+        "promoting hosted emulation to physical-platform certification",
+        "weakening Send/CHOICE/route/lease/uncertainty, exact identity, demotion, clipping, accessibility, or timing/safety safeguards",
+        "main/merge/auto-merge/tag/release/publish"
+      ],
+      "acceptanceCriteria": [
+        "independently re-read the original final audit and the exact green XA5YZ ordinary-CI evidence",
+        "verify the clean-head CI hygiene blocker is resolved without test/product semantic weakening",
+        "re-audit exact ChatGPT+Claude deterministic/hosted source/test/run bindings and specialized->standard->rail authority separation",
+        "reject unsupported live/universal/physical claims and preserve local live-capture gates",
+        "if bounded Round-6 requirements are satisfied close MOBILE-SHELL-STRUCTURAL only at that bounded scope and expose BUILD-IDENTITY",
+        "if evidence remains contradictory create only the smallest explicit recovery"
+      ],
+      "requiredEvidence": [
+        "original audit delta",
+        "XA5YZ run/job/artifact bindings",
+        "accepted/rejected claims",
+        "remaining local certification gates",
+        "program completion or smallest recovery decision"
+      ],
+      "fallbackWork": "Any contradictory or missing evidence creates the smallest bounded recovery; do not reopen research while a concrete audit/recovery path exists.",
+      "evidencePath": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md"
     }
   ],
-  "roundDecision": "xa5yw-carrier-cleanup-submitted-clean-ci-verification-ready-live-claims-pending",
+  "roundDecision": "xa5yz-clean-head-ci-pass-final-audit-retry-ready-live-claims-pending",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized",
   "publishReadyRequiresAllRequiredPrograms": true
