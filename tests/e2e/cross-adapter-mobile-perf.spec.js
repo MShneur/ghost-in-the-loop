@@ -259,6 +259,7 @@ test.describe('Round-6 XA4 cross-adapter mobile/accessibility/performance', () =
       await deterministicVisualOnlySignal(page);
       await perturbNativeControls(page);
       g = await assertClaudeSemanticAndSafety(page, baselineEvents);
+      expect(g.activeLabel).toBe('Message Claude');
       expect(parseFloat(g.fontSize)).toBeGreaterThanOrEqual(30);
       expect(g.viewportSignals.visualResize).toBeGreaterThanOrEqual(1);
 
@@ -272,10 +273,12 @@ test.describe('Round-6 XA4 cross-adapter mobile/accessibility/performance', () =
 
       await page.setViewportSize({ width:780, height:320 });
       await page.waitForTimeout(40);
-      await assertClaudeSemanticAndSafety(page, baselineEvents);
+      g = await assertClaudeSemanticAndSafety(page, baselineEvents);
+      expect(g.activeLabel).toBe('Message Claude');
       await page.setViewportSize({ width:320, height:780 });
       await page.waitForTimeout(40);
       g = await assertClaudeSemanticAndSafety(page, baselineEvents);
+      expect(g.activeLabel).toBe('Message Claude');
       expect(g.viewport.width).toBe(320);
       expect(g.viewport.height).toBe(780);
 
@@ -301,6 +304,7 @@ test.describe('Round-6 XA4 cross-adapter mobile/accessibility/performance', () =
     await deterministicVisualOnlySignal(page);
     await perturbNativeControls(page);
     g = await assertClaudeSemanticAndSafety(page, baselineEvents);
+    expect(g.activeLabel).toBe('Message Claude');
     expect(parseFloat(g.fontSize)).toBeGreaterThanOrEqual(30);
 
     const resources = await snapshot(page);
