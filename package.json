@@ -13,11 +13,15 @@
     "identity:write": "node scripts/build-identity.js --write .gitl/evidence/round-7/candidate-identity.json",
     "identity:check": "node scripts/build-identity.js --check .gitl/evidence/round-7/candidate-identity.json",
     "identity:oracle": "npm run cert:base && npx jest tests/version.test.js tests/build-identity.test.js --runInBand && npm run identity:check",
+    "package:candidate": "node scripts/package-candidate.js --write",
+    "package:check": "node scripts/package-candidate.js --check",
+    "package:oracle": "npm run package:candidate && npm run package:check",
+    "test:package": "jest tests/package-candidate.test.js --runInBand",
     "test": "npm run check:generated && jest",
     "test:unit": "jest",
     "test:e2e": "playwright test",
     "test:all": "jest && playwright test",
-    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js && node --check scripts/certify-extension.js && node --check scripts/build-identity.js"
+    "lint": "node --check ghost-in-the-loop.user.js && node --check extension/content.js && node --check scripts/certify-extension.js && node --check scripts/build-identity.js && node --check scripts/package-candidate.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
