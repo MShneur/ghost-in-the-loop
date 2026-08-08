@@ -28,13 +28,13 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "9ee042cae828e83d6123a78acc7319fcdef67407",
-  "currentStep": "R6-XA5Y claimed to repair only the three XA5X-classified ordinary-E2E test routing/structure faults. Product source and existing safety/performance thresholds remain out of scope.",
-  "nextAction": "Apply only the two Playwright project-routing corrections and the Repo-Nanny top-level test-structure correction; then hand off temporary-carrier cleanup before clean-head CI verification.",
+  "currentStep": "R6-XA5Y committed only the three classified test routing/structure corrections at 7648979cd90122901b19c03dd1e7e2f7ff391223; product source and existing safety/performance thresholds are unchanged. Temporary XA5Y carrier residue remains and must be removed before clean-head CI certification.",
+  "nextAction": "Execute R6-XA5YW-CARRIER-CLEANUP before research or BUILD-IDENTITY; then expose exact ordinary clean-head CI verification.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 4,
-    "assignmentId": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
+    "assignmentId": "R6-XA5YW-CARRIER-CLEANUP",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "XA5Y ordinary-E2E test recovery is executable; research may not compete.",
+    "reason": "XA5YW carrier cleanup is executable; research may not compete.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,16 +72,16 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "ci-hygiene-cleanup-complete-e2e-test-recovery-ready",
+    "checkpointStatus": "xa5y-test-fix-committed-carrier-cleanup-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
+    "nextArtifactAssignment": "R6-XA5YW-CARRIER-CLEANUP",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first in the XA4 recovery wake",
     "lastDeliveryReviewAt": "2026-08-08T03:17:42.883Z",
-    "lastTestableArtifactAt": "2026-08-08T03:28:39Z",
-    "lastDeliveryDecision": "XA5X removed stale XA2X residue and classified the remaining ordinary E2E failures as three bounded test routing/structure faults. Do not research; execute XA5Y test-only recovery and rerun clean-head CI before Round-6 closure.",
-    "evidence": ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
+    "lastTestableArtifactAt": "2026-08-08T05:46:08.475Z",
+    "lastDeliveryDecision": "XA5Y committed only the three classified test routing/structure corrections. Remove temporary carrier residue before clean-head CI verification.",
+    "evidence": ".gitl/evidence/round-6/xa5y-test-fix.md",
     "evidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407"
   },
   "requiredProgramsMayNotBeDropped": true,
@@ -456,18 +456,10 @@
     ".gitl/evidence/round-6/xa4-handoff-recovery.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit.md",
     ".gitl/evidence/round-6/ci-carrier-hygiene-recovery.md",
-    ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md"
+    ".gitl/evidence/round-6/xa5x-clean-head-ci-result.md",
+    ".gitl/evidence/round-6/xa5y-test-fix.md"
   ],
-  "lease": {
-    "holder": "gha-r6-xa5y-31242416590",
-    "assignmentId": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
-    "nominalWorker": 5,
-    "executedRole": "successor-test-engineer-ci-repair-with-mobile-browser-lens",
-    "acquiredAt": "2026-08-08T05:46:06Z",
-    "expiresAt": "2026-08-08T06:31:06Z",
-    "inspectedHead": "425635835a4a240cbacc60abf0372e6676439829",
-    "activeWorkCheck": "Recovered stale same-assignment lease (gha-r6-xa5y-31240071999 expired 2026-08-08T05:27:51Z) after branch remained stable and the prior XA5Y workflow run was completed/failed; carrier first semantic mutation is this canonical lease claim."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -513,7 +505,7 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY",
+    "nextAssignment": "R6-XA5YW-CARRIER-CLEANUP",
     "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -616,7 +608,9 @@
     "ordinaryE2eArtifact": 9015838307,
     "ordinaryE2eArtifactDigest": "sha256:6ea58a3c17cf0e960869b5e4b8e6fb2a3deac30fbae86f73d26f358b5723f921",
     "xa5xStatus": "blocked-classified-test-recovery-ready",
-    "xa5xEvidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407"
+    "xa5xEvidenceCommit": "9ee042cae828e83d6123a78acc7319fcdef67407",
+    "xa5yStatus": "blocked-test-fix-committed-carrier-cleanup-ready",
+    "xa5yTestedHead": "7648979cd90122901b19c03dd1e7e2f7ff391223"
   },
   "priorRoundVerification": {
     "round": 5,
