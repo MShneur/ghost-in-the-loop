@@ -96,13 +96,25 @@ jobs:
           let s = fs.readFileSync(p, 'utf8');
           try {
             JSON.parse(s);
-          } catch (err) {
-            const marker = 'Evidence commit 3c4e95bac72cd9913f0012ab755fd25cacbf42fd; plan handoff commit 4613b7d5254a72b5cf332317aab8b3e3eb155bd7."';
-            const needle = `${marker}\n  ],\n  "findings": [`;
-            if (!s.includes(needle)) throw err;
-            s = s.replace(needle, `${marker}}\n  ],\n  "findings": [`);
+          } catch (originalError) {
+            const lines = s.split('\n');
+            let repaired = 0;
+            for (let i = 1; i < lines.length; i++) {
+              if (lines[i].trim() !== '],') continue;
+              let j = i - 1;
+              while (j >= 0 && lines[j].trim() === '') j--;
+              if (j < 0) continue;
+              const t = lines[j].trim();
+              if (t.startsWith('{') && t.endsWith('"') && !t.endsWith('}"')) {
+                lines[j] += '}';
+                repaired++;
+              }
+            }
+            s = lines.join('\n');
+            if (!repaired) throw originalError;
             JSON.parse(s);
             fs.writeFileSync(p, s);
+            console.log(`Repaired ${repaired} malformed state object terminator(s).`);
           }
           NODE
       - name: Recover lease, claim XA2X, and run exact gates
