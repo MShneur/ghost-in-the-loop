@@ -1,4 +1,4 @@
-name: BrowserStack Ghost send-evidence probe
+name: BrowserStack Ghost beta send-evidence probe
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  browserstack-chromium-send-evidence:
+  browserstack-chrome-beta-send-evidence:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run privacy-safe pre-dispatch evidence semantics on BrowserStack Chromium
+      - name: Run privacy-safe pre-dispatch evidence semantics on BrowserStack Chrome latest-beta
         env:
           BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
           BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
@@ -81,11 +81,12 @@ jobs:
             const pageUrl = `data:text/html,${encodeURIComponent(`<!doctype html><html><body><main><div id="assistant">Prior response.</div><textarea id="composer"></textarea><button id="send" aria-label="Send message">Send</button></main></body></html>`)}`;
 
             const caps = {
-              browser: 'playwright-chromium',
+              browser: 'chrome',
+              browser_version: 'latest-beta',
               os: 'Windows',
               os_version: '11',
-              name: 'Ghost 8.8 BrowserStack pre-dispatch evidence semantics Chromium',
-              build: `ghost-next-browserstack-${process.env.GITHUB_RUN_ID}`,
+              name: 'Ghost 8.8 BrowserStack Chrome latest-beta send evidence',
+              build: `ghost-next-browserstack-beta-${process.env.GITHUB_RUN_ID}`,
               project: 'Ghost in the Loop next-update verification',
               'browserstack.username': process.env.BROWSERSTACK_USERNAME,
               'browserstack.accessKey': process.env.BROWSERSTACK_ACCESS_KEY,
@@ -105,6 +106,8 @@ jobs:
                 wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`,
                 timeout: 90000
               });
+              const resolvedVersion = browser.version();
+              console.log(`BROWSERSTACK_BETA_RESOLVED requested=chrome/latest-beta resolved=${resolvedVersion} os=Windows-11 playwright=${playwrightVersion}`);
               const context = await browser.newContext({ viewport: { width: 412, height: 915 } });
 
               async function boot() {
@@ -119,7 +122,6 @@ jobs:
                 return { page, pageErrors };
               }
 
-              // Existing release test semantics, scenario A: dropped composer text must never actuate Send.
               {
                 const { page, pageErrors } = await boot();
                 await page.evaluate(() => {
@@ -138,11 +140,10 @@ jobs:
                   throw new Error(`Dropped-text semantic mismatch: ${JSON.stringify({ delivered, result })}`);
                 }
                 if (pageErrors.length) throw new Error(`Dropped-text page errors: ${pageErrors.join(' | ')}`);
-                console.log('BROWSERSTACK_SEND_EVIDENCE_NEGATIVE_PASS delivered=false clicks=0 pending=false diagnostic=COMPOSER-002');
+                console.log('BROWSERSTACK_BETA_SEND_EVIDENCE_NEGATIVE_PASS delivered=false clicks=0 pending=false diagnostic=COMPOSER-002');
                 await page.close();
               }
 
-              // Existing release test semantics, scenario B: verified text must dispatch exactly once through reviewed-button.
               {
                 const { page, pageErrors } = await boot();
                 await page.evaluate(() => {
@@ -163,11 +164,11 @@ jobs:
                   throw new Error(`Verified-send semantic mismatch: ${JSON.stringify({ delivered, result })}`);
                 }
                 if (pageErrors.length) throw new Error(`Verified-send page errors: ${pageErrors.join(' | ')}`);
-                console.log('BROWSERSTACK_SEND_EVIDENCE_POSITIVE_PASS delivered=true clicks=1 path=reviewed-button round=1 pending=false');
+                console.log('BROWSERSTACK_BETA_SEND_EVIDENCE_POSITIVE_PASS delivered=true clicks=1 path=reviewed-button round=1 pending=false');
                 await page.close();
               }
 
-              console.log(`BROWSERSTACK_SEND_EVIDENCE_PARITY_PASS browser=playwright-chromium os=Windows-11 playwright=${playwrightVersion}`);
+              console.log(`BROWSERSTACK_BETA_SEND_EVIDENCE_PARITY_PASS requested=chrome/latest-beta resolved=${resolvedVersion} playwright=${playwrightVersion}`);
               await context.close();
             } finally {
               if (browser) await browser.close();
