@@ -40,12 +40,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "round8-a1x-carrier-blocked-patch-capable-retry-ready",
+    "checkpointStatus": "round8-a1x-submitted-a2-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while required DOCS-RECONCILIATION, certification, packaging, or release-evidence work is executable.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; not a blanket deterministic development gate",
-    "checkpointDecision": "R8-A1X was attempted under a fresh lease. The GitHub connector still permits only complete-file replacement for existing files, and the connected browser editor requires interactive user input that scheduled runtime cannot provide. The historical CHANGELOG was therefore not reconstructed unsafely. Keep the same bounded recovery retry-ready for a patch-capable carrier; research remains ineligible and publication remains disabled."
+    "checkpointDecision": "R8-A1X is now submitted after compare-verified lossless CHANGELOG recovery. GitHub's authoritative base-to-implementation compare reports exactly one changed file with 12 additions and 0 deletions; stale evidence claiming 14 additions is corrected by durable handoff-recovery evidence. The implementation-head CI red and evidence-only-head CI green are both retained. R8-A2 independent docs Red Team is now ready; research remains ineligible and publication remains disabled."
   },
   "requiredPrograms": [
     {"id":"RR-E2E-FAULTS","title":"Browser-level Repair and Resume fault injection","status":"completed","releaseCritical":true,"certifiedRound":3,"humanAccepted":true},
@@ -124,16 +124,28 @@
     "implementationEvidence": ".gitl/evidence/round-8/worker-3.md",
     "implementationEvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
     "implementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
-    "implementationStatus": "partial-a1x-carrier-blocked-patch-capable-retry-required",
+    "implementationStatus": "a1x-submitted-a2-ready",
     "a1xCarrierEvidence": ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
     "a1xCarrierEvidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
-    "completedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md"],
-    "remainingDoc": "CHANGELOG.md",
+    "a1xFinalEvidence": ".gitl/evidence/round-8/worker-5-a1x-lossless-recovery.md",
+    "a1xFinalEvidenceCommit": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
+    "a1xHandoffRecoveryEvidence": ".gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md",
+    "a1xHandoffRecoveryEvidenceCommit": "cd024f4c3743339648f35b58a72225ac70c40752",
+    "a1xClaimCommit": "5f6935b3c620e3a952de0b8879b05af98003878c",
+    "a1xImplementationHead": "8cb248a2c0fa23c506b8ae913a3ac0525a350990",
+    "a1xAuthoritativeDiff": "CHANGELOG.md only; 12 additions; 0 deletions; insertion-only",
+    "a1xImplementationOrdinaryCiRun": 31254004451,
+    "a1xImplementationOrdinaryCiConclusion": "failure-e2e-red-unit-base-green",
+    "a1xEvidenceHead": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
+    "a1xEvidenceHeadOrdinaryCiRun": 31254107047,
+    "a1xEvidenceHeadOrdinaryCiConclusion": "success",
+    "completedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md","CHANGELOG.md"],
+    "remainingDoc": null,
     "inventory": [
-      "README stable install link correctly targets main and must remain stable-channel authority; contributor every-push changelog/devlog rule conflicted with coordination-only .gitl commits and has been clarified; current candidate/non-publication and bounded certification limits are now surfaced.",
-      "docs/ARCHITECTURE.md now records the accepted structural-mount authority order, build-identity/provenance contract, and current live/physical certification boundaries.",
-      "CHANGELOG.md still has an 8.8.0 section that must receive the later bounded lifecycle, Long-Chat, mobile-shell structural, BUILD-IDENTITY, dependency/timing limitation, and non-publication note through a lossless bounded edit. The replacement-only GitHub writer and non-interactive browser carrier cannot safely satisfy this criterion in the current runtime.",
-      ".gitl/orchestration/README.md now matches continuous-local-human-gates with automatic succession, timer cadence not ownership, local human gates, Delivery-Pressure and no-stall handoff."
+      "README stable install link correctly targets main and must remain stable-channel authority; contributor every-push changelog/devlog rule conflicted with coordination-only .gitl commits and has been clarified; current candidate/non-publication and bounded certification limits are surfaced.",
+      "docs/ARCHITECTURE.md records the accepted structural-mount authority order, build-identity/provenance contract, and current live/physical certification boundaries.",
+      "CHANGELOG.md now contains the bounded 8.8 release-candidate evidence boundary. Authoritative compare from A1X claim to implementation is insertion-only: 12 additions, 0 deletions. Prior evidence claiming 14 additions is corrected by the durable handoff-recovery record. Candidate non-publication, R4/R5/R6/R7 limits, dependency disposition, and hosted timing dissent are preserved.",
+      ".gitl/orchestration/README.md matches continuous-local-human-gates with automatic succession, timer cadence not ownership, local human gates, Delivery-Pressure and no-stall handoff."
     ],
     "claimLimitLedger": [
       "R4 bounded deterministic lifecycle evidence is not physical freeze/discard/device proof.",
@@ -154,11 +166,11 @@
   ],
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
+    "nominalWorker": 6,
+    "assignmentId": "R8-A2-DOCS-REDTEAM-AUDIT",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Retry only with a patch-capable or otherwise provably lossless carrier. Complete only the missing 8.8 CHANGELOG insertion, preserve all historical changelog content, stable-main authority, candidate non-publication, every bounded R4/R5/R6/R7 limit, A2 dependency disposition and hosted timing dissent including run 31251250525. Do not reconstruct the historical file through an uncertain complete-file replacement and do not change product/generated/dependency/version/channel semantics."
+    "instruction": "Independently falsify the reconciled README, architecture, release-candidate note, orchestration README, and CHANGELOG against exact R4-R7 evidence. Reject unsupported live/physical/stable-publication/exploitability/performance claims; retain the implementation-head red and evidence-head green CI observations, the corrected 12-addition insertion-only CHANGELOG diff, all dependency/timing dissent, stable-main authority, and publishReady=false. If an overclaim remains, expose only the smallest docs-only correction."
   },
   "assignments": [
     {
@@ -196,15 +208,15 @@
       "evidencePath": ".gitl/evidence/round-8/worker-3.md",
       "evidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
       "verdict": "partial-readme-architecture-orchestration-release-boundary-complete-changelog-recovery-required",
-      "fallbackWork": "R8-A1X-CHANGELOG-RECONCILE must finish the one unmet CHANGELOG criterion losslessly; do not broaden into product/version/channel/test changes."
+      "fallbackWork": "R8-A1X-CHANGELOG-RECONCILE finishes the one unmet CHANGELOG criterion; do not broaden into product/version/channel/test changes."
     },
     {
       "id": "R8-A1X-CHANGELOG-RECONCILE",
       "worker": 3,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "builder-documentation-recovery",
-      "status": "retry-ready",
-      "lastAttemptStatus": "blocked-carrier",
+      "status": "submitted",
+      "lastAttemptStatus": "submitted-lossless-handoff-recovered",
       "program": "DOCS-RECONCILIATION",
       "goal": "Complete the one unmet A1 criterion by applying a lossless bounded update to the existing CHANGELOG 8.8 section and preserving all historical changelog content.",
       "dependencies": ["R8-A1-DOCS-RECONCILE:partial-recovery-ready"],
@@ -212,19 +224,27 @@
       "allowedFiles": ["CHANGELOG.md",".gitl/**"],
       "prohibitedActions": ["deleting or rewriting historical changelog entries outside the bounded 8.8 insertion","product/generated/test/dependency/version/channel changes","threshold weakening","main/merge/auto-merge/tag/release/publish"],
       "acceptanceCriteria": ["CHANGELOG 8.8 states that later lifecycle, long-chat, structural-shell and BUILD-IDENTITY work is candidate implementation/certification evidence, not publication","CHANGELOG links or states the bounded R4/R5/R6/R7 limits including live/physical uncertified scope, Long-Chat linear/timing dissent including run 31251250525, and A2 development-tooling advisory disposition","existing historical CHANGELOG content remains intact except for the bounded 8.8 insertion","stable main/channel/version semantics remain unchanged","exact CHANGELOG diff and no-product-file compare evidence are recorded"],
-      "executedBy": "scheduled-worker-3-r8-a1x-changelog-recovery-04",
-      "claimCommit": "1a6f20fb4f5752a8d0832a17595d9312af1c2200",
-      "evidencePath": ".gitl/evidence/round-8/worker-3-a1x-carrier-04.md",
-      "evidenceCommit": "00bc55b5f6c1dd3f664e3ffd1954662ffff1c9e6",
-      "verdict": "carrier-blocked-no-changelog-mutation-patch-capable-retry-required",
-      "fallbackWork": "Use a patch-capable or otherwise provably lossless carrier. The replacement-only GitHub writer and non-interactive browser carrier were both insufficient in the recorded attempt. Preserve the current docs commits and do not reconstruct the historical file unsafely."
+      "executedBy": "scheduled-worker-5-r8-a1x-lossless-recovery-05",
+      "claimCommit": "5f6935b3c620e3a952de0b8879b05af98003878c",
+      "implementationHead": "8cb248a2c0fa23c506b8ae913a3ac0525a350990",
+      "evidencePath": ".gitl/evidence/round-8/worker-5-a1x-lossless-recovery.md",
+      "evidenceCommit": "486ab3042c9b6ef8c63e6ed803af4ad98ccd1b6c",
+      "handoffRecoveredBy": "scheduled-worker-5-r8-a1x-handoff-recovery-06",
+      "handoffRecoveryEvidence": ".gitl/evidence/round-8/worker-5-a1x-handoff-recovery-06.md",
+      "handoffRecoveryEvidenceCommit": "cd024f4c3743339648f35b58a72225ac70c40752",
+      "authoritativeDiff": "CHANGELOG.md only; 12 additions; 0 deletions; insertion-only",
+      "implementationOrdinaryCiRun": 31254004451,
+      "implementationOrdinaryCiConclusion": "failure-e2e-red-unit-base-green",
+      "evidenceHeadOrdinaryCiRun": 31254107047,
+      "evidenceHeadOrdinaryCiConclusion": "success",
+      "verdict": "submitted-lossless-bounded-changelog-reconciliation-12-additions-0-deletions"
     },
     {
       "id": "R8-A2-DOCS-REDTEAM-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-docs-auditor",
-      "status": "backlog",
+      "status": "ready",
       "program": "DOCS-RECONCILIATION",
       "goal": "Independently falsify reconciled documentation against exact R4-R7 evidence and repository identity; close DOCS-RECONCILIATION only at bounded documentation-consistency scope.",
       "dependencies": ["R8-A1X-CHANGELOG-RECONCILE:submitted"],
@@ -236,13 +256,13 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R8-A1X-CHANGELOG-RECONCILE remains a safe reversible release-critical documentation recovery in principle and must be retried only with a patch-capable carrier; it outranks research.",
+    "reason": "R8-A2-DOCS-REDTEAM-AUDIT is a dependency-ready release-critical certification artifact and outranks research.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
     "diminishingReturnsRule": "Research exhaustion requires a complete six-wake no-novelty round, but the Delivery-Pressure Checkpoint takes precedence whenever a safe executable artifact or verification path exists."
   },
-  "roundDecision": "round8-a1x-carrier-blocked-patch-capable-retry-ready",
+  "roundDecision": "round8-a1x-submitted-a2-ready",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate",
   "publishReadyRequiresAllRequiredPrograms": true,
