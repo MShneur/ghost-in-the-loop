@@ -104,285 +104,70 @@
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
-    {
-      "type": "round-3-rr-certified-human-accepted",
-      "result": "RR-E2E-FAULTS was certified and human-accepted before later rounds."
-    },
-    {
-      "type": "round-4-lifecycle-certified",
-      "result": "LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW was later accepted under delegated user authority while explicit physical/scheduler limits remain non-certified."
-    },
-    {
-      "type": "round-5-longchat-certified",
-      "result": "LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW was later accepted under delegated user authority while history-linear Send observation and physical-platform limits remain non-certified."
-    },
-    {
-      "type": "round-6-supervisor-plan",
-      "result": "R6-SUPERVISOR-PLAN read the mobile-shell brief/current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."
-    },
-    {
-      "type": "round-6-a1-deterministic-structure-probe",
-      "result": "R6-A1 committed a read-only desktop+narrow host-structure capture oracle and evidence, compared adapter-owned vs generic inference, and selected ChatGPT Blue only as the smallest architecture to test first. Live authenticated DOM capture was unavailable, so exact current action/header/footer signatures and insertion slot remain UNKNOWN. Probe commits 431670c5951cd9790b8f8e430aa2edf4f3958911 and ed0c23ffcb68c2964139eb094db363f9156e36e7; Worker-2 evidence commit 4d094ad761c0d731bcd73c71c58750b0af3b291a; recovery plan commit ee7f74dc8b3591be67261c665f1c9ff74252492e."
-    },
-    {
-      "type": "round-6-a1x-exact-probe-blocked-live-capture",
-      "result": "R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Human read-only authorization was later granted; the actual current-host capture remains not obtained and is still required for live binding/certification."
-    },
-    {
-      "type": "round-6-research-fallback-adoption-drift-01",
-      "result": "One bounded non-conflicting research fallback compared fresh maintained/adoption evidence after A1X's local live-capture block. Ophel's 2026 redesign fixes and control migration plus independent VoiceType composer anchors strengthen explicit composer-local discovery while also increasing Blue crowding/width risk; Context-Sync proves toolbar injection/rerender repair exists but is rejected as a Ghost safety precedent because it auto-submits. Evidence commit 37f8f32cc4cb69fe2d7e6bfacbccdd811f3ad559; deferred-capture guidance narrowed in d116a0917b1465bc90882b64809a827c4329f3f4."
-    },
-    {
-      "type": "round-6-research-fallback-scoped-repair-02",
-      "result": "A second bounded post-A1X research fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."
-    },
-    {
-      "type": "round-6-research-fallback-mobile-reflow-03",
-      "result": "A third bounded post-A1X fallback used primary Chrome, MDN, and W3C evidence to define mobile keyboard/reflow constraints without guessing the live ChatGPT DOM. It requires keyboard/VisualViewport geometry to remain a verification signal rather than placement authority, covers visual-only versus layout-resize keyboard models, rejects host viewport/VirtualKeyboard policy mutation, makes VirtualKeyboard optional-only because it is not Baseline, distinguishes Chrome Android from WebView, and adds 320-CSS-pixel-equivalent plus 200%-text falsification gates. Evidence commit 28b313e2bc2283d63e8e04a578dc9f4919c98434."
-    },
-    {
-      "type": "round-6-research-fallback-constrained-runtime-04",
-      "result": "A fourth bounded post-A1X fallback used current Playwright and Chrome DevTools documentation plus repository Playwright configuration to define a two-tier constrained-runtime test method. Tier A uses Chromium-only CDP CPU rates 1x/4x/6x with invariant-based correctness/resource gates and descriptive timing; Tier B remains separate physical/AVD evidence. Firefox remains a correctness lane because Playwright CDP is Chromium-only. Pixel emulation and hosted CPU throttling are explicitly not physical-device certification. Evidence commit 925c8450b78371ffc2848eb03397d4900ce04002."
-    },
-    {
-      "type": "round-6-research-fallback-cross-adapter-contract-05",
-      "result": "A fifth bounded post-A1X fallback compared current Ghost reviewed profiles with maintained multi-platform adoption evidence. It separates reviewed actuation support from reviewed structural-mount authority, defines three evidence levels (anchor smoke, structural capture, mount certification), requires shared invariants plus adapter-owned structural discovery/insertion rules, and proposes only a research-priority expansion order after ChatGPT proof. Evidence commit 2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd; claim commit c2a67cb67ce5e0e577873a41a1e8d5213c9a4d26."
-    },
-    {
-      "type": "round-6-research-fallback-csp-tt-shadow-compat-06",
-      "result": "A sixth materially different post-A1X fallback inspected current Ghost Trusted Types behavior, exact TT tests, MV3 isolated content-script configuration, and primary CSP/ShadowRoot platform documentation. It requires the future structural shell to add no new HTML-string TT sink, provisionally favors a DOM-built in-flow host/Shadow subtree, preserves the named-policy boundary and extension isolated world, rejects MAIN-world/unsafeWindow as structural prerequisites, and predeclares a CSP/TT compatibility matrix without changing current product behavior. Evidence commit 2d8384a2c3c7cbe955004daf173decf2079dcfae; claim commit 0aabbd794c968ae6803f0ecc99770d77c97b351e."
-    },
-    {
-      "type": "round-6-research-fallback-shadow-a11y-events-07",
-      "result": "The first wake of a new novelty round used current platform standards plus the existing A1 probe/brief to define an interaction/accessibility contract for a future Shadow-host shell. UA UI events are composed across Shadow boundaries, so Shadow isolation cannot be treated as event safety. The first candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button, separate passive zero-actuation from intentional Ghost activation, verify host delegated-listener side effects, and avoid assuming cross-peer-ShadowRoot ARIA IDREF relationships. Evidence commit 60c9c8249ab3fae90633e849193d0e798125ebf4; claim commit 94f886c612664d7b29bd0ccda3aad86b0bd2df5d."
-    },
-    {
-      "type": "round-6-research-fallback-structural-conformance-08",
-      "result": "The second wake of the new novelty round converted accumulated Round-6 constraints into a deterministic conformance architecture without product/test changes. It favors composable fixtures plus a machine-readable invariant ledger over one mega-fixture; defines S1-S11 orthogonal scenario families, five high-risk pairwise intersections, and an oracle mutation suite that must kill deliberately unsafe synthetic adapters before the harness can certify a real A2 candidate. Evidence commit b250f1d210936751306f80da52907a26e15a901d; claim commit 5197be030a59ad0adbb310b5a82353b262fcadfb."
-    },
-    {
-      "type": "round-6-research-fallback-a11y-tree-09",
-      "result": "The third wake of the new novelty round defined a three-tier accessibility verification method. Tier A uses one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus/Send/zero-actuation invariants; Tier B keeps Chromium CDP AX-tree capture diagnostic-only; Tier C reserves real assistive-technology/platform claims for separate evidence. The method also rejects ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. Evidence commit b5d0047b238d45243c8b589a3f4e9168a0326556; claim commit a268e8f8652d98f57de260ae69ab00ed20490ade."
-    },
-    {
-      "type": "round-6-research-fallback-red-scroll-anchor-10",
-      "result": "The fourth wake of the new novelty round defined a Red scroll-intent/reflow contract without product changes. It separates FOLLOWING_LATEST from READING_HISTORY, prohibits new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes in passive Red mount/expand/collapse, uses direct scroll-owner/tail/anchor/composer geometry as the primary oracle, treats native scroll events separately from Ghost write authority, rejects CLS as the primary gate for intentional expansion, and preserves adapter-specific spacer/layout mutation only as a later evidence-dependent alternative. Evidence commit cb7e8ddf550802e3954e28418ac43230252f6e85; claim commit dc0f026762fd2adc1710ca9aadb545517ddeabdf."
-    },
-    {
-      "type": "round-6-delivery-pressure-reconcile-01",
-      "result": "Explicit user directive 84237df815ef56f779434db130d24d4ffbe14666 resolved R4/R5 bounded reviews, authorized read-only R6 live inspection, and required an anti-loop delivery checkpoint. Reconciliation evidence 77c017cb0f3aaad1aa71e765f92c1325835bb8da recorded ten research-only wakes and exposed A2 prototype-only work with live certification still gated on A1X."
-    },
-    {
-      "type": "round-6-a2-blue-prototype-artifact",
-      "result": "Delivery-pressure A2 created tests/e2e/mobile-shell-blue-prototype.spec.js as a fixture-gated executable Blue candidate. Prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec implement/harden in-flow open-Shadow mounting, exact supplied Send identity, scoped/coalesced repair, zero new live binding, explicit unsafe-mutant rejection, and cleanup. Worker-3 evidence commit 29dcd503974580588b6009710e564e567445a992. Required exact-head execution remains unverified because no observable test carrier was available, so A2 is blocked and A2X verification is ready rather than falsely submitted."
-    },
-    {
-      "type": "round-6-a2x-chromium-runtime-partial-14",
-      "result": "After the self-reporting GitHub Actions carrier produced no durable result through its lease window, successor recovery used a dependency-free Chromium 144 CDP carrier on about:blank. The five deterministic Blue semantic case families passed 5/5. Evidence: .gitl/evidence/round-6/a2x-verification-14.md commit 9f16ea9c605280893a713abf3395677740c0a3b1. The inactive temporary carrier workflow was removed in 2d61780f48af58eeecfce86964c6cddda4b3691b. Full A2X remains pending exact repository Playwright/base/lint/unit/focused-safety/Firefox gates."
-    },
-    {
-      "type": "round-6-a2x-exact-repository-pass-15",
-      "result": "A2X exact repository carrier PASS at e9712e2e6c0945befb531d65b1a4468bbd05a4f1: run 31212815306, job 92979379882, artifact 9007360537, SHA-256 9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb. Base certification, lint, full unit 43/43 suites (477 pass, 3 TODO), focused safety 69/69, and Blue Chromium+Firefox 10/10 passed. A2/A2X submitted; A3 Red Team ready."
-    },
-    {
-      "type": "round-6-a3-redteam-overflow-repair-pass",
-      "result": "Initial A3 run 31213429856/job 92981355836 found overflow-clipped structural false positive in Chromium+Firefox. Repair run 31214560411 passed all gates with prototype blob 53cc902428a3fc1496a83ad1bf0bd1bbe6752c84 and Red blob b8b5048dbc042626294423e28b337eb27d6c6b63."
-    },
-    {
-      "type": "round-6-a4-mobile-perf-orientation-oracle-repair-pass",
-      "result": "A4 initial run 31215306655/job 92987347838/artifact 9008274458 failed only on an exact orientation-event-count oracle because Chromium emitted native orientationchange plus the fixture injection. Repair commit 096722a6688a3b5ff3dc1e20aa22ec799cafabdb removed the injected duplicate and asserted geometry. Repair run 31215517114/job 92988007587/artifact 9008352875/digest 08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297 passed base/lint/unit/focused safety, Blue, Red Team, and A4 hosted Chromium+Firefox gates."
-    },
-    {
-      "type": "round-6-a5-bounded-audit-accepted",
-      "result": "Independent A5 audit re-read A1/A1X/A2/A2X/A3/A4 evidence, exact current prototype/Red/mobile test blobs, and connected GitHub CI jobs/artifacts. It accepts the ChatGPT Blue candidate only at deterministic/hosted scope, preserves live/physical claim limits, rejects universal structural inference, records two high-severity npm audit findings as a later dependency-review risk rather than auto-fixing them, and exposes the required cross-adapter planning handoff. Evidence commit db21d43d89850ec3031c04773f1bb69afc597e44; plan handoff commit ce576fd7313f8d158f5e7c40c024bc71247cb026."
-    },
-    {
-      "type": "round-6-cross-adapter-supervisor-plan",
-      "result": "R6-SUPERVISOR-CROSS-ADAPTER-PLAN bounded the minimum cross-adapter proof to ChatGPT plus one independently specified Claude structural contract, encoded certified site-specific runner -> standard adapter-aware structural protocol -> rail fallback, submitted the supervisor assignment, and exposed XA1 before research. Evidence commit 38fc8ccf7c9a0699f8783e98c778799c71efc423; plan commit 92945518ded5230c0effcf42ef64e4f5d5ce8f0b. The supervisor lease later expired with no further branch movement and was recovered by the XA1 successor."
-    },
-    {
-      "type": "round-6-xa1-claude-structure-contract-pass",
-      "result": "XA1 created tests/e2e/claude-structure-contract.spec.js as a deterministic no-actuation Claude capability contract with visible decoy, hidden secondary composer, ambiguity/exact-Send/clipping rejection, and specialized->standard->rail demotion. Exact run 31222178355/job 93008901624/artifact 9010795133 passed 18/18 across Chromium+Firefox on tested head 4066724a2d9ca55b2c4adf274e132a19daad29ac. Live Claude navigation required interactive input and remains UNKNOWN. Evidence commit 3c4e95bac72cd9913f0012ab755fd25cacbf42fd; plan handoff commit 4613b7d5254a72b5cf332317aab8b3e3eb155bd7."
-    },
-    {
-      "type": "round-6-xa2x-claude-blue-exact-pass",
-      "result": "XA2X run 31232161711/job 93037980854/artifact 9014184272 passed exact repository gates on 4e5b49165891ea37e291f6089b1f2f6596350d48; live-host claims remain UNKNOWN."
-    },
-    {
-      "type": "round-6-xa3-cross-adapter-redteam-pass",
-      "result": "XA3 run 31233469721/job 93041660298/artifact 9014621827 passed the ChatGPT+Claude deterministic specialized-first/demotion, mutant, cleanup, and focused-safety matrix. The bounded generic H2 baseline misselected 1/2 fixtures while adapter-owned scoped resolution misselected 0/2; this is not a performance claim against a future stronger standard protocol."
-    }
+    {"type":"round-3-rr-certified-human-accepted","result":"RR-E2E-FAULTS was certified and human-accepted before later rounds."},
+    {"type":"round-4-lifecycle-certified","result":"LIFECYCLE-FROZEN-DISCARDED is certified only at bounded deterministic scope; DQ-R4-LIFECYCLE-REVIEW was later accepted under delegated user authority while explicit physical/scheduler limits remain non-certified."},
+    {"type":"round-5-longchat-certified","result":"LONG-CHAT-PERF is certified at bounded deterministic/hosted-Playwright scope; DQ-R5-LONGCHAT-REVIEW was later accepted under delegated user authority while history-linear Send observation and physical-platform limits remain non-certified."},
+    {"type":"round-6-supervisor-plan","result":"R6-SUPERVISOR-PLAN read the mobile-shell brief/current source, preserved both local deferred reviews, opened research/build/Red-Team/mobile/audit assignments, activated only R6-A1, and made no product change. Plan commit 7823a11d63b82531cb26f9e344f596c015fb4400; Worker-1 evidence commit 5888efcdec6f8e4e05cfb93cd23b02b37272b64a."},
+    {"type":"round-6-a1-deterministic-structure-probe","result":"R6-A1 committed a read-only desktop+narrow host-structure capture oracle and evidence, compared adapter-owned vs generic inference, and selected ChatGPT Blue only as the smallest architecture to test first. Live authenticated DOM capture was unavailable, so exact current action/header/footer signatures and insertion slot remain UNKNOWN. Probe commits 431670c5951cd9790b8f8e430aa2edf4f3958911 and ed0c23ffcb68c2964139eb094db363f9156e36e7; Worker-2 evidence commit 4d094ad761c0d731bcd73c71c58750b0af3b291a; recovery plan commit ee7f74dc8b3591be67261c665f1c9ff74252492e."},
+    {"type":"round-6-a1x-exact-probe-blocked-live-capture","result":"R6-A1X claimed at 2eed7b903de00abe5a22c5afc652550e5010f157. Two independent read-only browser attempts were blocked by non-interactive permission. Exact deterministic Chromium probe then passed 2/2 on that authoritative head in run 31181719403 / job 92876348475 / artifact 8995048318, SHA-256 3c25659764f2bd2ca222dc6d42a04db564b836cd68cd0a05921a3919be3085dc. Human read-only authorization was later granted; the actual current-host capture remains not obtained and is still required for live binding/certification."},
+    {"type":"round-6-research-fallback-adoption-drift-01","result":"One bounded non-conflicting research fallback compared fresh maintained/adoption evidence after A1X's local live-capture block. Ophel's 2026 redesign fixes and control migration plus independent VoiceType composer anchors strengthen explicit composer-local discovery while also increasing Blue crowding/width risk; Context-Sync proves toolbar injection/rerender repair exists but is rejected as a Ghost safety precedent because it auto-submits. Evidence commit 37f8f32cc4cb69fe2d7e6bfacbccdd811f3ad559; deferred-capture guidance narrowed in d116a0917b1465bc90882b64809a827c4329f3f4."},
+    {"type":"round-6-research-fallback-scoped-repair-02","result":"A second bounded post-A1X fallback compared autonomous custom-element lifecycle/registry behavior against a plain in-flow span/div with open ShadowRoot and an external Ghost mount manager. It provisionally favors the plain host to reduce lifecycle and global-registry state, adds generation/current-container guards for stale MutationObserver records, coalesced ResizeObserver repair constraints, and direct ShadowRoot handler binding, while preserving the live-structure gate and all fail-closed Send invariants. Evidence commit a68465c811115993a07202aedb157932f853cf37. The following successor repaired the completed-but-stale handoff after verifying the finished evidence, unchanged branch head, and no workflow activity."},
+    {"type":"round-6-research-fallback-mobile-reflow-03","result":"A third bounded post-A1X fallback used primary Chrome, MDN, and W3C evidence to define mobile keyboard/reflow constraints without guessing the live ChatGPT DOM. It requires keyboard/VisualViewport geometry to remain a verification signal rather than placement authority, covers visual-only versus layout-resize keyboard models, rejects host viewport/VirtualKeyboard policy mutation, makes VirtualKeyboard optional-only because it is not Baseline, distinguishes Chrome Android from WebView, and adds 320-CSS-pixel-equivalent plus 200%-text falsification gates. Evidence commit 28b313e2bc2283d63e8e04a578dc9f4919c98434."},
+    {"type":"round-6-research-fallback-constrained-runtime-04","result":"A fourth bounded post-A1X fallback used current Playwright and Chrome DevTools documentation plus repository Playwright configuration to define a two-tier constrained-runtime test method. Tier A uses Chromium-only CDP CPU rates 1x/4x/6x with invariant-based correctness/resource gates and descriptive timing; Tier B remains separate physical/AVD evidence. Firefox remains a correctness lane because Playwright CDP is Chromium-only. Pixel emulation and hosted CPU throttling are explicitly not physical-device certification. Evidence commit 925c8450b78371ffc2848eb03397d4900ce04002."},
+    {"type":"round-6-research-fallback-cross-adapter-contract-05","result":"A fifth bounded post-A1X fallback compared current Ghost reviewed profiles with maintained multi-platform adoption evidence. It separates reviewed actuation support from reviewed structural-mount authority, defines three evidence levels (anchor smoke, structural capture, mount certification), requires shared invariants plus adapter-owned structural discovery/insertion rules, and proposes only a research-priority expansion order after ChatGPT proof. Evidence commit 2d06360ef9557b0a5c8b8e7db28f9f2b03a66acd; claim commit c2a67cb67ce5e0e577873a41a1e8d5213c9a4d26."},
+    {"type":"round-6-research-fallback-csp-tt-shadow-compat-06","result":"A sixth materially different post-A1X fallback inspected current Ghost Trusted Types behavior, exact TT tests, MV3 isolated content-script configuration, and primary CSP/ShadowRoot platform documentation. It requires the future structural shell to add no new HTML-string TT sink, provisionally favors a DOM-built in-flow host/Shadow subtree, preserves the named-policy boundary and extension isolated world, rejects MAIN-world/unsafeWindow as structural prerequisites, and predeclares a CSP/TT compatibility matrix without changing current product behavior. Evidence commit 2d8384a2c3c7cbe955004daf173decf2079dcfae; claim commit 0aabbd794c968ae6803f0ecc99770d77c97b351e."},
+    {"type":"round-6-research-fallback-shadow-a11y-events-07","result":"The first wake of a new novelty round used current platform standards plus the existing A1 probe/brief to define an interaction/accessibility contract for a future Shadow-host shell. UA UI events are composed across Shadow boundaries, so Shadow isolation cannot be treated as event safety. The first candidate should keep delegatesFocus false, never autofocus during mount/repair, set every Ghost button type=button, separate passive zero-actuation from intentional Ghost activation, verify host delegated-listener side effects, and avoid assuming cross-peer-ShadowRoot ARIA IDREF relationships. Evidence commit 60c9c8249ab3fae90633e849193d0e798125ebf4; claim commit 94f886c612664d7b29bd0ccda3aad86b0bd2df5d."},
+    {"type":"round-6-research-fallback-structural-conformance-08","result":"The second wake of the new novelty round converted accumulated Round-6 constraints into a deterministic conformance architecture without product/test changes. It favors composable fixtures plus a machine-readable invariant ledger over one mega-fixture; defines S1-S11 orthogonal scenario families, five high-risk pairwise intersections, and an oracle mutation suite that must kill deliberately unsafe synthetic adapters before the harness can certify a real A2 candidate. Evidence commit b250f1d210936751306f80da52907a26e15a901d; claim commit 5197be030a59ad0adbb310b5a82353b262fcadfb."},
+    {"type":"round-6-research-fallback-a11y-tree-09","result":"The third wake of the new novelty round defined a three-tier accessibility verification method. Tier A uses one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus/Send/zero-actuation invariants; Tier B keeps Chromium CDP AX-tree capture diagnostic-only; Tier C reserves real assistive-technology/platform claims for separate evidence. The method also rejects ARIA snapshots as sufficient proof of peer-ShadowRoot aria-controls relationships. Evidence commit b5d0047b238d45243c8b589a3f4e9168a0326556; claim commit a268e8f8652d98f57de260ae69ab00ed20490ade."},
+    {"type":"round-6-research-fallback-red-scroll-anchor-10","result":"The fourth wake of the new novelty round defined a Red scroll-intent/reflow contract without product changes. It separates FOLLOWING_LATEST from READING_HISTORY, prohibits new Ghost scrollTop/scrollBy/scrollTo/scrollIntoView writes in passive Red mount/expand/collapse, uses direct scroll-owner/tail/anchor/composer geometry as the primary oracle, treats native/browser scroll events separately from Ghost write authority, rejects CLS as the primary gate for intentional expansion, and preserves adapter-specific spacer/layout mutation only as a later evidence-dependent alternative. Evidence commit cb7e8ddf550802e3954e28418ac43230252f6e85; claim commit dc0f026762fd2adc1710ca9aadb545517ddeabdf."},
+    {"type":"round-6-delivery-pressure-reconcile-01","result":"Explicit user directive 84237df815ef56f779434db130d24d4ffbe14666 resolved R4/R5 bounded reviews, authorized read-only R6 live inspection, and required an anti-loop delivery checkpoint. Reconciliation evidence 77c017cb0f3aaad1aa71e765f92c1325835bb8da recorded ten research-only wakes and exposed A2 prototype-only work with live certification still gated on A1X."},
+    {"type":"round-6-a2-blue-prototype-artifact","result":"Delivery-pressure A2 created tests/e2e/mobile-shell-blue-prototype.spec.js as a fixture-gated executable Blue candidate. Prototype commits 305e430abc51f8b49a0e76e74687eb18014951c1 and 64b2dd1792e3fb59331ea3f2fc72efb32ae0f3ec implement/harden in-flow open-Shadow mounting, exact supplied Send identity, scoped/coalesced repair, zero new live binding, explicit unsafe-mutant rejection, and cleanup. Worker-3 evidence commit 29dcd503974580588b6009710e564e567445a992. Required exact-head execution remains unverified because no observable test carrier was available, so A2 is blocked and A2X verification is ready rather than falsely submitted."},
+    {"type":"round-6-a2x-chromium-runtime-partial-14","result":"After the self-reporting GitHub Actions carrier produced no durable result through its lease window, successor recovery used a dependency-free Chromium 144 CDP carrier on about:blank. The five deterministic Blue semantic case families passed 5/5. Evidence: .gitl/evidence/round-6/a2x-verification-14.md commit 9f16ea9c605280893a713abf3395677740c0a3b1. The inactive temporary carrier workflow was removed in 2d61780f48af58eeecfce86964c6cddda4b3691b. Full A2X remains pending exact repository Playwright/base/lint/unit/focused-safety/Firefox gates."},
+    {"type":"round-6-a2x-exact-repository-pass-15","result":"A2X exact repository carrier PASS at e9712e2e6c0945befb531d65b1a4468bbd05a4f1: run 31212815306, job 92979379882, artifact 9007360537, SHA-256 9e16eefdef5cac7e500ef94cd4b1f98d0fae45711a78539513ba84333f5458bb. Base certification, lint, full unit 43/43 suites (477 pass, 3 TODO), focused safety 69/69, and Blue Chromium+Firefox 10/10 passed. A2/A2X submitted; A3 Red Team ready."},
+    {"type":"round-6-a3-redteam-overflow-repair-pass","result":"Initial A3 run 31213429856/job 92981355836 found overflow-clipped structural false positive in Chromium+Firefox. Repair run 31214560411 passed all gates with prototype blob 53cc902428a3fc1496a83ad1bf0bd1bbe6752c84 and Red blob b8b5048dbc042626294423e28b337eb27d6c6b63."},
+    {"type":"round-6-a4-mobile-perf-orientation-oracle-repair-pass","result":"A4 initial run 31215306655/job 92987347838/artifact 9008274458 failed only on an exact orientation-event-count oracle because Chromium emitted native orientationchange plus the fixture injection. Repair commit 096722a6688a3b5ff3dc1e20aa22ec799cafabdb removed the injected duplicate and asserted geometry. Repair run 31215517114/job 92988007587/artifact 9008352875/digest 08555f208f2eaaf5e16318b0deb3975ec9f52947d65f21ff0b69730c678d5297 passed base/lint/unit/focused safety, Blue, Red Team, and A4 hosted Chromium+Firefox gates."},
+    {"type":"round-6-a5-bounded-audit-accepted","result":"Independent A5 audit re-read A1/A1X/A2/A2X/A3/A4 evidence, exact current prototype/Red/mobile test blobs, and connected GitHub CI jobs/artifacts. It accepts the ChatGPT Blue candidate only at deterministic/hosted scope, preserves live/physical claim limits, rejects universal structural inference, records two high-severity npm audit findings as a later dependency-review risk rather than auto-fixing them, and exposes the required cross-adapter planning handoff. Evidence commit db21d43d89850ec3031c04773f1bb69afc597e44; plan handoff commit ce576fd7313f8d158f5e7c40c024bc71247cb026."},
+    {"type":"round-6-cross-adapter-supervisor-plan","result":"R6-SUPERVISOR-CROSS-ADAPTER-PLAN bounded the minimum cross-adapter proof to ChatGPT plus one independently specified Claude structural contract, encoded certified site-specific runner -> standard adapter-aware structural protocol -> rail fallback, submitted the supervisor assignment, and exposed XA1 before research. Evidence commit 38fc8ccf7c9a0699f8783e98c778799c71efc423; plan commit 92945518ded5230c0effcf42ef64e4f5d5ce8f0b. The supervisor lease later expired with no further branch movement and was recovered by the XA1 successor."},
+    {"type":"round-6-xa1-claude-structure-contract-pass","result":"XA1 created tests/e2e/claude-structure-contract.spec.js as a deterministic no-actuation Claude capability contract with visible decoy, hidden secondary composer, ambiguity/exact-Send/clipping rejection, and specialized->standard->rail demotion. Exact run 31222178355/job 93008901624/artifact 9010795133 passed 18/18 across Chromium+Firefox on tested head 4066724a2d9ca55b2c4adf274e132a19daad29ac. Live Claude navigation required interactive input and remains UNKNOWN. Evidence commit 3c4e95bac72cd9913f0012ab755fd25cacbf42fd; plan handoff commit 4613b7d5254a72b5cf332317aab8b3e3eb155bd7."},
+    {"type":"round-6-xa2x-claude-blue-exact-pass","result":"XA2X run 31232161711/job 93037980854/artifact 9014184272 passed exact repository gates on 4e5b49165891ea37e291f6089b1f2f6596350d48; live-host claims remain UNKNOWN."},
+    {"type":"round-6-xa3-cross-adapter-redteam-pass","result":"XA3 run 31233469721/job 93041660298/artifact 9014621827 passed the ChatGPT+Claude deterministic specialized-first/demotion, mutant, cleanup, and focused-safety matrix. The bounded generic H2 baseline misselected 1/2 fixtures while adapter-owned scoped resolution misselected 0/2; this is not a performance claim against a future stronger standard protocol."}
   ],
   "findings": [
-    {
-      "worker": 6,
-      "type": "long-chat-explicit-uncertified-limits",
-      "finding": "The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."
-    },
-    {
-      "worker": 1,
-      "type": "mobile-shell-current-baseline",
-      "finding": "Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."
-    },
-    {
-      "worker": 1,
-      "type": "mobile-shell-round6-architecture-dissent",
-      "finding": "Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-a1-live-capture-gap",
-      "finding": "The non-interactive browser connector could not inspect authenticated live ChatGPT. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed. Human read-only authorization is now granted; the remaining gap is technical/current-host evidence."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-a1-smallest-candidate",
-      "finding": "Blue composer action-cell remains the smallest architecture/mode to test first. Under the release-pressure directive, a deterministic prototype may now be built and falsified before live capture, but no exact live ChatGPT insertion slot or live structural certification may be claimed until A1X passes."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-a1-strategy-dissent",
-      "finding": "Explicit ChatGPT adapter-owned discovery is provisionally favored over generic global structural inference because errors near Send have asymmetric consequence and hidden/secondary composers are a reproducible failure class. Teal has weaker current header evidence; Red needs an unverified footer stack and carries greater keyboard/scroll reflow complexity."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-a1x-permission-boundary",
-      "finding": "A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but scheduled runtime lacked an interactive carrier. Read-only user authorization is now resolved; current authenticated ChatGPT structure, live Send identity, rerender behavior, and exact Blue insertion slot remain technically UNKNOWN."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-adoption-drift-composer-locality",
-      "finding": "Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required for certification."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-capture-evidence-narrowing",
-      "finding": "A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. A1X still prefers sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."
-    },
-    {
-      "worker": 1,
-      "type": "orchestration-policy-drift",
-      "finding": "Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B, explicit release-pressure user directive, and current state govern execution until DOCS-RECONCILIATION repairs that drift."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-plain-shadow-host-preferred",
-      "finding": "Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state. Prototype work may exercise this primitive deterministically, while live insertion remains uncertified."
-    },
-    {
-      "worker": 5,
-      "type": "mobile-shell-keyboard-reflow-contract",
-      "finding": "The eventual structural shell must remain host-flow-first across virtual-keyboard models. VisualViewport resize may schedule bounded verification but may not become x/y/bottom placement authority; Ghost must not edit viewport interactive-widget policy or opt the host into VirtualKeyboard overlay behavior. Because VirtualKeyboard is limited-availability, it is optional-only. Certification should include 320-CSS-pixel-equivalent reflow, 200% text scaling, visual-only and layout-resize keyboard models, orientation, listener cleanup/coalescing, and separate Android WebView claim discipline."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-constrained-runtime-method",
-      "finding": "Future structural-shell performance stress should separate deterministic hosted evidence from physical-device claims. Use Playwright Chromium CDP at 1x/4x/6x CPU slowdown with invariant-based correctness/resource gates and descriptive median/p95 timing only; CPU throttling is relative to the host and cannot certify mobile CPU architecture. Firefox remains a separate correctness lane because Playwright CDP is Chromium-only. Physical Android/AVD/WebView/GeckoView remain separate evidence surfaces."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-cross-adapter-structural-capability-boundary",
-      "finding": "Existing reviewed input/Send profiles are not structural-mount authorization. Future structural capability must fail closed when absent, reuse shared invariant/repair/teardown machinery, and keep adapter-owned structural discovery/insertion rules. Anchor-smoke selector health is lower evidence than authenticated structural capture, which is lower than mount certification. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-tt-shadow-compat-contract",
-      "finding": "A future structural Shadow host must add no new Trusted Types HTML sink. ShadowRoot.innerHTML remains TT-governed; current Ghost already proves that a restrictive trusted-types allow-list can block gitl-ui and drive existing HTML sinks to fail loud. Prefer a DOM-built in-flow host/Shadow subtree, preserve the named-policy boundary, keep MV3 structural mounting viable in the default isolated content-script world, and do not require MAIN-world/unsafeWindow authority. Browser TT support is broad in 2026, but host CSP enforcement remains site-specific and is not inferred for every adapter."
-    },
-    {
-      "worker": 2,
-      "type": "mobile-shell-shadow-event-a11y-contract",
-      "finding": "Open Shadow DOM isolates implementation/style but not UA UI-event propagation. Future Blue/Red certification must not assume clicks are contained: passive mount/repair stays zero-actuation, intentional Ghost activation must cause exactly one reviewed Ghost action and zero host Send/submit/native-control side effects, delegatesFocus stays false initially, mount/repair never autofocuses or steals editor focus, every Ghost button is type=button, and cross-portal ARIA IDREF relationships are accepted only when exact DOM/accessibility-tree evidence proves them."
-    },
-    {
-      "worker": 4,
-      "type": "mobile-shell-structural-conformance-oracle",
-      "finding": "Future structural certification should use a composable invariant ledger plus S1-S11 orthogonal scenario families and a small set of high-risk pairwise intersections, not one mega-fixture. Before judging a real A2 candidate, the harness must prove its own sensitivity by rejecting deliberately unsafe synthetic adapters for wrong-composer selection, Send identity/movement, overlay mounting, duplicate/stale repair, unscoped observers, incomplete cleanup, new TT sinks, focus/form side effects, inaccessible cross-root claims, and viewport-placement authority. A surviving mutant means the oracle is too weak; fix the test architecture rather than weakening product safeguards."
-    },
-    {
-      "worker": 5,
-      "type": "mobile-shell-cross-browser-accessibility-verification",
-      "finding": "Hosted deterministic accessibility should use one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus, Send-node, role/name/state, and zero-actuation invariants. Chromium CDP AX-tree capture is optional diagnostic evidence only, while TalkBack/VoiceOver/NVDA/JAWS/WebView/GeckoView mappings remain separate certification surfaces. Playwright ARIA snapshots do not provide sufficient documented evidence to certify peer-ShadowRoot aria-controls relationships, so the first candidate must not depend on that relation without higher-tier proof."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-red-scroll-intent-contract",
-      "finding": "Future Red structural certification must preserve two pre-existing user states: FOLLOWING_LATEST and READING_HISTORY. Passive Red mount/expand/collapse gains no new scrollTop/scrollBy/scrollTo/scrollIntoView authority; tests instrument Ghost scroll writes separately from browser/native scroll events, use direct scroll-owner/tail/history-anchor/composer geometry, predeclare only a 1 CSS-pixel rounding tolerance for deterministic scroll arithmetic, reject CLS as the primary intentional-expansion oracle, detect ResizeObserver feedback loops, and fail to rail if the live scroll owner or natural reachability cannot be proven. Adapter-owned spacer/layout mutation remains a later separately authorized alternative, not an implicit repair."
-    },
-    {
-      "worker": 2,
-      "type": "delivery-pressure-prototype-path",
-      "finding": "Ten research-only fallbacks after the last executable structural artifact triggered the explicit user delivery-pressure checkpoint. The safe next artifact is a prototype-only deterministic Blue structural primitive: live capture is now a certification/live-binding gate rather than a blanket development gate."
-    },
-    {
-      "worker": 3,
-      "type": "mobile-shell-blue-prototype-artifact",
-      "finding": "A real executable deterministic Blue candidate now exists at tests/e2e/mobile-shell-blue-prototype.spec.js. It is fixture-token-gated so it cannot silently become a live ChatGPT binding; source uses one in-flow open Shadow host, exact supplied Send identity, scoped MutationObserver/ResizeObserver, coalesced generation-guarded Ghost-only repair, direct type=button callbacks, no host style mutation, and explicit fixed/unverified mutant rejection. The self-audit corrected cross-context DOM serialization and self-generated observer-repair risks before handoff."
-    },
-    {
-      "worker": 3,
-      "type": "mobile-shell-a2-test-carrier-blocker",
-      "finding": "Required exact-head execution is not yet evidenced. The connected workflow lookup exposes PR-triggered runs only and returned none for the push; classic commit statuses are empty; unattended browser navigation requires user interaction; local clone failed DNS resolution. This is an evidence-carrier blocker, not candidate PASS/FAIL. A2X verification is ready and must run before Red Team or research fallback."
-    },
-    {
-      "worker": 3,
-      "type": "mobile-shell-a2x-chromium-runtime-partial",
-      "finding": "A dependency-free Chromium 144 CDP recovery carrier executed the five predeclared deterministic Blue semantic case families and passed 5/5. This validates runtime behavior for in-flow mounting, Send identity/passive safety, narrow repair/cleanup, direct Ghost callbacks with zero Send/submit, mutant rejection, and disabled-gate behavior in Chromium. It does not replace repository Playwright/base/lint/unit/focused-safety or Firefox gates, which remain ready work."
-    },
-    {
-      "worker": 3,
-      "type": "mobile-shell-a2x-exact-repository-pass",
-      "finding": "Guarded exact repository carrier run 31212815306/job 92979379882 passed candidate ancestry/scope, cert:base, lint, full unit, focused Send/CHOICE/route/lease/uncertainty, and all five Blue prototype cases in both Chromium and Firefox. Live-host binding remains separately uncertified."
-    },
-    {
-      "worker": 4,
-      "type": "mobile-shell-blue-overflow-fail-closed",
-      "finding": "Red Team proved that in-flow alone is insufficient when a verified action row clips overflow: a Blue mount can remain structurally attached yet be unreachable. The repaired deterministic contract rejects structural mode when a clipping container would clip exact Send or the Ghost mount, using only a 1 CSS px deterministic rounding tolerance."
-    },
-    {
-      "worker": 5,
-      "type": "mobile-shell-a4-hosted-mobile-perf-pass",
-      "finding": "The exact repaired deterministic Blue candidate passed hosted Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape viewport geometry, deterministic VisualViewport signal, desktop Firefox semantics, resource cleanup, zero passive Send actuation, and Chromium 1x/4x/6x CPU invariant stress. The first carrier revealed and repaired only a double-counting orientation oracle. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT insertion remain uncertified."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-a5-bounded-audit-acceptance",
-      "finding": "Independent A5 audit accepts the repaired ChatGPT Blue candidate at the executed deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and GitHub Actions bindings. It explicitly rejects promotion to live ChatGPT, universal cross-site, physical Android/WebView/GeckoView, real IME/AT, or calibrated-hardware certification and keeps MOBILE-SHELL-STRUCTURAL active for cross-adapter expansion plus a later final audit."
-    },
-    {
-      "worker": 6,
-      "type": "mobile-shell-site-specific-first-runner-policy",
-      "finding": "For the required cross-adapter expansion, a certified site-specific structural runner may run before the standard structural protocol only when both reviewed site identity and current structural capability/signature checks satisfy that runner's certified contract and evidence shows measurable site-specific advantage. The standard adapter-aware structural protocol is second; the existing rail is the fail-closed third path. Structural authority remains separate from Send actuation authority, and no site inherits another site's insertion rule by analogy."
-    },
-    {
-      "worker": 6,
-      "type": "release-dependency-audit-risk",
-      "finding": "A2X and A4 npm install logs report two high-severity npm audit findings. Package identities, shipped exploitability, and remediation are not established by A5 and are therefore UNKNOWN rather than silently accepted. Carry this into existing final release/dependency certification; do not run an unattended blanket dependency upgrade merely to clear the warning."
-    },
-    {
-      "worker": 2,
-      "type": "cross-adapter-plan-claude-first",
-      "finding": "The bounded cross-adapter proof is ChatGPT deterministic evidence plus one independently specified Claude structural contract. Certified site-specific runners outrank the standard protocol only with adapter-owned current signature evidence and measurable benefit; all failures demote to standard then rail."
-    },
-    {
-      "worker": 2,
-      "type": "claude-xa1-deterministic-contract-pass",
-      "finding": "The Claude XA1 fixture proves a bounded adapter-owned structural capability contract can reject visible decoys, hidden/secondary ambiguity, duplicate/replaced Send, clipping, and wrong-site state while preserving exact Send/no-actuation and demoting specialized->standard->rail. Exact run 31222178355/job 93008901624 passed 18/18 Chromium+Firefox. It does not certify current live Claude structure."
-    },
-    {
-      "worker": 1,
-      "type": "claude-xa2-deterministic-blue-exact-pass",
-      "finding": "Claude Blue fixture-gated specialized runner passed exact repository verification on run 31232161711; specialized->standard->rail, exact Send, and fail-closed scope preserved. Live Claude remains uncertified."
-    },
-    {
-      "worker": 4,
-      "type": "cross-adapter-redteam-specialized-first",
-      "finding": "Cross-adapter Red Team preserved exact Send/zero-actuation and specialized->standard->rail demotion across ChatGPT+Claude deterministic fixtures. A bounded global-first-editor baseline misselected the Claude decoy (1/2 fixture error) while adapter-owned scoped identity/signature resolution was 0/2; this measures one locality/safety advantage only and does not benchmark a future stronger standard protocol."
-    }
+    {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"The grouped union remains history-linear and Send observation remains 8004 matches/sample at 2000 turns; physical Android, GeckoView, calibrated hardware budgets, and Ghost causal dominance over host lag are not certified."},
+    {"worker":1,"type":"mobile-shell-current-baseline","finding":"Current #gitl/rail UI is fixed-position geometry rather than an in-flow host structural mount. The rail tracker observes document.body subtree plus polling; platform adapters have input/send/stop/assistant selectors but no structural header/composer/footer mount contract, and source contains no attachShadow call. Existing rail remains the fail-closed compatibility fallback."},
+    {"worker":1,"type":"mobile-shell-round6-architecture-dissent","finding":"Round 6 must falsify explicit adapter-owned structural contracts against generic ancestor/layout inference before implementation. CSS/viewport anchoring is rejected as primary blue/red success because it remains overlay-like; custom-element/Shadow-DOM isolation is a candidate only if the host element stays in normal flow and reuses existing action authority."},
+    {"worker":2,"type":"mobile-shell-a1-live-capture-gap","finding":"The non-interactive browser connector could not inspect authenticated live ChatGPT. Deterministic/adoption evidence converges on #prompt-textarea, composer-local scoping, and data-testid=send-button, but current live header/action/footer DOM signatures and exact insertion slot are UNKNOWN and may not be guessed. Human read-only authorization is now granted; the remaining gap is technical/current-host evidence."},
+    {"worker":2,"type":"mobile-shell-a1-smallest-candidate","finding":"Blue composer action-cell remains the smallest architecture/mode to test first. Under the release-pressure directive, a deterministic prototype may now be built and falsified before live capture, but no exact live ChatGPT insertion slot or live structural certification may be claimed until A1X passes."},
+    {"worker":2,"type":"mobile-shell-a1-strategy-dissent","finding":"Explicit ChatGPT adapter-owned discovery is provisionally favored over generic global structural inference because errors near Send have asymmetric consequence and hidden/secondary composers are a reproducible failure class. Teal has weaker current header evidence; Red needs an unverified footer stack and carries greater keyboard/scroll reflow complexity."},
+    {"worker":2,"type":"mobile-shell-a1x-permission-boundary","finding":"A1X verified the deterministic read-only desktop+narrow capture oracle exact-head in CI, but scheduled runtime lacked an interactive carrier. Read-only user authorization is now resolved; current authenticated ChatGPT structure, live Send identity, rerender behavior, and exact Blue insertion slot remain technically UNKNOWN."},
+    {"worker":6,"type":"mobile-shell-adoption-drift-composer-locality","finding":"Fresh maintained/adoption evidence through 2026-07-28 strengthens the hypothesis that an explicit composer-local contract is more defensible than header-first or generic global inference: a maintained extension records a ChatGPT header model control moving into a composer pill after redesign and later composer input-width regressions, while independent selector configs retain explicit editor/Send/upload/voice anchors. The same evidence increases Blue crowding/responsive risk, so it does not authorize an insertion slot; current live structure remains required for certification."},
+    {"worker":6,"type":"mobile-shell-capture-evidence-narrowing","finding":"A screenshot can supplement visual layout evidence but cannot by itself prove exact Send JavaScript node identity, hidden-composer status, DOM containment, or rerender identity. A1X still prefers sanitized DOM/computed-style/relationship evidence when interactive read-only inspection is unavailable."},
+    {"worker":1,"type":"orchestration-policy-drift","finding":"Project-local README/task prompt still contain former review-after-round freeze wording. Canonical Personal-Forge Policy B, explicit release-pressure user directive, and current state govern execution until DOCS-RECONCILIATION repairs that drift."},
+    {"worker":2,"type":"mobile-shell-plain-shadow-host-preferred","finding":"Primary DOM/HTML standards evidence supports using an ordinary in-flow span/div with one open ShadowRoot and external Ghost mount manager as the provisional first shell-host primitive rather than an autonomous custom element. This removes custom-element registry/callback lifecycle state. Prototype work may exercise this primitive deterministically, while live insertion remains uncertified."},
+    {"worker":5,"type":"mobile-shell-keyboard-reflow-contract","finding":"The eventual structural shell must remain host-flow-first across virtual-keyboard models. VisualViewport resize may schedule bounded verification but may not become x/y/bottom placement authority; Ghost must not edit viewport interactive-widget policy or opt the host into VirtualKeyboard overlay behavior. Because VirtualKeyboard is limited-availability, it is optional-only. Certification should include 320-CSS-pixel-equivalent reflow, 200% text scaling, visual-only and layout-resize keyboard models, orientation, listener cleanup/coalescing, and separate Android WebView claim discipline."},
+    {"worker":6,"type":"mobile-shell-constrained-runtime-method","finding":"Future structural-shell performance stress should separate deterministic hosted evidence from physical-device claims. Use Playwright Chromium CDP at 1x/4x/6x CPU slowdown with invariant-based correctness/resource gates and descriptive median/p95 timing only; CPU throttling is relative to the host and cannot certify mobile CPU architecture. Firefox remains a separate correctness lane because Playwright CDP is Chromium-only. Physical Android/AVD/WebView/GeckoView remain separate evidence surfaces."},
+    {"worker":2,"type":"mobile-shell-cross-adapter-structural-capability-boundary","finding":"Existing reviewed input/Send profiles are not structural-mount authorization. Future structural capability must fail closed when absent, reuse shared invariant/repair/teardown machinery, and keep adapter-owned structural discovery/insertion rules. Anchor-smoke selector health is lower evidence than authenticated structural capture, which is lower than mount certification. No non-ChatGPT adapter inherits ChatGPT's insertion rule by analogy."},
+    {"worker":6,"type":"mobile-shell-tt-shadow-compat-contract","finding":"A future structural Shadow host must add no new Trusted Types HTML sink. ShadowRoot.innerHTML remains TT-governed; current Ghost already proves that a restrictive trusted-types allow-list can block gitl-ui and drive existing HTML sinks to fail loud. Prefer a DOM-built in-flow host/Shadow subtree, preserve the named-policy boundary, keep MV3 structural mounting viable in the default isolated content-script world, and do not require MAIN-world/unsafeWindow authority. Browser TT support is broad in 2026, but host CSP enforcement remains site-specific and is not inferred for every adapter."},
+    {"worker":2,"type":"mobile-shell-shadow-event-a11y-contract","finding":"Open Shadow DOM isolates implementation/style but not UA UI-event propagation. Future Blue/Red certification must not assume clicks are contained: passive mount/repair stays zero-actuation, intentional Ghost activation must cause exactly one reviewed Ghost action and zero host Send/submit/native-control side effects, delegatesFocus stays false initially, mount/repair never autofocuses or steals editor focus, every Ghost button is type=button, and cross-portal ARIA IDREF relationships are accepted only when exact DOM/accessibility-tree evidence proves them."},
+    {"worker":4,"type":"mobile-shell-structural-conformance-oracle","finding":"Future structural certification should use a composable invariant ledger plus S1-S11 orthogonal scenario families and a small set of high-risk pairwise intersections, not one mega-fixture. Before judging a real A2 candidate, the harness must prove its own sensitivity by rejecting deliberately unsafe synthetic adapters for wrong-composer selection, Send identity/movement, overlay mounting, duplicate/stale repair, unscoped observers, incomplete cleanup, new TT sinks, focus/form side effects, inaccessible cross-root claims, and viewport-placement authority. A surviving mutant means the oracle is too weak; fix the test architecture rather than weakening product safeguards."},
+    {"worker":5,"type":"mobile-shell-cross-browser-accessibility-verification","finding":"Hosted deterministic accessibility should use one locator-scoped Playwright ARIA semantic contract across Chromium and desktop Firefox plus exact focus, Send-node, role/name/state, and zero-actuation invariants. Chromium CDP AX-tree capture is optional diagnostic evidence only, while TalkBack/VoiceOver/NVDA/JAWS/WebView/GeckoView mappings remain separate certification surfaces. Playwright ARIA snapshots do not provide sufficient documented evidence to certify peer-ShadowRoot aria-controls relationships, so the first candidate must not depend on that relation without higher-tier proof."},
+    {"worker":6,"type":"mobile-shell-red-scroll-intent-contract","finding":"Future Red structural certification must preserve two pre-existing user states: FOLLOWING_LATEST and READING_HISTORY. Passive Red mount/expand/collapse gains no new scrollTop/scrollBy/scrollTo/scrollIntoView authority; tests instrument Ghost scroll writes separately from browser/native scroll events, use direct scroll-owner/tail/history-anchor/composer geometry, predeclare only a 1 CSS-pixel rounding tolerance for deterministic scroll arithmetic, reject CLS as the primary intentional-expansion oracle, detect ResizeObserver feedback loops, and fail to rail if the live scroll owner or natural reachability cannot be proven. Adapter-owned spacer/layout mutation remains a later separately authorized alternative, not an implicit repair."},
+    {"worker":2,"type":"delivery-pressure-prototype-path","finding":"Ten research-only fallbacks after the last executable structural artifact triggered the explicit user delivery-pressure checkpoint. The safe next artifact is a prototype-only deterministic Blue structural primitive: live capture is now a certification/live-binding gate rather than a blanket development gate."},
+    {"worker":3,"type":"mobile-shell-blue-prototype-artifact","finding":"A real executable deterministic Blue candidate now exists at tests/e2e/mobile-shell-blue-prototype.spec.js. It is fixture-token-gated so it cannot silently become a live ChatGPT binding; source uses one in-flow open Shadow host, exact supplied Send identity, scoped MutationObserver/ResizeObserver, coalesced generation-guarded Ghost-only repair, direct type=button callbacks, no host style mutation, and explicit fixed/unverified mutant rejection. The self-audit corrected cross-context DOM serialization and self-generated observer-repair risks before handoff."},
+    {"worker":3,"type":"mobile-shell-a2-test-carrier-blocker","finding":"Required exact-head execution is not yet evidenced. The connected workflow lookup exposes PR-triggered runs only and returned none for the push; classic commit statuses are empty; unattended browser navigation requires user interaction; local clone failed DNS resolution. This is an evidence-carrier blocker, not candidate PASS/FAIL. A2X verification is ready and must run before Red Team or research fallback."},
+    {"worker":3,"type":"mobile-shell-a2x-chromium-runtime-partial","finding":"A dependency-free Chromium 144 CDP recovery carrier executed the five predeclared deterministic Blue semantic case families and passed 5/5. This validates runtime behavior for in-flow mounting, Send identity/passive safety, narrow repair/cleanup, direct Ghost callbacks with zero Send/submit, mutant rejection, and disabled-gate behavior in Chromium. It does not replace repository Playwright/base/lint/unit/focused-safety or Firefox gates, which remain ready work."},
+    {"worker":3,"type":"mobile-shell-a2x-exact-repository-pass","finding":"Guarded exact repository carrier run 31212815306/job 92979379882 passed candidate ancestry/scope, cert:base, lint, full unit, focused Send/CHOICE/route/lease/uncertainty, and all five Blue prototype cases in both Chromium and Firefox. Live-host binding remains separately uncertified."},
+    {"worker":4,"type":"mobile-shell-blue-overflow-fail-closed","finding":"Red Team proved that in-flow alone is insufficient when a verified action row clips overflow: a Blue mount can remain structurally attached yet be unreachable. The repaired deterministic contract rejects structural mode when a clipping container would clip exact Send or the Ghost mount, using only a 1 CSS px deterministic rounding tolerance."},
+    {"worker":5,"type":"mobile-shell-a4-hosted-mobile-perf-pass","finding":"The exact repaired deterministic Blue candidate passed hosted Pixel-class Chromium emulation, 320 CSS px, 200% text, reduced motion, portrait/landscape viewport geometry, deterministic VisualViewport signal, desktop Firefox semantics, resource cleanup, zero passive Send actuation, and Chromium 1x/4x/6x CPU invariant stress. The first carrier revealed and repaired only a double-counting orientation oracle. Physical Android/WebView/GeckoView/real IME/AT/calibrated hardware and live ChatGPT insertion remain uncertified."},
+    {"worker":6,"type":"mobile-shell-a5-bounded-audit-acceptance","finding":"Independent A5 audit accepts the repaired ChatGPT Blue candidate at the executed deterministic/hosted scope after rechecking exact A1X/A2X/A3/A4 source and GitHub Actions bindings. It explicitly rejects promotion to live ChatGPT, universal cross-site, physical Android/WebView/GeckoView, real IME/AT, or calibrated-hardware certification and keeps MOBILE-SHELL-STRUCTURAL active for cross-adapter expansion plus a later final audit."},
+    {"worker":6,"type":"mobile-shell-site-specific-first-runner-policy","finding":"For the required cross-adapter expansion, a certified site-specific structural runner may run before the standard structural protocol only when both reviewed site identity and current structural capability/signature checks satisfy that runner's certified contract and evidence shows measurable site-specific advantage. The standard adapter-aware structural protocol is second; the existing rail is the fail-closed third path. Structural authority remains separate from Send actuation authority, and no site inherits another site's insertion rule by analogy."},
+    {"worker":6,"type":"release-dependency-audit-risk","finding":"A2X and A4 npm install logs report two high-severity npm audit findings. Package identities, shipped exploitability, and remediation are not established by A5 and are therefore UNKNOWN rather than silently accepted. Carry this into existing final release/dependency certification; do not run an unattended blanket dependency upgrade merely to clear the warning."},
+    {"worker":2,"type":"cross-adapter-plan-claude-first","finding":"The bounded cross-adapter proof is ChatGPT deterministic evidence plus one independently specified Claude structural contract. Certified site-specific runners outrank the standard protocol only with adapter-owned current signature evidence and measurable benefit; all failures demote to standard then rail."},
+    {"worker":2,"type":"claude-xa1-deterministic-contract-pass","finding":"The Claude XA1 fixture proves a bounded adapter-owned structural capability contract can reject visible decoys, hidden/secondary ambiguity, duplicate/replaced Send, clipping, and wrong-site state while preserving exact Send/no-actuation and demoting specialized->standard->rail. Exact run 31222178355/job 93008901624 passed 18/18 Chromium+Firefox. It does not certify current live Claude structure."},
+    {"worker":1,"type":"claude-xa2-deterministic-blue-exact-pass","finding":"Claude Blue fixture-gated specialized runner passed exact repository verification on run 31232161711; specialized->standard->rail, exact Send, and fail-closed scope preserved. Live Claude remains uncertified."},
+    {"worker":4,"type":"cross-adapter-redteam-specialized-first","finding":"Cross-adapter Red Team preserved exact Send/zero-actuation and specialized->standard->rail demotion across ChatGPT+Claude deterministic fixtures. A bounded global-first-editor baseline misselected the Claude decoy (1/2 fixture error) while adapter-owned scoped identity/signature resolution was 0/2; this measures one locality/safety advantage only and does not benchmark a future stronger standard protocol."}
   ],
-  "briefs": [
-    ".gitl/briefs/mobile-shell-concepts.md"
-  ],
+  "briefs": [".gitl/briefs/mobile-shell-concepts.md"],
   "testEvidence": [
     ".gitl/evidence/round-4/worker-6.md",
     ".gitl/evidence/round-5/worker-6.md",
@@ -415,7 +200,17 @@
     ".gitl/evidence/round-6/xa2x-claude-blue-carrier-result.md",
     ".gitl/evidence/round-6/cross-adapter-redteam.md"
   ],
-  "lease": null,
+  "lease": {
+    "holder": "scheduled-worker-6-r6-xa4-mobile-perf-03",
+    "assignmentId": "R6-XA4-CROSS-ADAPTER-MOBILE-PERF",
+    "nominalWorker": 6,
+    "executedRole": "successor-mobile-browser-accessibility-performance-with-release-auditor-lens",
+    "acquiredAt": "2026-08-08T02:03:32Z",
+    "expiresAt": "2026-08-08T02:48:32Z",
+    "inspectedHead": "e3c3cc57dda1f9057c7e2ff4a8990c4fb61ec851",
+    "inspectedStateBlob": "5a019127c15a6db1d09526dc939b7ee6ecfc8915",
+    "activeWorkCheck": "Canonical lease was null; XA3 final handoff head e3c3cc57dda1f9057c7e2ff4a8990c4fb61ec851 was stable; XA3 exact run 31233469721 is complete; connected commit status and PR-workflow surfaces showed no conflicting active work; XA4 is the earliest ready assignment."
+  },
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -430,10 +225,7 @@
     "researchStatus": "live-capture-authorized-not-obtained",
     "researchEvidence": ".gitl/evidence/round-6/worker-2.md",
     "researchEvidenceCommit": "7bb9b4b66d4749821f64c7f3f29a8ab87a30106e",
-    "probeCommits": [
-      "431670c5951cd9790b8f8e430aa2edf4f3958911",
-      "ed0c23ffcb68c2964139eb094db363f9156e36e7"
-    ],
+    "probeCommits": ["431670c5951cd9790b8f8e430aa2edf4f3958911","ed0c23ffcb68c2964139eb094db363f9156e36e7"],
     "a1xClaimCommit": "2eed7b903de00abe5a22c5afc652550e5010f157",
     "a1xExactRun": 31181719403,
     "a1xExactJob": 92876348475,
@@ -549,11 +341,7 @@
     "auditEvidence": ".gitl/evidence/round-5/worker-6.md",
     "auditEvidenceCommit": "5740ccc418f90d18fab4c0cb8f645173c87efddb",
     "resolvedQuestion": "DQ-R5-LONGCHAT-REVIEW",
-    "limits": [
-      "History-linear grouped assistant query remains.",
-      "Send-observation remains 8004 matches/sample at 2000 turns.",
-      "No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."
-    ]
+    "limits": ["History-linear grouped assistant query remains.","Send-observation remains 8004 matches/sample at 2000 turns.","No physical Android, GeckoView, calibrated low-end hardware, or Ghost-causal-dominance certification."]
   },
   "priorPriorRoundVerification": {
     "round": 4,
