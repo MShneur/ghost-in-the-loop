@@ -64,12 +64,12 @@
   },
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
-    "checkpointStatus": "claude-blue-verified-cross-adapter-redteam-ready",
+    "checkpointStatus": "cross-adapter-mobile-perf-submitted-final-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
     "reenableCondition": "Research remains lower priority while R6-XA2X through the cross-adapter build/test/audit sequence contains dependency-ready work.",
     "liveCaptureRole": "certification-and-live-adapter-binding gate; no longer a blanket deterministic prototype-development gate",
-    "checkpointDecision": "XA2X exact run 31232161711 passed; advance directly to XA3."
+    "checkpointDecision": "XA4 exact hosted cross-adapter mobile/accessibility/performance run 31236146715 passed; advance directly to XA5 final bounded audit."
   },
   "requiredPrograms": [
     {
@@ -209,11 +209,11 @@
   },
   "dispatch": {
     "nextWake": "earliest eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R6-XA3-CROSS-ADAPTER-REDTEAM",
+    "nominalWorker": 6,
+    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
     "automatic": true,
     "claimableByAnyEligibleWorker": true,
-    "instruction": "Red-Team ChatGPT and Claude deterministic specialized-first runners before mobile/performance work."
+    "instruction": "Perform the final bounded Round-6 mobile-shell audit before BUILD-IDENTITY. Preserve all live/physical claim gates; close only the deterministic/hosted scope actually evidenced."
   },
   "assignments": [
     {
@@ -1036,7 +1036,7 @@
       "worker": 5,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "mobile-browser-accessibility-performance",
-      "status": "ready",
+      "status": "submitted",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Certify the surviving ChatGPT+Claude deterministic cross-adapter candidate at hosted narrow/mobile/accessibility/resource/constrained-runtime scope while preserving physical/live claim limits.",
       "dependencies": [
@@ -1074,14 +1074,24 @@
         "exact CI bindings"
       ],
       "fallbackWork": "A deterministic mobile/accessibility/resource failure creates the smallest repair; preserve platform limits.",
-      "evidencePath": ".gitl/evidence/round-6/cross-adapter-mobile-perf.md"
+      "evidencePath": ".gitl/evidence/round-6/cross-adapter-mobile-perf.md",
+      "executedBy": "gha-r6-xa4-31236146715",
+      "testedHead": "6ab649f6510db2be3dfe918a0f31ec99e5ea789e",
+      "runId": 31236146715,
+      "jobId": 93048904768,
+      "artifactId": 9015459673,
+      "artifactDigest": "sha256:5cbee843a66db1f423e9fa86c750d9f206135ff2b44d4ac46a4db13bd8e633b4",
+      "gateOutcomes": "deps=0, syntax=0, base=0, lint=0, unit=0, focused=0, browsers=0, matrix=0",
+      "focusAssertionCommit": "4efa599ca4424cd12e1f87e200f46c65a30f9f00",
+      "evidenceCommit": "7a4db31346c68d3a99dd14e18545cb0df778339d",
+      "blockedReason": null
     },
     {
       "id": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
       "worker": 6,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
-      "status": "waiting",
+      "status": "ready",
       "program": "MOBILE-SHELL-STRUCTURAL",
       "goal": "Perform the final bounded Round-6 audit after cross-adapter evidence, accepting only exact proven structural claims and deciding whether MOBILE-SHELL-STRUCTURAL may close or needs the smallest remaining recovery.",
       "dependencies": [
@@ -1120,7 +1130,7 @@
       "evidencePath": ".gitl/evidence/round-6/final-mobile-shell-audit.md"
     }
   ],
-  "roundDecision": "bounded-chatgpt-deterministic-candidate-accepted-claude-blue-prototype-built-verification-ready-live-final-audit-pending",
+  "roundDecision": "cross-adapter-mobile-perf-submitted-final-audit-ready-live-claims-pending",
   "humanReviewRequired": false,
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized",
   "publishReadyRequiresAllRequiredPrograms": true
