@@ -27,7 +27,7 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "b44e23afab83c4a613d4aa22914ee63275baa71a",
+  "headAtLastHandoff": "b9c14feb1834ee5784d3bd82564e0de62a57f0ce",
   "currentStep": "R6-XA5YZ-ORDINARY-CI-VERIFY passed exact ordinary clean-head CI on the final XA5YW handoff head: unit/base and full E2E are green with the three XA5X test-only failure classes resolved. Final bounded Round-6 audit retry is now the evidence gate.",
   "nextAction": "Execute R6-XA5R-MOBILE-SHELL-FINAL-AUDIT-RETRY before BUILD-IDENTITY or research. Re-audit the exact green clean-head evidence and existing ChatGPT+Claude deterministic/hosted evidence; preserve live/physical claim limits.",
   "automaticDispatch": {
@@ -474,16 +474,7 @@
     ".gitl/evidence/round-6/xa5yw-carrier-cleanup.md",
     ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md"
   ],
-  "lease": {
-    "holder": "scheduled-successor-r6-xa5yz-ci-verify-05",
-    "assignmentId": "R6-XA5YZ-ORDINARY-CI-VERIFY",
-    "nominalWorker": 4,
-    "executedRole": "successor-test-engineer-ci-verifier",
-    "acquiredAt": "2026-08-08T06:26:33Z",
-    "expiresAt": "2026-08-08T07:11:33Z",
-    "inspectedHead": "1a10c592c7023ee01b71b133762ebcb628f550bc",
-    "activeWorkCheck": "Canonical lease was null, branch matched the exact final XA5YW handoff head, and the ordinary clean-head CI run for that head had completed with no conflicting branch movement. Lease covers XA5YZ evidence/state/plan handoff only."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
