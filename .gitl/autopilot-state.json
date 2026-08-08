@@ -7,7 +7,7 @@
   "roundPhase": "in-progress",
   "mode": "continuous-local-human-gates",
   "supervisorWorker": 1,
-  "completedWorkers": [1],
+  "completedWorkers": [1,3],
   "branch": "agent/8.8-repair-resume",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "9778a2e2b323b840edf0d7082818782a2eac7138",
-  "currentStep": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN submitted. Canonical BUILD-IDENTITY contract now separates semantic version, immutable shippable-payload identity, Git provenance, exact certification bindings, candidate channel, stable channel, and publication state. R7-A1-BUILD-IDENTITY-ORACLE is the earliest executable artifact; research is ineligible while it is ready.",
-  "nextAction": "Claim and execute R7-A1-BUILD-IDENTITY-ORACLE on agent/8.8-repair-resume. Build a repository-native machine-readable candidate identity record and falsifiable oracle using existing version/generated/certification contracts, kill version/generated/payload/channel-confusion mutants, and preserve product behavior, dependencies, stable-channel URLs, publishReady=false, and all fail-closed safeguards.",
+  "headAtLastHandoff": "58d665d2d4701c39f8fc8502f659a3685cdd34f1",
+  "currentStep": "R7-A1-BUILD-IDENTITY-ORACLE submitted. The isolated candidate now has a repository-native machine-readable immutable payload identity oracle, negative mutants for version/generated/payload/channel drift, and exact ordinary CI success on implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d. R7-A2-DEPENDENCY-AUDIT is the earliest executable assignment; research remains ineligible while it is ready.",
+  "nextAction": "Claim and execute R7-A2-DEPENDENCY-AUDIT on agent/8.8-repair-resume. Capture exact lockfile-bound npm audit evidence, identify affected packages/paths/advisories, distinguish dev-build-test-only from shipped-payload reachability, keep exploitability UNKNOWN unless a concrete shipped path is established, and create only the smallest evidence-linked recovery if release-relevant. Do not blind-upgrade dependencies or alter publication state.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 3,
-    "assignmentId": "R7-A1-BUILD-IDENTITY-ORACLE",
+    "nominalWorker": 6,
+    "assignmentId": "R7-A2-DEPENDENCY-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -53,7 +53,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A1-BUILD-IDENTITY-ORACLE is an executable falsifiable implementation/test artifact and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
+    "reason": "R7-A2-DEPENDENCY-AUDIT is an executable release-critical evidence assignment and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -62,17 +62,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round7-build-identity-supervisor-submitted-a1-oracle-ready",
+    "checkpointStatus": "round7-a1-build-identity-oracle-submitted-a2-dependency-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R7-A1-BUILD-IDENTITY-ORACLE",
+    "nextArtifactAssignment": "R7-A2-DEPENDENCY-AUDIT",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
-    "lastDeliveryReviewAt": "2026-08-08T08:23:20Z",
-    "lastTestableArtifactAt": "2026-08-08T06:13:01Z",
-    "lastDeliveryDecision": "Round-7 supervisor selected immutable payload identity plus provenance/channel/test binding over semver-only or repository-head-only identity, exposed R7-A1 as the smallest falsifiable artifact, preserved prior bounded certification limits, and kept publication disabled.",
-    "evidence": ".gitl/evidence/round-7/worker-1.md",
-    "evidenceCommit": "568fbcc306d83635819d6ec0d521be3f417a1789"
+    "lastDeliveryReviewAt": "2026-08-08T08:48:42Z",
+    "lastTestableArtifactAt": "2026-08-08T08:48:42Z",
+    "lastDeliveryDecision": "R7-A1 delivered an immutable-payload identity oracle with version/generated/payload/channel falsification mutants and exact ordinary CI success on implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d. Payload identity remains deliberately distinct from coordination-only head movement; A2 dependency disposition now outranks research and publication remains disabled.",
+    "evidence": ".gitl/evidence/round-7/worker-3.md",
+    "evidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -89,7 +89,7 @@
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
-    "BUILD-IDENTITY": "active-oracle-ready",
+    "BUILD-IDENTITY": "active-oracle-submitted-dependency-audit-ready",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
   },
@@ -98,14 +98,17 @@
     {"type":"round-4-lifecycle-certified-human-accepted-bounded","result":"LIFECYCLE-FROZEN-DISCARDED accepted only at recorded bounded deterministic scope; explicit physical/scheduler limits remain non-certified."},
     {"type":"round-5-longchat-certified-human-accepted-bounded","result":"LONG-CHAT-PERF accepted only at recorded deterministic/hosted scope; history-linear Send observation and physical-platform limits remain non-certified."},
     {"type":"round-6-mobile-shell-completed-bounded","result":"MOBILE-SHELL-STRUCTURAL accepted only at bounded deterministic/hosted ChatGPT+Claude cross-adapter scope after exact ordinary clean-head CI. Exact live ChatGPT/Claude insertion and physical-platform claims remain uncertified. Audit evidence commit aa220f6a3f195783319cd5355c3cfc7d0636f08e."},
-    {"type":"round-7-build-identity-supervisor-plan","result":"Recovered expired same-assignment supervisor lease after stable-head/activity checks; claim commit 6c3c702f69cec315dac88bbad5557dacae99089f. Selected canonical identity contract, wrote evidence commit 568fbcc306d83635819d6ec0d521be3f417a1789, opened A1-A4 BUILD-IDENTITY chain, and made only R7-A1 ready in plan commit 9778a2e2b323b840edf0d7082818782a2eac7138."}
+    {"type":"round-7-build-identity-supervisor-plan","result":"Recovered expired same-assignment supervisor lease after stable-head/activity checks; claim commit 6c3c702f69cec315dac88bbad5557dacae99089f. Selected canonical identity contract, wrote evidence commit 568fbcc306d83635819d6ec0d521be3f417a1789, opened A1-A4 BUILD-IDENTITY chain, and made only R7-A1 ready in plan commit 9778a2e2b323b840edf0d7082818782a2eac7138."},
+    {"type":"round-7-a1-build-identity-oracle","result":"Claimed R7-A1 at cc5d9362313c164ba67e5b01ec18ba67428cf05d; added machine-readable immutable payload identity, version/generated/payload/channel falsification mutants, ordinary CI oracle wiring, and evidence ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c. Exact implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d passed ordinary run 31249049293: unit/base/identity success and E2E 221 passed, 10 skipped, 0 failed."}
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"History-linear grouped assistant query and high Send-observation work remain recorded Round-5 limits; no physical Android/GeckoView/calibrated-hardware/Ghost-causal-dominance certification."},
     {"worker":5,"type":"round-6-bounded-structural-limits","finding":"ChatGPT+Claude structural program passed deterministic/hosted cross-adapter gates and exact clean-head CI, but current live insertion and physical Android/WebView/GeckoView/real IME/AT/calibrated hardware remain uncertified."},
-    {"worker":6,"type":"release-dependency-audit-risk","finding":"Two high-severity npm-audit findings were observed in prior install logs. Exact affected package identities, shipped exploitability, and correct remediation remain UNKNOWN until R7-A2; no unattended blanket upgrade is authorized."},
+    {"worker":6,"type":"release-dependency-audit-risk","finding":"Two high-severity npm-audit findings remain observed during exact A1 ordinary CI. Exact affected package identities, shipped exploitability, and correct remediation remain UNKNOWN until R7-A2; no unattended blanket upgrade is authorized."},
     {"worker":1,"type":"build-identity-channel-separation","finding":"The isolated candidate reports 8.8.0 consistently, while main package/userscript report 8.7.1. Userscript update/download metadata and README install link point to main; GitHub Releases are empty and returned tags top out at v7.0.0, so neither tags nor Releases are current 8.x candidate authority. The isolated branch is candidate-only and publishReady remains false."},
-    {"worker":1,"type":"build-identity-contract","finding":"Semver-only identity is insufficient and repository-head-only identity is insufficient because .gitl-only coordination commits can move HEAD without changing the shippable payload. Canonical candidate identity is version plus immutable payload hashes plus exact Git provenance/test bindings plus explicit channel/publication classification."}
+    {"worker":1,"type":"build-identity-contract","finding":"Semver-only identity is insufficient and repository-head-only identity is insufficient because .gitl-only coordination commits can move HEAD without changing the shippable payload. Canonical candidate identity is version plus immutable payload hashes plus exact Git provenance/test bindings plus explicit channel/publication classification."},
+    {"worker":3,"type":"build-identity-oracle-pass","finding":"R7-A1 implemented gitl-build-identity-v1 and killed deliberate version, generated-content, payload-hash, and candidate/stable-channel confusion mutants. Exact ordinary run 31249049293 passed on implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d; the oracle reports head-moved-payload-identical when only non-payload head state differs."},
+    {"worker":3,"type":"github-actions-runtime-hygiene","finding":"GitHub Actions reports checkout/setup-node/upload-artifact v4 target the deprecated Node 20 action runtime and are being forced onto Node 24. Project commands still execute under setup-node Node 20.20.2. Treat as release/tooling hygiene evidence; no product-failure causality is established."}
   ],
   "briefs": [
     ".gitl/briefs/mobile-shell-concepts.md"
@@ -115,34 +118,28 @@
     ".gitl/evidence/round-5/worker-6.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
     ".gitl/evidence/round-6/xa5yz-clean-head-ci-verify.md",
-    ".gitl/evidence/round-7/worker-1.md"
+    ".gitl/evidence/round-7/worker-1.md",
+    ".gitl/evidence/round-7/worker-3.md",
+    ".gitl/evidence/round-7/candidate-identity.json"
   ],
   "historyReference": {
     "detailedPreRound7StateCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "note": "Detailed Round-3 through Round-6 completed-step/finding/evidence ledger remains immutable in Git history and per-round .gitl/evidence. Round-7 state is compacted to active release-critical facts without dropping required programs or prior certification limits."
   },
-  "lease": {
-    "holder": "scheduled-worker-5-r7-a1-build-identity-oracle-04",
-    "assignmentId": "R7-A1-BUILD-IDENTITY-ORACLE",
-    "role": "builder-test-engineer-successor",
-    "nominalWorker": 5,
-    "acquiredAt": "2026-08-08T08:39:30Z",
-    "expiresAt": "2026-08-08T09:24:30Z",
-    "inspectedHead": "20103facba359782ee5bfc6596772a0d279b7c22"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 7,
     "program": "BUILD-IDENTITY",
-    "status": "supervisor-submitted-oracle-ready",
+    "status": "a1-oracle-submitted-dependency-audit-ready",
     "supervisorAssignment": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
     "supervisorExecutedBy": "scheduled-successor-r7-build-identity-supervisor-recovery-11",
     "supervisorClaimCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "supervisorEvidence": ".gitl/evidence/round-7/worker-1.md",
     "supervisorEvidenceCommit": "568fbcc306d83635819d6ec0d521be3f417a1789",
     "supervisorPlanCommit": "9778a2e2b323b840edf0d7082818782a2eac7138",
-    "nextAssignment": "R7-A1-BUILD-IDENTITY-ORACLE",
+    "nextAssignment": "R7-A2-DEPENDENCY-AUDIT",
     "buildIdentityContract": "8.8.0 semantic metadata + canonical userscript source + deterministic generated extension parity + immutable shippable-payload hashes + exact Git provenance/test bindings + explicit candidate/stable/publication channel classification",
     "candidateVersion": "8.8.0",
     "stableMainVersionObserved": "8.7.1",
@@ -154,8 +151,33 @@
     "canonicalSource": "ghost-in-the-loop.user.js",
     "generatedArtifact": "extension/content.js via scripts/build-extension.js",
     "existingCertificationContract": "npm run cert:base performs Node preflight, extension generation, exact generated parity, manifest audit, and SHA-256 artifact indexing",
-    "testedPayloadContinuity": "Direct compare from exact clean-head Round-6 tested head 1a10c592c7023ee01b71b133762ebcb628f550bc through supervisor recovery claim changed only .gitl coordination/evidence paths; no product/build/test/package/manifest/lock path changed.",
+    "a1Assignment": "R7-A1-BUILD-IDENTITY-ORACLE",
+    "a1ExecutedBy": "scheduled-worker-5-r7-a1-build-identity-oracle-04",
+    "a1ClaimCommit": "cc5d9362313c164ba67e5b01ec18ba67428cf05d",
+    "a1Evidence": ".gitl/evidence/round-7/worker-3.md",
+    "a1EvidenceCommit": "ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c",
+    "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
+    "identityRecordProvenanceHead": "30c49f690afb14683014e0a7c40c5c2093aaba2a",
+    "testedImplementationHead": "ee7d79a286193de699e3dc049182492a6dbd5b1d",
+    "identityOracleResult": "PASS (head-moved-payload-identical)",
+    "ordinaryCiRun": 31249049293,
+    "ordinaryUnitJob": 93082348817,
+    "ordinaryE2eJob": 93082348718,
+    "ordinaryResult": "success; unit 44/44 suites, 483 passed, 3 TODO; focused identity/version 15/15 tests; E2E 221 passed, 10 skipped, 0 failed",
+    "baseArtifact": 9019411850,
+    "baseArtifactSha256": "c281904cf69a147c7f6e6d4b969486acda5f21f2a4c6584c261e4cac0bd64523",
+    "e2eArtifact": 9019454463,
+    "e2eArtifactSha256": "c80050621de4a39b036dba468085d2632d3b901a8c682bc5c09cb5a607495715",
+    "payloadHashes": {
+      "ghost-in-the-loop.user.js": "3493ccc31c97db9749768ab32fafc6dc89c2ebc23f043ebaf998aaf115ebf1df",
+      "extension/manifest.json": "1bd616e74988e820885ab210ade3afb031eb905bd522053768dae58650292489",
+      "extension/content.js": "2570d6f6e735ad9ecd0eb49a608c7fd36c79c1b0ed70c5fbf367fac8dadd6990",
+      "extension/icon-48.png": "d698ec8171597e6954d37016082bd5d4740ab91678769bf90e4a826be2037057",
+      "extension/icon-96.png": "05425051e2a49b1a896477c3c43d09f1458c99749149f331f4a89dc9a1a28815"
+    },
+    "testedPayloadContinuity": "The identity record intentionally separates payload identity from later non-payload/test-infrastructure head movement. Exact A1 ordinary CI passed on ee7d79a286193de699e3dc049182492a6dbd5b1d and the oracle reported head-moved-payload-identical; final exact candidate freezing remains an R7-A3 responsibility.",
     "dependencyAuditRisk": "Two high-severity findings remain UNKNOWN as to exact package identity, shipped exploitability, and remediation until R7-A2; no blind upgrade.",
+    "githubActionsRuntimeObservation": "checkout/setup-node/upload-artifact v4 action runtimes are forced from deprecated Node 20 to Node 24 by GitHub; project commands execute with setup-node Node 20.20.2.",
     "round6Verdict": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "round6AuditEvidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
     "round6AuditEvidenceCommit": "aa220f6a3f195783319cd5355c3cfc7d0636f08e",
