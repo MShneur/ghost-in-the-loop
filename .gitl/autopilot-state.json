@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
-  "headAtLastHandoff": "7ee4a07d192d9e32c856b44dae9aab2bd7c38865",
-  "currentStep": "R8-SUPERVISOR-DOCS-RECONCILIATION-PLAN submitted. The docs inventory found concrete drift in README contributor/release framing, docs/ARCHITECTURE.md authority/certification framing, CHANGELOG 8.8 coverage, and .gitl/orchestration/README.md mode/succession policy. A later same-payload A4 claim-head ordinary run 31251250525 is additionally red only in the preserved Round-5 A2 hosted timing family; carry it as timing reproducibility evidence, not product regression and not permission to weaken thresholds. R8-A1-DOCS-RECONCILE is now the earliest executable assignment; research remains ineligible and publishReady remains false.",
-  "nextAction": "Claim and execute R8-A1-DOCS-RECONCILE on agent/8.8-repair-resume. Reconcile README.md, docs/ARCHITECTURE.md, CHANGELOG.md, and .gitl/orchestration/README.md; inspect DEVLOG.md and focused docs only for concrete contradictions. Preserve stable-main install authority, candidate 8.8 non-publication, all bounded R4/R5/R6/R7 limits, A2 development-tooling advisory disposition, hosted timing dissent including run 31251250525, and publishReady=false. Do not change product/generated/dependency/version/channel semantics or merge/tag/publish/release.",
+  "headAtLastHandoff": "52edf1e5fe5f9b59d2ad7d120d648d93d1267e4c",
+  "currentStep": "R8-A1-DOCS-RECONCILE produced durable docs-only reconciliation for README, architecture, orchestration policy and a new bounded 8.8 release-candidate evidence ledger. Stable main install/update authority, candidate non-publication, bounded R4/R5/R6/R7 claims, A2 development-tooling advisory disposition, and hosted timing dissent including run 31251250525 are preserved. A1 is intentionally partial because the connected replacement-only file writer cannot safely make a bounded edit to the large historical CHANGELOG without risking unrelated history loss. R8-A1X-CHANGELOG-RECONCILE is the smallest executable recovery; research remains ineligible and publishReady remains false.",
+  "nextAction": "Claim and execute R8-A1X-CHANGELOG-RECONCILE on agent/8.8-repair-resume. Make only a lossless bounded insertion in the existing CHANGELOG 8.8 section, preserving all historical entries. Carry the R4/R5/R6/R7 limits, A2 advisory disposition, hosted timing dissent including run 31251250525, candidate non-publication and stable-main authority. Record exact diff/no-product-file evidence, then expose R8-A2-DOCS-REDTEAM-AUDIT. If the active connector still cannot patch losslessly, hand off the same recovery to a patch-capable carrier rather than reconstructing the historical file unsafely.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
     "nominalWorker": 3,
-    "assignmentId": "R8-A1-DOCS-RECONCILE",
+    "assignmentId": "R8-A1X-CHANGELOG-RECONCILE",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -53,7 +53,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R8-A1-DOCS-RECONCILE is a safe reversible release-critical documentation artifact and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
+    "reason": "R8-A1X-CHANGELOG-RECONCILE is a safe reversible release-critical documentation recovery and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -62,17 +62,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round8-docs-supervisor-submitted-a1-ready",
+    "checkpointStatus": "round8-a1-partial-a1x-lossless-changelog-recovery-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R8-A1-DOCS-RECONCILE",
+    "nextArtifactAssignment": "R8-A1X-CHANGELOG-RECONCILE",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
-    "lastDeliveryReviewAt": "2026-08-08T09:56:31Z",
+    "lastDeliveryReviewAt": "2026-08-08T10:24:04Z",
     "lastTestableArtifactAt": "2026-08-08T09:36:18Z",
-    "lastDeliveryDecision": "Round-8 supervisor inventory opened a bounded docs implementation plus independent docs audit instead of research. The post-A4 same-payload run 31251250525 adds another timing-only red observation and must be carried with the existing red/green/flaky timing record without threshold weakening. Publication remains disabled.",
-    "evidence": ".gitl/evidence/round-8/worker-1.md",
-    "evidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6"
+    "lastDeliveryDecision": "R8-A1 delivered a safe reversible documentation artifact instead of research: README, architecture, orchestration policy and a bounded candidate-evidence ledger now match canonical evidence. The sole unmet criterion is a lossless CHANGELOG 8.8 insertion; a replacement-only connector was not used to risk historical deletion. R8-A1X is ready as the smallest falsifiable recovery and publication remains disabled.",
+    "evidence": ".gitl/evidence/round-8/worker-3.md",
+    "evidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -90,7 +90,7 @@
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "BUILD-IDENTITY": "completed-certified-bounded-nonpublished",
-    "DOCS-RECONCILIATION": "active-supervisor-submitted-a1-ready",
+    "DOCS-RECONCILIATION": "active-a1-partial-a1x-lossless-changelog-recovery-ready",
     "FINAL-CERT-PACKAGE": "backlog"
   },
   "completedSteps": [
@@ -99,7 +99,8 @@
     {"type":"round-5-longchat-certified-human-accepted-bounded","result":"LONG-CHAT-PERF accepted only at recorded deterministic/hosted scope; history-linear answer lookup, history-linear Send observation, hosted timing variance and physical-platform limits remain explicit."},
     {"type":"round-6-mobile-shell-completed-bounded","result":"MOBILE-SHELL-STRUCTURAL accepted only at bounded deterministic/hosted ChatGPT+Claude cross-adapter scope. Exact live ChatGPT/Claude insertion and physical-platform claims remain uncertified."},
     {"type":"round-7-build-identity-completed-bounded","result":"BUILD-IDENTITY accepted only at bounded immutable-payload/provenance-and-test-binding/candidate-channel/non-published scope; dependency and hosted-timing dissent retained."},
-    {"type":"round-8-docs-supervisor-plan","result":"Claimed supervisor assignment at 7bf75807870f3a7dc5b204194de0766eb695508b, wrote documentation drift/claim-limit evidence bba48b7da83ef927c5102233569bf7b427daf3a6, and opened R8-A1 docs reconciliation plus dependency-blocked R8-A2 independent docs audit in plan commit 7ee4a07d192d9e32c856b44dae9aab2bd7c38865."}
+    {"type":"round-8-docs-supervisor-plan","result":"Claimed supervisor assignment at 7bf75807870f3a7dc5b204194de0766eb695508b, wrote documentation drift/claim-limit evidence bba48b7da83ef927c5102233569bf7b427daf3a6, and opened R8-A1 docs reconciliation plus dependency-blocked R8-A2 independent docs audit in plan commit 7ee4a07d192d9e32c856b44dae9aab2bd7c38865."},
+    {"type":"round-8-a1-docs-partial","result":"Lease claim abe986b7faa891cbc7da6f3aa9ebc4b9e775aa42 delivered README, architecture, orchestration-policy and bounded 8.8 candidate-evidence docs through implementation head 15d355adcbcf0e44e4c181876e4fba5367cb1d19; worker evidence f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc records exact allowed-file diff and the one remaining lossless CHANGELOG recovery."}
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"History-linear grouped assistant query and high Send-observation work remain recorded Round-5 limits; no physical Android/GeckoView/calibrated-hardware/Ghost-causal-dominance certification."},
@@ -108,7 +109,8 @@
     {"worker":6,"type":"build-identity-final-audit-accepted-bounded","finding":"BUILD-IDENTITY is accepted at bounded immutable-payload/provenance-and-test-binding/candidate-channel/non-published scope; stable main remains separate and publication remains false."},
     {"worker":6,"type":"hosted-timing-reproducibility","finding":"Same-payload ordinary CI has both red and green observations in the preserved Round-5 timing family. In addition to runs 31250247148 and 31250736801/31250770870, A4 claim-head run 31251250525 failed only the preserved A2 timing oracle. This is timing reproducibility evidence, not a demonstrated product regression and not permission to weaken thresholds."},
     {"worker":3,"type":"github-actions-runtime-hygiene","finding":"GitHub Actions reports checkout/setup-node/upload-artifact v4 target deprecated Node 20 action runtime and are forced onto Node 24, while project commands execute under setup-node Node 20.20.2. Treat as tooling hygiene; no product-failure causality established."},
-    {"worker":1,"type":"round8-docs-drift","finding":"README contributor/release framing, docs/ARCHITECTURE authority/certification framing, CHANGELOG 8.8 completeness, and .gitl/orchestration/README mode/succession prose contain concrete drift requiring docs-only reconciliation before FINAL-CERT-PACKAGE."}
+    {"worker":1,"type":"round8-docs-drift","finding":"README contributor/release framing, docs/ARCHITECTURE authority/certification framing, CHANGELOG 8.8 completeness, and .gitl/orchestration/README mode/succession prose contain concrete drift requiring docs-only reconciliation before FINAL-CERT-PACKAGE."},
+    {"worker":3,"type":"round8-a1-lossless-changelog-carrier-limit","finding":"README, architecture, orchestration policy and bounded candidate evidence are reconciled. CHANGELOG remains the sole unmet A1 criterion because the connected file writer exposes full replacement rather than a bounded patch; risking silent deletion of historical entries was rejected. R8-A1X carries the exact lossless insertion forward."}
   ],
   "briefs": [
     ".gitl/briefs/mobile-shell-concepts.md"
@@ -125,33 +127,33 @@
     ".gitl/evidence/round-7/worker-6-dependency-audit.md",
     ".gitl/evidence/round-7/worker-4.md",
     ".gitl/evidence/round-7/worker-6-final-audit.md",
-    ".gitl/evidence/round-8/worker-1.md"
+    ".gitl/evidence/round-8/worker-1.md",
+    ".gitl/evidence/round-8/worker-3.md"
   ],
   "historyReference": {
     "detailedPreRound7StateCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "round7FinalAuditEvidenceCommit": "15e82ef79fec5388f19aee881056d03f93f471ac",
     "round8SupervisorEvidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6",
+    "round8A1PartialEvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
     "note": "Detailed prior-round evidence remains immutable in Git history and per-round .gitl/evidence. State is compacted to active release-critical facts without dropping required programs or certification limits."
   },
-  "lease": {
-    "holder": "scheduled-worker-2-r8-a1-docs-reconcile-11",
-    "assignmentId": "R8-A1-DOCS-RECONCILE",
-    "role": "builder-documentation-reconciler-successor",
-    "nominalWorker": 2,
-    "acquiredAt": "2026-08-08T10:13:00Z",
-    "expiresAt": "2026-08-08T10:58:00Z",
-    "inspectedHead": "4c0b9b6f7fb59aa824cc9062b76c0641b389b2a7"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 8,
     "program": "DOCS-RECONCILIATION",
-    "status": "supervisor-submitted-a1-ready",
-    "nextAssignment": "R8-A1-DOCS-RECONCILE",
+    "status": "a1-partial-a1x-lossless-changelog-recovery-ready",
+    "nextAssignment": "R8-A1X-CHANGELOG-RECONCILE",
     "supervisorEvidence": ".gitl/evidence/round-8/worker-1.md",
     "supervisorEvidenceCommit": "bba48b7da83ef927c5102233569bf7b427daf3a6",
     "supervisorPlanCommit": "7ee4a07d192d9e32c856b44dae9aab2bd7c38865",
+    "a1Evidence": ".gitl/evidence/round-8/worker-3.md",
+    "a1EvidenceCommit": "f4e62c088c6894f73c4eb17c4e68ee4f98e3b2bc",
+    "a1ImplementationHead": "15d355adcbcf0e44e4c181876e4fba5367cb1d19",
+    "a1PlanRecoveryCommit": "52edf1e5fe5f9b59d2ad7d120d648d93d1267e4c",
+    "a1CompletedDocs": ["README.md","docs/ARCHITECTURE.md","docs/RELEASE-CANDIDATE-8.8.md",".gitl/orchestration/README.md"],
+    "a1RemainingDoc": "CHANGELOG.md",
     "buildIdentityVerdict": "completed-certified-bounded-nonpublished",
     "candidateVersion": "8.8.0",
     "stableMainVersionObserved": "8.7.1",
