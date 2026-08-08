@@ -28,13 +28,13 @@
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
   "headAtLastHandoff": "4613b7d5254a72b5cf332317aab8b3e3eb155bd7",
-  "currentStep": "R6-XA2X exact Claude Blue verification is active on a guarded registered-CI carrier after safe recovery of the expired XA2 handoff.",
-  "nextAction": "Finish exact syntax/base/generated/lint/unit/focused-safety and Claude Blue Chromium+Firefox verification. Submit only on complete observable PASS; otherwise expose the smallest recovery.",
+  "currentStep": "R6-XA2X exact run 31232161711 passed. XA2/XA2X submitted at deterministic fixture scope; R6-XA3-CROSS-ADAPTER-REDTEAM ready. Live Claude/ChatGPT structural insertion remains UNKNOWN.",
+  "nextAction": "Execute R6-XA3-CROSS-ADAPTER-REDTEAM before any research.",
   "automaticDispatch": {
     "enabled": true,
-    "scheduledFor": "active guarded carrier",
-    "nominalWorker": 3,
-    "assignmentId": "R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY",
+    "scheduledFor": "next eligible wake",
+    "nominalWorker": 4,
+    "assignmentId": "R6-XA3-CROSS-ADAPTER-REDTEAM",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -55,7 +55,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "XA2X exact verification is active; research may not compete.",
+    "reason": "XA3 is executable; research may not compete.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, cross-adapter planning, documentation, packaging, or audit assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -72,16 +72,16 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "claude-blue-exact-verification-active",
+    "checkpointStatus": "claude-blue-verified-cross-adapter-redteam-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY",
+    "nextArtifactAssignment": "R6-XA3-CROSS-ADAPTER-REDTEAM",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first in the XA1 successor wake",
     "lastDeliveryReviewAt": "2026-08-07T20:59:00Z",
-    "lastTestableArtifactAt": "2026-08-07T22:01:00Z",
-    "lastDeliveryDecision": "Recover expired XA2 handoff and execute exact Claude Blue verification before research.",
-    "evidence": ".gitl/evidence/round-6/claude-structure-contract.md",
+    "lastTestableArtifactAt": "2026-08-08T01:15:24Z",
+    "lastDeliveryDecision": "XA2X run 31232161711 passed; advance to XA3.",
+    "evidence": ".gitl/evidence/round-6/claude-blue-prototype-verify.md",
     "evidenceCommit": "3c4e95bac72cd9913f0012ab755fd25cacbf42fd"
   },
   "requiredProgramsMayNotBeDropped": true,
@@ -98,7 +98,7 @@
     "RR-E2E-FAULTS": "completed-human-accepted",
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
-    "MOBILE-SHELL-STRUCTURAL": "active-cross-adapter-claude-contract-submitted-blue-prototype-ready-live-certification-pending",
+    "MOBILE-SHELL-STRUCTURAL": "active-cross-adapter-claude-blue-verified-redteam-ready-live-certification-pending",
     "BUILD-IDENTITY": "backlog",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
@@ -203,6 +203,10 @@
     {
       "type": "round-6-xa1-claude-structure-contract-pass",
       "result": "XA1 created tests/e2e/claude-structure-contract.spec.js as a deterministic no-actuation Claude capability contract with visible decoy, hidden secondary composer, ambiguity/exact-Send/clipping rejection, and specialized->standard->rail demotion. Exact run 31222178355/job 93008901624/artifact 9010795133 passed 18/18 across Chromium+Firefox on tested head 4066724a2d9ca55b2c4adf274e132a19daad29ac. Live Claude navigation required interactive input and remains UNKNOWN. Evidence commit 3c4e95bac72cd9913f0012ab755fd25cacbf42fd; plan handoff commit 4613b7d5254a72b5cf332317aab8b3e3eb155bd7."
+    },
+    {
+      "type": "round-6-xa2x-claude-blue-exact-pass",
+      "result": "XA2X run 31232161711/job 93037980854/artifact 9014184272 passed exact repository gates on 4e5b49165891ea37e291f6089b1f2f6596350d48; live-host claims remain UNKNOWN."
     }
   ],
   "findings": [
@@ -360,6 +364,11 @@
       "worker": 2,
       "type": "claude-xa1-deterministic-contract-pass",
       "finding": "The Claude XA1 fixture proves a bounded adapter-owned structural capability contract can reject visible decoys, hidden/secondary ambiguity, duplicate/replaced Send, clipping, and wrong-site state while preserving exact Send/no-actuation and demoting specialized->standard->rail. Exact run 31222178355/job 93008901624 passed 18/18 Chromium+Firefox. It does not certify current live Claude structure."
+    },
+    {
+      "worker": 1,
+      "type": "claude-xa2-deterministic-blue-exact-pass",
+      "finding": "Claude Blue fixture-gated specialized runner passed exact repository verification on run 31232161711; specialized->standard->rail, exact Send, and fail-closed scope preserved. Live Claude remains uncertified."
     }
   ],
   "briefs": [
@@ -391,25 +400,18 @@
     ".gitl/evidence/round-6/worker-6.md",
     ".gitl/evidence/round-6/cross-adapter-plan.md",
     ".gitl/evidence/round-6/claude-structure-contract.md",
-    ".gitl/evidence/round-6/xa1-claude-contract-carrier-result.md"
+    ".gitl/evidence/round-6/xa1-claude-contract-carrier-result.md",
+    ".gitl/evidence/round-6/claude-blue-prototype.md",
+    ".gitl/evidence/round-6/claude-blue-prototype-verify.md",
+    ".gitl/evidence/round-6/xa2x-claude-blue-carrier-result.md"
   ],
-  "lease": {
-    "holder": "gha-r6-xa2x-31232161711",
-    "assignmentId": "R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY",
-    "nominalWorker": 1,
-    "executedRole": "successor-builder-test-verifier-with-supervisor-integrator-lens",
-    "acquiredAt": "2026-08-08T01:14:25Z",
-    "expiresAt": "2026-08-08T01:59:25Z",
-    "inspectedHead": "cbaa03675b2eedaea4143c8dbe2951d08dd7e175",
-    "recoveredExpiredLease": "gha-r6-xa2x-31229752290/R6-XA2X-CLAUDE-BLUE-PROTOTYPE-VERIFY/2026-08-08T01:04:14Z",
-    "activeWorkCheck": "Prior XA2 lease was expired; XA2 evidence was final; canonical plan had XA2 blocked/XA2X ready; branch was stable at registered-CI arm head."
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 6,
     "program": "MOBILE-SHELL-STRUCTURAL",
-    "verdict": "claude-contract-submitted-blue-prototype-ready-live-certification-pending",
+    "verdict": "claude-blue-deterministic-exact-verified-cross-adapter-redteam-ready-live-certification-pending",
     "supervisorAssignment": "R6-SUPERVISOR-PLAN",
     "supervisorEvidence": ".gitl/evidence/round-6/worker-1.md",
     "supervisorEvidenceCommit": "5888efcdec6f8e4e05cfb93cd23b02b37272b64a",
@@ -449,7 +451,7 @@
     "a2xPartialEvidenceCommit": "9f16ea9c605280893a713abf3395677740c0a3b1",
     "a2xChromiumRuntime": "5/5 PASS on Chromium 144 dependency-free CDP semantic harness; not equivalent to repository Playwright/full-suite PASS",
     "a2xInactiveCarrierCleanupCommit": "2d61780f48af58eeecfce86964c6cddda4b3691b",
-    "nextAssignment": "R6-XA2-CLAUDE-BLUE-PROTOTYPE",
+    "nextAssignment": "R6-XA3-CROSS-ADAPTER-REDTEAM",
     "selectedFirstArchitecture": "ChatGPT-only Blue is accepted as the current deterministic proof target after A2X/A3/A4/A5. Claude XA1 now independently proves the site-specific capability-selection contract at deterministic fixture scope; XA2 will test the smallest fixture-gated Claude Blue runner. Neither ChatGPT nor Claude live structural binding is inferred from fixtures.",
     "structuralInvariant": "Blue/red success requires a real in-flow host child/sibling with original Send node identity preserved; verification failure must cleanly unmount to the existing rail fallback. Prototype tests must make unsafe structural choices fail visibly rather than counting fallback as candidate success.",
     "captureEvidenceGuidance": "Read-only interactive capture is authorized and preferred when a functioning carrier exists. If supplied externally, use sanitized DOM/computed-style/relationship evidence for identity-sensitive gates; screenshots may supplement layout/order but are insufficient alone for Send identity, hidden-composer, containment, or rerender identity.",
@@ -510,7 +512,17 @@
     "xa1ArtifactSha256": "b776b36332aebadf4458acc80e976358b5b8a3769f29829af23ce1e9a27ebe6f",
     "xa1Playwright": "18/18 PASS across Chromium and Firefox",
     "xa1LiveClaudeStructure": "UNKNOWN-NOT-OBTAINED-NONINTERACTIVE-CARRIER",
-    "dependencyAuditRisk": "A2X/A4/XA1 npm install logs report two high-severity npm audit findings. Exact package identities/exploitability/remediation remain UNKNOWN at this stage; carry to existing final release/dependency audit and do not auto-fix blindly."
+    "dependencyAuditRisk": "A2X/A4/XA1 npm install logs report two high-severity npm audit findings. Exact package identities/exploitability/remediation remain UNKNOWN at this stage; carry to existing final release/dependency audit and do not auto-fix blindly.",
+    "xa2ClaudeStatus": "submitted-exact-repository-verified",
+    "xa2ClaudeCandidateCommit": "88b8b2a5ce31f6909e4efa5e90f5f1f723de45bc",
+    "xa2ClaudeEvidenceCommit": "ce3f3cbec172903cd398aa2fd6730826f42036bd",
+    "xa2ClaudeTestedHead": "4e5b49165891ea37e291f6089b1f2f6596350d48",
+    "xa2ClaudeRun": 31232161711,
+    "xa2ClaudeJob": 93037980854,
+    "xa2ClaudeArtifact": 9014184272,
+    "xa2ClaudeArtifactDigest": "sha256:3f4ba74aed0043a80cfce65bac4b7b38262fbd409557abfb983046663c105292",
+    "xa2ClaudeGateOutcomes": "deps=0, syntax=0, base=0, lint=0, unit=0, focused=0, browsers=0, blue=0, upload=0",
+    "xa2ClaudeLiveStructure": "UNKNOWN-NOT-OBTAINED"
   },
   "priorRoundVerification": {
     "round": 5,
