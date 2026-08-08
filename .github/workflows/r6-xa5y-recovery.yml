@@ -1,0 +1,396 @@
+name: Round 6 XA5Y Ordinary E2E Recovery
+
+on:
+  push:
+    branches:
+      - agent/8.8-repair-resume
+    paths:
+      - '.gitl/evidence/round-6/xa5y-recovery-trigger.md'
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: r6-xa5y-ordinary-e2e-recovery
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    env:
+      BRANCH: agent/8.8-repair-resume
+      ASSIGNMENT: R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY
+      HOLDER: gha-r6-xa5y-${{ github.run_id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard branch, state, assignment, and stale-carrier absence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/$BRANCH)"
+          node <<'NODE'
+          const fs = require('fs');
+          const state = JSON.parse(fs.readFileSync('.gitl/autopilot-state.json','utf8'));
+          const plan = JSON.parse(fs.readFileSync('.gitl/orchestration/round-plan.json','utf8'));
+          if (state.status !== 'active' || state.publishReady || state.branch !== process.env.BRANCH) throw new Error('Project state is not XA5Y-eligible');
+          if (state.lease) throw new Error(`Conflicting lease: ${state.lease.holder} / ${state.lease.assignmentId}`);
+          const a = plan.assignments.find(x => x.id === process.env.ASSIGNMENT);
+          if (!a || a.status !== 'ready') throw new Error('XA5Y is no longer ready');
+          const dep = plan.assignments.find(x => x.id === 'R6-XA5X-CI-HYGIENE-RECOVERY');
+          if (!dep || dep.status !== 'blocked') throw new Error('XA5Y dependency state changed');
+          NODE
+          ! grep -q '^  xa2x:' .github/workflows/test.yml
+          test ! -e .github/xa2x-run.sh
+
+      - name: Claim canonical XA5Y lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACQUIRED=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          EXPIRES=$(date -u -d '+45 minutes' +'%Y-%m-%dT%H:%M:%SZ')
+          INSPECTED=$(git rev-parse HEAD)
+          export ACQUIRED EXPIRES INSPECTED
+          node <<'NODE'
+          const fs = require('fs');
+          const p = '.gitl/autopilot-state.json';
+          const state = JSON.parse(fs.readFileSync(p,'utf8'));
+          if (state.lease) throw new Error('Lease appeared before XA5Y claim');
+          state.lease = {
+            holder: process.env.HOLDER,
+            assignmentId: process.env.ASSIGNMENT,
+            nominalWorker: 5,
+            executedRole: 'successor-test-engineer-ci-repair-with-mobile-browser-lens',
+            acquiredAt: process.env.ACQUIRED,
+            expiresAt: process.env.EXPIRES,
+            inspectedHead: process.env.INSPECTED,
+            activeWorkCheck: 'State lease was null; XA5Y was ready; branch equaled the trigger head; stale XA2X workflow/runner residue was absent. Carrier bootstrap commits are coordination-only; first mutation after bootstrap is this canonical lease claim.'
+          };
+          state.currentStep = 'R6-XA5Y claimed for the three exact test-only ordinary-E2E routing/structure repairs classified by XA5X. No product semantics or safety/performance thresholds are authorized to change.';
+          state.nextAction = 'Repair only Playwright project routing for the root lifecycle-mobile fixture and R5 A2 Chromium timing oracle, plus the Repo-Nanny nested test declaration; then run ordinary clean-head CI.';
+          fs.writeFileSync(p, JSON.stringify(state, null, 2) + '\n');
+          NODE
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .gitl/autopilot-state.json
+          git commit -m 'chore(gitl): claim XA5Y ordinary E2E recovery lease'
+          git push origin HEAD:"$BRANCH"
+
+      - name: Apply only the three classified test repairs and remove carrier bootstrap
+        id: fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          CLAIM_SHA=$(git rev-parse HEAD)
+          export CLAIM_SHA
+          node <<'NODE'
+          const fs = require('fs');
+
+          const configPath = 'playwright.config.js';
+          let config = fs.readFileSync(configPath, 'utf8');
+          const anchor = "const projects = [\n";
+          if (!config.includes(anchor)) throw new Error('playwright config anchor missing');
+          const routing = "const rootLifecycleMobilePerf = /[\\\\/]tests[\\\\/]e2e[\\\\/]lifecycle-mobile-perf\\.spec\\.js$/;\nconst chromiumOnlyLongChatA2 = /[\\\\/]tests[\\\\/]e2e[\\\\/]long-chat-perf-a2\\.spec\\.js$/;\n\n";
+          if (!config.includes('const rootLifecycleMobilePerf')) config = config.replace(anchor, routing + anchor);
+          const chromiumAnchor = "    name: 'chromium',\n    use: {";
+          if (!config.includes(chromiumAnchor)) throw new Error('chromium project anchor missing');
+          config = config.replace(chromiumAnchor, "    name: 'chromium',\n    testIgnore: [rootLifecycleMobilePerf],\n    use: {");
+          const firefoxAnchor = "    name: 'firefox',\n    use: {";
+          if (!config.includes(firefoxAnchor)) throw new Error('firefox project anchor missing');
+          config = config.replace(firefoxAnchor, "    name: 'firefox',\n    testIgnore: [rootLifecycleMobilePerf, chromiumOnlyLongChatA2],\n    use: {");
+          fs.writeFileSync(configPath, config);
+
+          const sendPath = 'tests/e2e/repo-nanny/send-evidence.spec.js';
+          let send = fs.readFileSync(sendPath, 'utf8');
+          const missingClose = "    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });\n  test('a block-normalized multiline contenteditable prompt verifies and dispatches once'";
+          if (!send.includes(missingClose)) throw new Error('Repo-Nanny missing-close signature changed');
+          send = send.replace(missingClose, "    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });\n  });\n\n  test('a block-normalized multiline contenteditable prompt verifies and dispatches once'");
+          const redundantTail = "  });\n\n  });\n});\n";
+          if (!send.includes(redundantTail)) throw new Error('Repo-Nanny redundant-tail signature changed');
+          send = send.replace(redundantTail, "  });\n});\n");
+          fs.writeFileSync(sendPath, send);
+          NODE
+
+          node --check playwright.config.js
+          node --check tests/e2e/repo-nanny/send-evidence.spec.js
+          git diff --name-only "$CLAIM_SHA" | sort > /tmp/changed.txt
+          printf '%s\n' 'playwright.config.js' 'tests/e2e/repo-nanny/send-evidence.spec.js' | sort > /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/changed.txt
+          git diff -- tests/e2e/long-chat-perf-a2.spec.js tests/e2e/lifecycle-mobile-perf.spec.js
+          ! grep -q '^  xa2x:' .github/workflows/test.yml
+          test ! -e .github/xa2x-run.sh
+
+          git rm -f .github/workflows/r6-xa5y-recovery.yml .gitl/evidence/round-6/xa5y-recovery-trigger.md
+          git add playwright.config.js tests/e2e/repo-nanny/send-evidence.spec.js
+          git commit -m 'test(gitl): repair XA5Y ordinary E2E routing'
+          FIX_SHA=$(git rev-parse HEAD)
+          echo "fix_sha=$FIX_SHA" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:"$BRANCH"
+
+      - name: Wait for ordinary clean-head CI and capture exact bindings
+        id: poll
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.fix.outputs.fix_sha }}
+        run: |
+          set -euo pipefail
+          RUN_ID=''
+          for i in $(seq 1 90); do
+            JSON=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${TARGET_SHA}&event=push&per_page=30")
+            RUN_ID=$(printf '%s' "$JSON" | jq -r '.workflow_runs[] | select(.name == "Ghost in the Loop — CI") | .id' | head -n1)
+            if [ -n "$RUN_ID" ] && [ "$RUN_ID" != null ]; then
+              STATUS=$(printf '%s' "$JSON" | jq -r --argjson id "$RUN_ID" '.workflow_runs[] | select(.id == $id) | .status')
+              CONCLUSION=$(printf '%s' "$JSON" | jq -r --argjson id "$RUN_ID" '.workflow_runs[] | select(.id == $id) | .conclusion')
+              echo "Found ordinary run $RUN_ID status=$STATUS conclusion=$CONCLUSION"
+              if [ "$STATUS" = completed ]; then break; fi
+            fi
+            sleep 20
+          done
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          RUN_JSON=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")
+          STATUS=$(printf '%s' "$RUN_JSON" | jq -r '.status')
+          CONCLUSION=$(printf '%s' "$RUN_JSON" | jq -r '.conclusion')
+          test "$STATUS" = completed
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > /tmp/jobs.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/artifacts?per_page=100" > /tmp/artifacts.json
+          UNIT_JOB=$(jq -r '.jobs[] | select(.name == "Unit Tests and Base Certification") | .id' /tmp/jobs.json | head -n1)
+          E2E_JOB=$(jq -r '.jobs[] | select(.name == "E2E Boot and Send-Safety Tests (Playwright)") | .id' /tmp/jobs.json | head -n1)
+          UNIT_CONCLUSION=$(jq -r --argjson id "$UNIT_JOB" '.jobs[] | select(.id == $id) | .conclusion' /tmp/jobs.json)
+          E2E_CONCLUSION=$(jq -r --argjson id "$E2E_JOB" '.jobs[] | select(.id == $id) | .conclusion' /tmp/jobs.json)
+          E2E_ARTIFACT=$(jq -r '.artifacts[]? | select(.name == "e2e-results") | .id' /tmp/artifacts.json | head -n1)
+          E2E_DIGEST=$(jq -r '.artifacts[]? | select(.name == "e2e-results") | .digest' /tmp/artifacts.json | head -n1)
+          UNIT_ARTIFACT=$(jq -r '.artifacts[]? | select(.name == "extension-base-certification") | .id' /tmp/artifacts.json | head -n1)
+          UNIT_DIGEST=$(jq -r '.artifacts[]? | select(.name == "extension-base-certification") | .digest' /tmp/artifacts.json | head -n1)
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --job "$E2E_JOB" --log > /tmp/e2e.log 2>&1 || true
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/failed.log 2>&1 || true
+          tail -n 120 /tmp/e2e.log > /tmp/e2e-tail.log || true
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "conclusion=$CONCLUSION" >> "$GITHUB_OUTPUT"
+          echo "unit_job=$UNIT_JOB" >> "$GITHUB_OUTPUT"
+          echo "unit_conclusion=$UNIT_CONCLUSION" >> "$GITHUB_OUTPUT"
+          echo "e2e_job=$E2E_JOB" >> "$GITHUB_OUTPUT"
+          echo "e2e_conclusion=$E2E_CONCLUSION" >> "$GITHUB_OUTPUT"
+          echo "e2e_artifact=$E2E_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "e2e_digest=$E2E_DIGEST" >> "$GITHUB_OUTPUT"
+          echo "unit_artifact=$UNIT_ARTIFACT" >> "$GITHUB_OUTPUT"
+          echo "unit_digest=$UNIT_DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Write XA5Y evidence and provisional handoff
+        id: result
+        if: always() && steps.poll.outputs.run_id != ''
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.fix.outputs.fix_sha }}
+          RUN_ID: ${{ steps.poll.outputs.run_id }}
+          RUN_CONCLUSION: ${{ steps.poll.outputs.conclusion }}
+          UNIT_JOB: ${{ steps.poll.outputs.unit_job }}
+          UNIT_CONCLUSION: ${{ steps.poll.outputs.unit_conclusion }}
+          E2E_JOB: ${{ steps.poll.outputs.e2e_job }}
+          E2E_CONCLUSION: ${{ steps.poll.outputs.e2e_conclusion }}
+          E2E_ARTIFACT: ${{ steps.poll.outputs.e2e_artifact }}
+          E2E_DIGEST: ${{ steps.poll.outputs.e2e_digest }}
+          UNIT_ARTIFACT: ${{ steps.poll.outputs.unit_artifact }}
+          UNIT_DIGEST: ${{ steps.poll.outputs.unit_digest }}
+        run: |
+          set -euo pipefail
+          FINISHED=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          export FINISHED
+          E2E_TAIL=$(cat /tmp/e2e-tail.log 2>/dev/null || true)
+          FAILED=$(sed -n '1,220p' /tmp/failed.log 2>/dev/null || true)
+          PASS=false
+          if [ "$RUN_CONCLUSION" = success ] && [ "$UNIT_CONCLUSION" = success ] && [ "$E2E_CONCLUSION" = success ]; then PASS=true; fi
+          export PASS
+          mkdir -p .gitl/evidence/round-6
+          cat > .gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md <<EOF
+          # Ghost Worker Evidence — R6 XA5Y Ordinary E2E Routing/Test Recovery
+
+          ## Identity
+          - Round: 6
+          - Nominal worker: 5
+          - Intended role: test-engineer-ci-repair
+          - Executed role: successor test-engineer with mobile/browser reliability lens
+          - Assignment: \`R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY\`
+          - Finished: \`${FINISHED}\`
+          - Target clean head: \`${TARGET_SHA}\`
+
+          ## Step Performed
+          Repaired only the three XA5X-classified test causes: exact Playwright project routing for the root Pixel-class lifecycle fixture, exact Chromium-only routing for the accepted Round-5 A2 timing oracle, and the missing top-level close in Repo-Nanny Send evidence. Product source and all safety/performance thresholds remain unchanged.
+
+          ## Coordination Note
+          The connected contents API exposes whole-file replacement rather than a conflict-safe JSON patch for the large canonical state. Two inert carrier-bootstrap commits were therefore created before the carrier's first executable action. Branch movement itself excluded successors, and the carrier's first mutation after bootstrap was the canonical XA5Y lease claim. All test/config changes occurred only after that claim; this deviation is recorded rather than hidden.
+
+          ## Changes
+          - \`playwright.config.js\`: root \`tests/e2e/lifecycle-mobile-perf.spec.js\` excluded from desktop Chromium/Firefox; \`tests/e2e/long-chat-perf-a2.spec.js\` excluded from Firefox. The existing chromium-mobile project continues to collect the root lifecycle fixture, and Chromium continues to collect R5 A2.
+          - \`tests/e2e/repo-nanny/send-evidence.spec.js\`: restored top-level sibling test declarations only; Send assertions and one-click/one-confirmation expectations are unchanged.
+          - \`tests/e2e/lifecycle-mobile-perf.spec.js\`: unchanged.
+          - \`tests/e2e/long-chat-perf-a2.spec.js\`: unchanged, including every numerical threshold.
+          - Product userscript/extension runtime: unchanged.
+
+          ## Tests and CI
+          - Ordinary workflow: \`Ghost in the Loop — CI\`
+          - Run: \`${RUN_ID}\` — **${RUN_CONCLUSION}**
+          - Unit/base job: \`${UNIT_JOB}\` — **${UNIT_CONCLUSION}**
+          - Unit/base artifact: \`${UNIT_ARTIFACT:-UNKNOWN}\` — \`${UNIT_DIGEST:-UNKNOWN}\`
+          - Full ordinary E2E job: \`${E2E_JOB}\` — **${E2E_CONCLUSION}**
+          - E2E artifact: \`${E2E_ARTIFACT:-UNKNOWN}\` — \`${E2E_DIGEST:-UNKNOWN}\`
+
+          ### E2E tail
+          \`\`\`text
+          ${E2E_TAIL:-No E2E log tail captured.}
+          \`\`\`
+
+          ### Failed-log extract
+          \`\`\`text
+          ${FAILED:-No failed-job log output.}
+          \`\`\`
+
+          ## Acceptance Criteria
+          - Root lifecycle mobile fixture only executes in intended chromium-mobile lane while nested long-chat Firefox correctness lane remains available: **$([ "$E2E_CONCLUSION" = success ] && echo PASS || echo NOT-YET-PASS)**.
+          - R5 A2 timing oracle executes only in Chromium with thresholds unchanged: **$([ "$E2E_CONCLUSION" = success ] && echo PASS || echo NOT-YET-PASS)**.
+          - Repo-Nanny Send evidence declarations are top-level siblings with assertions unchanged: **$([ "$E2E_CONCLUSION" = success ] && echo PASS || echo NOT-YET-PASS)**.
+          - Ordinary clean-head unit/base and full E2E are green: **$([ "$PASS" = true ] && echo PASS || echo FAIL)**.
+          - Stale XA2X runner/job residue absent: **PASS**.
+          - No product semantics or fail-closed safeguards weakened: **PASS**.
+
+          ## Safety Checks
+          Send authority, CHOICE, route, lease, uncertainty, exact identity, clipping, demotion, accessibility, and existing timing thresholds were not weakened. No main/merge/auto-merge/tag/publish/release action occurred.
+
+          ## Risks and Limits
+          Live ChatGPT and Claude structural insertion remain UNKNOWN/not certified. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive technology, and calibrated low-end hardware remain uncertified. Existing high-severity npm audit findings remain for the later dependency/release audit; no blanket dependency upgrade was performed.
+
+          ## Assignment Status
+          - $([ "$PASS" = true ] && echo '**submitted — ordinary clean-head CI green; final bounded Round-6 audit may be retried**' || echo '**blocked — ordinary CI remains red; exact failed logs require the smallest follow-up recovery**')
+          EOF
+
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const pass = process.env.PASS === 'true';
+          const xa5y = plan.assignments.find(a => a.id === process.env.ASSIGNMENT);
+          if (!xa5y) throw new Error('XA5Y missing during result handoff');
+          xa5y.status = pass ? 'submitted' : 'blocked';
+          xa5y.executedBy = process.env.HOLDER;
+          xa5y.testedHead = process.env.TARGET_SHA;
+          xa5y.runId = Number(process.env.RUN_ID);
+          xa5y.unitJobId = Number(process.env.UNIT_JOB);
+          xa5y.e2eJobId = Number(process.env.E2E_JOB);
+          xa5y.e2eArtifactId = process.env.E2E_ARTIFACT ? Number(process.env.E2E_ARTIFACT) : null;
+          xa5y.e2eArtifactDigest = process.env.E2E_DIGEST || null;
+          xa5y.blockedReason = pass ? null : 'Ordinary clean-head CI remained red after the three classified test-only corrections; see xa5y-ordinary-e2e-recovery.md for exact logs.';
+
+          state.currentStep = pass
+            ? `R6-XA5Y repaired the three classified test-only ordinary-E2E failures and ordinary clean-head CI passed on ${process.env.TARGET_SHA}. Round-6 final audit can now be retried; live/physical claims remain explicitly uncertified.`
+            : `R6-XA5Y applied only the three classified test-only corrections, but ordinary clean-head CI is still red on ${process.env.TARGET_SHA}. The failure is evidence for a smaller follow-up recovery, not permission to weaken assertions.`;
+          state.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+          state.deliveryPressure.lastTestableArtifactAt = process.env.FINISHED;
+          state.deliveryPressure.checkpointStatus = pass ? 'ordinary-ci-green-final-audit-retry-ready' : 'ordinary-ci-still-red-recovery-required';
+          state.deliveryPressure.lastDeliveryDecision = pass
+            ? 'XA5Y restored ordinary clean-head CI without product changes or weakened assertions. Retry the final bounded Round-6 audit before BUILD-IDENTITY.'
+            : 'XA5Y preserved assertions but ordinary CI remains red. Diagnose the exact residual failure before research or BUILD-IDENTITY.';
+          state.deliveryPressure.evidence = '.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md';
+          state.programStatus['MOBILE-SHELL-STRUCTURAL'] = pass
+            ? 'active-final-audit-retry-ready-live-certification-pending'
+            : 'active-ordinary-ci-recovery-required-live-certification-pending';
+          state.verificationSummary.cleanHeadCiStatus = pass ? 'PASS-XA5Y' : 'FAIL-XA5Y-RECOVERY-REQUIRED';
+          state.verificationSummary.ordinaryCiRun = Number(process.env.RUN_ID);
+          state.verificationSummary.ordinaryUnitJob = Number(process.env.UNIT_JOB);
+          state.verificationSummary.ordinaryUnitConclusion = process.env.UNIT_CONCLUSION;
+          state.verificationSummary.ordinaryE2eJob = Number(process.env.E2E_JOB);
+          state.verificationSummary.ordinaryE2eConclusion = process.env.E2E_CONCLUSION;
+          state.verificationSummary.ordinaryE2eArtifact = process.env.E2E_ARTIFACT ? Number(process.env.E2E_ARTIFACT) : null;
+          state.verificationSummary.ordinaryE2eArtifactDigest = process.env.E2E_DIGEST || null;
+          state.verificationSummary.xa5yStatus = pass ? 'submitted-clean-head-green' : 'blocked-residual-failure';
+          state.verificationSummary.xa5yTestedHead = process.env.TARGET_SHA;
+          if (!state.testEvidence.includes('.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md')) state.testEvidence.push('.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md');
+
+          if (pass) {
+            const xa5 = plan.assignments.find(a => a.id === 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT');
+            if (!xa5) throw new Error('Final audit assignment missing');
+            xa5.status = 'retry-ready';
+            xa5.recoveryReason = 'XA5Y restored ordinary clean-head CI; rerun the bounded final audit against the cleaned test routing and exact XA5Y bindings before Round-6 closure.';
+            xa5.retryMandatoryReads = ['.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md','.gitl/evidence/round-6/final-mobile-shell-audit.md'];
+            plan.dispatch = { nextWake: 'earliest eligible wake', nominalWorker: 6, assignmentId: 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT', automatic: true, claimableByAnyEligibleWorker: true, instruction: 'Retry the final bounded Round-6 audit using XA5Y clean-head CI evidence; close MOBILE-SHELL-STRUCTURAL only at supported deterministic/hosted scope and preserve live/physical limits.' };
+            plan.deliveryPressure.checkpointStatus = 'ordinary-ci-green-final-audit-retry-ready';
+            plan.deliveryPressure.researchOnlyWakesSinceLastProductTestPackageArtifact = 0;
+            plan.deliveryPressure.researchFallbackTemporarilyIneligible = true;
+            plan.deliveryPressure.reenableCondition = 'Research remains lower priority while the final bounded Round-6 audit retry is ready.';
+            plan.deliveryPressure.checkpointDecision = 'XA5Y restored ordinary clean-head CI with test-only routing/structure corrections. Retry final bounded Round-6 audit before BUILD-IDENTITY.';
+            plan.roundDecision = 'clean-head-ci-green-final-audit-retry-ready-live-claims-pending';
+            state.nextAction = 'Retry R6-XA5-MOBILE-SHELL-FINAL-AUDIT before research or BUILD-IDENTITY. Recheck exact XA5Y clean-head CI plus prior cross-adapter evidence, preserve live/physical claim limits, and close Round 6 only at supported bounded scope.';
+            state.automaticDispatch.assignmentId = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+            state.automaticDispatch.nominalWorker = 6;
+            state.researchFallback.temporarilyIneligible = true;
+            state.researchFallback.reason = 'Final bounded Round-6 audit retry is executable after XA5Y clean-head CI PASS; research may not compete.';
+            state.deliveryPressure.nextArtifactAssignment = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+            state.verificationSummary.nextAssignment = 'R6-XA5-MOBILE-SHELL-FINAL-AUDIT';
+          } else {
+            let recovery = plan.assignments.find(a => a.id === 'R6-XA5Y2-ORDINARY-CI-FAILURE-RECOVERY');
+            if (!recovery) {
+              recovery = {
+                id: 'R6-XA5Y2-ORDINARY-CI-FAILURE-RECOVERY', worker: 4, claimableByAnyEligibleWorker: true,
+                intendedRole: 'test-engineer-ci-repair', status: 'ready', program: 'MOBILE-SHELL-STRUCTURAL',
+                goal: 'Inspect the exact XA5Y residual ordinary-CI failure and make only the smallest evidence-linked recovery without weakening product or safety/performance assertions.',
+                dependencies: ['R6-XA5Y-ORDINARY-E2E-ROUTING-TEST-RECOVERY:blocked'],
+                mandatoryReads: ['.gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md'],
+                allowedFiles: ['playwright.config.js','tests/e2e/**','.github/workflows/**','.gitl/**'],
+                prohibitedActions: ['product source changes without reproduced product failure','weakening Send/CHOICE/route/lease/uncertainty or existing timing/safety assertions','main/merge/auto-merge/tag/release/publish'],
+                acceptanceCriteria: ['classify exact residual failure','preserve all already-passing XA5Y routing repairs','rerun ordinary clean-head CI','record exact bindings'],
+                evidencePath: '.gitl/evidence/round-6/xa5y2-ordinary-ci-recovery.md'
+              };
+              plan.assignments.push(recovery);
+            } else recovery.status = 'ready';
+            plan.dispatch = { nextWake: 'earliest eligible wake', nominalWorker: 4, assignmentId: recovery.id, automatic: true, claimableByAnyEligibleWorker: true, instruction: 'Repair only the exact residual XA5Y ordinary-CI failure from durable logs; do not research or weaken assertions.' };
+            plan.roundDecision = 'ordinary-ci-residual-failure-recovery-ready-live-claims-pending';
+            state.nextAction = 'Execute R6-XA5Y2-ORDINARY-CI-FAILURE-RECOVERY before research or BUILD-IDENTITY using the exact XA5Y failed logs.';
+            state.automaticDispatch.assignmentId = recovery.id;
+            state.automaticDispatch.nominalWorker = 4;
+            state.researchFallback.temporarilyIneligible = true;
+            state.researchFallback.reason = 'Residual ordinary-CI recovery is executable; research may not compete.';
+            state.deliveryPressure.nextArtifactAssignment = recovery.id;
+            state.verificationSummary.nextAssignment = recovery.id;
+          }
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          NODE
+
+          git add .gitl/evidence/round-6/xa5y-ordinary-e2e-recovery.md .gitl/orchestration/round-plan.json .gitl/autopilot-state.json
+          git commit -m 'test(gitl): record XA5Y ordinary clean-head CI result'
+          RESULT_COMMIT=$(git rev-parse HEAD)
+          echo "result_commit=$RESULT_COMMIT" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:"$BRANCH"
+
+      - name: Finalize exact evidence commit and release lease
+        if: always() && steps.result.outputs.result_commit != ''
+        shell: bash
+        env:
+          RESULT_COMMIT: ${{ steps.result.outputs.result_commit }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const statePath = '.gitl/autopilot-state.json';
+          const planPath = '.gitl/orchestration/round-plan.json';
+          const state = JSON.parse(fs.readFileSync(statePath,'utf8'));
+          const plan = JSON.parse(fs.readFileSync(planPath,'utf8'));
+          const xa5y = plan.assignments.find(a => a.id === process.env.ASSIGNMENT);
+          if (!xa5y) throw new Error('XA5Y missing in finalizer');
+          xa5y.evidenceCommit = process.env.RESULT_COMMIT;
+          state.headAtLastHandoff = process.env.RESULT_COMMIT;
+          state.deliveryPressure.evidenceCommit = process.env.RESULT_COMMIT;
+          state.lease = null;
+          state.completedSteps.push({ type: 'round-6-xa5y-ordinary-e2e-routing-recovery', result: `XA5Y applied only the three classified test routing/structure corrections and bound ordinary clean-head CI at ${xa5y.testedHead}: run ${xa5y.runId}, unit job ${xa5y.unitJobId}, E2E job ${xa5y.e2eJobId}, E2E conclusion ${state.verificationSummary.ordinaryE2eConclusion}. Evidence commit ${process.env.RESULT_COMMIT}.` });
+          fs.writeFileSync(planPath, JSON.stringify(plan, null, 2) + '\n');
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n');
+          NODE
+          git add .gitl/orchestration/round-plan.json .gitl/autopilot-state.json
+          git commit -m 'chore(gitl): hand off XA5Y ordinary CI recovery'
+          git push origin HEAD:"$BRANCH"
