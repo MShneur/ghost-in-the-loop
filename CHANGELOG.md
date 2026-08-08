@@ -14,6 +14,18 @@
 - Added a distinct Choice needed status and one reviewed Send choice path that preserves the existing task and round count.
 - Kept plain-language behavior in the default help while moving exact marker details to the Advanced injected-prompt preview.
 
+### 8.8 release-candidate evidence boundary — not published
+
+Later 8.8 lifecycle, Long-Chat, structural-shell, and BUILD-IDENTITY work is candidate implementation/certification evidence on the isolated `agent/8.8-repair-resume` branch; it is **not** publication authority. Stable install/update authority remains `main`, `publishReady` remains false, and no merge, tag, GitHub Release, store publication, or stable-channel switch is implied.
+
+- **Round 4 lifecycle:** accepted only at bounded deterministic/hosted scope. Synthetic freeze/resume/discard fixtures and Pixel-class emulation do not certify physical Android discard/freeze, real browser scheduler suspension/discard, Firefox-Android/GeckoView lifecycle behavior, or calibrated low-end hardware.
+- **Round 5 Long Chat:** the grouped-selector improvement remains history-linear, and the safety-critical Send-observation path remains history-linear. Hosted wall-clock timing is reproducibility evidence rather than a calibrated device budget: same-payload runs include green and timing-only red/flaky observations, including run `31251250525`. Accepted numerical thresholds were not weakened. Physical Android and GeckoView remain uncertified.
+- **Round 6 structural shell:** accepted only at bounded deterministic/hosted ChatGPT + Claude cross-adapter scope. Structural authority remains fail-closed and separate from Send authority, with demotion to standard adapter-aware behavior and then rail when structural verification is absent or uncertain. Exact current live ChatGPT/Claude insertion remains **UNKNOWN / NOT CERTIFIED**; physical Android/WebView/GeckoView, real IME/browser-toolbar, assistive-technology mappings, and calibrated low-end-device performance remain uncertified.
+- **Round 7 BUILD-IDENTITY:** candidate identity is bound to immutable shipped-payload bytes plus explicit provenance/test/channel classification; coordination-only head movement is not a new payload. Candidate identity is not publication identity.
+- **Dependency disposition:** `brace-expansion@1.1.15` and `js-yaml@3.14.2` remain real high-severity indirect nodes in the Jest development graph. `npm audit --omit=dev --json` reported zero vulnerabilities and no concrete shipped-payload path was established; shipped exploitability remains **UNKNOWN / NOT CLAIMED** and no blind dependency upgrade is authorized by this evidence.
+
+See `docs/RELEASE-CANDIDATE-8.8.md` and canonical `.gitl/evidence/round-4` through `round-8` records for exact evidence, test bindings, dissent, and certification limits.
+
 ## [8.7.1] — mobile wake recovery and reliable controls
 
 - Added layered automatic recovery after phone lock, app switching, background suspension, BFCache restoration, and focus return.
@@ -1204,11 +1216,11 @@ Built from real-world Manus testing: actual exported files and saved page DOM dr
 - Collapsible panel with single play/pause button when minimized
 - 5 position presets (4 corners + bottom bar)
 - Drag-to-reposition
-- Keyboard shortcuts: Alt+P toggle, Alt+S stop
+- Keyboard shortcuts (Alt+P toggle, Alt+S stop)
 - Completion chime
 
 ### Firefox Extension
-- Updated MV3 wrapper with GM↔browser.storage.local shim
+- Updated MV3 wrapper with GM↔browser.storage shim
 
 ---
 
