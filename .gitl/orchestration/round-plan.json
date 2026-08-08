@@ -1134,7 +1134,8 @@
       "verdict": "needs-ci-hygiene-recovery",
       "acceptedScope": "deterministic-hosted-cross-adapter-only",
       "liveHostCertification": "UNKNOWN-NOT-CLAIMED",
-      "cleanHeadCi": "NOT-SATISFIED"
+      "cleanHeadCi": "NOT-SATISFIED",
+      "evidenceCommit": "90666906269d54fdb5463f05054be639effb4908"
     },
     {
       "id": "R6-XA5X-CI-HYGIENE-RECOVERY",

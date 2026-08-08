@@ -27,7 +27,7 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "7a4db31346c68d3a99dd14e18545cb0df778339d",
+  "headAtLastHandoff": "90666906269d54fdb5463f05054be639effb4908",
   "currentStep": "R6-XA5 final bounded audit accepted the exact ChatGPT+Claude deterministic/hosted evidence but found clean-head CI/carrier hygiene incomplete: stale xa2x workflow residue remains and ordinary E2E job 93037980915 failed. Round-6 closure is withheld; XA5X cleanup/clean-head CI recovery is ready.",
   "nextAction": "Execute R6-XA5X-CI-HYGIENE-RECOVERY before research or BUILD-IDENTITY. Remove only stale XA2X CI residue, run ordinary clean-head CI, classify any reproduced failures, and preserve all fail-closed/live/physical claim limits.",
   "automaticDispatch": {
@@ -82,7 +82,7 @@
     "lastTestableArtifactAt": "2026-08-08T02:58:52.431Z",
     "lastDeliveryDecision": "Do not close Round 6 or advance to BUILD-IDENTITY until stale temporary XA2X CI residue is removed and ordinary clean-head CI is verified; execute XA5X rather than research.",
     "evidence": ".gitl/evidence/round-6/final-mobile-shell-audit.md",
-    "evidenceCommit": "7a4db31346c68d3a99dd14e18545cb0df778339d"
+    "evidenceCommit": "90666906269d54fdb5463f05054be639effb4908"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -437,16 +437,7 @@
     ".gitl/evidence/round-6/xa4-handoff-recovery.md",
     ".gitl/evidence/round-6/final-mobile-shell-audit.md"
   ],
-  "lease": {
-    "holder": "gha-r6-xa5-handoff-31236913929",
-    "nominalWorker": 6,
-    "assignmentId": "R6-XA5-MOBILE-SHELL-FINAL-AUDIT",
-    "role": "handoff-evidence-binding-reconcile",
-    "acquiredAt": "2026-08-08T03:18:51.349Z",
-    "expiresAt": "2026-08-08T04:03:51.349Z",
-    "headAtClaim": "286b461bbe0afbd4c56b82fdf91b4421ac9433ab",
-    "inspectedHead": "286b461bbe0afbd4c56b82fdf91b4421ac9433ab"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
@@ -587,7 +578,8 @@
     "cleanHeadCiStatus": "NOT-SATISFIED",
     "staleXa2xWorkflowResidue": "PRESENT-test.yml-references-missing-.github/xa2x-run.sh",
     "ordinaryE2eJob": 93037980915,
-    "ordinaryE2eConclusion": "failure"
+    "ordinaryE2eConclusion": "failure",
+    "xa5FinalEvidenceCommit": "90666906269d54fdb5463f05054be639effb4908"
   },
   "priorRoundVerification": {
     "round": 5,
