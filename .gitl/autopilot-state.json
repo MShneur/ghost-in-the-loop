@@ -25,14 +25,14 @@
     ".gitl/deferred-questions.md"
   ],
   "productHeadAtRoundStart": "9d49e34af07015f8064ac66398004180216efb08",
-  "headAtLastHandoff": "4b893e0f12dbf2846e3bc4bf7524069bb84f7dce",
-  "currentStep": "R7-A2-DEPENDENCY-AUDIT submitted. Exact lockfile-bound audit run 31250069277 identified brace-expansion@1.1.15 and js-yaml@3.14.2 as high-severity indirect nodes in the Jest development graph. npm audit --omit=dev returned zero vulnerabilities, the root declares no production dependencies, and no concrete path into the immutable shipped payload was established. Shipped exploitability remains UNKNOWN / not claimed; no dependency upgrade was performed. R7-A3-BUILD-IDENTITY-REDTEAM-CI is the earliest executable assignment and research remains ineligible while it is ready.",
-  "nextAction": "Claim and execute R7-A3-BUILD-IDENTITY-REDTEAM-CI on agent/8.8-repair-resume. Independently kill the version/generated/payload/channel identity mutants, run the identity oracle and ordinary clean-head CI on the exact candidate, bind exact head/run/job/artifact evidence, preserve the A2 dev-tooling-only bounded disposition, and expose only the smallest recovery if a real failure appears. Do not weaken assertions, upgrade dependencies without new release-relevant evidence, or alter publication state.",
+  "headAtLastHandoff": "7fe9fd47885170bdda48e10348e5c410cf84e7df",
+  "currentStep": "R7-A3-BUILD-IDENTITY-REDTEAM-CI submitted. All four required identity mutant families were killed and exact ordinary CI passed on candidate head 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02 in run 31250442852: unit/base/identity success and E2E 221 passed, 10 skipped, 0 failed. The immediately preceding same-payload run 31250247148 failed only the preserved Round-5 A2 hosted timing oracle on attempt 1 and passed on attempt 2 at the same head; this is carried as hosted timing-reproducibility dissent, not a product regression and not permission to weaken the threshold. R7-A4-BUILD-IDENTITY-FINAL-AUDIT is now the earliest executable assignment and research remains ineligible.",
+  "nextAction": "Claim and execute R7-A4-BUILD-IDENTITY-FINAL-AUDIT on agent/8.8-repair-resume. Independently audit the immutable payload/provenance/test binding, A2 dependency disposition, A3 mutant sensitivity and exact CI evidence, and explicitly reconcile run 31250247148 attempt-1 timing failure versus same-head attempt-2 and A3 green results without weakening the Round-5 threshold. Close BUILD-IDENTITY only at evidence-supported bounded scope; otherwise expose only the smallest recovery. Keep publishReady=false and do not merge/tag/publish/release.",
   "automaticDispatch": {
     "enabled": true,
     "scheduledFor": "next eligible wake",
-    "nominalWorker": 4,
-    "assignmentId": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
+    "nominalWorker": 6,
+    "assignmentId": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
     "claimableByAnyEligibleWorker": true,
     "holdForbiddenReasons": [
       "missed prior worker slot",
@@ -53,7 +53,7 @@
   "researchFallback": {
     "enabled": true,
     "temporarilyIneligible": true,
-    "reason": "R7-A3-BUILD-IDENTITY-REDTEAM-CI is an executable release-critical test/certification assignment and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
+    "reason": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT is an executable release-critical audit and outranks research under maker v1.1 Delivery-Pressure Checkpoint.",
     "reenableCondition": "Only when no dependency-ready implementation, repair, test, certification, build-identity, documentation, packaging, dependency-audit, or release-evidence assignment exists and no conflicting active worker owns the relevant work.",
     "onlyWhenNoExecutableAssignment": true,
     "neverCompeteWithActiveWork": true,
@@ -62,17 +62,17 @@
   "deliveryPressure": {
     "authority": ".gitl/user-directives/2026-08-07-release-pressure.md",
     "directiveCommit": "84237df815ef56f779434db130d24d4ffbe14666",
-    "checkpointStatus": "round7-a2-dependency-audit-submitted-a3-redteam-ci-ready",
+    "checkpointStatus": "round7-a3-redteam-submitted-a4-final-audit-ready",
     "researchOnlyWakesSinceLastProductTestPackageArtifact": 0,
     "researchFallbackTemporarilyIneligible": true,
-    "nextArtifactAssignment": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
+    "nextArtifactAssignment": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
     "liveCaptureRole": "certification-and-live-adapter-binding gate, not a blanket deterministic prototype-development gate",
     "makerVersionObserved": "v1.1 canonical maker fetched first before this wake",
-    "lastDeliveryReviewAt": "2026-08-08T09:12:50Z",
-    "lastTestableArtifactAt": "2026-08-08T09:12:50Z",
-    "lastDeliveryDecision": "R7-A2 resolved the recorded npm-audit uncertainty to an evidence-backed bounded disposition: brace-expansion@1.1.15 and js-yaml@3.14.2 are transitive Jest development nodes; production omit-dev audit is clean and no concrete shipped-payload path was established. Shipped exploitability remains UNKNOWN / not claimed, no dependency upgrade was made, and R7-A3 exact Red Team/clean-CI verification now outranks research.",
-    "evidence": ".gitl/evidence/round-7/worker-6-dependency-audit.md",
-    "evidenceCommit": "2d38e10cffb82945292fbe168ce80150172d398e"
+    "lastDeliveryReviewAt": "2026-08-08T09:27:19Z",
+    "lastTestableArtifactAt": "2026-08-08T09:27:19Z",
+    "lastDeliveryDecision": "R7-A3 independently falsified the BUILD-IDENTITY contract: version/generated-content/payload-hash/channel-confusion mutants were killed and exact ordinary CI passed on 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02. A predecessor same-payload ordinary run failed the preserved hosted timing oracle on attempt 1 but passed on attempt 2; retain that variance as explicit release evidence, do not call it a product regression or weaken the accepted threshold. R7-A4 final audit now outranks research.",
+    "evidence": ".gitl/evidence/round-7/worker-4.md",
+    "evidenceCommit": "103085ad45455d76a9a6c6144790137342fe6268"
   },
   "requiredProgramsMayNotBeDropped": true,
   "requiredPrograms": [
@@ -89,7 +89,7 @@
     "LIFECYCLE-FROZEN-DISCARDED": "completed-certified-human-accepted-bounded",
     "LONG-CHAT-PERF": "completed-certified-human-accepted-bounded",
     "MOBILE-SHELL-STRUCTURAL": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
-    "BUILD-IDENTITY": "active-dependency-audit-submitted-redteam-ci-ready",
+    "BUILD-IDENTITY": "active-redteam-submitted-final-audit-ready",
     "DOCS-RECONCILIATION": "backlog",
     "FINAL-CERT-PACKAGE": "backlog"
   },
@@ -100,7 +100,8 @@
     {"type":"round-6-mobile-shell-completed-bounded","result":"MOBILE-SHELL-STRUCTURAL accepted only at bounded deterministic/hosted ChatGPT+Claude cross-adapter scope after exact ordinary clean-head CI. Exact live ChatGPT/Claude insertion and physical-platform claims remain uncertified. Audit evidence commit aa220f6a3f195783319cd5355c3cfc7d0636f08e."},
     {"type":"round-7-build-identity-supervisor-plan","result":"Recovered expired same-assignment supervisor lease after stable-head/activity checks; claim commit 6c3c702f69cec315dac88bbad5557dacae99089f. Selected canonical identity contract, wrote evidence commit 568fbcc306d83635819d6ec0d521be3f417a1789, opened A1-A4 BUILD-IDENTITY chain, and made only R7-A1 ready in plan commit 9778a2e2b323b840edf0d7082818782a2eac7138."},
     {"type":"round-7-a1-build-identity-oracle","result":"Claimed R7-A1 at cc5d9362313c164ba67e5b01ec18ba67428cf05d; added machine-readable immutable payload identity, version/generated/payload/channel falsification mutants, ordinary CI oracle wiring, and evidence ddd707e95f43ef9c0be56e8ae8ebb200b6231c2c. Exact implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d passed ordinary run 31249049293: unit/base/identity success and E2E 221 passed, 10 skipped, 0 failed."},
-    {"type":"round-7-a2-dependency-audit","result":"Claimed R7-A2 at fc36fc747149a00e14119f517b1b036406d65451; exact Actions run 31250069277/job 93084916423 captured lockfile-bound audit evidence at f39efa7dd006dc641551898de00a156a95160eb2. Full audit reported exactly two high indirect findings: brace-expansion@1.1.15 and js-yaml@3.14.2, both in the Jest dev graph. npm audit --omit=dev returned zero vulnerabilities; no concrete shipped-payload path was established, shipped exploitability remains UNKNOWN / not claimed, no upgrade was performed, and worker evidence commit is 2d38e10cffb82945292fbe168ce80150172d398e."}
+    {"type":"round-7-a2-dependency-audit","result":"Claimed R7-A2 at fc36fc747149a00e14119f517b1b036406d65451; exact Actions run 31250069277/job 93084916423 captured lockfile-bound audit evidence at f39efa7dd006dc641551898de00a156a95160eb2. Full audit reported exactly two high indirect findings: brace-expansion@1.1.15 and js-yaml@3.14.2, both in the Jest dev graph. npm audit --omit=dev returned zero vulnerabilities; no concrete shipped-payload path was established, shipped exploitability remains UNKNOWN / not claimed, no upgrade was performed, and worker evidence commit is 2d38e10cffb82945292fbe168ce80150172d398e."},
+    {"type":"round-7-a3-build-identity-redteam-ci","result":"Claimed R7-A3 at 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02; all required BUILD-IDENTITY mutants passed falsification and exact ordinary run 31250442852 succeeded on that exact head: unit/base/identity 44/44 suites with 483 passed and 3 todo; E2E 221 passed, 10 skipped, 0 failed. Evidence commit 103085ad45455d76a9a6c6144790137342fe6268 records predecessor run 31250247148 attempt-1 timing-only failure followed by same-head attempt-2 success as hosted timing variance, with no threshold weakening."}
   ],
   "findings": [
     {"worker":6,"type":"long-chat-explicit-uncertified-limits","finding":"History-linear grouped assistant query and high Send-observation work remain recorded Round-5 limits; no physical Android/GeckoView/calibrated-hardware/Ghost-causal-dominance certification."},
@@ -109,7 +110,8 @@
     {"worker":1,"type":"build-identity-channel-separation","finding":"The isolated candidate reports 8.8.0 consistently, while main package/userscript report 8.7.1. Userscript update/download metadata and README install link point to main; GitHub Releases are empty and returned tags top out at v7.0.0, so neither tags nor Releases are current 8.x candidate authority. The isolated branch is candidate-only and publishReady remains false."},
     {"worker":1,"type":"build-identity-contract","finding":"Semver-only identity is insufficient and repository-head-only identity is insufficient because .gitl-only coordination commits can move HEAD without changing the shippable payload. Canonical candidate identity is version plus immutable payload hashes plus exact Git provenance/test bindings plus explicit channel/publication classification."},
     {"worker":3,"type":"build-identity-oracle-pass","finding":"R7-A1 implemented gitl-build-identity-v1 and killed deliberate version, generated-content, payload-hash, and candidate/stable-channel confusion mutants. Exact ordinary run 31249049293 passed on implementation head ee7d79a286193de699e3dc049182492a6dbd5b1d; the oracle reports head-moved-payload-identical when only non-payload head state differs."},
-    {"worker":3,"type":"github-actions-runtime-hygiene","finding":"GitHub Actions reports checkout/setup-node/upload-artifact v4 target the deprecated Node 20 action runtime and are being forced onto Node 24. Project commands still execute under setup-node Node 20.20.2. Treat as release/tooling hygiene evidence; no product-failure causality is established."}
+    {"worker":3,"type":"github-actions-runtime-hygiene","finding":"GitHub Actions reports checkout/setup-node/upload-artifact v4 target the deprecated Node 20 action runtime and are being forced onto Node 24. Project commands still execute under setup-node Node 20.20.2. Treat as release/tooling hygiene evidence; no product-failure causality is established."},
+    {"worker":4,"type":"build-identity-redteam-pass-with-hosted-timing-dissent","finding":"R7-A3 killed all required identity mutant families and exact run 31250442852 passed on head 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02. Immediately preceding run 31250247148 failed only the preserved Round-5 A2 hosted timing oracle on attempt 1 and passed on attempt 2 at the same predecessor head. This demonstrates hosted timing variance, not a product regression; A4 must retain both observations and must not weaken the accepted threshold."}
   ],
   "briefs": [
     ".gitl/briefs/mobile-shell-concepts.md"
@@ -123,34 +125,27 @@
     ".gitl/evidence/round-7/worker-3.md",
     ".gitl/evidence/round-7/candidate-identity.json",
     ".gitl/evidence/round-7/dependency-audit.json",
-    ".gitl/evidence/round-7/worker-6-dependency-audit.md"
+    ".gitl/evidence/round-7/worker-6-dependency-audit.md",
+    ".gitl/evidence/round-7/worker-4.md"
   ],
   "historyReference": {
     "detailedPreRound7StateCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "note": "Detailed Round-3 through Round-6 completed-step/finding/evidence ledger remains immutable in Git history and per-round .gitl/evidence. Round-7 state is compacted to active release-critical facts without dropping required programs or prior certification limits."
   },
-  "lease": {
-    "holder": "scheduled-worker-3-r7-a3-redteam-ci-04",
-    "assignmentId": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
-    "role": "test-engineer-red-team-successor",
-    "nominalWorker": 3,
-    "acquiredAt": "2026-08-08T09:20:30Z",
-    "expiresAt": "2026-08-08T10:05:30Z",
-    "inspectedHead": "0bc30f5188ba98c09453dd6ee0a304fff1d2cf72"
-  },
+  "lease": null,
   "blockedReason": null,
   "publishReady": false,
   "verificationSummary": {
     "round": 7,
     "program": "BUILD-IDENTITY",
-    "status": "a2-dependency-audit-submitted-redteam-ci-ready",
+    "status": "a3-redteam-submitted-final-audit-ready",
     "supervisorAssignment": "R7-SUPERVISOR-BUILD-IDENTITY-PLAN",
     "supervisorExecutedBy": "scheduled-successor-r7-build-identity-supervisor-recovery-11",
     "supervisorClaimCommit": "6c3c702f69cec315dac88bbad5557dacae99089f",
     "supervisorEvidence": ".gitl/evidence/round-7/worker-1.md",
     "supervisorEvidenceCommit": "568fbcc306d83635819d6ec0d521be3f417a1789",
     "supervisorPlanCommit": "9778a2e2b323b840edf0d7082818782a2eac7138",
-    "nextAssignment": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
+    "nextAssignment": "R7-A4-BUILD-IDENTITY-FINAL-AUDIT",
     "buildIdentityContract": "8.8.0 semantic metadata + canonical userscript source + deterministic generated extension parity + immutable shippable-payload hashes + exact Git provenance/test bindings + explicit candidate/stable/publication channel classification",
     "candidateVersion": "8.8.0",
     "stableMainVersionObserved": "8.7.1",
@@ -186,7 +181,7 @@
       "extension/icon-48.png": "d698ec8171597e6954d37016082bd5d4740ab91678769bf90e4a826be2037057",
       "extension/icon-96.png": "05425051e2a49b1a896477c3c43d09f1458c99749149f331f4a89dc9a1a28815"
     },
-    "testedPayloadContinuity": "A2 changed only .gitl coordination/evidence and temporary carrier plumbing; comparison from exact A1 tested head ee7d79a286193de699e3dc049182492a6dbd5b1d through carrier cleanup 4b893e0f12dbf2846e3bc4bf7524069bb84f7dce shows no product, package, lockfile, generated-runtime, manifest, or test changes. A3 owns exact candidate freezing and clean-head Red Team CI.",
+    "testedPayloadContinuity": "Comparison from exact A1 tested head ee7d79a286193de699e3dc049182492a6dbd5b1d through exact A3 tested head 8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02 shows only .gitl coordination/evidence changes; no product, package, lockfile, generated-runtime, manifest, or test changes.",
     "a2Assignment": "R7-A2-DEPENDENCY-AUDIT",
     "a2ExecutedBy": "scheduled-worker-2-r7-a2-dependency-audit-11",
     "a2ClaimCommit": "fc36fc747149a00e14119f517b1b036406d65451",
@@ -198,6 +193,21 @@
     "a2EvidenceCommit": "2d38e10cffb82945292fbe168ce80150172d398e",
     "a2Disposition": "brace-expansion@1.1.15 and js-yaml@3.14.2 are indirect Jest-development nodes; full audit has exactly two high findings; production omit-dev audit has zero vulnerabilities; no concrete shipped-payload path established; shipped exploitability UNKNOWN / not claimed; no dependency upgrade performed",
     "dependencyAuditRisk": "The two upstream advisory families remain real in current development tooling but are evidenced outside the production dependency graph and without a concrete path into immutable shipped payload bytes. This is a bounded non-shipped release disposition, not a universal non-exploitability claim.",
+    "a3Assignment": "R7-A3-BUILD-IDENTITY-REDTEAM-CI",
+    "a3ExecutedBy": "scheduled-worker-3-r7-a3-redteam-ci-04",
+    "a3ClaimCommit": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
+    "a3Evidence": ".gitl/evidence/round-7/worker-4.md",
+    "a3EvidenceCommit": "103085ad45455d76a9a6c6144790137342fe6268",
+    "a3TestedHead": "8e7aedb41b2e18c29ef366dd1ea6b78a201d4b02",
+    "a3CiRun": 31250442852,
+    "a3UnitJob": 93085873656,
+    "a3E2eJob": 93085873700,
+    "a3BaseArtifact": 9019830371,
+    "a3BaseArtifactSha256": "2e66ce5895620acfeffa81e5a1dd055189fe576b100f6d8e9743a85d8507a902",
+    "a3E2eArtifact": 9019874811,
+    "a3E2eArtifactSha256": "5b9c825c7342533185189193ace814fa7181e2b74453875996cfde1fe97e1789",
+    "a3Result": "success; all four required identity mutant families killed; identity oracle PASS (head-moved-payload-identical); unit/base/identity 44/44 suites with 483 passed, 3 TODO; E2E 221 passed, 10 skipped, 0 failed",
+    "a3TimingVarianceEvidence": "Predecessor run 31250247148 attempt 1 failed only the preserved Round-5 A2 hosted timing oracle, then attempt 2 passed on the same exact predecessor head; exact A3 run 31250442852 also passed. Classification: hosted sub-millisecond timing variance, not product regression, not permission to weaken the accepted threshold. A4 must represent both red and green evidence.",
     "githubActionsRuntimeObservation": "checkout/setup-node/upload-artifact v4 action runtimes are forced from deprecated Node 20 to Node 24 by GitHub; project commands execute with setup-node Node 20.20.2.",
     "round6Verdict": "completed-certified-bounded-deterministic-hosted-live-certification-pending",
     "round6AuditEvidence": ".gitl/evidence/round-6/final-mobile-shell-audit-retry.md",
@@ -224,7 +234,8 @@
       "Exact current live ChatGPT structural insertion remains uncertified.",
       "Exact current live Claude structural insertion remains uncertified.",
       "Physical Android, WebView, GeckoView, real IME/AT, and calibrated low-end-device claims remain uncertified.",
-      "R7-A2 exact audit found two high-severity development-tooling nodes but no production-omit-dev vulnerabilities or concrete shipped-payload path; shipped exploitability remains UNKNOWN / not claimed."
+      "R7-A2 exact audit found two high-severity development-tooling nodes but no production-omit-dev vulnerabilities or concrete shipped-payload path; shipped exploitability remains UNKNOWN / not claimed.",
+      "R7-A3 exact CI passed, but an immediately preceding same-payload ordinary run failed only the preserved hosted Round-5 A2 timing oracle on attempt 1 and passed on retry; timing reproducibility remains an explicit release-evidence risk."
     ]
   },
   "priorPriorRoundVerification": {
