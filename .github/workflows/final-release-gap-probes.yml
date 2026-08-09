@@ -1,0 +1,183 @@
+name: Ghost 8.8 final release gap probes
+
+on:
+  push:
+    branches:
+      - test/final-live-host-validation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browserstack-capability-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query BrowserStack browser/device inventory
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$BROWSERSTACK_USERNAME"
+          test -n "$BROWSERSTACK_ACCESS_KEY"
+          curl -fsS -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
+            https://api.browserstack.com/automate/browsers.json > /tmp/browsers.json
+          node <<'NODE'
+          const fs = require('fs');
+          const rows = JSON.parse(fs.readFileSync('/tmp/browsers.json', 'utf8'));
+          const android = rows.filter(x => /android/i.test(JSON.stringify(x)));
+          const firefoxAndroid = android.filter(x => /firefox/i.test(JSON.stringify(x)));
+          const mobileReal = android.filter(x => x.real_mobile === true || x.realMobile === true || /real/i.test(String(x.device || '')));
+          console.log(`BROWSERSTACK_INVENTORY_TOTAL count=${rows.length}`);
+          console.log(`BROWSERSTACK_ANDROID_COUNT count=${android.length}`);
+          console.log(`BROWSERSTACK_ANDROID_FIREFOX_COUNT count=${firefoxAndroid.length}`);
+          console.log(`BROWSERSTACK_ANDROID_REAL_COUNT count=${mobileReal.length}`);
+          for (const row of firefoxAndroid.slice(0, 10)) {
+            const safe = {
+              os: row.os || row.platform || null,
+              os_version: row.os_version || row.osVersion || row.platform_version || null,
+              browser: row.browser || row.browser_name || row.browserName || null,
+              browser_version: row.browser_version || row.browserVersion || null,
+              device: row.device || row.device_name || row.deviceName || null,
+              real_mobile: row.real_mobile ?? row.realMobile ?? null
+            };
+            console.log('BROWSERSTACK_ANDROID_FIREFOX_MATCH ' + JSON.stringify(safe));
+          }
+          NODE
+
+  live-host-canary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout frozen 8.8 staging payload read-only
+        uses: actions/checkout@v4
+        with:
+          ref: release/8.8.0-staging
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frozen test dependencies
+        run: npm ci
+
+      - name: Run non-actuating live-host BrowserStack canaries
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const { chromium } = require('@playwright/test');
+          const playwrightVersion = require('@playwright/test/package.json').version;
+
+          const hosts = [
+            { name: 'chatgpt', url: 'https://chatgpt.com/' },
+            { name: 'perplexity', url: 'https://www.perplexity.ai/' },
+            { name: 'gemini', url: 'https://gemini.google.com/' }
+          ];
+
+          const raw = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8')
+            .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
+          const gm = `
+            window.__gmStore = {};
+            window.GM_getValue = (k, d) => (window.__gmStore[k] !== undefined ? window.__gmStore[k] : d);
+            window.GM_setValue = (k, v) => { window.__gmStore[k] = v; };
+            window.GM_addStyle = css => { const s=document.createElement('style'); s.textContent=css; (document.head||document.documentElement).appendChild(s); };
+            window.GM_setClipboard = () => {};
+            window.GM_notification = () => {};
+            window.unsafeWindow = window;
+          `;
+
+          (async () => {
+            if (!process.env.BROWSERSTACK_USERNAME || !process.env.BROWSERSTACK_ACCESS_KEY) {
+              throw new Error('BrowserStack GitHub secrets are missing.');
+            }
+            const caps = {
+              browser: 'chrome',
+              browser_version: 'latest',
+              os: 'Windows',
+              os_version: '11',
+              name: 'Ghost 8.8 final live-host non-actuating canary',
+              build: `ghost-8.8-final-live-host-${process.env.GITHUB_RUN_ID}`,
+              project: 'Ghost in the Loop release validation',
+              'browserstack.username': process.env.BROWSERSTACK_USERNAME,
+              'browserstack.accessKey': process.env.BROWSERSTACK_ACCESS_KEY,
+              'client.playwrightVersion': playwrightVersion,
+              'browserstack.playwrightVersion': playwrightVersion,
+              'browserstack.console': 'errors',
+              'browserstack.networkLogs': 'false',
+              'browserstack.video': 'false'
+            };
+            const browser = await chromium.connect({
+              wsEndpoint: `wss://cdp.browserstack.com/playwright?caps=${encodeURIComponent(JSON.stringify(caps))}`,
+              timeout: 90000
+            });
+            const context = await browser.newContext({ viewport: { width: 1365, height: 900 } });
+            let bootFailures = 0;
+            try {
+              for (const host of hosts) {
+                const page = await context.newPage();
+                const pageErrors = [];
+                page.on('pageerror', e => pageErrors.push(String(e && (e.message || e))));
+                await page.addInitScript(gm);
+                await page.addInitScript(raw);
+                let navError = null;
+                try {
+                  await page.goto(host.url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+                } catch (e) {
+                  navError = String(e && (e.message || e)).split('\n')[0];
+                }
+                await page.waitForTimeout(7000);
+                const result = await page.evaluate(() => {
+                  const q = s => Array.from(document.querySelectorAll(s));
+                  const buttons = q('button,[role="button"]');
+                  const textboxes = q('textarea,[role="textbox"],[contenteditable="true"]')
+                    .filter(el => {
+                      const r = el.getBoundingClientRect();
+                      const cs = getComputedStyle(el);
+                      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none';
+                    });
+                  const label = el => String(el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('data-testid') || '').toLowerCase();
+                  const sendLike = buttons.filter(el => /send|submit/.test(label(el)));
+                  const stopLike = buttons.filter(el => /stop|cancel/.test(label(el)));
+                  const loginLike = q('a,button,[role="button"]').filter(el => /login|log-in|sign-in|signin/.test(label(el) + ' ' + String(el.getAttribute('href') || '').toLowerCase()));
+                  return {
+                    origin: location.origin,
+                    pathClass: location.pathname.split('/').slice(0, 3).join('/'),
+                    beacon: document.documentElement.getAttribute('data-gitl-boot'),
+                    booted: window.__GITL_V8__ === true,
+                    fatal: !!document.getElementById('gitl-fatal'),
+                    textboxCount: textboxes.length,
+                    sendLikeCount: sendLike.length,
+                    stopLikeCount: stopLike.length,
+                    loginSurface: loginLike.length > 0,
+                    challengeSurface: !!document.querySelector('iframe[src*="captcha"],iframe[src*="challenge"],[id*="captcha" i],[class*="captcha" i]')
+                  };
+                }).catch(e => ({ evaluateError: String(e && (e.message || e)).split('\n')[0] }));
+                const safeErrors = pageErrors.slice(0, 3).map(x => x.replace(/https?:\/\/[^\s)]+/g, '[url]').slice(0, 220));
+                console.log('LIVE_HOST_RESULT ' + JSON.stringify({
+                  host: host.name,
+                  navError,
+                  ...result,
+                  pageErrorCount: pageErrors.length,
+                  pageErrors: safeErrors
+                }));
+                if (!result.booted || result.fatal || !String(result.beacon || '').startsWith('ok:8.8.0')) bootFailures += 1;
+                await page.close();
+              }
+            } finally {
+              await context.close();
+              await browser.close();
+            }
+            if (bootFailures) throw new Error(`Live-host Ghost boot failures: ${bootFailures}`);
+            console.log('LIVE_HOST_GHOST_BOOT_CANARY_PASS hosts=chatgpt,perplexity,gemini actuation=none');
+          })().catch(err => {
+            console.error(err && (err.stack || err.message || err));
+            process.exitCode = 1;
+          });
+          NODE
