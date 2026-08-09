@@ -91,3 +91,102 @@ jobs:
             process.exit(1);
           });
           NODE
+
+      - name: Install unchanged frozen Ghost through Violentmonkey and verify non-actuating boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object ghost-in-the-loop.user.js)" = "e5a9b79c929b3c5fbf3a664fab96e7aaa49bea28"
+          node <<'NODE'
+          const { chromium } = require('@playwright/test');
+          const fs = require('fs');
+          const http = require('http');
+
+          (async () => {
+            const extensionPath = '/tmp/violentmonkey/dist-mv3';
+            const ghostSource = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8');
+            const mockHtml = fs.readFileSync('tests/e2e/mock-chat.html', 'utf8');
+            const server = http.createServer((req, res) => {
+              if (req.url === '/ghost-in-the-loop.user.js') {
+                res.writeHead(200, {
+                  'content-type': 'application/javascript; charset=utf-8',
+                  'cache-control': 'no-store',
+                });
+                res.end(ghostSource);
+                return;
+              }
+              res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+              res.end('not found');
+            });
+            await new Promise((resolve, reject) => {
+              server.once('error', reject);
+              server.listen(8080, '127.0.0.1', resolve);
+            });
+
+            const context = await chromium.launchPersistentContext('', {
+              channel: 'chromium',
+              headless: true,
+              args: [
+                `--disable-extensions-except=${extensionPath}`,
+                `--load-extension=${extensionPath}`,
+              ],
+            });
+
+            try {
+              let [serviceWorker] = context.serviceWorkers();
+              if (!serviceWorker) {
+                serviceWorker = await context.waitForEvent('serviceworker', { timeout: 30000 });
+              }
+              const extensionId = new URL(serviceWorker.url()).host;
+              if (!extensionId) throw new Error(`Violentmonkey service worker has no extension id: ${serviceWorker.url()}`);
+
+              const installer = await context.newPage();
+              await installer.goto('http://localhost:8080/ghost-in-the-loop.user.js', { waitUntil: 'domcontentloaded' });
+              await installer.waitForURL((url) =>
+                url.protocol === 'chrome-extension:' &&
+                url.host === extensionId &&
+                url.pathname.includes('/confirm/'),
+              { timeout: 15000 });
+              const installButton = installer.locator('#confirm');
+              await installButton.waitFor({ state: 'visible', timeout: 15000 });
+              if (await installButton.isDisabled()) throw new Error('Violentmonkey install button is disabled for frozen Ghost userscript');
+              await installButton.click();
+              await installer.waitForTimeout(750);
+
+              const target = await context.newPage();
+              const pageErrors = [];
+              const fatalConsole = [];
+              target.on('pageerror', (error) => pageErrors.push(String(error && (error.stack || error.message || error))));
+              target.on('console', (message) => {
+                const text = `[${message.type()}] ${message.text()}`;
+                if (/\[GITL\].*FATAL/i.test(text)) fatalConsole.push(text);
+              });
+              await target.route('https://chatgpt.com/**', async (route) => {
+                await route.fulfill({
+                  status: 200,
+                  contentType: 'text/html; charset=utf-8',
+                  body: mockHtml,
+                });
+              });
+              await target.goto('https://chatgpt.com/', { waitUntil: 'domcontentloaded' });
+              await target.waitForFunction(() =>
+                document.documentElement.getAttribute('data-gitl-boot') === 'ok:8.8.0',
+              null, { timeout: 15000 });
+
+              const beacon = await target.locator('html').getAttribute('data-gitl-boot');
+              const panelCount = await target.locator('#gitl').count();
+              if (beacon !== 'ok:8.8.0') throw new Error(`Unexpected Ghost boot beacon: ${beacon}`);
+              if (panelCount !== 1) throw new Error(`Expected exactly one Ghost panel, got ${panelCount}`);
+              if (pageErrors.length) throw new Error(`Ghost page errors: ${JSON.stringify(pageErrors)}`);
+              if (fatalConsole.length) throw new Error(`Ghost fatal console output: ${JSON.stringify(fatalConsole)}`);
+
+              console.log(`VIOLENTMONKEY_GHOST_BOOT_PASS beacon=${beacon} panelCount=${panelCount} extensionId=${extensionId}`);
+            } finally {
+              await context.close();
+              await new Promise((resolve) => server.close(resolve));
+            }
+          })().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
+          NODE
