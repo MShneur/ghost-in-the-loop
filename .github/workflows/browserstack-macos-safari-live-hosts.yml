@@ -1,0 +1,229 @@
+name: Ghost 8.8 macOS Safari live-host probe
+
+on:
+  push:
+    branches:
+      - test/8.8-browserstack-macos-safari-live-hosts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-safari-live-hosts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout frozen 8.8 staging payload read-only
+        uses: actions/checkout@v4
+        with:
+          ref: release/8.8.0-staging
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frozen dependencies and Selenium client
+        run: |
+          npm ci
+          npm install --no-save --no-package-lock selenium-webdriver@4
+
+      - name: Run non-actuating live-host probes on macOS Safari
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const https = require('https');
+          const { Builder } = require('selenium-webdriver');
+
+          const hosts = [
+            { name: 'chatgpt', url: 'https://chatgpt.com/' },
+            { name: 'perplexity', url: 'https://www.perplexity.ai/' },
+            { name: 'gemini', url: 'https://gemini.google.com/' },
+            { name: 'claude', url: 'https://claude.ai/' },
+            { name: 'deepseek', url: 'https://chat.deepseek.com/' },
+            { name: 'copilot', url: 'https://copilot.microsoft.com/' },
+            { name: 'grok', url: 'https://grok.com/' }
+          ];
+
+          const baseRaw = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8')
+            .replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
+          const expose = `
+            window.__GITL_LiveReadOnlyProbe = () => {
+              let input = null, send = null, platform = null;
+              try { input = Adapter.getInput(); } catch (_) {}
+              try { send = Adapter.getSendBtn(); } catch (_) {}
+              try { platform = PLAT && PLAT.label; } catch (_) {}
+              const isVisible = el => {
+                if (!el) return false;
+                const r = el.getBoundingClientRect();
+                const cs = getComputedStyle(el);
+                return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden';
+              };
+              return {
+                platform,
+                inputResolved: !!input,
+                inputTag: input ? String(input.tagName || '').toLowerCase() : null,
+                inputVisible: isVisible(input),
+                sendResolved: !!send,
+                sendVisible: isVisible(send)
+              };
+            };
+          `;
+          const raw = /\n\} catch\(__gitlBootErr\)/.test(baseRaw)
+            ? baseRaw.replace(/\n\} catch\(__gitlBootErr\)/, '\n' + expose + '\n} catch(__gitlBootErr)')
+            : baseRaw;
+          const gm = `
+            window.__gmStore = {};
+            window.GM_getValue = (k, d) => (window.__gmStore[k] !== undefined ? window.__gmStore[k] : d);
+            window.GM_setValue = (k, v) => { window.__gmStore[k] = v; };
+            window.GM_addStyle = css => { const s=document.createElement('style'); s.textContent=css; (document.head||document.documentElement).appendChild(s); };
+            window.GM_setClipboard = () => {};
+            window.GM_notification = () => {};
+            window.unsafeWindow = window;
+          `;
+
+          const user = process.env.BROWSERSTACK_USERNAME;
+          const key = process.env.BROWSERSTACK_ACCESS_KEY;
+          if (!user || !key) throw new Error('BrowserStack GitHub secrets are missing.');
+
+          const getJson = url => new Promise((resolve, reject) => {
+            const u = new URL(url);
+            const req = https.request({
+              hostname: u.hostname,
+              path: u.pathname + u.search,
+              headers: { Authorization: 'Basic ' + Buffer.from(`${user}:${key}`).toString('base64') }
+            }, res => {
+              let data = '';
+              res.on('data', c => data += c);
+              res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) return reject(new Error(`inventory HTTP ${res.statusCode}`));
+                try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+              });
+            });
+            req.on('error', reject);
+            req.end();
+          });
+          const ver = x => String(x || '').split('.').map(n => Number(String(n).replace(/\D/g, '')) || 0).reduce((a, n) => a * 1000 + n, 0);
+
+          (async () => {
+            const rows = await getJson('https://api.browserstack.com/automate/browsers.json');
+            const candidates = rows
+              .filter(x => /os x|mac/i.test(String(x.os || '')) && /safari/i.test(String(x.browser || '')) && !x.real_mobile)
+              .sort((a, b) => ver(b.browser_version) - ver(a.browser_version));
+            const pick = candidates[0];
+            if (!pick) {
+              console.log('MACOS_SAFARI_SUMMARY product_failures=none unavailable=macos-safari-inventory-empty observations=none actuation=none');
+              return;
+            }
+
+            console.log('MACOS_SAFARI_TARGET ' + JSON.stringify({
+              os: pick.os,
+              os_version: pick.os_version,
+              browser: pick.browser,
+              browser_version: pick.browser_version,
+              real_mobile: pick.real_mobile ?? null
+            }));
+
+            const caps = {
+              browserName: 'Safari',
+              browserVersion: pick.browser_version || 'latest',
+              'bstack:options': {
+                os: pick.os,
+                osVersion: pick.os_version,
+                projectName: 'Ghost in the Loop release validation',
+                buildName: `ghost-8.8-macos-safari-${process.env.GITHUB_RUN_ID}`,
+                sessionName: 'Ghost 8.8 macOS Safari live-host probe',
+                debug: false,
+                networkLogs: false,
+                consoleLogs: 'errors'
+              }
+            };
+            const hub = `https://${encodeURIComponent(user)}:${encodeURIComponent(key)}@hub.browserstack.com/wd/hub`;
+            const driver = await new Builder().usingServer(hub).withCapabilities(caps).build();
+
+            const productFailures = [];
+            const unavailable = [];
+            const observations = [];
+            try {
+              for (const host of hosts) {
+                let navError = null;
+                try { await driver.get(host.url); }
+                catch (e) { navError = String(e && (e.message || e)).split('\n')[0]; }
+                await driver.sleep(4500);
+
+                let injectError = null;
+                try {
+                  await driver.executeScript(gm);
+                  await driver.executeScript(raw);
+                } catch (e) {
+                  injectError = String(e && (e.message || e)).split('\n')[0];
+                }
+                await driver.sleep(4500);
+
+                const result = injectError ? { injectError } : await driver.executeScript(`
+                  const visible = el => {
+                    const r = el.getBoundingClientRect();
+                    const cs = getComputedStyle(el);
+                    return r.width > 0 && r.height > 0 && cs.display !== 'none' && cs.visibility !== 'hidden';
+                  };
+                  const textboxes = Array.from(document.querySelectorAll('textarea,[role="textbox"],[contenteditable="true"]')).filter(visible);
+                  const controls = Array.from(document.querySelectorAll('a,button,[role="button"]'));
+                  const loginSurface = controls.some(el => {
+                    const s = String(el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('href') || el.textContent || '').toLowerCase();
+                    return /login|log in|log-in|sign in|sign-in|signin|auth/.test(s);
+                  });
+                  let ghostProbe = null;
+                  try { ghostProbe = window.__GITL_LiveReadOnlyProbe ? window.__GITL_LiveReadOnlyProbe() : null; } catch (_) {}
+                  return {
+                    origin: location.origin,
+                    hostname: location.hostname,
+                    pathClass: location.pathname.split('/').slice(0, 3).join('/'),
+                    beacon: document.documentElement.getAttribute('data-gitl-boot'),
+                    booted: window.__GITL_V8__ === true,
+                    fatal: !!document.getElementById('gitl-fatal'),
+                    textboxCount: textboxes.length,
+                    loginSurface,
+                    challengeSurface: !!document.querySelector('iframe[src*="captcha"],iframe[src*="challenge"],[id*="captcha" i],[class*="captcha" i],[id*="challenge" i]'),
+                    innerWidth,
+                    innerHeight,
+                    ghostProbe
+                  };
+                `);
+
+                const expectedHost = new URL(host.url).hostname;
+                const redirected = result.hostname && result.hostname !== expectedHost;
+                console.log('MACOS_SAFARI_RESULT ' + JSON.stringify({ host: host.name, expectedHost, redirected, navError, ...result }));
+
+                if (navError || injectError || redirected) {
+                  unavailable.push(`${host.name}:${navError ? 'navigation' : injectError ? 'inject' : 'redirect'}`);
+                  continue;
+                }
+
+                const bootOk = result.booted && !result.fatal && String(result.beacon || '').startsWith('ok:8.8.0');
+                if (!bootOk) productFailures.push(`${host.name}:boot`);
+                if (result.textboxCount > 0 && (!result.ghostProbe || !result.ghostProbe.inputResolved || !result.ghostProbe.inputVisible)) {
+                  productFailures.push(`${host.name}:visible-composer-not-resolved-visible`);
+                }
+                if (result.textboxCount === 0 && result.ghostProbe && result.ghostProbe.inputResolved) {
+                  observations.push(`${host.name}:resolved-input-without-visible-textbox`);
+                }
+                if (result.textboxCount === 0 && result.ghostProbe && result.ghostProbe.sendResolved) {
+                  observations.push(`${host.name}:resolved-send-without-visible-textbox`);
+                }
+              }
+            } finally {
+              await driver.quit();
+            }
+
+            console.log(`MACOS_SAFARI_SUMMARY product_failures=${productFailures.join(',') || 'none'} unavailable=${unavailable.join(',') || 'none'} observations=${observations.join(',') || 'none'} actuation=none`);
+            if (productFailures.length) throw new Error(`Ghost product failures: ${productFailures.join(',')}`);
+          })().catch(err => {
+            console.error(err && (err.stack || err.message || err));
+            process.exitCode = 1;
+          });
+          NODE
