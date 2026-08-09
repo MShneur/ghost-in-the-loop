@@ -39,9 +39,9 @@ jobs:
           corepack prepare pnpm@11.20.0 --activate
           pnpm install --frozen-lockfile
           pnpm build:mv3
-          test -f dist/manifest.json
+          test -f dist-mv3/manifest.json
           node <<'NODE'
-          const manifest = require('/tmp/violentmonkey/dist/manifest.json');
+          const manifest = require('/tmp/violentmonkey/dist-mv3/manifest.json');
           if (manifest.manifest_version !== 3) {
             throw new Error(`Expected MV3 manifest, got ${manifest.manifest_version}`);
           }
@@ -60,7 +60,7 @@ jobs:
           const { chromium } = require('@playwright/test');
 
           (async () => {
-            const extensionPath = '/tmp/violentmonkey/dist';
+            const extensionPath = '/tmp/violentmonkey/dist-mv3';
             const context = await chromium.launchPersistentContext('', {
               channel: 'chromium',
               headless: true,
