@@ -58,9 +58,10 @@ describe('rail wiring is present in the shipped source', () => {
   test('rail is a selectable position', () => {
     expect(src).toContain("'dock-left','orb','rail'");
   });
-  test('applyPosition routes rail through _applyRail and toggles the tracker', () => {
+  test('applyPosition routes rail through _applyRail and gives native ownership priority', () => {
     expect(src).toContain("else if(pos==='rail'){_applyRail()}");
-    expect(src).toContain("if (pos==='rail') startRailTracker(); else stopRailTracker();");
+    expect(src).toContain("const nativeOwnsRail = typeof NativeSiteMount !== 'undefined' && NativeSiteMount.ownsRail();");
+    expect(src).toContain("if (pos==='rail' && !nativeOwnsRail) startRailTracker(); else stopRailTracker();");
   });
   test('the rail uses the composer position Ghost already finds (no site injection)', () => {
     expect(src).toContain('Adapter.peekInput');
