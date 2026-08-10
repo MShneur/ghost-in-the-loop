@@ -49,3 +49,5 @@ jobs:
             test-results/
           if-no-files-found: warn
           retention-days: 7
+
+# trigger: current-head post-harness-repair audit
