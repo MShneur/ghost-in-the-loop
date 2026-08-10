@@ -13,6 +13,7 @@ on:
       - 'tests/e2e/repo-nanny/send-evidence.spec.js'
       - 'tests/e2e/native-chatgpt-takeover.spec.js'
       - 'tests/e2e/native-chatgpt-rerender-worker4.spec.js'
+      - 'tests/e2e/lifecycle-mobile-perf.spec.js'
       - '.github/workflows/worker4-native-chatgpt-audit.yml'
   workflow_dispatch:
 
@@ -64,6 +65,8 @@ jobs:
         run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
       - name: Whole-composer fail-closed probe
         run: npx playwright test tests/e2e/native-chatgpt-rerender-worker4.spec.js --project=chromium
+      - name: Representative mobile resource and recovery performance
+        run: npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile
       - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@v4
