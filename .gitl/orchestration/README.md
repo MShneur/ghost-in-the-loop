@@ -1,135 +1,136 @@
 # Ghost Autonomous Round Orchestrator
 
-This directory is the durable control plane for the staggered ChatGPT workers that continue Ghost in the Loop 8.8. It is separate from product code but authoritative for autonomous planning, assignments, evidence, leases, and stopping behavior together with `.gitl/autopilot-state.json`, the current round plan, the canonical Personal-Forge maker, and explicit user directives.
+This directory is the durable control plane for staggered ChatGPT workers continuing Ghost in the Loop. GitHub state, commits, CI, evidence, the canonical Personal-Forge maker, and explicit user directives override chat memory.
 
-## Current operating model
+## Current workforce
 
-The canonical operating mode is **`continuous-local-human-gates`**.
+Effective 2026-08-10, Ghost uses **four scheduled wakes** with extra runway for two independent testing stages:
 
-Six scheduled wakes normally provide these perspectives:
+1. `:00` — Worker 1 — Supervisor / Integrator
+2. `:10` — Worker 2 — Researcher / Builder
+3. `:30` — Worker 3 — Test Engineer / Red Team
+4. `:50` — Worker 4 — Independent Verification / Mobile / Accessibility / Performance / Release Audit
 
-1. Supervisor / integrator
-2. Researcher / architect
-3. Builder
-4. Test engineer / Red Team
-5. Mobile, browser, accessibility, and performance specialist
-6. Devil's Advocate / release auditor
+There is no `:20` or `:40` Ghost worker. Former Worker 5 is retired. Former Worker 6's Devil's Advocate/release-audit responsibilities are folded into Worker 4. See `four-worker-workforce.md`.
 
-The timer slot is **wake cadence, not assignment ownership**. The earliest dependency-ready assignment controls scope. Any eligible successor may execute a missed, delayed, failed, or abandoned assignment when the succession and lease rules permit it, while preserving that assignment's intended role, method, acceptance criteria, evidence path, and safety limits.
+The timer number is **wake cadence, not assignment ownership**. The earliest dependency-ready assignment controls scope, subject to the shared lease and active-work exclusion rules.
 
-The **supervisor function** remains the roadmap authority: supervisor assignments create, reorder, accept, reject, reopen, or retire official roadmap work. That authority belongs to the supervisor assignment, not permanently to one timer identity. An eligible successor executing a missed supervisor assignment acts in the supervisor role for that bounded step.
+The 20-minute gaps before Workers 3 and 4 are intentional. Workers should classify/wait on relevant already-running CI rather than launch overlapping tests merely to stay busy.
+
+## Current project state
+
+Ghost 8.8 is currently frozen at bounded deterministic/non-published release-candidate scope and awaits separate publication authority. Workforce migration is coordination-only and must not alter candidate payload bytes, hashes, certification limits, `main`, tags, releases, or stable channels.
+
+All Ghost schedules should remain disabled while `.gitl/autopilot-state.json` is `complete-awaiting-publication-authority`, unless the user explicitly opens a new development/verification round.
 
 ## Canonical files
 
-- `../autopilot-state.json` — authoritative round, branch, lease, stop state, dispatch, and current evidence limits.
-- `round-plan.json` — required programs, assignments, dependencies, acceptance criteria, and evidence status.
-- `task-prompts.md` — universal worker execution contract.
+- `../autopilot-state.json` — authoritative round, branch, lease, stop state, dispatch, workforce state, and current evidence limits.
+- `round-plan.json` — required programs, assignments, dependencies, acceptance criteria, evidence status, and cadence metadata.
+- `task-prompts.md` — universal four-worker execution contract.
+- `four-worker-workforce.md` — workforce roles, cadence, testing runway, and retired-identity handoff.
 - `evidence-contract.md` — durable evidence format.
 - `agent-succession-rule.md` — active-work exclusion, stale/incomplete-handoff recovery, and successor behavior.
-- `../deferred-questions.md` — local human questions and their resolutions.
-- `../user-directives/` — explicit user authority that can refine the operating policy without weakening platform safety.
-- `../briefs/` — user requirements and exploratory product briefs.
-- `../evidence/round-N/` — durable worker evidence for supervisor, auditor, and human review.
+- `../deferred-questions.md` — local human questions and resolutions.
+- `../user-directives/` — explicit user authority.
+- `../briefs/` — user requirements and exploratory briefs.
+- `../evidence/round-N/` — durable worker evidence.
 
-Chat summaries are convenience only. GitHub state, commits, CI, and durable evidence are authoritative.
+Historical evidence remains immutable; do not renumber old worker files to match the new four-worker workforce.
 
 ## Assignment selection and succession
 
-At every wake:
+At every eligible wake:
 
-1. Read the latest canonical maker first, then state, plan, succession rule, task prompt, evidence contract, deferred questions, applicable user directives, and assignment-linked evidence/briefs.
-2. Check the shared lease, branch movement, and GitHub Actions for genuine active conflicting work.
-3. Find the **earliest dependency-ready** assignment whose status is `ready`, `retry-ready`, or equivalent.
-4. Execute that assignment even if its intended worker number differs from the current timer slot.
-5. Preserve assignment scope. A role mismatch, missed timer, previous failed test with a ready recovery, or already-answered/local human question is not a reason to stall.
-6. A failed or blocked step must become durable evidence and expose the smallest dependency-safe continuation rather than being narrated as success.
+1. Read the latest canonical maker, then state, plan, workforce contract, succession rule, task prompt, evidence contract, deferred questions, applicable directives, and assignment-linked evidence/briefs.
+2. Check the shared lease, branch movement, and relevant GitHub Actions for active conflicting work.
+3. Find the earliest dependency-ready assignment whose status is `ready`, `retry-ready`, or equivalent.
+4. Execute that assignment even if its intended worker differs from the timer identity; preserve assignment scope and record succession.
+5. Never skip a ready recovery to perform later work.
+6. A failed/blocked step must become durable evidence and expose the smallest dependency-safe continuation.
 
-A valid active lease plus evidence of continuing conflicting work requires `HOLD`. An expired or stale lease is not reclaimed merely because time passed: inspect branch/workflow activity first. An incomplete handoff may be repaired before nominal expiry only when durable evidence proves the holder finished and no continuing work exists, as defined by `agent-succession-rule.md`.
+A valid active lease or active conflicting branch-changing workflow requires `HOLD`. Missed slots, role mismatch, previous failure with a ready recovery, or historical worker retirement do not.
 
 ## Shared lease
 
-There is one shared lease for repository and coordination writes.
+One shared 45-minute lease governs repository and coordination writes.
 
-Before writing, a worker must:
+Before writing:
 
-1. Re-read the latest state and branch head.
-2. Check branch-changing workflow activity and recent branch movement.
-3. Claim the 45-minute shared lease against the latest state-file blob/commit.
-4. Record holder, assignment, intended/executed role, nominal worker, acquisition/expiry, and inspected head.
-5. Re-read state to confirm ownership before other writes.
+1. re-read latest state and branch head;
+2. inspect relevant workflow activity and branch movement;
+3. claim the lease using the latest state SHA;
+4. record holder, assignment, intended/executed role, nominal worker, acquisition/expiry, and inspected head;
+5. re-read state to confirm ownership.
 
-A worker must stop if unexpected conflicting branch movement appears after acquisition. It must release the lease during the durable handoff, or record an explicit incomplete-handoff object if that transaction cannot be completed.
+Do not overwrite active work. Release the lease in the durable handoff or leave an explicit incomplete-handoff record.
+
+## Four-worker execution chain
+
+The preferred product/release path is:
+
+`Worker 1 plan -> Worker 2 research/build -> Worker 3 adversarial test -> Worker 4 independent/mobile/perf/audit`
+
+### Worker 1 — Supervisor / Integrator
+
+Owns official roadmap/assignment creation and dependency ordering. Preserves all required programs and human/publication gates. Normally does not implement product code.
+
+### Worker 2 — Researcher / Builder
+
+Performs the earliest ready research or implementation step. Researches when current architecture/platform evidence is material, implements the smallest safe assigned change, adds focused regression coverage, and hands exact heads/commands to Worker 3. It never self-certifies product work.
+
+### Worker 3 — Test Engineer / Red Team
+
+First dedicated verification stage. Inspects Worker 2 output and existing CI first, then reproduces/falsifies negative paths, races, stale state, route/lease/CHOICE/Send uncertainty, rerenders, duplicates, identity/package boundaries, and adjacent breakage. A reproduced defect becomes a bounded repair assignment rather than a hidden failure.
+
+### Worker 4 — Independent Verification / Mobile / Accessibility / Performance / Release Audit
+
+Second dedicated verification stage and final independent audit perspective. Inspects Worker 3 evidence and relevant running jobs, then covers mobile/cross-browser, viewport/keyboard/orientation, accessibility/focus/names, observer/timer/scan/layout/memory/performance bounds, package/checksum identity, and certification scope as applicable. It inherits former Worker 5 mobile/performance duties and former Worker 6 Devil's Advocate/release-audit duties.
+
+Worker 4 may accept/reject/needs-more-evidence only when its assignment grants audit authority. It must preserve bounded certification limits and never convert hosted/deterministic evidence into unsupported physical-device/live-host claims.
 
 ## Local human gates
 
-Human questions are **local gates by default**, not global freezes.
-
-A question blocks only the branch or decision that actually depends on it. Independent reversible work continues when dependencies allow. The deferred queue records the question, affected decision, fallback behavior, and eventual answer. Only a genuine project-wide irreversible/publication/security decision should globally stop independent work.
-
-The accepted Round-4 and Round-5 review decisions remain bounded to their recorded evidence. Round-6 read-only live inspection is authorized when a functioning carrier exists; absence of qualifying live capture limits live-host certification but does not prohibit deterministic fixture/release-path work.
-
-## Delivery-Pressure Checkpoint
-
-The canonical Personal-Forge maker v1.1 Delivery-Pressure Checkpoint applies.
-
-Research fallback is temporarily ineligible whenever a safe, reversible implementation, repair, test, certification, documentation, packaging, dependency-audit, or release-evidence artifact is dependency-ready. A delivery review is forced after the maker's pressure threshold (including six research-only wakes or twelve hours without delivery review), and the smallest falsifiable artifact takes priority over another research loop.
-
-Research fallback is still available when no executable assignment exists, but it must never compete with active implementation/test/release work or invent a global blocker from missing local/live evidence.
+Human questions are local gates by default. Block only work that genuinely depends on the unanswered decision. Publication, merge, tag/release, stable-channel changes, and other irreversible/public actions remain explicit user gates.
 
 ## No-stall durable handoff
 
-Before ending a write-bearing wake, the worker must complete as much of this transaction as the connector permits:
+Before ending a write-bearing wake:
 
-1. Commit the implementation/artifact and required evidence.
-2. Update the current assignment status.
-3. Activate the earliest dependency-safe successor.
-4. Update state `currentStep` and `nextAction`.
-5. Release the lease.
-6. Re-read canonical state to verify the handoff.
+1. commit implementation/test/audit evidence;
+2. update assignment status;
+3. activate the earliest dependency-safe successor;
+4. update state `currentStep` and `nextAction`;
+5. release the lease;
+6. re-read canonical state to verify the handoff.
 
-If an operation fails, write an explicit incomplete-handoff record so the next worker can recover it immediately. Work must not exist only in chat.
+Work must not exist only in chat.
 
 ## Evidence and test discipline
 
-Use Repo Nanny when available, sweep before patching, reproduce before repair, inspect adjacent damage, and distinguish repository evidence, external evidence, and inference.
+Use Repo Nanny when available. Sweep before patching, reproduce before repair, inspect adjacent damage, and distinguish repository evidence, external evidence, and inference.
 
-Do not claim a test passed without an exact command result, CI run/job, or recorded artifact. Stale-head, queued, cancelled, unrelated, or synthetic-only evidence cannot be promoted beyond what it proves. For product changes, use applicable syntax, generated parity, unit, base certification, browser, mobile, version, packaging, and checksum gates.
+Do not claim passes without exact commands, CI runs/jobs, or recorded artifacts. Stale-head, queued, cancelled, unrelated, or synthetic-only evidence cannot prove more than it actually demonstrates.
 
-When local execution is unavailable, a temporary guarded GitHub Actions carrier may be used only within the active assignment's permissions. It must guard the expected head, preserve logs/artifacts, remove temporary machinery, and obtain ordinary clean-head CI before certification when required.
+For product/release changes, run applicable syntax, generated parity, unit, browser, mobile, accessibility/performance, base certification, version, package, and checksum gates. Workers 3 and 4 should prefer existing relevant in-flight jobs over duplicate execution.
 
 ## Required release programs
 
-Do not silently remove or defer release-critical programs listed by the current plan, including:
-
-- Repair & Resume browser fault injection.
-- Frozen/discarded lifecycle recovery.
-- Long-chat and constrained-device performance.
-- Host-affixed structural mobile-shell work.
-- Build/candidate/channel identity.
-- Documentation reconciliation.
-- Final certification, packaging, and checksums.
-
-### Host-affixed mobile shell
-
-Teal is a real child in the host header action row. Blue is a real final cell in the host composer action row. Red is a real sibling row beneath the composer that expands the host footer upward. Blue and red must participate in normal host layout and must not become viewport overlays.
-
-Accepted structural authority remains fail-closed: a certified site-specific runner requires reviewed site identity plus adapter-owned structural capability/signature; otherwise it demotes to the standard adapter-aware protocol, then to the existing rail fallback when structural verification is absent or uncertain. Structural-mount authority never grants Send authority, and original Send-node identity remains protected.
+Do not silently remove required programs from state/plan. Historical Ghost 8.8 programs include Repair & Resume browser fault injection, frozen/discarded lifecycle recovery, long-chat performance, host-affixed structural mobile shell, build/candidate/channel identity, documentation reconciliation, and final certification/package/checksums.
 
 ## Safety boundaries
 
 Workers must never:
 
-- modify `main`;
-- merge or enable auto-merge;
-- tag, publish, create a GitHub Release, or change the stable public userscript channel;
-- replace or clone host Send controls for structural UI;
-- weaken Send, CHOICE, route, shared-lease, uncertainty, exact-identity, structural-demotion, or other fail-closed safeguards to obtain a pass;
-- silently lower an accepted test threshold to hide hosted variance;
-- expand certification beyond exact evidence;
-- claim sources, tests, hardware, live-site behavior, or publication state they did not verify.
+- modify `main` without separate explicit authority;
+- merge or enable auto-merge without separate explicit authority;
+- tag, publish, create a GitHub Release, upload to stores, or change stable/public channels without separate explicit authority;
+- replace/clone host Send controls;
+- weaken Send, CHOICE, route, shared-lease, uncertainty, exact-identity, structural-demotion, or other fail-closed safeguards;
+- lower accepted thresholds merely to hide hosted variance;
+- expand certification beyond evidence;
+- claim hardware/live-site/publication facts not verified.
 
-## Round completion and audit
+## Markers
 
-Rounds may proceed continuously without a global review stop. A round closes only after its audit assignment evaluates the bounded objective and its evidence. If a genuine local human decision remains, queue it and block only dependent work. If execution evidence fails or is missing, activate a recovery before closure unless an actual human/irreversible gate prevents that recovery.
-
-`[[GITL::PROCEED]]`, `[[GITL::CHOICE]]`, `[[GITL::HOLD]]`, and `[[GITL::HALT]]` retain the meanings defined by `task-prompts.md`; the marker is an execution-state summary, not a substitute for the durable repository handoff.
+`[[GITL::PROCEED]]`, `[[GITL::CHOICE]]`, `[[GITL::HOLD]]`, and `[[GITL::HALT]]` retain their task-prompt meanings. They summarize execution state; the durable GitHub handoff is authoritative.
