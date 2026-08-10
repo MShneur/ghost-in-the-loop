@@ -6,6 +6,7 @@ on:
       - 'feature/native-site-takeover'
     paths:
       - 'tests/e2e/native-chatgpt-takeover.spec.js'
+      - 'tests/e2e/native-chatgpt-rerender-worker4.spec.js'
       - '.github/workflows/worker4-native-chatgpt-audit.yml'
   workflow_dispatch:
 
@@ -31,6 +32,8 @@ jobs:
         run: npx playwright install --with-deps chromium firefox
       - name: Native takeover cross-browser matrix
         run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
+      - name: Whole-composer fail-closed probe
+        run: npx playwright test tests/e2e/native-chatgpt-rerender-worker4.spec.js --project=chromium
       - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@v4
