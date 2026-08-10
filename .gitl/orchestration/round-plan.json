@@ -7,14 +7,23 @@
   "status": "complete",
   "program": "FINAL-CERT-PACKAGE",
   "supervisorWorker": 1,
+  "workforceContract": ".gitl/orchestration/four-worker-workforce.md",
   "schedule": [
     {"worker":1,"minute":0,"role":"supervisor-integrator"},
-    {"worker":2,"minute":10,"role":"researcher-architect"},
-    {"worker":3,"minute":20,"role":"builder"},
-    {"worker":4,"minute":30,"role":"test-engineer-red-team"},
-    {"worker":5,"minute":40,"role":"mobile-browser-accessibility-performance"},
-    {"worker":6,"minute":50,"role":"devils-advocate-release-auditor"}
+    {"worker":2,"minute":10,"role":"researcher-builder"},
+    {"worker":3,"minute":30,"role":"test-engineer-red-team"},
+    {"worker":4,"minute":50,"role":"independent-verification-mobile-accessibility-performance-release-audit"}
   ],
+  "retiredScheduledWorkers": [
+    {"worker":5,"effective":"2026-08-10","handoffTo":4,"reason":"four-worker scale-down; mobile/browser/accessibility/performance transferred to Worker 4"},
+    {"worker":6,"effective":"2026-08-10","handoffTo":4,"reason":"four-worker scale-down; Devil's Advocate/release-audit duties transferred to Worker 4"}
+  ],
+  "historicalWorkerNumbersRemainImmutable": true,
+  "testingRunway": {
+    "worker2ToWorker3Minutes": 20,
+    "worker3ToWorker4Minutes": 20,
+    "policy": "Workers 3 and 4 inspect and, when appropriate, wait on relevant in-flight testing before starting overlapping runs."
+  },
   "makerAuthority": "MShneur/Personal-Forge:08-agent-bridge/CHATGPT_AUTOMATION_MAKER.md",
   "deferredQuestionQueue": ".gitl/deferred-questions.md",
   "planningPolicy": {
@@ -26,7 +35,9 @@
     "noStallHandoffRequired": true,
     "deliveryPressureCheckpoint": true,
     "researchFallbackOnlyWhenNoExecutableAssignment": true,
-    "publicationBoundaryHardStop": true
+    "publicationBoundaryHardStop": true,
+    "twoDedicatedVerificationStages": true,
+    "preferExistingRelevantInflightTestsOverDuplicates": true
   },
   "completedPrerequisites": {
     "RR-E2E-FAULTS": "completed-human-accepted",
@@ -129,6 +140,7 @@
     {
       "id": "R9-A3-FINAL-CERT-PACKAGE-AUDIT",
       "worker": 6,
+      "historicalWorker": true,
       "claimableByAnyEligibleWorker": true,
       "intendedRole": "devils-advocate-release-auditor",
       "status": "accepted",
@@ -186,7 +198,7 @@
     "a1Evidence": ".gitl/evidence/round-9/worker-3.md",
     "a2Evidence": ".gitl/evidence/round-9/worker-4.md",
     "a3Evidence": ".gitl/evidence/round-9/worker-6.md",
-    "note": "Prior round assignment history remains immutable in Git and per-round evidence. This plan is intentionally compact and release-path focused."
+    "note": "Prior round assignment history remains immutable in Git and per-round evidence. Worker numbers in completed assignments are historical and are not renumbered by the four-worker migration."
   },
   "humanReviewPolicy": "delegated-bounded-reviews-resolved-live-capture-authorized-local-gate-publication-still-explicit",
   "publishReadyRequiresAllRequiredPrograms": true,
