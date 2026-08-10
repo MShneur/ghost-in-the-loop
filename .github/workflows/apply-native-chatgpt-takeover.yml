@@ -30,6 +30,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Normalize generated-test quoting
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/apply-native-chatgpt-takeover.js')
+          s = p.read_text()
+          s = s.replace(r'\\`', r'\`')
+          s = s.replace(r'\\${extraSend}', r'\${extraSend}')
+          p.write_text(s)
+          PY
+          node --check scripts/apply-native-chatgpt-takeover.js
+
       - name: Apply deterministic production slice
         run: node scripts/apply-native-chatgpt-takeover.js
 
