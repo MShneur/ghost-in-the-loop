@@ -1,0 +1,104 @@
+name: Apply ChatGPT native takeover slice
+
+on:
+  push:
+    branches:
+      - feature/native-site-takeover
+    paths:
+      - scripts/apply-native-chatgpt-takeover.js
+      - .github/workflows/apply-native-chatgpt-takeover.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-test-commit:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/native-site-takeover
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply deterministic production slice
+        run: node scripts/apply-native-chatgpt-takeover.js
+
+      - name: Regenerate extension runtime
+        run: npm run build:extension
+
+      - name: Syntax and generated parity
+        run: |
+          npm run lint
+          npm run check:generated
+
+      - name: Focused safety unit regressions
+        run: npx jest tests/choice-state.test.js tests/tablock.test.js tests/wake-recovery.test.js tests/directives.test.js tests/repo-nanny/composer-evidence.test.js --runInBand
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Native takeover production regressions
+        run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile
+
+      - name: Commit tested product slice
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm scripts/apply-native-chatgpt-takeover.js .github/workflows/apply-native-chatgpt-takeover.yml
+          git add ghost-in-the-loop.user.js extension/content.js playwright.config.js .github/workflows/test.yml tests/e2e/native-chatgpt-takeover.spec.js
+          git diff --cached --check
+          git commit -m "feat: integrate ChatGPT native composer controls"
+          PRODUCT_HEAD=$(git rev-parse HEAD)
+          mkdir -p .gitl/evidence/native-site-takeover
+          cat > .gitl/evidence/native-site-takeover/worker-2-chatgpt.md <<EOF
+          # Worker 2 — ChatGPT native takeover production slice
+
+          Status: BUILT + focused tests green; not self-certified.
+          Product head: ${PRODUCT_HEAD}
+          Branch: feature/native-site-takeover
+
+          Implemented:
+          - strict reviewed ChatGPT structural resolver requiring the unified composer, one visible composer-actions row, and one exact reviewed Send control;
+          - one ordinary in-flow open-Shadow Ghost host inside composer-actions;
+          - exact Send identity preservation with fail-closed demotion on target replacement/ambiguity;
+          - zero passive Send/submit/input/keydown actuation and focus preservation coverage;
+          - scoped mutation/resize repair that moves only Ghost;
+          - passive rail/panel suppression only while native verification is active, with sentinel awareness and explicit user-open escape;
+          - generated Firefox extension runtime parity;
+          - feature-branch ordinary CI trigger and Chromium mobile inclusion for the new regression.
+
+          Focused commands run before commit:
+          - npm run build:extension
+          - npm run lint
+          - npm run check:generated
+          - npx jest tests/choice-state.test.js tests/tablock.test.js tests/wake-recovery.test.js tests/directives.test.js tests/repo-nanny/composer-evidence.test.js --runInBand
+          - npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile
+
+          Handoff to Worker 3:
+          Falsify this exact product head for wrong/ambiguous structure, Send replacement, rerender/repair, clipping, duplicate mount, focus retention, rail restoration, and adjacent Send/CHOICE/lease/uncertainty regressions. Do not accept this Worker 2 evidence as independent certification.
+          EOF
+          git add .gitl/evidence/native-site-takeover/worker-2-chatgpt.md
+          git commit -m "gitl: record ChatGPT takeover builder evidence"
+          git push origin HEAD:feature/native-site-takeover
+
+      - name: Upload focused Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-chatgpt-takeover-worker2
+          path: |
+            e2e-results.json
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7
