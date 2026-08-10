@@ -4,6 +4,10 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  DEFAULT_RECORD,
+  collectCurrentIdentity
+} = require('../scripts/build-identity');
+const {
   DEFAULT_OUT,
   listFilesRecursive,
   verifyPackage,
@@ -20,8 +24,7 @@ const FIXTURE_FILES = [
   'extension/content.js',
   'extension/icon-48.png',
   'extension/icon-96.png',
-  '.gitl/autopilot-state.json',
-  '.gitl/evidence/round-7/candidate-identity.json'
+  '.gitl/autopilot-state.json'
 ];
 
 function copyFixture() {
@@ -32,6 +35,16 @@ function copyFixture() {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(source, target);
   }
+
+  // Package-oracle tests must validate package behavior against the bytes in
+  // their own isolated fixture. The repository's Round-7 candidate identity is
+  // intentionally immutable historical release evidence and can legitimately
+  // describe a different branch/head than later feature work.
+  const fixtureHead = '0'.repeat(40);
+  const identity = collectCurrentIdentity(root, { head: fixtureHead });
+  const identityPath = path.join(root, DEFAULT_RECORD);
+  fs.mkdirSync(path.dirname(identityPath), { recursive: true });
+  fs.writeFileSync(identityPath, `${JSON.stringify(identity, null, 2)}\n`);
   return root;
 }
 
