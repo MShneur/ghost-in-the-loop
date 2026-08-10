@@ -32,7 +32,31 @@ jobs:
       - name: Base certification and syntax
         run: npm run cert:base && npm run lint
       - name: Full unit suite
-        run: npm run test:unit -- --runInBand
+        id: unit
+        continue-on-error: true
+        run: |
+          mkdir -p test-results
+          npm run test:unit -- --runInBand --json --outputFile=test-results/worker4-jest.json
+      - name: Report unit failures
+        if: steps.unit.outcome == 'failure'
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const p = 'test-results/worker4-jest.json';
+          if (!fs.existsSync(p)) {
+            console.log('::error::Jest failed without producing worker4-jest.json');
+            process.exit(0);
+          }
+          const report = JSON.parse(fs.readFileSync(p, 'utf8'));
+          const failed = (report.testResults || []).filter((r) => r.status === 'failed');
+          for (const r of failed) {
+            const rel = r.name.startsWith(process.cwd()) ? r.name.slice(process.cwd().length + 1) : r.name;
+            const failedAssertions = (r.assertionResults || []).filter((a) => a.status === 'failed');
+            const names = failedAssertions.map((a) => a.fullName).join(' | ');
+            console.log(`::error file=${rel}::Jest suite failed${names ? ': ' + names : ''}`);
+          }
+          if (!failed.length) console.log('::error::Jest exited non-zero but JSON reported no failed suite');
+          NODE
       - name: Install Chromium and Firefox
         run: npx playwright install --with-deps chromium firefox
       - name: Native takeover cross-browser matrix
@@ -49,5 +73,6 @@ jobs:
             test-results/
           if-no-files-found: warn
           retention-days: 7
-
-# trigger: current-head post-harness-repair audit
+      - name: Enforce unit gate
+        if: always() && steps.unit.outcome == 'failure'
+        run: exit 1
