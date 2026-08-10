@@ -56,6 +56,7 @@ const projects = [
     testMatch: [
       '**/send-evidence.spec.js',
       '**/repair-resume-production.spec.js',
+      '**/native-chatgpt-takeover.spec.js',
       '**/lifecycle-mobile-perf.spec.js',
     ],
     use: {

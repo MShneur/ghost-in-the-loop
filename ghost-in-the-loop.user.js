@@ -5689,7 +5689,8 @@ function applyPosition(pos) {
   else if(pos==='dock-left'){panel.style.top='30%';panel.style.left='0';panel.style.width=''}
   else if(pos==='orb'){_applyOrb()}
   else if(pos==='rail'){_applyRail()}
-  if (pos==='rail') startRailTracker(); else stopRailTracker();
+  const nativeOwnsRail = typeof NativeSiteMount !== 'undefined' && NativeSiteMount.ownsRail();
+  if (pos==='rail' && !nativeOwnsRail) startRailTracker(); else stopRailTracker();
 }
 
 /* Pure geometry for the composer rail (v8.5.0). Given the composer's rect and
@@ -5768,6 +5769,256 @@ function _railReposition() {
 }
 function startRailTracker(){if(_railTracking)return;_railTracking=true;try{window.addEventListener('resize',_railReposition,{passive:true});if(window.visualViewport){window.visualViewport.addEventListener('resize',_railReposition,{passive:true});}_railBindInput();_railMO=new MutationObserver(()=>{if(!_railInput?.isConnected)_railBindInput();});_railMO.observe(document.body,{childList:true,subtree:true});_railPoll=setInterval(()=>{_railBindInput();if(!_railInput?.getBoundingClientRect)return;const r=_railInput.getBoundingClientRect(),k=[Math.round(r.left),Math.round(r.top),Math.round(r.width),Math.round(r.height)].join(':');if(k!==_railRectKey){_railRectKey=k;_railReposition();}},1200);}catch(_){} }
 function stopRailTracker(){if(!_railTracking)return;_railTracking=false;try{window.removeEventListener('resize',_railReposition);if(window.visualViewport){window.visualViewport.removeEventListener('resize',_railReposition);}_railRO?.disconnect();_railMO?.disconnect();if(_railPoll)clearInterval(_railPoll);}catch(_){}_railInput=null;_railRO=null;_railMO=null;_railPoll=null;_railRectKey='';}
+
+
+/* Native site takeover — ChatGPT production slice.
+   Promotes the Round-6 deterministic in-flow primitive into the real product,
+   but only behind a strict reviewed structural contract. The native host never
+   moves, wraps, clones, replaces, or clicks Send. Any loss of certainty removes
+   only Ghost's node and restores the pre-existing panel/rail. */
+const NativeSiteMount = (() => {
+  const MOUNT_SELECTOR = '[data-gitl-native-mount="chatgpt"]';
+  let host = null, row = null, send = null;
+  let mutationObserver = null, resizeObserver = null;
+  let raf = 0, generation = 0, verified = false, closedReason = null;
+  let suppressNextMutation = false, panelExplicit = false, panelDisplayBefore = null;
+
+  const _raf = (fn) => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(fn) : setTimeout(fn, 16);
+  const _caf = (id) => { try { if (typeof cancelAnimationFrame === 'function') cancelAnimationFrame(id); else clearTimeout(id); } catch(_) {} };
+  const visible = (el) => {
+    if (!(el instanceof window.Element) || !el.isConnected) return false;
+    try {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.visibility === 'collapse' || Number(cs.opacity) === 0) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0;
+    } catch(_) { return false; }
+  };
+  const withinBounds = (el, container) => {
+    if (!(el instanceof window.Element) || !(container instanceof window.Element)) return false;
+    try {
+      const cs = getComputedStyle(container);
+      const clipsX = ['hidden','clip'].includes(cs.overflowX);
+      const clipsY = ['hidden','clip'].includes(cs.overflowY);
+      if (!clipsX && !clipsY) return true;
+      const er = el.getBoundingClientRect(), cr = container.getBoundingClientRect(), e = 1;
+      if (clipsX && (er.left < cr.left - e || er.right > cr.right + e)) return false;
+      if (clipsY && (er.top < cr.top - e || er.bottom > cr.bottom + e)) return false;
+      return true;
+    } catch(_) { return false; }
+  };
+
+  const resolveChatGPT = () => {
+    if (!PLAT || PLAT.key !== 'chatgpt' || !PLAT.reviewed) return { ok:false, reason:'site-not-reviewed-chatgpt' };
+    const input = Adapter.peekInput();
+    if (!visible(input)) return { ok:false, reason:'composer-input-missing' };
+    const composer = input.closest && input.closest('form[data-type="unified-composer"]');
+    if (!(composer instanceof window.Element) || !composer.isConnected) return { ok:false, reason:'unified-composer-missing' };
+
+    const rows = [...composer.querySelectorAll('[data-testid="composer-actions"]')].filter(visible);
+    if (rows.length !== 1) return { ok:false, reason:rows.length ? 'composer-actions-ambiguous' : 'composer-actions-missing' };
+    const actionRow = rows[0];
+
+    const sends = new Set();
+    for (const selector of PLAT.send || []) {
+      try {
+        for (const el of composer.querySelectorAll(selector)) {
+          if (visible(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && _sendLooksSafe(el)) sends.add(el);
+        }
+      } catch(_) {}
+    }
+    if (sends.size !== 1) return { ok:false, reason:sends.size ? 'send-ambiguous' : 'send-missing' };
+    const exactSend = [...sends][0];
+    if (!actionRow.contains(exactSend)) return { ok:false, reason:'send-outside-actions' };
+    if (Adapter.getSendBtn() !== exactSend) return { ok:false, reason:'reviewed-send-identity-mismatch' };
+    const display = getComputedStyle(actionRow).display;
+    if (!['flex','inline-flex','grid','inline-grid'].includes(display)) return { ok:false, reason:'composer-actions-not-structural' };
+    if (!withinBounds(exactSend, actionRow)) return { ok:false, reason:'send-clipped' };
+    return { ok:true, input, composer, row:actionRow, send:exactSend };
+  };
+
+  const restorePanel = () => {
+    if (panelDisplayBefore !== null) panel.style.display = panelDisplayBefore;
+    panelDisplayBefore = null;
+    try { delete panel.dataset.gitlNativeSuppressed; } catch(_) {}
+    if (GHOST.ui.position === 'rail' && panel.isConnected) startRailTracker();
+  };
+  const suppressPanel = () => {
+    if (!verified || panelExplicit || !panel) return;
+    if (panelDisplayBefore === null) panelDisplayBefore = panel.style.display;
+    panel.dataset.gitlNativeSuppressed = '1';
+    panel.style.display = 'none';
+    stopRailTracker();
+  };
+
+  const disconnectResources = () => {
+    if (raf) _caf(raf);
+    raf = 0;
+    try { mutationObserver?.disconnect(); } catch(_) {}
+    try { resizeObserver?.disconnect(); } catch(_) {}
+    mutationObserver = resizeObserver = null;
+  };
+  const dropHost = () => {
+    try { if (host?.isConnected) host.remove(); } catch(_) {}
+    host = null;
+  };
+  const failClosed = (reason) => {
+    verified = false;
+    closedReason = reason;
+    generation++;
+    disconnectResources();
+    dropHost();
+    row = send = null;
+    panelExplicit = false;
+    restorePanel();
+    try { Timeline.record('native_mount_demoted', { site:'chatgpt', reason }); } catch(_) {}
+    return { status:'rail', reason, fallback:'rail', attemptedStructural:true };
+  };
+
+  const verify = () => {
+    const cap = resolveChatGPT();
+    if (!cap.ok) return cap.reason;
+    if (cap.row !== row || cap.send !== send) return 'capability-target-changed';
+    if (!(host instanceof window.Element) || !host.isConnected || host.parentElement !== row) return 'mount-disconnected';
+    const position = getComputedStyle(host).position;
+    if (position === 'fixed' || position === 'absolute') return 'mount-not-in-flow';
+    if (!withinBounds(host, row)) return 'mount-clipped';
+    if (document.querySelectorAll(MOUNT_SELECTOR).length !== 1) return 'duplicate-mount';
+    if (!send?.isConnected || !row.contains(send)) return 'send-identity-changed';
+    return null;
+  };
+
+  const updateControls = () => {
+    const shadow = host?.shadowRoot;
+    if (!shadow) return;
+    const primary = shadow.querySelector('[data-gitl-native-action="primary"]');
+    const menu = shadow.querySelector('[data-gitl-native-action="menu"]');
+    const running = GHOST.loop.state === 'RUNNING';
+    if (primary) {
+      primary.textContent = running ? '⏸' : '▶';
+      primary.setAttribute('aria-label', running ? 'Pause Ghost automation' : 'Start or resume Ghost automation');
+      primary.title = running ? 'Pause Ghost automation' : 'Start or resume Ghost automation';
+    }
+    if (menu) {
+      menu.textContent = panelExplicit ? '×' : '👻';
+      menu.setAttribute('aria-label', panelExplicit ? 'Close Ghost panel' : 'Open Ghost panel');
+      menu.title = panelExplicit ? 'Close Ghost panel' : 'Open Ghost panel';
+    }
+  };
+
+  const buildHost = () => {
+    const el = document.createElement('div');
+    el.setAttribute('data-gitl-native-mount', 'chatgpt');
+    el.style.position = 'static';
+    el.style.display = 'inline-flex';
+    el.style.alignItems = 'center';
+    el.style.flex = '0 0 auto';
+    const shadow = el.attachShadow({ mode:'open', delegatesFocus:false });
+    const style = document.createElement('style');
+    style.textContent = ':host{font:inherit;color:inherit}.row{display:inline-flex;align-items:center;gap:4px}button{font:inherit;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 28%,transparent);border-radius:8px;min-width:32px;min-height:32px;padding:4px 7px;cursor:pointer}button:focus-visible{outline:2px solid currentColor;outline-offset:2px}';
+    const controls = document.createElement('div');
+    controls.className = 'row';
+    const primary = document.createElement('button');
+    primary.type = 'button';
+    primary.setAttribute('data-gitl-native-action', 'primary');
+    primary.addEventListener('click', () => { primaryAction(); updateControls(); });
+    const menu = document.createElement('button');
+    menu.type = 'button';
+    menu.setAttribute('data-gitl-native-action', 'menu');
+    menu.addEventListener('click', () => {
+      panelExplicit = !panelExplicit;
+      if (panelExplicit) {
+        restorePanel();
+        if (GHOST.ui.collapsed) { GHOST.ui.collapsed = false; _save('panelCollapsed', false); }
+        render();
+      } else {
+        suppressPanel();
+        updateControls();
+      }
+    });
+    controls.append(primary, menu);
+    shadow.append(style, controls);
+    host = el;
+    updateControls();
+    return el;
+  };
+
+  const scheduleRepair = () => {
+    if (raf || !verified) return;
+    const currentGeneration = generation;
+    raf = _raf(() => {
+      raf = 0;
+      if (!verified || currentGeneration !== generation) return;
+      const cap = resolveChatGPT();
+      if (!cap.ok) return void failClosed(cap.reason);
+      if (cap.row !== row || cap.send !== send) return void failClosed('capability-target-changed');
+      if (!host?.isConnected || host.parentElement !== row || row.lastElementChild !== host) {
+        suppressNextMutation = true;
+        row.append(host);
+      }
+      const failure = verify();
+      if (failure) failClosed(failure);
+      else suppressPanel();
+    });
+  };
+
+  const mountNow = () => {
+    const cap = resolveChatGPT();
+    if (!cap.ok) return { status:'rail', reason:cap.reason, fallback:'rail', attemptedStructural:false };
+    const existing = document.querySelector(MOUNT_SELECTOR);
+    if (existing) {
+      if (existing === host && verified) return { status:'structural', reason:null, reused:true };
+      return failClosed('duplicate-mount');
+    }
+    closedReason = null;
+    panelExplicit = false;
+    generation++;
+    row = cap.row;
+    send = cap.send;
+    row.append(buildHost());
+    verified = true;
+    const failure = verify();
+    if (failure) return failClosed(failure);
+
+    mutationObserver = new MutationObserver(() => {
+      if (suppressNextMutation) { suppressNextMutation = false; return; }
+      scheduleRepair();
+    });
+    mutationObserver.observe(row, { childList:true });
+    if (typeof ResizeObserver === 'function') {
+      resizeObserver = new ResizeObserver(scheduleRepair);
+      resizeObserver.observe(row);
+      resizeObserver.observe(host);
+    }
+    suppressPanel();
+    try { Timeline.record('native_mount_active', { site:'chatgpt' }); } catch(_) {}
+    return { status:'structural', reason:null, reused:false };
+  };
+
+  const refresh = () => {
+    if (verified) {
+      const failure = verify();
+      if (failure) return failClosed(failure);
+      suppressPanel();
+      updateControls();
+      return { status:'structural', reason:null, reused:true };
+    }
+    return mountNow();
+  };
+  const stop = () => {
+    verified = false;
+    generation++;
+    disconnectResources();
+    dropHost();
+    row = send = null;
+    panelExplicit = false;
+    restorePanel();
+  };
+  const ownsRail = () => verified && !panelExplicit;
+  const isSuppressingPanel = () => ownsRail() && panel?.dataset?.gitlNativeSuppressed === '1' && panel.style.display === 'none';
+
+  return { start:refresh, refresh, stop, verify, updateControls, ownsRail, isSuppressingPanel, state:() => ({ verified, closedReason, panelExplicit }) };
+})();
 
 /* Position the orb. Collapsed: a tucked circle clinging to the saved edge
    (~12px off-screen) at the saved vertical ratio. Expanded: a normal-width
@@ -5864,6 +6115,7 @@ function render() {
     </div>`);
   bindEvents();
   applyPosition(GHOST.ui.position);
+  try { if (typeof NativeSiteMount !== 'undefined') NativeSiteMount.updateControls(); } catch(_) {}
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -6285,6 +6537,7 @@ safeBoot(() => {
   _phase('panel',    true,  () => mountPanel());
   _phase('skin',     true,  () => SKIN.apply());
   _phase('render',   true,  () => render());
+  _phase('native-takeover', false, () => NativeSiteMount.start());
 
   // Panel is up and rendered — commit the singleton NOW (never before boot).
   window.__GITL_V8__ = true;
@@ -6316,6 +6569,7 @@ safeBoot(() => {
     const _bootInterval = setInterval(() => {
       _bootRetry++;
       const inp = _q('input', PLAT.input);
+      try { NativeSiteMount.refresh(); } catch(_) {}
       if (inp) {
         clearInterval(_bootInterval);
         GHOST.loop.detail = `✓ Connected to ${PLAT.label}`;
@@ -6373,6 +6627,7 @@ function startPanelSentinel() {
   const isDown = () => {
     const n = document.getElementById('gitl');
     if (!n || !n.isConnected || !document.body) return true;
+    if (typeof NativeSiteMount !== 'undefined' && NativeSiteMount.isSuppressingPanel()) return false;
     try {
       const st = getComputedStyle(n);
       if (st.display === 'none' || st.visibility === 'hidden') return true;
