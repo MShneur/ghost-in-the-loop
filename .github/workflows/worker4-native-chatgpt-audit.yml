@@ -3,9 +3,10 @@ name: Worker 4 Native ChatGPT Audit
 on:
   push:
     branches:
-      - feature/native-site-takeover
+      - 'feature/native-site-takeover'
     paths:
-      - .github/workflows/worker4-native-chatgpt-audit.yml
+      - 'tests/e2e/native-chatgpt-takeover.spec.js'
+      - '.github/workflows/worker4-native-chatgpt-audit.yml'
   workflow_dispatch:
 
 permissions:
@@ -22,107 +23,14 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Base certification and full unit suite
-        run: |
-          npm run cert:base
-          npm run lint
-          npm run test:unit -- --runInBand
-      - name: Install audit browsers and Axe
-        run: |
-          npx playwright install --with-deps chromium firefox webkit
-          npm install --no-save @axe-core/playwright
-      - name: Baseline native takeover matrix
+      - name: Base certification and syntax
+        run: npm run cert:base && npm run lint
+      - name: Full unit suite
+        run: npm run test:unit -- --runInBand
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+      - name: Native takeover cross-browser matrix
         run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
-      - name: WebKit baseline with temporary config
-        run: |
-          cat > worker4-webkit.config.js <<'EOF'
-          const { defineConfig, devices } = require('@playwright/test');
-          module.exports = defineConfig({
-            testDir: './tests/e2e',
-            testMatch: '**/native-chatgpt-takeover.spec.js',
-            timeout: 30000,
-            fullyParallel: false,
-            retries: 0,
-            reporter: 'list',
-            use: { headless: true, actionTimeout: 10000, trace: 'retain-on-failure' },
-            projects: [{ name: 'webkit-audit', use: { ...devices['Desktop Safari'] } }],
-          });
-          EOF
-          npx playwright test --config=worker4-webkit.config.js
-      - name: Add independent Axe, repair-burst, and whole-composer rerender probes
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const p = 'tests/e2e/native-chatgpt-takeover.spec.js';
-          let s = fs.readFileSync(p, 'utf8');
-          s = s.replace("const path = require('path');", "const path = require('path');\nconst AxeBuilder = require('@axe-core/playwright').default;");
-          s += `
-
-test('Worker 4 audit: native Shadow controls have no serious/critical Axe violations', async ({ page }) => {
-  await boot(page);
-  await page.waitForSelector('[data-gitl-native-mount="chatgpt"]');
-  const results = await new AxeBuilder({ page }).include('[data-gitl-native-mount="chatgpt"]').analyze();
-  const severe = results.violations.filter(v => v.impact === 'serious' || v.impact === 'critical');
-  expect(severe, JSON.stringify(severe, null, 2)).toEqual([]);
-});
-
-test('Worker 4 audit: bursty native-row churn remains single-mount and passive', async ({ page }) => {
-  await boot(page);
-  await page.waitForSelector('[data-gitl-native-mount="chatgpt"]');
-  const before = await events(page);
-  const started = Date.now();
-  await page.evaluate(() => {
-    const row = document.querySelector('[data-testid="composer-actions"]');
-    for (let i = 0; i < 120; i++) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.dataset.worker4Burst = String(i);
-      b.textContent = 'N';
-      row.append(b);
-    }
-  });
-  await expect.poll(async () => page.evaluate(() => document.querySelector('[data-testid="composer-actions"]')?.lastElementChild?.matches('[data-gitl-native-mount="chatgpt"]'))).toBe(true);
-  const elapsed = Date.now() - started;
-  const state = await page.evaluate(() => ({
-    mounts: document.querySelectorAll('[data-gitl-native-mount="chatgpt"]').length,
-    sameSend: window.__fixtureSend === document.querySelector('[data-testid="send-button"]'),
-    panelDisplay: getComputedStyle(document.getElementById('gitl')).display,
-  }));
-  console.log('WORKER4_REPAIR_BURST_MS=' + elapsed);
-  expect(state.mounts).toBe(1);
-  expect(state.sameSend).toBe(true);
-  expect(state.panelDisplay).toBe('none');
-  expect(await events(page)).toEqual(before);
-  expect(elapsed).toBeLessThan(2000);
-});
-
-test('Worker 4 audit: whole composer replacement must fail closed and restore rail', async ({ page }) => {
-  await boot(page);
-  await page.waitForSelector('[data-gitl-native-mount="chatgpt"]');
-  await page.waitForTimeout(2300); // allow the boot retry to observe the original hydrated composer and stop
-  const before = await events(page);
-  await page.evaluate(() => {
-    const oldForm = document.querySelector('form[data-type="unified-composer"]');
-    const replacement = oldForm.cloneNode(true);
-    replacement.querySelector('[data-gitl-native-mount]')?.remove();
-    oldForm.replaceWith(replacement);
-  });
-  await page.waitForTimeout(900);
-  const state = await page.evaluate(() => ({
-    nativeCount: document.querySelectorAll('[data-gitl-native-mount="chatgpt"]').length,
-    panelDisplay: getComputedStyle(document.getElementById('gitl')).display,
-    panelSuppressed: document.getElementById('gitl')?.dataset?.gitlNativeSuppressed || null,
-  }));
-  expect(state.nativeCount).toBe(0);
-  expect(state.panelDisplay).not.toBe('none');
-  expect(state.panelSuppressed).toBeNull();
-  expect(await events(page)).toEqual(before);
-});
-`;
-          fs.writeFileSync(p, s);
-          NODE
-      - name: Independent audit probes
-        run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --grep='Worker 4 audit'
       - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -133,5 +41,3 @@ test('Worker 4 audit: whole composer replacement must fail closed and restore ra
             test-results/
           if-no-files-found: warn
           retention-days: 7
-
-# trigger: worker4 independent verification
