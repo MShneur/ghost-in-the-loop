@@ -133,3 +133,5 @@ test('Worker 4 audit: whole composer replacement must fail closed and restore ra
             test-results/
           if-no-files-found: warn
           retention-days: 7
+
+# trigger: worker4 independent verification
