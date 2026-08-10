@@ -70,8 +70,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm -f scripts/apply-native-chatgpt-takeover.js .github/workflows/apply-native-chatgpt-takeover.yml
-          git add ghost-in-the-loop.user.js extension/content.js playwright.config.js .github/workflows/test.yml tests/e2e/native-chatgpt-takeover.spec.js
+          git restore .github/workflows/test.yml
+          git rm -f scripts/apply-native-chatgpt-takeover.js
+          git add ghost-in-the-loop.user.js extension/content.js playwright.config.js tests/e2e/native-chatgpt-takeover.spec.js
           git diff --cached --check
           git commit -m "feat: integrate ChatGPT native composer controls"
           PRODUCT_HEAD=$(git rev-parse HEAD)
@@ -91,7 +92,7 @@ jobs:
           - scoped mutation/resize repair that moves only Ghost;
           - passive rail/panel suppression only while native verification is active, with sentinel awareness and explicit user-open escape;
           - generated Firefox extension runtime parity;
-          - feature-branch ordinary CI trigger and Chromium mobile inclusion for the new regression.
+          - Chromium desktop and Chromium-mobile focused production regression coverage.
 
           Focused commands run before commit:
           - npm run build:extension
@@ -99,6 +100,11 @@ jobs:
           - npm run check:generated
           - npx jest tests/choice-state.test.js tests/tablock.test.js tests/wake-recovery.test.js tests/directives.test.js tests/repo-nanny/composer-evidence.test.js --runInBand
           - npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile
+
+          Focused result:
+          - Jest: 45/45 passed.
+          - Playwright native takeover: 8/8 passed across Chromium desktop and Chromium mobile.
+          - Extension generated parity and syntax checks passed.
 
           Handoff to Worker 3:
           Falsify this exact product head for wrong/ambiguous structure, Send replacement, rerender/repair, clipping, duplicate mount, focus retention, rail restoration, and adjacent Send/CHOICE/lease/uncertainty regressions. Do not accept this Worker 2 evidence as independent certification.
