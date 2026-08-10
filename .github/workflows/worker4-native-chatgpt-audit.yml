@@ -5,6 +5,11 @@ on:
     branches:
       - 'feature/native-site-takeover'
     paths:
+      - 'ghost-in-the-loop.user.js'
+      - 'extension/content.js'
+      - 'tests/setup.js'
+      - 'tests/repo-nanny/**'
+      - 'tests/e2e/repo-nanny/send-evidence.spec.js'
       - 'tests/e2e/native-chatgpt-takeover.spec.js'
       - 'tests/e2e/native-chatgpt-rerender-worker4.spec.js'
       - '.github/workflows/worker4-native-chatgpt-audit.yml'
