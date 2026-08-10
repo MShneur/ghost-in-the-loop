@@ -8,6 +8,7 @@ on:
       - 'ghost-in-the-loop.user.js'
       - 'extension/content.js'
       - 'tests/setup.js'
+      - 'tests/**/*.test.js'
       - 'tests/repo-nanny/**'
       - 'tests/e2e/repo-nanny/send-evidence.spec.js'
       - 'tests/e2e/native-chatgpt-takeover.spec.js'
@@ -35,16 +36,16 @@ jobs:
         id: unit
         continue-on-error: true
         run: |
-          mkdir -p test-results
-          npm run test:unit -- --runInBand --json --outputFile=test-results/worker4-jest.json
+          mkdir -p worker4-results
+          npm run test:unit -- --runInBand --json --outputFile=worker4-results/jest.json
       - name: Report unit failures
         if: steps.unit.outcome == 'failure'
         run: |
           node - <<'NODE'
           const fs = require('fs');
-          const p = 'test-results/worker4-jest.json';
+          const p = 'worker4-results/jest.json';
           if (!fs.existsSync(p)) {
-            console.log('::error::Jest failed without producing worker4-jest.json');
+            console.log('::error::Jest failed without producing worker4-results/jest.json');
             process.exit(0);
           }
           const report = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -70,6 +71,7 @@ jobs:
           name: worker4-native-chatgpt-audit
           path: |
             e2e-results.json
+            worker4-results/
             test-results/
           if-no-files-found: warn
           retention-days: 7
