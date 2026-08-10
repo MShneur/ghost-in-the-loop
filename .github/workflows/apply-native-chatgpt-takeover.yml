@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Normalize generated-test quoting
+      - name: Normalize generated-test quoting and bootstrap
         shell: bash
         run: |
           python - <<'PY'
@@ -39,6 +39,7 @@ jobs:
           s = p.read_text()
           s = s.replace(r'\\`', r'\`')
           s = s.replace(r'\\${extraSend}', r'\${extraSend}')
+          s = s.replace("await page.waitForSelector('#gitl');", "await page.waitForSelector('#gitl', { state: 'attached' });")
           p.write_text(s)
           PY
           node --check scripts/apply-native-chatgpt-takeover.js
