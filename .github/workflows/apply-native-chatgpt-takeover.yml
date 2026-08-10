@@ -30,7 +30,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Normalize generated-test quoting and bootstrap
+      - name: Normalize generated-test quoting, bootstrap, and DOM realm checks
         shell: bash
         run: |
           python - <<'PY'
@@ -40,6 +40,7 @@ jobs:
           s = s.replace(r'\\`', r'\`')
           s = s.replace(r'\\${extraSend}', r'\${extraSend}')
           s = s.replace("await page.waitForSelector('#gitl');", "await page.waitForSelector('#gitl', { state: 'attached' });")
+          s = s.replace('instanceof Element', 'instanceof window.Element')
           p.write_text(s)
           PY
           node --check scripts/apply-native-chatgpt-takeover.js
@@ -69,7 +70,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm scripts/apply-native-chatgpt-takeover.js .github/workflows/apply-native-chatgpt-takeover.yml
+          git rm -f scripts/apply-native-chatgpt-takeover.js .github/workflows/apply-native-chatgpt-takeover.yml
           git add ghost-in-the-loop.user.js extension/content.js playwright.config.js .github/workflows/test.yml tests/e2e/native-chatgpt-takeover.spec.js
           git diff --cached --check
           git commit -m "feat: integrate ChatGPT native composer controls"
