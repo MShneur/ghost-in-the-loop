@@ -16,7 +16,7 @@ on:
         required: true
         type: string
   issues:
-    types: [labeled]
+    types: [opened]
 
 permissions:
   contents: write
@@ -30,7 +30,9 @@ jobs:
   publish:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issues' && github.event.label.name == 'release-approved')
+      (github.event_name == 'issues' &&
+       github.event.issue.author_association == 'OWNER' &&
+       startsWith(github.event.issue.title, '[release-final]'))
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
@@ -45,7 +47,6 @@ jobs:
           DISPATCH_TARGET_SHA: ${{ inputs.target_sha }}
           DISPATCH_CONFIRM: ${{ inputs.confirm }}
           ISSUE_BODY: ${{ github.event.issue.body }}
-          ISSUE_AUTHOR_ASSOCIATION: ${{ github.event.issue.author_association }}
         run: |
           set -euo pipefail
 
@@ -54,11 +55,6 @@ jobs:
             target_sha="$DISPATCH_TARGET_SHA"
             confirm="$DISPATCH_CONFIRM"
           else
-            if [[ "$ISSUE_AUTHOR_ASSOCIATION" != "OWNER" ]]; then
-              echo "Release requests triggered from issues must be authored by the repository owner." >&2
-              exit 1
-            fi
-
             version="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^version:[[:space:]]*//p')"
             target_sha="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^target_sha:[[:space:]]*//p')"
             confirm="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^confirm:[[:space:]]*//p')"
