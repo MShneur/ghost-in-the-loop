@@ -1,6 +1,11 @@
 name: Publish Final Release
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-final-release.yml'
+      - 'docs/RELEASE-AUTOMATION.md'
   workflow_dispatch:
     inputs:
       version:
@@ -26,6 +31,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  definition-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out proposed workflow
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check patch hygiene
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          git diff --check "$BASE_SHA..$HEAD_SHA"
+          test -f .github/workflows/publish-final-release.yml
+          test -f docs/RELEASE-AUTOMATION.md
+
   verify:
     if: >-
       github.event_name == 'workflow_dispatch' ||
