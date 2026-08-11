@@ -13,7 +13,8 @@ Ghost in the Loop uses a fail-closed GitHub Actions workflow for final public re
 - the publication job re-checks that `main` still points to the exact verified SHA before any tag or Release write
 - the workflow will not move an existing mismatched tag
 - an existing exact matching tag may be reused only when recovering from a later GitHub Release API failure
-- a pre-existing draft or prerelease blocks the final-release workflow
+- publication uses a bot-marked draft Release, uploads the verified assets, and only then publishes the final Release
+- a bot-marked draft may be resumed after a failed upload/API attempt; unrelated drafts and prereleases fail closed
 - release assets include the certified userscript, `SHA256SUMS`, and `package-manifest.json`
 
 ## ChatGPT / GitHub connector path
