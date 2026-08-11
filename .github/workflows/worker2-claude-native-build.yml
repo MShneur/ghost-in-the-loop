@@ -1,51 +1,14 @@
-name: Worker 2 Claude Native Build
+name: Worker 2 Claude Native Build (historical carrier)
 
 on:
-  push:
-    branches:
-      - 'feature/native-site-takeover'
-    paths:
-      - '.github/workflows/worker2-claude-native-build.yml'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  promote-and-verify:
-    if: "${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'test: run Claude native takeover carrier' }}"
+  historical-carrier:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-      - name: Install dependencies
-        run: npm ci
-      - name: Apply guarded Claude production promotion
-        run: node scripts/apply-native-claude-takeover.js
-      - name: Base certification and syntax
-        run: npm run cert:base && npm run lint
-      - name: Full unit suite
-        run: npm run test:unit -- --runInBand
-      - name: Install Chromium and Firefox
-        run: npx playwright install --with-deps chromium firefox
-      - name: ChatGPT shared-manager regression matrix
-        run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
-      - name: Claude production takeover matrix
-        run: npx playwright test tests/e2e/native-claude-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
-      - name: Representative mobile resource and recovery performance
-        run: npx playwright test tests/e2e/lifecycle-mobile-perf.spec.js --project=chromium-mobile
-      - name: Commit verified product artifacts
-        run: |
-          git diff --check
-          git status --short
-          git add ghost-in-the-loop.user.js extension/content.js
-          git diff --cached --exit-code && { echo 'Expected product changes were not produced'; exit 1; } || true
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'feat: promote bounded Claude native takeover'
-          git push origin HEAD:feature/native-site-takeover
+      - name: Historical carrier is intentionally inert
+        run: echo 'Claude native takeover promotion completed and was independently audited; this one-shot carrier no longer mutates the repository.'
