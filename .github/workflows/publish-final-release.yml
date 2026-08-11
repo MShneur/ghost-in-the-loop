@@ -43,12 +43,18 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          RUN_REF: ${{ github.ref }}
           DISPATCH_VERSION: ${{ inputs.version }}
           DISPATCH_TARGET_SHA: ${{ inputs.target_sha }}
           DISPATCH_CONFIRM: ${{ inputs.confirm }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
           set -euo pipefail
+
+          if [[ "$RUN_REF" != "refs/heads/main" ]]; then
+            echo "Release automation must execute from the main workflow definition; got $RUN_REF." >&2
+            exit 1
+          fi
 
           if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
             version="$DISPATCH_VERSION"
@@ -208,7 +214,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          notes="Final public release of Ghost in the Loop $VERSION.\n\nPublished from exact commit \`$TARGET_SHA\` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented."
+          notes="$(printf 'Final public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
 
           gh release create "$TAG" \
             test-results/release-candidate/ghost-in-the-loop.user.js \
@@ -245,4 +251,4 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release workflow failed closed. No further release action was attempted after the failing gate. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release workflow failed closed at a validation, test, tag, or release step. If the exact tag was created before a later GitHub Release API failure, the next retry will verify and reuse only that exact matching tag. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
