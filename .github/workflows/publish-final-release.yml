@@ -69,6 +69,7 @@ jobs:
       tag: ${{ steps.request.outputs.tag }}
       tag_exists: ${{ steps.gate.outputs.tag_exists }}
       release_exists: ${{ steps.gate.outputs.release_exists }}
+      draft_exists: ${{ steps.gate.outputs.draft_exists }}
 
     steps:
       - name: Resolve release request
@@ -178,6 +179,7 @@ jobs:
 
           tag_exists=false
           release_exists=false
+          draft_exists=false
 
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
             tag_exists=true
@@ -188,19 +190,25 @@ jobs:
             fi
           fi
 
-          if release_state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease] | @tsv' 2>/dev/null)"; then
-            draft="${release_state%%$'\t'*}"
-            prerelease="${release_state#*$'\t'}"
+          if release_json="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,name,body 2>/dev/null)"; then
+            draft="$(printf '%s' "$release_json" | jq -r '.isDraft')"
+            prerelease="$(printf '%s' "$release_json" | jq -r '.isPrerelease')"
+            name="$(printf '%s' "$release_json" | jq -r '.name')"
+            body="$(printf '%s' "$release_json" | jq -r '.body')"
+
             if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
               release_exists=true
+            elif [[ "$draft" == "true" && "$prerelease" == "false" && "$name" == "Ghost in the Loop $VERSION" && "$body" == *'<!-- gitl-final-release-bot -->'* ]]; then
+              draft_exists=true
             else
-              echo "Refusing release: $TAG already has a draft or prerelease GitHub Release." >&2
+              echo "Refusing release: $TAG has a pre-existing Release not owned by the final-release bot." >&2
               exit 1
             fi
           fi
 
           echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
           echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+          echo "draft_exists=$draft_exists" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         if: steps.gate.outputs.release_exists != 'true'
@@ -256,6 +264,7 @@ jobs:
         id: revalidate
         shell: bash
         env:
+          VERSION: ${{ needs.verify.outputs.version }}
           TARGET_SHA: ${{ needs.verify.outputs.target_sha }}
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
@@ -270,6 +279,7 @@ jobs:
 
           tag_exists=false
           release_exists=false
+          draft_exists=false
 
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
             tag_exists=true
@@ -280,19 +290,25 @@ jobs:
             fi
           fi
 
-          if release_state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease] | @tsv' 2>/dev/null)"; then
-            draft="${release_state%%$'\t'*}"
-            prerelease="${release_state#*$'\t'}"
+          if release_json="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,name,body 2>/dev/null)"; then
+            draft="$(printf '%s' "$release_json" | jq -r '.isDraft')"
+            prerelease="$(printf '%s' "$release_json" | jq -r '.isPrerelease')"
+            name="$(printf '%s' "$release_json" | jq -r '.name')"
+            body="$(printf '%s' "$release_json" | jq -r '.body')"
+
             if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
               release_exists=true
+            elif [[ "$draft" == "true" && "$prerelease" == "false" && "$name" == "Ghost in the Loop $VERSION" && "$body" == *'<!-- gitl-final-release-bot -->'* ]]; then
+              draft_exists=true
             else
-              echo "Refusing publication: $TAG has a draft or prerelease GitHub Release." >&2
+              echo "Refusing publication: $TAG has a pre-existing Release not owned by the final-release bot." >&2
               exit 1
             fi
           fi
 
           echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
           echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+          echo "draft_exists=$draft_exists" >> "$GITHUB_OUTPUT"
 
       - name: Download verified release assets
         if: steps.revalidate.outputs.release_exists != 'true'
@@ -315,8 +331,8 @@ jobs:
           git tag -a "$TAG" "$TARGET_SHA" -m "Ghost in the Loop $VERSION"
           git push origin "refs/tags/$TAG"
 
-      - name: Publish final GitHub Release
-        if: steps.revalidate.outputs.release_exists != 'true'
+      - name: Create resumable draft GitHub Release
+        if: steps.revalidate.outputs.release_exists != 'true' && steps.revalidate.outputs.draft_exists != 'true'
         shell: bash
         env:
           VERSION: ${{ needs.verify.outputs.version }}
@@ -325,18 +341,38 @@ jobs:
         run: |
           set -euo pipefail
 
-          notes="$(printf 'Final public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
+          notes="$(printf '<!-- gitl-final-release-bot -->\nFinal public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
 
           gh release create "$TAG" \
-            test-results/release-candidate/ghost-in-the-loop.user.js \
-            test-results/release-candidate/SHA256SUMS \
-            test-results/release-candidate/package-manifest.json \
             --repo "$GITHUB_REPOSITORY" \
             --title "Ghost in the Loop $VERSION" \
             --notes "$notes" \
             --generate-notes \
             --verify-tag \
-            --latest
+            --draft
+
+      - name: Upload certified release assets
+        if: steps.revalidate.outputs.release_exists != 'true'
+        shell: bash
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" \
+            test-results/release-candidate/ghost-in-the-loop.user.js \
+            test-results/release-candidate/SHA256SUMS \
+            test-results/release-candidate/package-manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+
+      - name: Publish final GitHub Release
+        if: steps.revalidate.outputs.release_exists != 'true'
+        shell: bash
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
 
       - name: Report successful issue-triggered release
         if: success() && github.event_name == 'issues'
@@ -362,7 +398,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release publication failed closed after verification. If the exact tag was created before a later GitHub Release API failure, the next retry will verify and reuse only that exact matching tag. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release publication failed closed after verification. An exact bot-owned draft and/or exact tag may remain so the next retry can safely resume after revalidation. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
 
   report-verification-failure:
     needs: verify
