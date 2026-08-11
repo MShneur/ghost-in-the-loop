@@ -19,23 +19,30 @@ on:
     types: [opened]
 
 permissions:
-  contents: write
-  issues: write
+  contents: read
 
 concurrency:
   group: final-release
   cancel-in-progress: false
 
 jobs:
-  publish:
+  verify:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issues' &&
        github.event.issue.author_association == 'OWNER' &&
        startsWith(github.event.issue.title, '[release-final]'))
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       GH_TOKEN: ${{ github.token }}
+    outputs:
+      version: ${{ steps.request.outputs.version }}
+      target_sha: ${{ steps.request.outputs.target_sha }}
+      tag: ${{ steps.request.outputs.tag }}
+      tag_exists: ${{ steps.gate.outputs.tag_exists }}
+      release_exists: ${{ steps.gate.outputs.release_exists }}
 
     steps:
       - name: Resolve release request
@@ -190,13 +197,91 @@ jobs:
         if: steps.gate.outputs.release_exists != 'true'
         run: npm run test:e2e
 
-      - name: Create immutable version tag
-        if: steps.gate.outputs.release_exists != 'true' && steps.gate.outputs.tag_exists != 'true'
+      - name: Stage verified release assets for publication job
+        if: steps.gate.outputs.release_exists != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-release-assets
+          path: |
+            test-results/release-candidate/ghost-in-the-loop.user.js
+            test-results/release-candidate/SHA256SUMS
+            test-results/release-candidate/package-manifest.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: verify
+    if: needs.verify.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out exact verified release target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.verify.outputs.target_sha }}
+          fetch-depth: 0
+
+      - name: Revalidate target immediately before publication
+        id: revalidate
         shell: bash
         env:
-          VERSION: ${{ steps.request.outputs.version }}
-          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
-          TAG: ${{ steps.request.outputs.tag }}
+          TARGET_SHA: ${{ needs.verify.outputs.target_sha }}
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main --tags --force
+          main_sha="$(git rev-parse origin/main)"
+          if [[ "$TARGET_SHA" != "$main_sha" ]]; then
+            echo "Refusing publication: main moved from verified target $TARGET_SHA to $main_sha." >&2
+            exit 1
+          fi
+
+          tag_exists=false
+          release_exists=false
+
+          if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+            tag_exists=true
+            tag_sha="$(git rev-list -n 1 "$TAG")"
+            if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
+              echo "Refusing publication: existing $TAG points to $tag_sha, not $TARGET_SHA." >&2
+              exit 1
+            fi
+          fi
+
+          if release_state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease] | @tsv' 2>/dev/null)"; then
+            draft="${release_state%%$'\t'*}"
+            prerelease="${release_state#*$'\t'}"
+            if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
+              release_exists=true
+            else
+              echo "Refusing publication: $TAG has a draft or prerelease GitHub Release." >&2
+              exit 1
+            fi
+          fi
+
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+
+      - name: Download verified release assets
+        if: steps.revalidate.outputs.release_exists != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: final-release-assets
+          path: test-results/release-candidate
+
+      - name: Create immutable version tag
+        if: steps.revalidate.outputs.release_exists != 'true' && steps.revalidate.outputs.tag_exists != 'true'
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          TARGET_SHA: ${{ needs.verify.outputs.target_sha }}
+          TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
@@ -205,12 +290,12 @@ jobs:
           git push origin "refs/tags/$TAG"
 
       - name: Publish final GitHub Release
-        if: steps.gate.outputs.release_exists != 'true'
+        if: steps.revalidate.outputs.release_exists != 'true'
         shell: bash
         env:
-          VERSION: ${{ steps.request.outputs.version }}
-          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
-          TAG: ${{ steps.request.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          TARGET_SHA: ${{ needs.verify.outputs.target_sha }}
+          TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
 
@@ -232,9 +317,9 @@ jobs:
         shell: bash
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          VERSION: ${{ steps.request.outputs.version }}
-          TAG: ${{ steps.request.outputs.tag }}
-          RELEASE_ALREADY_EXISTED: ${{ steps.gate.outputs.release_exists }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          RELEASE_ALREADY_EXISTED: ${{ steps.revalidate.outputs.release_exists }}
         run: |
           set -euo pipefail
           if [[ "$RELEASE_ALREADY_EXISTED" == "true" ]]; then
@@ -245,10 +330,28 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$message"
           gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
 
-      - name: Report failed issue-triggered release
+      - name: Report publication failure for issue trigger
         if: failure() && github.event_name == 'issues'
         shell: bash
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release workflow failed closed at a validation, test, tag, or release step. If the exact tag was created before a later GitHub Release API failure, the next retry will verify and reuse only that exact matching tag. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release publication failed closed after verification. If the exact tag was created before a later GitHub Release API failure, the next retry will verify and reuse only that exact matching tag. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+
+  report-verification-failure:
+    needs: verify
+    if: always() && needs.verify.result == 'failure' && github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Report fail-closed verification result
+        shell: bash
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release verification failed closed. No tag or GitHub Release was created by the publication job. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
