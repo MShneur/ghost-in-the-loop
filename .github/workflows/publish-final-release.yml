@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       target_sha:
-        description: 'Exact 40-character commit SHA; must equal current main'
+        description: 'Exact 40-character release commit SHA'
         required: true
         type: string
       confirm:
@@ -67,9 +67,7 @@ jobs:
       version: ${{ steps.request.outputs.version }}
       target_sha: ${{ steps.request.outputs.target_sha }}
       tag: ${{ steps.request.outputs.tag }}
-      tag_exists: ${{ steps.gate.outputs.tag_exists }}
       release_exists: ${{ steps.gate.outputs.release_exists }}
-      draft_exists: ${{ steps.gate.outputs.draft_exists }}
 
     steps:
       - name: Resolve release request
@@ -129,7 +127,7 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Validate release target and existing publication state
+      - name: Validate release target and publication state
         id: gate
         shell: bash
         env:
@@ -143,13 +141,34 @@ jobs:
           main_sha="$(git rev-parse origin/main)"
           checked_out_sha="$(git rev-parse HEAD)"
 
-          if [[ "$TARGET_SHA" != "$main_sha" ]]; then
-            echo "Refusing release: target SHA $TARGET_SHA is not current main $main_sha." >&2
-            exit 1
-          fi
           if [[ "$checked_out_sha" != "$TARGET_SHA" ]]; then
             echo "Refusing release: checkout drifted from requested target SHA." >&2
             exit 1
+          fi
+
+          if [[ "$TARGET_SHA" != "$main_sha" ]]; then
+            if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
+              echo "Refusing release: target $TARGET_SHA is neither current main nor its ancestor." >&2
+              exit 1
+            fi
+
+            identity_paths=(
+              package.json
+              package-lock.json
+              ghost-in-the-loop.user.js
+              extension/manifest.json
+              extension/content.js
+              extension/icon-48.png
+              extension/icon-96.png
+            )
+            for path in "${identity_paths[@]}"; do
+              target_blob="$(git rev-parse "$TARGET_SHA:$path")"
+              main_blob="$(git rev-parse "origin/main:$path")"
+              if [[ "$target_blob" != "$main_blob" ]]; then
+                echo "Refusing release: current main changed release-identity path $path after target $TARGET_SHA." >&2
+                exit 1
+              fi
+            done
           fi
 
           package_version="$(node -p "require('./package.json').version")"
@@ -177,12 +196,8 @@ jobs:
             fi
           done
 
-          tag_exists=false
           release_exists=false
-          draft_exists=false
-
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
-            tag_exists=true
             tag_sha="$(git rev-list -n 1 "$TAG")"
             if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
               echo "Refusing release: existing $TAG points to $tag_sha, not $TARGET_SHA." >&2
@@ -199,16 +214,14 @@ jobs:
             if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
               release_exists=true
             elif [[ "$draft" == "true" && "$prerelease" == "false" && "$name" == "Ghost in the Loop $VERSION" && "$body" == *'<!-- gitl-final-release-bot -->'* ]]; then
-              draft_exists=true
+              :
             else
               echo "Refusing release: $TAG has a pre-existing Release not owned by the final-release bot." >&2
               exit 1
             fi
           fi
 
-          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
           echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
-          echo "draft_exists=$draft_exists" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         if: steps.gate.outputs.release_exists != 'true'
@@ -248,6 +261,7 @@ jobs:
     if: needs.verify.result == 'success'
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: write
       issues: write
     env:
@@ -260,7 +274,7 @@ jobs:
           ref: ${{ needs.verify.outputs.target_sha }}
           fetch-depth: 0
 
-      - name: Revalidate target immediately before publication
+      - name: Revalidate exact release identity before publication
         id: revalidate
         shell: bash
         env:
@@ -272,9 +286,30 @@ jobs:
 
           git fetch origin main --tags --force
           main_sha="$(git rev-parse origin/main)"
+
           if [[ "$TARGET_SHA" != "$main_sha" ]]; then
-            echo "Refusing publication: main moved from verified target $TARGET_SHA to $main_sha." >&2
-            exit 1
+            if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
+              echo "Refusing publication: target is no longer an ancestor of current main." >&2
+              exit 1
+            fi
+
+            identity_paths=(
+              package.json
+              package-lock.json
+              ghost-in-the-loop.user.js
+              extension/manifest.json
+              extension/content.js
+              extension/icon-48.png
+              extension/icon-96.png
+            )
+            for path in "${identity_paths[@]}"; do
+              target_blob="$(git rev-parse "$TARGET_SHA:$path")"
+              main_blob="$(git rev-parse "origin/main:$path")"
+              if [[ "$target_blob" != "$main_blob" ]]; then
+                echo "Refusing publication: main changed release-identity path $path after verification." >&2
+                exit 1
+              fi
+            done
           fi
 
           tag_exists=false
@@ -340,9 +375,7 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
-
           notes="$(printf '<!-- gitl-final-release-bot -->\nFinal public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
-
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Ghost in the Loop $VERSION" \
