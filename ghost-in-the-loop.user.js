@@ -5771,14 +5771,14 @@ function startRailTracker(){if(_railTracking)return;_railTracking=true;try{windo
 function stopRailTracker(){if(!_railTracking)return;_railTracking=false;try{window.removeEventListener('resize',_railReposition);if(window.visualViewport){window.visualViewport.removeEventListener('resize',_railReposition);}_railRO?.disconnect();_railMO?.disconnect();if(_railPoll)clearInterval(_railPoll);}catch(_){}_railInput=null;_railRO=null;_railMO=null;_railPoll=null;_railRectKey='';}
 
 
-/* Native site takeover — ChatGPT production slice.
+/* Native site takeover — reviewed ChatGPT + bounded Claude production slice.
    Promotes the Round-6 deterministic in-flow primitive into the real product,
-   but only behind a strict reviewed structural contract. The native host never
+   but only behind strict reviewed structural contracts. The native host never
    moves, wraps, clones, replaces, or clicks Send. Any loss of certainty removes
    only Ghost's node and restores the pre-existing panel/rail. */
 const NativeSiteMount = (() => {
-  const MOUNT_SELECTOR = '[data-gitl-native-mount="chatgpt"]';
-  let host = null, row = null, send = null;
+  const MOUNT_SELECTOR = '[data-gitl-native-mount]';
+  let host = null, row = null, send = null, mountSite = null;
   let mutationObserver = null, resizeObserver = null;
   let raf = 0, generation = 0, verified = false, closedReason = null;
   let suppressNextMutation = false, panelExplicit = false, panelDisplayBefore = null;
@@ -5834,7 +5834,54 @@ const NativeSiteMount = (() => {
     const display = getComputedStyle(actionRow).display;
     if (!['flex','inline-flex','grid','inline-grid'].includes(display)) return { ok:false, reason:'composer-actions-not-structural' };
     if (!withinBounds(exactSend, actionRow)) return { ok:false, reason:'send-clipped' };
-    return { ok:true, input, composer, row:actionRow, send:exactSend };
+    return { ok:true, site:'chatgpt', input, composer, row:actionRow, send:exactSend };
+  };
+
+  const resolveClaude = () => {
+    if (!PLAT || PLAT.key !== 'claude' || !PLAT.reviewed) return { ok:false, reason:'site-not-reviewed-claude' };
+    const input = Adapter.peekInput();
+    if (!visible(input)) return { ok:false, reason:'composer-input-missing' };
+    if (!(input.matches && input.matches('div.ProseMirror[contenteditable="true"]'))) return { ok:false, reason:'claude-editor-signature-missing' };
+    const composer = input.closest && input.closest('form');
+    if (!(composer instanceof window.Element) || !composer.isConnected) return { ok:false, reason:'claude-composer-missing' };
+
+    const sends = new Set();
+    for (const selector of PLAT.send || []) {
+      try {
+        for (const el of composer.querySelectorAll(selector)) {
+          if (visible(el) && !el.disabled && el.getAttribute('aria-disabled') !== 'true' && _sendLooksSafe(el)) sends.add(el);
+        }
+      } catch(_) {}
+    }
+    if (sends.size !== 1) return { ok:false, reason:sends.size ? 'send-ambiguous' : 'send-missing' };
+    const exactSend = [...sends][0];
+    if (Adapter.getSendBtn() !== exactSend) return { ok:false, reason:'reviewed-send-identity-mismatch' };
+
+    const rows = [];
+    let candidate = exactSend.parentElement;
+    while (candidate && candidate !== composer) {
+      if (visible(candidate) && !candidate.contains(input)) {
+        let display = '';
+        try { display = getComputedStyle(candidate).display; } catch(_) {}
+        if (['flex','inline-flex','grid','inline-grid'].includes(display) && withinBounds(exactSend, candidate)) {
+          const interactive = candidate.querySelectorAll('button,[role="button"]');
+          if (interactive.length >= 2) rows.push(candidate);
+        }
+      }
+      candidate = candidate.parentElement;
+    }
+    if (rows.length !== 1) return { ok:false, reason:rows.length ? 'claude-action-row-ambiguous' : 'claude-action-row-missing' };
+    const actionRow = rows[0];
+    if (!composer.contains(input) || !composer.contains(actionRow)) return { ok:false, reason:'claude-ownership-mismatch' };
+    if (!actionRow.contains(exactSend)) return { ok:false, reason:'send-outside-actions' };
+    if (!withinBounds(exactSend, actionRow)) return { ok:false, reason:'send-clipped' };
+    return { ok:true, site:'claude', input, composer, row:actionRow, send:exactSend };
+  };
+
+  const resolveCurrent = () => {
+    if (PLAT?.key === 'chatgpt') return resolveChatGPT();
+    if (PLAT?.key === 'claude') return resolveClaude();
+    return { ok:false, reason:'site-not-native-enabled' };
   };
 
   const restorePanel = () => {
@@ -5863,20 +5910,22 @@ const NativeSiteMount = (() => {
     host = null;
   };
   const failClosed = (reason) => {
+    const site = mountSite || PLAT?.key || 'unknown';
     verified = false;
     closedReason = reason;
     generation++;
     disconnectResources();
     dropHost();
     row = send = null;
+    mountSite = null;
     panelExplicit = false;
     restorePanel();
-    try { Timeline.record('native_mount_demoted', { site:'chatgpt', reason }); } catch(_) {}
+    try { Timeline.record('native_mount_demoted', { site, reason }); } catch(_) {}
     return { status:'rail', reason, fallback:'rail', attemptedStructural:true };
   };
 
   const verify = () => {
-    const cap = resolveChatGPT();
+    const cap = resolveCurrent();
     if (!cap.ok) return cap.reason;
     if (cap.row !== row || cap.send !== send) return 'capability-target-changed';
     if (!(host instanceof window.Element) || !host.isConnected || host.parentElement !== row) return 'mount-disconnected';
@@ -5906,9 +5955,9 @@ const NativeSiteMount = (() => {
     }
   };
 
-  const buildHost = () => {
+  const buildHost = (site) => {
     const el = document.createElement('div');
-    el.setAttribute('data-gitl-native-mount', 'chatgpt');
+    el.setAttribute('data-gitl-native-mount', site);
     el.style.position = 'static';
     el.style.display = 'inline-flex';
     el.style.alignItems = 'center';
@@ -5949,7 +5998,7 @@ const NativeSiteMount = (() => {
     raf = _raf(() => {
       raf = 0;
       if (!verified || currentGeneration !== generation) return;
-      const cap = resolveChatGPT();
+      const cap = resolveCurrent();
       if (!cap.ok) return void failClosed(cap.reason);
       if (cap.row !== row || cap.send !== send) return void failClosed('capability-target-changed');
       if (!host?.isConnected || host.parentElement !== row || row.lastElementChild !== host) {
@@ -5963,7 +6012,7 @@ const NativeSiteMount = (() => {
   };
 
   const mountNow = () => {
-    const cap = resolveChatGPT();
+    const cap = resolveCurrent();
     if (!cap.ok) return { status:'rail', reason:cap.reason, fallback:'rail', attemptedStructural:false };
     const existing = document.querySelector(MOUNT_SELECTOR);
     if (existing) {
@@ -5975,7 +6024,8 @@ const NativeSiteMount = (() => {
     generation++;
     row = cap.row;
     send = cap.send;
-    row.append(buildHost());
+    mountSite = cap.site || PLAT?.key || null;
+    row.append(buildHost(mountSite));
     verified = true;
     const failure = verify();
     if (failure) return failClosed(failure);
@@ -5991,7 +6041,7 @@ const NativeSiteMount = (() => {
       resizeObserver.observe(host);
     }
     suppressPanel();
-    try { Timeline.record('native_mount_active', { site:'chatgpt' }); } catch(_) {}
+    try { Timeline.record('native_mount_active', { site:mountSite || PLAT?.key || 'unknown' }); } catch(_) {}
     return { status:'structural', reason:null, reused:false };
   };
 
@@ -6011,13 +6061,14 @@ const NativeSiteMount = (() => {
     disconnectResources();
     dropHost();
     row = send = null;
+    mountSite = null;
     panelExplicit = false;
     restorePanel();
   };
   const ownsRail = () => verified && !panelExplicit;
   const isSuppressingPanel = () => ownsRail() && panel?.dataset?.gitlNativeSuppressed === '1' && panel.style.display === 'none';
 
-  return { start:refresh, refresh, stop, verify, updateControls, ownsRail, isSuppressingPanel, state:() => ({ verified, closedReason, panelExplicit }) };
+  return { start:refresh, refresh, stop, verify, updateControls, ownsRail, isSuppressingPanel, state:() => ({ verified, closedReason, panelExplicit, site:mountSite }) };
 })();
 
 /* Position the orb. Collapsed: a tucked circle clinging to the saved edge
