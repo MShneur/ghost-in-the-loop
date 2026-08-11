@@ -23,6 +23,7 @@ tests/
   e2e/*.spec.js              Playwright, run in BOTH Chromium and Firefox (Gecko)
 docs/
   ARCHITECTURE.md            This file
+  RELEASE-CANDIDATE-8.8.md   Candidate/stable boundary and bounded evidence ledger
 CHANGELOG.md                 What shipped per version
 DEVLOG.md                    What was tried, what failed, why — read before researching
 ```
@@ -110,6 +111,45 @@ drops caches when the cached composer is found detached.
 
 Generic/custom sites may receive injected text but remain manual-send until an
 adapter is reviewed. Compatibility cannot silently grant actuator authority.
+
+---
+
+## Structural Mount Authority (8.8 candidate)
+
+The 8.8 structural mobile-shell work adds a **separate structural authority plane**. It does not widen input or Send actuation authority.
+
+The accepted structural-selection order is fail-closed:
+
+1. **Certified site-specific structural runner** — eligible only when reviewed site identity and the adapter-owned current structural capability/signature satisfy its certified contract.
+2. **Standard adapter-aware structural protocol** — used when the specialized contract is unavailable or fails verification but the standard protocol can verify the host structure safely.
+3. **Existing rail fallback** — used when structural capability is absent, stale, clipped, ambiguous, wrong-site, or otherwise unverifiable.
+
+The specialized runner must **demote**, not guess, when its signature fails. A reviewed hostname or Send selector is not sufficient structural authority. Structural mounting preserves the original connected Send-node identity and passive mount/repair paths have no Send, submit, input, or keydown authority.
+
+The accepted ChatGPT + Claude evidence is deterministic/hosted and adapter-owned. It does **not** certify exact current live ChatGPT or Claude insertion. Physical Android, Android WebView, Firefox-Android/GeckoView, real IME/browser-toolbar combinations, real assistive-technology mappings, and calibrated low-end-device performance are also outside the certified scope. Read-only live inspection is separately authorized when a functioning carrier exists; missing capture limits live binding rather than deterministic repository work.
+
+See [RELEASE-CANDIDATE-8.8.md](RELEASE-CANDIDATE-8.8.md) and `.gitl/evidence/round-6/final-mobile-shell-audit-retry.md` for the bounded claim ledger.
+
+---
+
+## 8.8 Candidate Identity and Publication Boundary
+
+The release candidate is not identified by a mutable Git HEAD alone. The bounded BUILD-IDENTITY contract combines:
+
+- semantic version `8.8.0`;
+- canonical userscript source plus deterministic generated extension parity;
+- immutable hashes of the shipped payload set;
+- explicit Git provenance and exact test/CI bindings;
+- explicit candidate-versus-stable channel classification;
+- independent publication state.
+
+A coordination-only `.gitl` commit may move the branch head without producing a new shipped payload. The identity oracle reports that relationship explicitly rather than pretending the older payload-provenance head is the current exact coordination head.
+
+The isolated `agent/8.8-repair-resume` branch is a **candidate channel**. Stable userscript install/update authority remains `main`, and `publishReady=false` until a separately authorized release step changes that state. Documentation, CI, or candidate completeness alone cannot authorize a merge, tag, GitHub Release, store upload, or stable-channel URL change.
+
+The current dependency disposition is similarly bounded: `brace-expansion@1.1.15` and `js-yaml@3.14.2` are real high-severity indirect nodes in the Jest development graph; the production omit-dev audit reported zero vulnerabilities and no concrete path into the immutable shipped payload was established. Shipped exploitability remains **UNKNOWN / NOT CLAIMED** rather than being declared impossible.
+
+---
 
 ## Signal Engine Contract
 
@@ -313,6 +353,8 @@ Gecko/Trusted Types path that previously escaped Chromium-only validation.
 - Real AI site DOM (selectors drift per deployment) — test manually on ChatGPT + Claude before shipping adapter changes
 - Real SSE network interception
 - Tab lock across genuinely separate browser tabs (e2e uses one context)
+
+For the 8.8 structural candidate, deterministic ChatGPT/Claude fixtures and hosted matrices add bounded evidence, but they do not change the list above into live-site certification. Exact current live structural insertion still requires qualifying live evidence.
 
 ---
 

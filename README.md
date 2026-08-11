@@ -85,6 +85,12 @@ It's unsettling at first. You get used to it.
 2. Go to `about:debugging` → This Firefox → Load Temporary Add-on → `extension/manifest.json`.
 3. See steps 4–6 above.
 
+### 8.8 release-candidate status
+
+The install links above deliberately remain on **`main`**, which is the stable userscript channel. The repository's isolated `agent/8.8-repair-resume` branch contains the **8.8.0 release candidate**, but candidate identity is not publication identity: it has not been promoted to `main`, tagged, published as a GitHub Release, or declared store/stable output.
+
+The accepted 8.8 evidence is deliberately bounded. Deterministic/hosted lifecycle, long-chat, ChatGPT+Claude structural, and build-identity evidence does not certify exact current live ChatGPT/Claude structural insertion, physical Android/WebView/GeckoView, real mobile IME or assistive-technology combinations, or calibrated low-end-device performance. Hosted long-chat timing also has recorded red/green variance without any weakening of its accepted thresholds. See [8.8 Release-Candidate Evidence Boundary](docs/RELEASE-CANDIDATE-8.8.md) for the claim ledger and dependency-audit disposition.
+
 ---
 
 ## Features
@@ -260,10 +266,11 @@ Before touching anything, read:
 - **[DEVLOG.md](DEVLOG.md)** — what was tried, what failed, and why. If something seems like a good idea, there's a chance it's already in here with a postmortem.
 - **[CHANGELOG.md](CHANGELOG.md)** — what shipped, what bugs were found, and what Replit's Playwright tests caught that the unit tests missed.
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — contracts, selector patterns, signal scoring, platform quirks, test harness design.
+- **[docs/RELEASE-CANDIDATE-8.8.md](docs/RELEASE-CANDIDATE-8.8.md)** — current 8.8 candidate/stable boundary and bounded certification ledger.
 
-Every push must update at minimum DEVLOG.md and CHANGELOG.md. The project has been built across multiple AI sessions and needs its history documented so future sessions don't re-solve solved problems.
+Product, build, test-semantic, release-facing, and user-facing changes should update the relevant DEVLOG/CHANGELOG/documentation in the same workstream so later sessions do not re-solve solved problems. Pure `.gitl` coordination/evidence commits do **not** require synthetic DEVLOG or CHANGELOG churn; their durable history belongs in `.gitl/evidence/**` and the orchestration state/plan.
 
-Release 8.3.0 was updated by MShneur. Main editor: **Agent CG (ChatGPT)**.
+Historical note: **Release 8.3.0** was updated by MShneur with **Agent CG (ChatGPT)** as the main editor for that release. This attribution is not current release or publication authority.
 
 ---
 

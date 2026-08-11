@@ -5,7 +5,7 @@ const fs = require('fs');
 /**
  * Playwright config for Ghost in the Loop e2e.
  *
- * Two engines, on purpose. The Gemini "panel never appears" saga (v8.1.0–8.1.5)
+ * Two engines, on purpose. The Gemini "panel never appears" saga (v8.1.0–v8.1.5)
  * happened because every test ran in Chromium while the field failure was
  * Firefox Android — so a whole class of engine-specific behaviour (Trusted
  * Types enforcement, in the end) went unexercised. We now run the suite in
@@ -18,9 +18,6 @@ const fs = require('fs');
  * "Android-certified" — real-device confirmation still belongs to the reporter.
  */
 
-// Managed env pre-installs Chromium at a fixed path; prefer it over a
-// version-pinned download. Firefox is resolved by Playwright from
-// PLAYWRIGHT_BROWSERS_PATH automatically, so it needs no explicit path.
 const configuredChromiumPath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 const chromiumPath = configuredChromiumPath && fs.existsSync(configuredChromiumPath)
   ? configuredChromiumPath
@@ -29,12 +26,6 @@ const chromiumPath = configuredChromiumPath && fs.existsSync(configuredChromiumP
   : (fs.existsSync('/opt/pw-browsers/chromium-1194/chrome-linux/chrome')
     ? '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' : undefined);
 
-// Only advertise the Firefox project if a Firefox build is actually present,
-// so the suite still runs on Chromium-only machines without hard-failing.
-// Checks every location a Firefox build can live: the managed-env path
-// (/opt/pw-browsers), an explicit PLAYWRIGHT_BROWSERS_PATH, and Playwright's
-// default cache (~/.cache/ms-playwright — where CI's `playwright install
-// firefox` lands). Without this, CI would install Firefox but never run it.
 const firefoxAvailable = (() => {
   const os = require('os');
   const dirs = [
@@ -48,9 +39,13 @@ const firefoxAvailable = (() => {
   return false;
 })();
 
+const rootLifecycleMobilePerf = /[\\/]tests[\\/]e2e[\\/]lifecycle-mobile-perf\.spec\.js$/;
+const chromiumOnlyLongChatA2 = /[\\/]tests[\\/]e2e[\\/]long-chat-perf-a2\.spec\.js$/;
+
 const projects = [
   {
     name: 'chromium',
+    testIgnore: [rootLifecycleMobilePerf],
     use: {
       ...devices['Desktop Chrome'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
@@ -58,7 +53,11 @@ const projects = [
   },
   {
     name: 'chromium-mobile',
-    testMatch: '**/send-evidence.spec.js',
+    testMatch: [
+      '**/send-evidence.spec.js',
+      '**/repair-resume-production.spec.js',
+      '**/lifecycle-mobile-perf.spec.js',
+    ],
     use: {
       ...devices['Pixel 7'],
       launchOptions: chromiumPath ? { executablePath: chromiumPath } : {},
@@ -69,10 +68,9 @@ const projects = [
 if (firefoxAvailable) {
   projects.push({
     name: 'firefox',
+    testIgnore: [rootLifecycleMobilePerf, chromiumOnlyLongChatA2],
     use: {
       ...devices['Desktop Firefox'],
-      // Approximate the reporter's environment (mobile viewport + Android UA)
-      // while keeping the real Gecko engine that enforces Trusted Types.
       viewport: { width: 412, height: 915 },
       userAgent: 'Mozilla/5.0 (Android 16; Mobile; rv:153.0) Gecko/153.0 Firefox/153.0',
     },

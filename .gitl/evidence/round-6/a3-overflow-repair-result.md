@@ -1,0 +1,11 @@
+# Round 6 A3 Overflow Repair Carrier Result
+- Result: **PASS**
+- Trigger head: `ad11558ea26d46784ba39d8966008100d9e9c27e`
+- Initial Red failure: run `31213429856` / job `92981355836`
+- Repair run: `31214560411`
+- Artifact: `9008001890`
+- Artifact digest: `0da54eefef64cc4ae4ccacc3b20ffe8488f0e3daea80706c2378d57d9fce31e9`
+- Prototype blob: `53cc902428a3fc1496a83ad1bf0bd1bbe6752c84`
+- Red Team blob: `b8b5048dbc042626294423e28b337eb27d6c6b63`
+- Blue suite: **success**
+- Red Team suite: **success**
