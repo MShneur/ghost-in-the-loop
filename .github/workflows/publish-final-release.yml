@@ -37,11 +37,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out proposed workflow
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check patch hygiene
+      - name: Check workflow patch hygiene
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -98,18 +97,9 @@ jobs:
             confirm="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^confirm:[[:space:]]*//p')"
           fi
 
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid release version: $version" >&2
-            exit 1
-          fi
-          if [[ ! "$target_sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "target_sha must be an exact lowercase 40-character Git commit SHA." >&2
-            exit 1
-          fi
-          if [[ "$confirm" != "RELEASE" ]]; then
-            echo "Release authorization missing: confirm must equal RELEASE." >&2
-            exit 1
-          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $version" >&2; exit 1; }
+          [[ "$target_sha" =~ ^[0-9a-f]{40}$ ]] || { echo "target_sha must be a lowercase 40-character SHA." >&2; exit 1; }
+          [[ "$confirm" == "RELEASE" ]] || { echo "confirm must equal RELEASE." >&2; exit 1; }
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
@@ -121,13 +111,12 @@ jobs:
           ref: ${{ steps.request.outputs.target_sha }}
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Validate release target and publication state
+      - name: Validate target identity and publication state
         id: gate
         shell: bash
         env:
@@ -136,22 +125,12 @@ jobs:
           TAG: ${{ steps.request.outputs.tag }}
         run: |
           set -euo pipefail
-
           git fetch origin main --tags --force
           main_sha="$(git rev-parse origin/main)"
-          checked_out_sha="$(git rev-parse HEAD)"
-
-          if [[ "$checked_out_sha" != "$TARGET_SHA" ]]; then
-            echo "Refusing release: checkout drifted from requested target SHA." >&2
-            exit 1
-          fi
+          [[ "$(git rev-parse HEAD)" == "$TARGET_SHA" ]] || { echo "Checkout drifted from target." >&2; exit 1; }
 
           if [[ "$TARGET_SHA" != "$main_sha" ]]; then
-            if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
-              echo "Refusing release: target $TARGET_SHA is neither current main nor its ancestor." >&2
-              exit 1
-            fi
-
+            git merge-base --is-ancestor "$TARGET_SHA" origin/main || { echo "Target is not current main or its ancestor." >&2; exit 1; }
             identity_paths=(
               package.json
               package-lock.json
@@ -162,12 +141,10 @@ jobs:
               extension/icon-96.png
             )
             for path in "${identity_paths[@]}"; do
-              target_blob="$(git rev-parse "$TARGET_SHA:$path")"
-              main_blob="$(git rev-parse "origin/main:$path")"
-              if [[ "$target_blob" != "$main_blob" ]]; then
-                echo "Refusing release: current main changed release-identity path $path after target $TARGET_SHA." >&2
+              [[ "$(git rev-parse "$TARGET_SHA:$path")" == "$(git rev-parse "origin/main:$path")" ]] || {
+                echo "Current main changed release-identity path $path after target $TARGET_SHA." >&2
                 exit 1
-              fi
+              }
             done
           fi
 
@@ -190,37 +167,28 @@ jobs:
             "ghost-in-the-loop.user.js:$userscript_version"; do
             file="${pair%%:*}"
             observed="${pair#*:}"
-            if [[ "$observed" != "$VERSION" ]]; then
-              echo "Refusing release: $file reports $observed, expected $VERSION." >&2
-              exit 1
-            fi
+            [[ "$observed" == "$VERSION" ]] || { echo "$file reports $observed, expected $VERSION." >&2; exit 1; }
           done
 
-          release_exists=false
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
-            tag_sha="$(git rev-list -n 1 "$TAG")"
-            if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
-              echo "Refusing release: existing $TAG points to $tag_sha, not $TARGET_SHA." >&2
-              exit 1
-            fi
+            [[ "$(git rev-list -n 1 "$TAG")" == "$TARGET_SHA" ]] || { echo "Existing $TAG points elsewhere." >&2; exit 1; }
           fi
 
+          release_exists=false
           if release_json="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,name,body 2>/dev/null)"; then
             draft="$(printf '%s' "$release_json" | jq -r '.isDraft')"
             prerelease="$(printf '%s' "$release_json" | jq -r '.isPrerelease')"
             name="$(printf '%s' "$release_json" | jq -r '.name')"
             body="$(printf '%s' "$release_json" | jq -r '.body')"
-
             if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
               release_exists=true
             elif [[ "$draft" == "true" && "$prerelease" == "false" && "$name" == "Ghost in the Loop $VERSION" && "$body" == *'<!-- gitl-final-release-bot -->'* ]]; then
               :
             else
-              echo "Refusing release: $TAG has a pre-existing Release not owned by the final-release bot." >&2
+              echo "$TAG has a Release not owned by this final-release workflow." >&2
               exit 1
             fi
           fi
-
           echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
@@ -236,15 +204,7 @@ jobs:
           npm run identity:oracle
           npm run package:oracle
 
-      - name: Install Playwright browsers
-        if: steps.gate.outputs.release_exists != 'true'
-        run: npx playwright install --with-deps chromium firefox
-
-      - name: Run browser safety tests
-        if: steps.gate.outputs.release_exists != 'true'
-        run: npm run test:e2e
-
-      - name: Stage verified release assets for publication job
+      - name: Externalize certified release assets before E2E workspace cleanup
         if: steps.gate.outputs.release_exists != 'true'
         uses: actions/upload-artifact@v4
         with:
@@ -255,6 +215,14 @@ jobs:
             test-results/release-candidate/package-manifest.json
           if-no-files-found: error
           retention-days: 1
+
+      - name: Install Playwright browsers
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run browser safety tests
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npm run test:e2e
 
   publish:
     needs: verify
@@ -268,13 +236,12 @@ jobs:
       GH_TOKEN: ${{ github.token }}
 
     steps:
-      - name: Check out exact verified release target
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: ${{ needs.verify.outputs.target_sha }}
           fetch-depth: 0
 
-      - name: Revalidate exact release identity before publication
+      - name: Revalidate exact release identity before writes
         id: revalidate
         shell: bash
         env:
@@ -283,16 +250,11 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
-
           git fetch origin main --tags --force
           main_sha="$(git rev-parse origin/main)"
 
           if [[ "$TARGET_SHA" != "$main_sha" ]]; then
-            if ! git merge-base --is-ancestor "$TARGET_SHA" origin/main; then
-              echo "Refusing publication: target is no longer an ancestor of current main." >&2
-              exit 1
-            fi
-
+            git merge-base --is-ancestor "$TARGET_SHA" origin/main || { echo "Target is no longer an ancestor of main." >&2; exit 1; }
             identity_paths=(
               package.json
               package-lock.json
@@ -303,26 +265,19 @@ jobs:
               extension/icon-96.png
             )
             for path in "${identity_paths[@]}"; do
-              target_blob="$(git rev-parse "$TARGET_SHA:$path")"
-              main_blob="$(git rev-parse "origin/main:$path")"
-              if [[ "$target_blob" != "$main_blob" ]]; then
-                echo "Refusing publication: main changed release-identity path $path after verification." >&2
+              [[ "$(git rev-parse "$TARGET_SHA:$path")" == "$(git rev-parse "origin/main:$path")" ]] || {
+                echo "Main changed release-identity path $path after verification." >&2
                 exit 1
-              fi
+              }
             done
           fi
 
           tag_exists=false
           release_exists=false
           draft_exists=false
-
           if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
             tag_exists=true
-            tag_sha="$(git rev-list -n 1 "$TAG")"
-            if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
-              echo "Refusing publication: existing $TAG points to $tag_sha, not $TARGET_SHA." >&2
-              exit 1
-            fi
+            [[ "$(git rev-list -n 1 "$TAG")" == "$TARGET_SHA" ]] || { echo "Existing $TAG points elsewhere." >&2; exit 1; }
           fi
 
           if release_json="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease,name,body 2>/dev/null)"; then
@@ -330,13 +285,12 @@ jobs:
             prerelease="$(printf '%s' "$release_json" | jq -r '.isPrerelease')"
             name="$(printf '%s' "$release_json" | jq -r '.name')"
             body="$(printf '%s' "$release_json" | jq -r '.body')"
-
             if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
               release_exists=true
             elif [[ "$draft" == "true" && "$prerelease" == "false" && "$name" == "Ghost in the Loop $VERSION" && "$body" == *'<!-- gitl-final-release-bot -->'* ]]; then
               draft_exists=true
             else
-              echo "Refusing publication: $TAG has a pre-existing Release not owned by the final-release bot." >&2
+              echo "$TAG has a Release not owned by this final-release workflow." >&2
               exit 1
             fi
           fi
@@ -345,12 +299,12 @@ jobs:
           echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
           echo "draft_exists=$draft_exists" >> "$GITHUB_OUTPUT"
 
-      - name: Download verified release assets
+      - name: Download certified release assets
         if: steps.revalidate.outputs.release_exists != 'true'
         uses: actions/download-artifact@v4
         with:
           name: final-release-assets
-          path: test-results/release-candidate
+          path: release-assets
 
       - name: Create immutable version tag
         if: steps.revalidate.outputs.release_exists != 'true' && steps.revalidate.outputs.tag_exists != 'true'
@@ -375,7 +329,7 @@ jobs:
           TAG: ${{ needs.verify.outputs.tag }}
         run: |
           set -euo pipefail
-          notes="$(printf '<!-- gitl-final-release-bot -->\nFinal public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
+          notes="$(printf '<!-- gitl-final-release-bot -->\nFinal public release of Ghost in the Loop %s.\n\nPublished from exact commit `%s` after repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented.' "$VERSION" "$TARGET_SHA")"
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Ghost in the Loop $VERSION" \
@@ -392,9 +346,9 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" \
-            test-results/release-candidate/ghost-in-the-loop.user.js \
-            test-results/release-candidate/SHA256SUMS \
-            test-results/release-candidate/package-manifest.json \
+            release-assets/ghost-in-the-loop.user.js \
+            release-assets/SHA256SUMS \
+            release-assets/package-manifest.json \
             --repo "$GITHUB_REPOSITORY" \
             --clobber
 
@@ -431,7 +385,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release publication failed closed after verification. An exact bot-owned draft and/or exact tag may remain so the next retry can safely resume after revalidation. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release publication failed closed after verification. An exact bot-owned draft and/or exact tag may remain so a retry can safely resume after revalidation. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
 
   report-verification-failure:
     needs: verify
@@ -442,11 +396,10 @@ jobs:
       issues: write
     env:
       GH_TOKEN: ${{ github.token }}
-
     steps:
       - name: Report fail-closed verification result
         shell: bash
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release verification failed closed. No tag or GitHub Release was created by the publication job. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release verification failed closed. No publication job ran. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
