@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   promote-and-verify:
-    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'test: run Claude native takeover carrier'
+    if: "${{ github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'test: run Claude native takeover carrier' }}"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
