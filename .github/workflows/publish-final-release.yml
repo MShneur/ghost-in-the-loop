@@ -1,0 +1,252 @@
+name: Publish Final Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Semantic version without v prefix (for example 8.8.0)'
+        required: true
+        type: string
+      target_sha:
+        description: 'Exact 40-character commit SHA; must equal current main'
+        required: true
+        type: string
+      confirm:
+        description: 'Type RELEASE to authorize tag and GitHub Release creation'
+        required: true
+        type: string
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: final-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.label.name == 'release-approved')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Resolve release request
+        id: request
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_VERSION: ${{ inputs.version }}
+          DISPATCH_TARGET_SHA: ${{ inputs.target_sha }}
+          DISPATCH_CONFIRM: ${{ inputs.confirm }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_AUTHOR_ASSOCIATION: ${{ github.event.issue.author_association }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            version="$DISPATCH_VERSION"
+            target_sha="$DISPATCH_TARGET_SHA"
+            confirm="$DISPATCH_CONFIRM"
+          else
+            if [[ "$ISSUE_AUTHOR_ASSOCIATION" != "OWNER" ]]; then
+              echo "Release requests triggered from issues must be authored by the repository owner." >&2
+              exit 1
+            fi
+
+            version="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^version:[[:space:]]*//p')"
+            target_sha="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^target_sha:[[:space:]]*//p')"
+            confirm="$(printf '%s\n' "$ISSUE_BODY" | sed -n 's/^confirm:[[:space:]]*//p')"
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release version: $version" >&2
+            exit 1
+          fi
+          if [[ ! "$target_sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "target_sha must be an exact lowercase 40-character Git commit SHA." >&2
+            exit 1
+          fi
+          if [[ "$confirm" != "RELEASE" ]]; then
+            echo "Release authorization missing: confirm must equal RELEASE." >&2
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check out exact release target
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.request.outputs.target_sha }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Validate release target and existing publication state
+        id: gate
+        shell: bash
+        env:
+          VERSION: ${{ steps.request.outputs.version }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          TAG: ${{ steps.request.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin main --tags --force
+          main_sha="$(git rev-parse origin/main)"
+          checked_out_sha="$(git rev-parse HEAD)"
+
+          if [[ "$TARGET_SHA" != "$main_sha" ]]; then
+            echo "Refusing release: target SHA $TARGET_SHA is not current main $main_sha." >&2
+            exit 1
+          fi
+          if [[ "$checked_out_sha" != "$TARGET_SHA" ]]; then
+            echo "Refusing release: checkout drifted from requested target SHA." >&2
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          lock_version="$(node -p "require('./package-lock.json').version")"
+          manifest_version="$(node -p "require('./extension/manifest.json').version")"
+          userscript_version="$(node - <<'NODE'
+          const fs = require('fs');
+          const text = fs.readFileSync('ghost-in-the-loop.user.js', 'utf8');
+          const match = text.match(/^\/\/\s*@version\s+([^\s]+)\s*$/m);
+          if (!match) process.exit(2);
+          process.stdout.write(match[1]);
+          NODE
+          )"
+
+          for pair in \
+            "package.json:$package_version" \
+            "package-lock.json:$lock_version" \
+            "extension/manifest.json:$manifest_version" \
+            "ghost-in-the-loop.user.js:$userscript_version"; do
+            file="${pair%%:*}"
+            observed="${pair#*:}"
+            if [[ "$observed" != "$VERSION" ]]; then
+              echo "Refusing release: $file reports $observed, expected $VERSION." >&2
+              exit 1
+            fi
+          done
+
+          tag_exists=false
+          release_exists=false
+
+          if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
+            tag_exists=true
+            tag_sha="$(git rev-list -n 1 "$TAG")"
+            if [[ "$tag_sha" != "$TARGET_SHA" ]]; then
+              echo "Refusing release: existing $TAG points to $tag_sha, not $TARGET_SHA." >&2
+              exit 1
+            fi
+          fi
+
+          if release_state="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,isPrerelease --jq '[.isDraft,.isPrerelease] | @tsv' 2>/dev/null)"; then
+            draft="${release_state%%$'\t'*}"
+            prerelease="${release_state#*$'\t'}"
+            if [[ "$draft" == "false" && "$prerelease" == "false" ]]; then
+              release_exists=true
+            else
+              echo "Refusing release: $TAG already has a draft or prerelease GitHub Release." >&2
+              exit 1
+            fi
+          fi
+
+          echo "tag_exists=$tag_exists" >> "$GITHUB_OUTPUT"
+          echo "release_exists=$release_exists" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npm ci
+
+      - name: Build and certify release payload
+        if: steps.gate.outputs.release_exists != 'true'
+        run: |
+          npm run cert:base
+          npm run lint
+          npm run test:unit
+          npm run identity:oracle
+          npm run package:oracle
+
+      - name: Install Playwright browsers
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Run browser safety tests
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npm run test:e2e
+
+      - name: Create immutable version tag
+        if: steps.gate.outputs.release_exists != 'true' && steps.gate.outputs.tag_exists != 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.request.outputs.version }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          TAG: ${{ steps.request.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" "$TARGET_SHA" -m "Ghost in the Loop $VERSION"
+          git push origin "refs/tags/$TAG"
+
+      - name: Publish final GitHub Release
+        if: steps.gate.outputs.release_exists != 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.request.outputs.version }}
+          TARGET_SHA: ${{ steps.request.outputs.target_sha }}
+          TAG: ${{ steps.request.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          notes="Final public release of Ghost in the Loop $VERSION.\n\nPublished from exact commit \`$TARGET_SHA\` after the repository certification, unit, BUILD-IDENTITY, package/checksum, Chromium, and Firefox safety gates passed. Release claims remain bounded to evidence in this commit; no store or physical-device certification is implied unless explicitly documented."
+
+          gh release create "$TAG" \
+            test-results/release-candidate/ghost-in-the-loop.user.js \
+            test-results/release-candidate/SHA256SUMS \
+            test-results/release-candidate/package-manifest.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Ghost in the Loop $VERSION" \
+            --notes "$notes" \
+            --generate-notes \
+            --verify-tag \
+            --latest
+
+      - name: Report successful issue-triggered release
+        if: success() && github.event_name == 'issues'
+        shell: bash
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          VERSION: ${{ steps.request.outputs.version }}
+          TAG: ${{ steps.request.outputs.tag }}
+          RELEASE_ALREADY_EXISTED: ${{ steps.gate.outputs.release_exists }}
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_ALREADY_EXISTED" == "true" ]]; then
+            message="Release $TAG already existed as a final release at the exact requested target; no publication change was needed."
+          else
+            message="Published final release $TAG (Ghost in the Loop $VERSION) after all release gates passed."
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$message"
+          gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
+
+      - name: Report failed issue-triggered release
+        if: failure() && github.event_name == 'issues'
+        shell: bash
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "Final release workflow failed closed. No further release action was attempted after the failing gate. Inspect Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID before retrying."
