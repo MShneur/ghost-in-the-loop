@@ -1,4 +1,4 @@
-name: Worker 4 Native ChatGPT Audit
+name: Worker 4 Native Site Audit
 
 on:
   push:
@@ -12,6 +12,7 @@ on:
       - 'tests/repo-nanny/**'
       - 'tests/e2e/repo-nanny/send-evidence.spec.js'
       - 'tests/e2e/native-chatgpt-takeover.spec.js'
+      - 'tests/e2e/native-claude-takeover.spec.js'
       - 'tests/e2e/native-chatgpt-rerender-worker4.spec.js'
       - 'tests/e2e/lifecycle-mobile-perf.spec.js'
       - '.github/workflows/worker4-native-chatgpt-audit.yml'
@@ -62,7 +63,7 @@ jobs:
       - name: Install Chromium and Firefox
         run: npx playwright install --with-deps chromium firefox
       - name: Native takeover cross-browser matrix
-        run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
+        run: npx playwright test tests/e2e/native-chatgpt-takeover.spec.js tests/e2e/native-claude-takeover.spec.js --project=chromium --project=chromium-mobile --project=firefox
       - name: Whole-composer fail-closed probe
         run: npx playwright test tests/e2e/native-chatgpt-rerender-worker4.spec.js --project=chromium
       - name: Representative mobile resource and recovery performance
@@ -71,7 +72,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: worker4-native-chatgpt-audit
+          name: worker4-native-site-audit
           path: |
             e2e-results.json
             worker4-results/
