@@ -10,8 +10,10 @@ Ghost in the Loop uses a fail-closed GitHub Actions workflow for final public re
 - release-identity paths are `package.json`, `package-lock.json`, the userscript, generated extension manifest/content, and both shipped icons
 - package, lockfile, userscript, and extension manifest versions must all equal `X.Y.Z`
 - repository certification, lint, unit tests, BUILD-IDENTITY, package/checksum verification, Chromium, and Firefox E2E safety tests must all pass on the exact requested target before publication
+- the certified package assets are uploaded to the workflow artifact store immediately after package verification, before Playwright can clean its disposable `test-results` workspace
 - verification and dependency/test execution run with read-only repository contents permission
-- the write-capable token exists only in a separate post-verification publication job
+- an early artifact upload does not authorize publication: the write-capable publication job runs only if the entire verify job, including E2E, finishes successfully
+- the write-capable token exists only in that separate post-verification publication job
 - the publication job repeats the target/ancestor/payload-identity checks immediately before any tag or Release write
 - the workflow will not move an existing mismatched tag
 - an existing exact matching tag may be reused only when recovering from a later GitHub Release API failure
