@@ -8,6 +8,9 @@ Ghost in the Loop uses a fail-closed GitHub Actions workflow for final public re
 - target must be the exact current `main` commit
 - package, lockfile, userscript, and extension manifest versions must all equal `X.Y.Z`
 - repository certification, lint, unit tests, BUILD-IDENTITY, package/checksum verification, Chromium, and Firefox E2E safety tests must all pass before publication
+- verification and dependency/test execution run with read-only repository contents permission
+- the write-capable token exists only in a separate post-verification publication job
+- the publication job re-checks that `main` still points to the exact verified SHA before any tag or Release write
 - the workflow will not move an existing mismatched tag
 - an existing exact matching tag may be reused only when recovering from a later GitHub Release API failure
 - a pre-existing draft or prerelease blocks the final-release workflow
