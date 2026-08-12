@@ -1,6 +1,42 @@
 # Changelog
 
 
+## [8.8.1] — ChatGPT live-send repair (reviewed "Send message" identity)
+
+Field regression on real ChatGPT after 8.8.0: Ghost inserted the continuation
+text into the composer but it never sent, and Ghost-owned controls appeared to
+jump the page toward the top.
+
+- **Send never fires (primary):** current ChatGPT labels its composer Send
+  control `aria-label="Send message"`, which the 8.8.0 reviewed selector list
+  did not include. `_reviewedSend()` returned null, `engineSend` fell to the
+  reviewed synthetic-Enter fallback, and current ChatGPT ignored the synthetic
+  key event. Added `button[aria-label="Send message"]` as the first reviewed
+  ChatGPT Send selector, so the real button resolves as a **single reviewed
+  actuator** (one click) and the Enter fallback is not reached. Exact-identity,
+  uniqueness (fail-closed on ambiguity), disabled/`aria-disabled` rejection,
+  `aria-haspopup`/`aria-expanded` structural veto and `SEND_VETO` are all
+  preserved; at-most-once dispatch is unchanged.
+- **Jump-to-top (defensive):** `mountPanel` now installs one panel-scoped,
+  capture-phase guard that cancels only the browser's default action on Ghost
+  button clicks (host-form submit / anchor navigation). It does not
+  `stopPropagation`, so Ghost's own handlers still run, and it covers every
+  button across re-renders. Duck-typed (`el.closest`) so it is safe in
+  userscript sandboxes that don't expose `Element` globally.
+- Regression coverage: `tests/chatgpt-send-selector.test.js` (source contract,
+  live `_reviewedSend()` resolution, ambiguity/disabled/decoy fail-closed, and
+  the panel guard contract). The diagnostic field shim
+  `diagnostics/gitl-chatgpt-8.8-hotfix.user.js` is superseded by this production
+  repair.
+
+**Live-certification boundary:** this repair is backed by deterministic tests
+and strong converging DOM evidence (independent multi-model review, the in-repo
+test fixture, the Gemini adapter's own use of the identity, and an external
+ChatGPT userscript). It was **not** verified against an authenticated live
+ChatGPT session in this environment (no live browser carrier was available).
+Live ChatGPT actuation remains a required release gate — see
+`docs/CHATGPT_8_8_LIVE_REGRESSION_HANDOFF.md`.
+
 ## [8.8.0] — workflow-neutral controls and explicit decisions
 
 - Fixed false COMPOSER-002 pauses for complete multiline prompts in block-structured contenteditable editors by verifying rendered semantic text while retaining exact normalized staging checks.

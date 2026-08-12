@@ -1,27 +1,27 @@
 {
   "schema": "gitl-build-identity-v1",
   "repository": "MShneur/ghost-in-the-loop",
-  "releaseTarget": "8.8.0",
+  "releaseTarget": "8.8.1",
   "provenance": {
     "branch": "agent/8.8-repair-resume",
-    "head": "30c49f690afb14683014e0a7c40c5c2093aaba2a"
+    "head": "937d0c9e23a3ef105be2e52f64a227b136e220df"
   },
   "channels": {
     "candidate": "agent/8.8-repair-resume",
     "stable": "main",
     "stableUserscriptUpdateUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
     "stableUserscriptDownloadUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
-    "stableVersionObserved": "8.7.1",
+    "stableVersionObserved": null,
     "publicationState": "candidate-not-published",
     "publishReady": false
   },
   "versions": {
-    "package": "8.8.0",
-    "packageLock": "8.8.0",
-    "packageLockRoot": "8.8.0",
-    "userscriptHeader": "8.8.0",
-    "runtime": "8.8.0",
-    "manifest": "8.8.0"
+    "package": "8.8.1",
+    "packageLock": "8.8.1",
+    "packageLockRoot": "8.8.1",
+    "userscriptHeader": "8.8.1",
+    "runtime": "8.8.1",
+    "manifest": "8.8.1"
   },
   "contracts": {
     "canonicalSource": "ghost-in-the-loop.user.js",
@@ -34,18 +34,18 @@
   "payload": [
     {
       "path": "ghost-in-the-loop.user.js",
-      "bytes": 375302,
-      "sha256": "3493ccc31c97db9749768ab32fafc6dc89c2ebc23f043ebaf998aaf115ebf1df"
+      "bytes": 376092,
+      "sha256": "3c56f10f355a83521c444d09283a346e1bd2bf16f968ceddb449784b8ceb3095"
     },
     {
       "path": "extension/manifest.json",
       "bytes": 1589,
-      "sha256": "1bd616e74988e820885ab210ade3afb031eb905bd522053768dae58650292489"
+      "sha256": "15ebec0ed751ed17a87b140bdcef22276a1e4b393ce636116914002ff1a33c38"
     },
     {
       "path": "extension/content.js",
-      "bytes": 374443,
-      "sha256": "2570d6f6e735ad9ecd0eb49a608c7fd36c79c1b0ed70c5fbf367fac8dadd6990"
+      "bytes": 375233,
+      "sha256": "73222694ea0b8ee5cd9f56af203dc83002408c54262cdeea3208c98071e579c8"
     },
     {
       "path": "extension/icon-48.png",

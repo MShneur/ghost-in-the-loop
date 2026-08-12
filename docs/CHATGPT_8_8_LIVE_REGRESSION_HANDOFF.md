@@ -182,3 +182,73 @@ Read `.gitl/orchestration/README.md` and linked state/evidence files before broa
 The branch and PR are ready for independent review and deeper repair work, but they are **not production-certified for live ChatGPT** until an authenticated current-host reproduction/canary succeeds.
 
 The most valuable next step is independent reproduction and repair of the production adapter with a real current ChatGPT composer, followed by a field canary. If that carrier is unavailable, improve deterministic coverage without converting it into a live-certification claim.
+
+---
+
+## Independent takeover — production repair (8.8.1)
+
+A second worker independently reviewed the branch, PR #36, current `main@8.8.0`,
+the diagnostic shim, and the multi-agent field reviews, then reconciled against
+the Personal-Forge Ghost coordination record (post-release takeover handoff:
+8.8 on stable channel; preserve exact reviewed Send identity, at-most-once
+dispatch, CHOICE/route/lease/uncertainty; native takeover is future work).
+
+### Reproduced deterministically
+- `main@8.8.0` ChatGPT adapter `send` list does **not** contain
+  `button[aria-label="Send message"]`; `pressEnter()` has **no callers** in the
+  send path (the single-dispatch `reviewed-enter` strategy fires one inline
+  `keydown`, so the reports' `pressEnter` concern is moot for the transaction).
+- The failure chain is therefore: inject Continue → `_reviewedSend()` returns
+  null (no reviewed identity matches the live control) → `engineSend` selects
+  the reviewed synthetic-Enter fallback → current ChatGPT ignores the synthetic
+  key → text remains in the composer. This matches the field report exactly.
+
+### Evidence for `aria-label="Send message"` (no authenticated live capture available)
+Converging, non-authenticated: the repo's own test fixture, the Gemini adapter's
+existing use of the identity, multiple independent multi-model reviews, and an
+external maintained ChatGPT userscript all cite `aria-label="Send message"` as
+the current live composer Send control. The connected browser carrier was
+unavailable, so exact authenticated-live DOM remains **UNVERIFIED**.
+
+### Smallest production repair (in `ghost-in-the-loop.user.js`, not the shim)
+1. Prepended `'button[aria-label="Send message"]'` to the ChatGPT reviewed
+   `send` array. The real control now resolves via `_reviewedSend()` as a single
+   reviewed actuator (`reviewed-button` → one `.click()`); the synthetic-Enter
+   fallback is not reached. Exact-node identity, uniqueness (fail-closed on
+   ambiguity), disabled/`aria-disabled` rejection, `aria-haspopup`/`aria-expanded`
+   structural veto and `SEND_VETO` are all preserved. At-most-once/single-dispatch
+   is unchanged. No actuator escalation chain was restored.
+2. `mountPanel()` installs one panel-scoped, capture-phase guard cancelling only
+   the browser default action on `#gitl button` clicks (host-form submit / anchor
+   nav → the reported jump-to-top). It does **not** `stopPropagation`, so Ghost's
+   own handlers still run; duck-typed (`el.closest`) so it is safe where the
+   userscript sandbox does not expose `Element` (a real bug the test suite
+   caught). This supersedes the shim's global default-action guard.
+
+The diagnostic shim `diagnostics/gitl-chatgpt-8.8-hotfix.user.js` is now
+**superseded** by the production repair and can be retired once the production
+fix is field-confirmed.
+
+### Regression coverage added
+`tests/chatgpt-send-selector.test.js` — source contract (identity present and
+ordered before the generic `form button[type="submit"]`), live-DOM
+`_reviewedSend()` resolution returning the exact button, and fail-closed cases
+(ambiguous duplicates, disabled, `aria-haspopup` decoy), plus the panel-guard
+contract (prevents default, never stops propagation).
+
+### Deterministic verification (this repair, on `hotfix/8.8-chatgpt-live-send`)
+- `npm run check:generated` → generated extension current (parity).
+- `node -c ghost-in-the-loop.user.js` → OK.
+- `npx jest` → 47 suites, 505 passed, 3 todo.
+- `npm run cert:base` → exit 0.
+- `npm run identity:oracle` → PASS (exact-head), record regenerated for 8.8.1
+  with `publishReady:false`, `publicationState:candidate-not-published`.
+- `npm run package:oracle` → staged five immutable payload files + deterministic
+  metadata.
+- `npm run test:e2e` → 119 passed / 3 skipped across Chromium, Firefox,
+  chromium-mobile (incl. `send-evidence` production-seam and full UI smoke).
+
+This is **deterministic/hosted evidence only**. Per the release gate below, it is
+**not** a live-ChatGPT certification: no authenticated current-host canary was
+run in this environment. 8.8.1 must not be called live-certified until the
+canary in the "Required new release gate" section succeeds on the actual host.

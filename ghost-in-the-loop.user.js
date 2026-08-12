@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.8.0
+// @version      8.8.1
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.8.0';
+const VER = '8.8.1';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -537,7 +537,7 @@ const PROFILES = {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
-    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
+    send: ['button[aria-label="Send message"]','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
     stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
@@ -5242,6 +5242,18 @@ function mountPanel() {
   // the natural resting state, so nothing downstream can depend on it.
   try { panel.classList.add('g-enter'); setTimeout(() => panel.classList.remove('g-enter'), 400); } catch(_) {}
   panel.addEventListener('click', _explainIntercept, true); // capture: explain mode swallows clicks before handlers
+  // Ghost controls are transport/configuration controls, never host-form
+  // submitters or anchors. Cancel only the browser's DEFAULT action on any Ghost
+  // button click (host-form submit / navigation → the reported jump-to-top on
+  // ChatGPT). We do NOT stopPropagation, so Ghost's own click handlers still run,
+  // and this covers every button across re-renders since it's delegated on the
+  // panel root. Buttons carry no meaningful default action, so this is inert
+  // except when a host form/anchor would otherwise hijack the click.
+  panel.addEventListener('click', (e) => {
+    const t = e.target;
+    const btn = t && t.closest ? t.closest('#gitl button') : null;
+    if (btn && !btn.closest('a[href]')) e.preventDefault();
+  }, true);
 }
 
 /* Escape untrusted text before interpolating into innerHTML templates.
