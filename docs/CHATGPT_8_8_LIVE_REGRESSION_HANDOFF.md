@@ -4,7 +4,7 @@ Date: 2026-08-12
 Repository: `MShneur/ghost-in-the-loop`
 Stable base inspected: `main@3fa1ad3ec6bef342260864f28693331b4f3cfd6f`
 Working branch: `hotfix/8.8-chatgpt-live-send`
-Draft PR: #36
+PR: #36 (open, non-draft)
 Claude Code handoff prompt: `docs/CLAUDE_CODE_CHATGPT_8_8_LIVE_REGRESSION_PROMPT.md`
 
 ## User-reported field failure
@@ -24,7 +24,7 @@ However, the release-candidate documentation explicitly bounded the result: exac
 
 This is the key process failure: for a userscript whose core purpose is to manipulate the real composer and dispatch real messages, current authenticated live-host actuation must be a release gate, not an optional footnote.
 
-## Current production architecture relevant to the failure
+## Initial 8.8.0 production architecture and hypothesis
 
 Ghost 8.8.0's ChatGPT adapter includes reviewed Send selectors such as:
 
@@ -36,11 +36,17 @@ Ghost 8.8.0's ChatGPT adapter includes reviewed Send selectors such as:
 
 When no unique reviewed Send button resolves, ChatGPT is allowed a reviewed single-dispatch fallback: one synthetic Enter `keydown` on the composer. That mechanism was introduced to support mobile ChatGPT while preserving the at-most-once journal: select one mechanism before dispatch, fire it once, then observe confirmation or enter uncertainty. Do not regress to the older multi-tier escalation chain merely to obtain a pass.
 
-A current semantic label such as `aria-label="Send message"` is not explicitly covered by the main 8.8 adapter. A plausible field failure is therefore:
+At the initial investigation stage, a semantic label such as
+`aria-label="Send message"` was not explicitly covered by the main 8.8 adapter.
+A plausible field failure was therefore:
 
 `Ghost injects Continue -> reviewed button selector misses live Send -> synthetic Enter is dispatched -> current ChatGPT ignores/does not submit the synthetic event -> text remains in composer.`
 
-This is a high-confidence hypothesis, not a claimed authenticated-live DOM observation. The connected browser carrier available during this investigation returned HTTP 404, so exact current live ChatGPT DOM binding remains unverified.
+This was a leading hypothesis, not an authenticated-live DOM observation. The
+first connected browser carrier returned HTTP 404. The later signed-out public
+probe documented under “Independent takeover correction” did not observe this
+label and reduced confidence in the hypothesis; authenticated binding remains
+unverified.
 
 ## Narrow field hotfix implemented on this branch
 
@@ -96,7 +102,10 @@ The normal CI contract includes:
 - release-candidate packaging oracle
 - Playwright Chromium + Firefox browser safety suite
 
-The run completed green. This proves the code-bearing hotfix head is compatible with the repository's deterministic/hosted test contract. Later commits on the branch add documentation only; they do not broaden the live-certification claim.
+The run completed green. This proved that the historical shim head was
+compatible with the repository's deterministic/hosted test contract. It was
+later superseded by the production changes and newer evidence documented below;
+it never broadened the live-certification claim.
 
 ## Rejected repair direction
 
@@ -332,3 +341,84 @@ run the authenticated canary in "Required new release gate" on the reporter's
 failing layout, capture only the composer/Send/control facts listed above, and
 approve release only if exactly one outbound turn and one continuation appear
 without a scroll jump.
+
+---
+
+## Final release-hardening pass (2026-08-12)
+
+The final pre-field-test sweep rechecked live GitHub rather than relying on the
+earlier report. `main` remained
+`3fa1ad3ec6bef342260864f28693331b4f3cfd6f`; PR #36 was the only open pull
+request, remained non-draft and mergeable, and had no reviews or review threads.
+No newer concurrent pull-request or `main`-branch work was found.
+
+### Additional exact-one failure reproduced and repaired
+
+The previous global-union repair still returned `TeachStore.matchEl('send')`
+before examining the built-in reviewed selector union. A human-taught selector
+could therefore drift from one eligible node to two, return its first match,
+and bypass ambiguity rejection even when only one of those nodes also matched a
+built-in reviewed alias.
+
+A regression was added first and failed as expected:
+
+- command: `npx jest tests/chatgpt-send-selector.test.js --runInBand`;
+- observed result: 1 failed / 17 passed;
+- failure: `_reviewedSend()` returned the first `button.taught-send` instead of
+  `null` when that selector matched two visible veto-safe controls.
+
+Production `_reviewedSend()` now collects the human-taught selector and every
+built-in reviewed selector into the same `Set`, deduplicates aliases for the
+same node, and returns only when the complete authority union contains exactly
+one eligible DOM node. A taught actuator still works on an unreviewed host when
+it is unique. No new actuator, retry, form submission, Enter sequence, or
+authority-widening path was added.
+
+### Final deterministic and hosted verification
+
+Code-bearing head:
+`275919c0e78312e2ed9bfd03f0422faddd90c2b0`.
+
+Local Node `24.14.0` / npm `11.9.0` results:
+
+- focused repaired suites: 3 suites / 39 passed;
+- full `npm test -- --runInBand`: 47 suites / 514 passed / 3 todo;
+- `npm run lint`, `npm run check:generated`, `npm run cert:base`,
+  `npm run identity:oracle`, `npm run package:oracle`, and
+  `npm run package:check`: pass;
+- package `SHA256SUMS`:
+  `8469497e85bd2a1f1b78aac96a2f8c7cfe8e4d9b31f952492e944d551ecf7284`;
+- `npm audit --omit=dev --json`: 0 vulnerabilities. Full development audit
+  still reports the previously documented two high-severity transitive nodes,
+  `brace-expansion` and `js-yaml`; no shipped-payload path was established.
+
+Local Playwright execution was attempted for the ChatGPT and Teach fixtures.
+The worker still lacked a browser executable, and a permitted Chromium install
+retried five times but received a `0 MiB`/truncated archive. This is an
+environment limitation, not a test assertion failure.
+
+GitHub Actions run
+[`31624115333`](https://github.com/MShneur/ghost-in-the-loop/actions/runs/31624115333)
+completed successfully on the code-bearing head:
+
+- Unit/base job `94206004939`: Node `20.20.2`, npm `10.8.2`; 47 suites /
+  514 passed / 3 todo; generated parity, syntax, base certification,
+  BUILD-IDENTITY (`head-moved-payload-identical`, `publishReady:false`) and
+  packaging passed.
+- Playwright job `94206004903`: 239 cases across Chromium, Firefox and selected
+  mobile lanes; 229 passed / 10 skipped. The new taught-selector drift fixture
+  passed in both Chromium and Firefox, as did all six ChatGPT Send/control
+  regression executions.
+- Artifacts: release-candidate package `9152416065`, base certification
+  `9152416779`, and E2E results `9152546359`.
+- Candidate `SHA256SUMS` matched the local oracle:
+  `8469497e85bd2a1f1b78aac96a2f8c7cfe8e4d9b31f952492e944d551ecf7284`.
+
+Stable `@updateURL` / `@downloadURL` values remain unchanged and point to
+`main`. No merge, auto-merge, tag, GitHub Release, stable-channel update, or
+publication action was performed.
+
+The evidence boundary is unchanged: the candidate is safer and more completely
+tested, but the authenticated field root cause and live repair status remain
+**UNKNOWN** until the reporter's failing layout completes the one-dispatch/no-
+scroll-jump canary.
