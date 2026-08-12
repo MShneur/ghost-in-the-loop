@@ -185,70 +185,120 @@ The most valuable next step is independent reproduction and repair of the produc
 
 ---
 
-## Independent takeover — production repair (8.8.1)
+## Independent takeover correction (2026-08-12)
 
-A second worker independently reviewed the branch, PR #36, current `main@8.8.0`,
-the diagnostic shim, and the multi-agent field reviews, then reconciled against
-the Personal-Forge Ghost coordination record (post-release takeover handoff:
-8.8 on stable channel; preserve exact reviewed Send identity, at-most-once
-dispatch, CHOICE/route/lease/uncertainty; native takeover is future work).
+A subsequent independent sweep reconciled the repository, PR #36, CI, the
+attached multi-pass review, `.gitl` state, and the canonical Personal Forge
+coordination record. Only non-sensitive coordination conclusions are recorded
+here: 8.8.0 is already on the stable channel; this work remains a narrow hotfix;
+exact Send identity, at-most-once dispatch, CHOICE, route/lease and uncertainty
+gates remain mandatory; native-site takeover is a separate future stream.
 
-### Reproduced deterministically
-- `main@8.8.0` ChatGPT adapter `send` list does **not** contain
-  `button[aria-label="Send message"]`; `pressEnter()` has **no callers** in the
-  send path (the single-dispatch `reviewed-enter` strategy fires one inline
-  `keydown`, so the reports' `pressEnter` concern is moot for the transaction).
-- The failure chain is therefore: inject Continue → `_reviewedSend()` returns
-  null (no reviewed identity matches the live control) → `engineSend` selects
-  the reviewed synthetic-Enter fallback → current ChatGPT ignores the synthetic
-  key → text remains in the composer. This matches the field report exactly.
+### GitHub state at takeover
 
-### Evidence for `aria-label="Send message"` (no authenticated live capture available)
-Converging, non-authenticated: the repo's own test fixture, the Gemini adapter's
-existing use of the identity, multiple independent multi-model reviews, and an
-external maintained ChatGPT userscript all cite `aria-label="Send message"` as
-the current live composer Send control. The connected browser carrier was
-unavailable, so exact authenticated-live DOM remains **UNVERIFIED**.
+- `main` remained `3fa1ad3ec6bef342260864f28693331b4f3cfd6f`.
+- PR #36 was open, non-draft and mergeable at
+  `3995091091fa2a1a2d66dec3ef4a965c2b2dbbe8`, with no review threads or comments.
+- GitHub Actions run `31614232189` was green at that SHA. Its logs show 47 Jest
+  suites / 505 passed / 3 todo and 221 Playwright tests passed / 3 skipped. This
+  corrects the earlier handoff's stale `119 passed` count. The run is still
+  deterministic/hosted evidence only.
+- No active `.gitl` lease or newer concurrent hotfix branch work was found. The
+  frozen Round-9 `.gitl` state describes the completed 8.8.0 release and is not
+  authority to merge or publish this candidate.
 
-### Smallest production repair (in `ghost-in-the-loop.user.js`, not the shim)
-1. Prepended `'button[aria-label="Send message"]'` to the ChatGPT reviewed
-   `send` array. The real control now resolves via `_reviewedSend()` as a single
-   reviewed actuator (`reviewed-button` → one `.click()`); the synthetic-Enter
-   fallback is not reached. Exact-node identity, uniqueness (fail-closed on
-   ambiguity), disabled/`aria-disabled` rejection, `aria-haspopup`/`aria-expanded`
-   structural veto and `SEND_VETO` are all preserved. At-most-once/single-dispatch
-   is unchanged. No actuator escalation chain was restored.
-2. `mountPanel()` installs one panel-scoped, capture-phase guard cancelling only
-   the browser default action on `#gitl button` clicks (host-form submit / anchor
-   nav → the reported jump-to-top). It does **not** `stopPropagation`, so Ghost's
-   own handlers still run; duck-typed (`el.closest`) so it is safe where the
-   userscript sandbox does not expose `Element` (a real bug the test suite
-   caught). This supersedes the shim's global default-action guard.
+### Live read-only evidence and falsified assumption
 
-The diagnostic shim `diagnostics/gitl-chatgpt-8.8-hotfix.user.js` is now
-**superseded** by the production repair and can be retired once the production
-fix is field-confirmed.
+A cloud Chrome carrier was available, but it was signed out. On the current
+public `chatgpt.com` composer, a non-sensitive unsent probe revealed exactly one
+visible enabled Send node with these facts:
 
-### Regression coverage added
-`tests/chatgpt-send-selector.test.js` — source contract (identity present and
-ordered before the generic `form button[type="submit"]`), live-DOM
-`_reviewedSend()` resolution returning the exact button, and fail-closed cases
-(ambiguous duplicates, disabled, `aria-haspopup` decoy), plus the panel-guard
-contract (prevents default, never stops propagation).
+- tag: `button`;
+- id: `composer-submit-button`;
+- `aria-label="Send prompt"`;
+- `data-testid="send-button"`;
+- no explicit `type` attribute;
+- inside the composer `form`;
+- absent while the composer was empty and present after typing.
 
-### Deterministic verification (this repair, on `hotfix/8.8-chatgpt-live-send`)
-- `npm run check:generated` → generated extension current (parity).
-- `node -c ghost-in-the-loop.user.js` → OK.
-- `npx jest` → 47 suites, 505 passed, 3 todo.
-- `npm run cert:base` → exit 0.
-- `npm run identity:oracle` → PASS (exact-head), record regenerated for 8.8.1
-  with `publishReady:false`, `publicationState:candidate-not-published`.
-- `npm run package:oracle` → staged five immutable payload files + deterministic
-  metadata.
-- `npm run test:e2e` → 119 passed / 3 skipped across Chromium, Firefox,
-  chromium-mobile (incl. `send-evidence` production-seam and full UI smoke).
+The probe text was cleared and Send was not actuated. This observation falsifies
+the statement that current ChatGPT generally uses `aria-label="Send message"`:
+the observed public layout uses two identities already present in 8.8.0. It
+does **not** rule out an authenticated, mobile, experiment or account-specific
+`Send message` variant. Because the reporter's authenticated failing layout was
+not captured, the field root cause remains **UNKNOWN**.
 
-This is **deterministic/hosted evidence only**. Per the release gate below, it is
-**not** a live-ChatGPT certification: no authenticated current-host canary was
-run in this environment. 8.8.1 must not be called live-certified until the
-canary in the "Required new release gate" section succeeds on the actual host.
+### Corrections to the candidate repair
+
+1. The `button[aria-label="Send message"]` selector remains as a bounded
+   compatibility addition, not a proven live-root-cause fix. It does not widen
+   the actuator beyond a reviewed exact semantic identity.
+2. `_reviewedSend()` now builds a deduplicated union of all safe matches across
+   the reviewed selector set and grants click authority only when that union has
+   exactly one DOM node. The previous per-selector loop could see two
+   `Send message` controls, skip that ambiguous selector, then return one control
+   because a later `data-testid` selector happened to match only it. A new
+   regression first reproduced that fail-open behavior.
+3. The candidate's panel-wide click `preventDefault()` guard was removed. The
+   production panel is appended directly to `document.body`, not a ChatGPT form,
+   and its buttons are not nested in anchors, so that guard did not demonstrate
+   the reported page-jump cause. Instead every rendered Ghost button is
+   explicitly normalized to `type="button"`, preserving normal pointer and
+   keyboard activation while remaining safe if the panel is ever reparented.
+4. The diagnostic shim remains a temporary probe and is not the production
+   architecture. Its passing tests do not certify either field symptom.
+
+### Regression coverage
+
+- `tests/chatgpt-send-selector.test.js`: `Send message` compatibility, the
+  observed public `Send prompt`/`send-button` shape, same-node selector alias
+  deduplication, cross-selector ambiguity rejection, hidden/disabled/
+  `aria-disabled`/menu/disclosure decoys, and fresh resolution after node
+  replacement.
+- `tests/sendtransaction.test.js`: source contract for union-wide exact-one
+  dispatch authority while retaining the single selected actuator transaction.
+- `tests/e2e/chatgpt-live-regression.spec.js`: real-browser fixture asserting the
+  observed public host node is unchanged, a visible alternate Send fails closed,
+  Adaptive and committee controls mutate intended Ghost state, every Ghost
+  button is `type="button"`, and no host submit, Send click, URL/hash mutation or
+  scroll movement occurs.
+
+### Attached review calibration
+
+The review correctly identified the missing compatibility identity and several
+legitimate follow-ups, but its primary conclusion exceeded its evidence. Its
+`pressEnter()` double-dispatch change is moot for this path because `engineSend`
+does not call `pressEnter()`. Its proposed sequential `requestSubmit` / Enter /
+click recovery, learned actuator fingerprints and self-healed Send authority
+were rejected because they can duplicate a delayed successful send or invent
+authority. GhostBus URL disclosure, Claude label casing, taught-selector
+uniqueness, FUZZY_CHOICE and a possibly sticky network-open counter remain
+separate follow-up candidates; none was bundled into this narrow hotfix.
+
+### Verification boundary
+
+Local runtime: Node `24.14.0`, npm `11.9.0` (CI retains the required Node 20
+parity). Completed commands on the working tree:
+
+- `npx jest tests/chatgpt-send-selector.test.js tests/sendtransaction.test.js tests/sendsafety.test.js tests/sendlayered.test.js --runInBand` → 4 suites / 61 passed.
+- `npx jest --runInBand` → 47 suites / 513 passed / 3 todo.
+- `npm run check:generated` and `npm run lint` → pass.
+- `npm run cert:base` → pass.
+- `npm run identity:oracle` → pass (`exact-head` before the new commit,
+  `publishReady:false`).
+- `npm run package:oracle` and `npm run package:check` → pass;
+  `SHA256SUMS` hash
+  `aeadf0b41bbedb63ee1ca431044b3dabe446f9881b1bd2f4a92a64339a5bb63d`.
+
+`npx playwright test tests/e2e/chatgpt-live-regression.spec.js` was attempted,
+but this worker had no installed browser binary. A second attempt with
+`PLAYWRIGHT_BROWSERS_PATH=/tmp/gitl-playwright npx playwright install chromium firefox`
+reached the download endpoint but received empty/truncated archives. Repository
+CI is therefore the browser execution oracle for the new fixture. Exact final
+SHA and CI run/job IDs must be appended after the candidate is pushed.
+
+This remains **not live-certified**. One concrete blocker-clearing action remains:
+run the authenticated canary in "Required new release gate" on the reporter's
+failing layout, capture only the composer/Send/control facts listed above, and
+approve release only if exactly one outbound turn and one continuation appear
+without a scroll jump.

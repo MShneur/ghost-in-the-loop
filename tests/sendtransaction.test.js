@@ -19,7 +19,9 @@ describe('dispatch authority', () => {
   test('only reviewed platform selectors may return a button actuator', () => {
     expect(src).toContain('function _reviewedSend()');
     expect(src).toContain('if (!PLAT?.reviewed) return null;');
-    expect(src).toContain('if (matches.length === 1) return matches[0];');
+    expect(src).toContain('const candidates = new Set();');
+    expect(src).toContain('if (candidates.size > 1) return null;');
+    expect(src).toContain("return candidates.size === 1 ? [...candidates][0] : null;");
   });
 
   test('generic and imported custom adapters are not reviewed actuators', () => {

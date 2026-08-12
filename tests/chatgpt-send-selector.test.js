@@ -1,19 +1,13 @@
 /**
- * CHATGPT LIVE SEND SELECTOR REGRESSION (v8.8.1)
+ * CHATGPT SEND RESOLUTION REGRESSION (v8.8.1 candidate)
  *
- * Field regression after 8.8.0: on current ChatGPT the reviewed Send control
- * carries aria-label="Send message". The 8.8.0 ChatGPT adapter did NOT list
- * that identity, so _reviewedSend() returned null, engineSend selected the
- * reviewed synthetic-Enter fallback, and current ChatGPT ignored the synthetic
- * key event — the continuation text was inserted but never sent.
+ * The authenticated field failure remains unverified in this harness. These
+ * fixtures lock down two bounded facts instead:
+ *   - the production adapter can recognize a possible `Send message` variant;
+ *   - all reviewed selector aliases must resolve to one unique DOM node before
+ *     Ghost receives click authority.
  *
- * This proves the PRODUCTION adapter (not the diagnostic field shim) resolves
- * the real button as a single reviewed actuator, preserving at-most-once
- * dispatch and all existing send vetoes / fail-closed behaviour. The harness
- * boots with location.hostname = chatgpt.com, so PLAT is the ChatGPT adapter.
- *
- * Symbols (_reviewedSend, SEND_VETO, _sendLooksSafe, TeachStore) arrive on
- * global via tests/setup.js.
+ * Symbols arrive on global via tests/setup.js, whose URL selects ChatGPT.
  */
 const fs = require('fs');
 const path = require('path');
@@ -24,91 +18,128 @@ function chatgptProfile() {
   return src.slice(start, src.indexOf('\n  perplexity:', start));
 }
 
+function sendBtn(label, extra = {}, visible = true) {
+  const button = document.createElement('button');
+  if (label != null) button.setAttribute('aria-label', label);
+  button.textContent = label || '';
+  Object.entries(extra).forEach(([key, value]) => button.setAttribute(key, value));
+  button.getBoundingClientRect = () => visible
+    ? ({ width: 40, height: 40, top: 10, left: 0, right: 40, bottom: 50 })
+    : ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0 });
+  return button;
+}
+
 describe('ChatGPT reviewed Send — source contract', () => {
   const profile = chatgptProfile();
 
-  test('lists the current-live aria-label="Send message" identity', () => {
+  test('includes the bounded Send message compatibility identity', () => {
     expect(profile).toContain(`'button[aria-label="Send message"]'`);
   });
 
-  test('prefers the semantic Send identity over the generic form-submit fallback', () => {
-    // Order matters in _reviewedSend: the first selector that resolves to a
-    // single safe match wins. The confirmed live identity must be tried before
-    // the broad `form button[type="submit"]` that masked the gap in fixtures.
+  test('retains the identities observed on the current signed-out public composer', () => {
+    expect(profile).toContain(`'button[data-testid="send-button"]'`);
+    expect(profile).toContain(`'button[aria-label="Send prompt"]'`);
+  });
+
+  test('reviewed semantic identities precede the generic form-submit fallback', () => {
     const semanticAt = profile.indexOf(`aria-label="Send message"`);
     const submitAt = profile.indexOf(`form button[type="submit"]`);
     expect(semanticAt).toBeGreaterThan(-1);
     expect(submitAt).toBeGreaterThan(semanticAt);
   });
 
-  test('"Send message" is not caught by the send veto', () => {
+  test('Send message is not caught by the send veto', () => {
     expect(SEND_VETO.test('Send message')).toBe(false);
-    expect(_sendLooksSafe({ getAttribute: (k) => (k === 'aria-label' ? 'Send message' : null), textContent: '' })).toBe(true);
+    expect(_sendLooksSafe({
+      getAttribute: (key) => (key === 'aria-label' ? 'Send message' : null),
+      textContent: ''
+    })).toBe(true);
   });
 });
 
-describe('_reviewedSend resolves the real ChatGPT Send button (live DOM)', () => {
-  function sendBtn(label, extra = {}) {
-    const b = document.createElement('button');
-    if (label != null) b.setAttribute('aria-label', label);
-    b.textContent = label || '';
-    Object.entries(extra).forEach(([k, v]) => b.setAttribute(k, v));
-    // jsdom returns a zero rect; make it pass the visibility gate.
-    b.getBoundingClientRect = () => ({ width: 40, height: 40, top: 10, left: 0, right: 40, bottom: 50 });
-    return b;
-  }
-
+describe('_reviewedSend fixture resolution', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     try { TeachStore.forgetHost(); } catch (_) {}
   });
 
-  test('a unique visible aria-label="Send message" is returned as the reviewed actuator', () => {
-    const b = sendBtn('Send message');
-    document.body.appendChild(b);
-    expect(_reviewedSend()).toBe(b);
+  test('a unique visible Send message variant resolves to its exact node', () => {
+    const button = sendBtn('Send message');
+    document.body.appendChild(button);
+    expect(_reviewedSend()).toBe(button);
   });
 
-  test('two plausible Send controls are ambiguous → fail closed (null, never a guess)', () => {
+  test('the current signed-out public composer identity resolves without Send message', () => {
+    const form = document.createElement('form');
+    const button = sendBtn('Send prompt', {
+      id: 'composer-submit-button',
+      'data-testid': 'send-button'
+    });
+    form.appendChild(button);
+    document.body.appendChild(form);
+
+    expect(button.getAttribute('type')).toBeNull();
+    expect(_reviewedSend()).toBe(button);
+  });
+
+  test('selector aliases for the same node are deduplicated', () => {
+    const button = sendBtn('Send message', { 'data-testid': 'send-button' });
+    document.body.appendChild(button);
+    expect(_reviewedSend()).toBe(button);
+  });
+
+  test('two plausible Send controls are ambiguous and fail closed', () => {
     document.body.appendChild(sendBtn('Send message'));
     document.body.appendChild(sendBtn('Send message'));
     expect(_reviewedSend()).toBeNull();
   });
 
-  test('a disabled Send message is never actuated', () => {
-    const b = sendBtn('Send message');
-    b.disabled = true;
-    document.body.appendChild(b);
+  test('ambiguity cannot be bypassed by a later selector matching one duplicate', () => {
+    document.body.appendChild(sendBtn('Send message', { 'data-testid': 'send-button' }));
+    document.body.appendChild(sendBtn('Send message'));
     expect(_reviewedSend()).toBeNull();
   });
 
-  test('a menu/attach decoy labelled Send is vetoed by the structural gate', () => {
-    document.body.appendChild(sendBtn('Send message', { 'aria-haspopup': 'menu' }));
+  test('a hidden secondary control does not make the visible composer ambiguous', () => {
+    const visible = sendBtn('Send prompt', { 'data-testid': 'send-button' });
+    document.body.appendChild(visible);
+    document.body.appendChild(sendBtn('Send message', {}, false));
+    expect(_reviewedSend()).toBe(visible);
+  });
+
+  test('resolution is fresh after the host replaces the Send node', () => {
+    const first = sendBtn('Send message');
+    document.body.appendChild(first);
+    expect(_reviewedSend()).toBe(first);
+
+    const replacement = sendBtn('Send message');
+    first.replaceWith(replacement);
+    expect(_reviewedSend()).toBe(replacement);
+  });
+
+  test.each([
+    ['disabled', (button) => { button.disabled = true; }],
+    ['aria-disabled', (button) => { button.setAttribute('aria-disabled', 'true'); }],
+    ['menu popup', (button) => { button.setAttribute('aria-haspopup', 'menu'); }],
+    ['disclosure', (button) => { button.setAttribute('aria-expanded', 'false'); }]
+  ])('rejects a %s Send decoy', (_name, mutate) => {
+    const button = sendBtn('Send message');
+    mutate(button);
+    document.body.appendChild(button);
     expect(_reviewedSend()).toBeNull();
   });
 });
 
-describe('Ghost-button default-action guard (scroll-to-top symptom)', () => {
-  // mountPanel installs a panel-scoped, capture-phase guard that cancels the
-  // browser DEFAULT action on Ghost button clicks (host-form submit / anchor
-  // navigation → the reported jump-to-top) WITHOUT stopping propagation, so
-  // Ghost's own click handlers still fire and every re-rendered button is
-  // covered by the single delegated listener.
-  // Scope to the guard block itself: from its anchor comment to the end of the
-  // listener registration, so the assertion can't leak into neighbouring code.
-  // Anchor on the guard's CODE (not its comment, which mentions the words) so
-  // the propagation assertion reflects the actual listener body.
-  const codeAt = src.indexOf("const btn = t && t.closest ? t.closest('#gitl button')");
-  const guard = src.slice(codeAt, src.indexOf('}, true);', codeAt));
-
-  test('mountPanel prevents default on Ghost button clicks', () => {
-    expect(codeAt).toBeGreaterThan(-1);
-    expect(guard).toContain("closest('#gitl button')");
-    expect(guard).toContain('e.preventDefault()');
+describe('Ghost button semantics', () => {
+  test('render normalizes every panel button to type=button', () => {
+    expect(src).toContain("panel.querySelectorAll('button:not([type])')");
+    expect(src).toContain("button.setAttribute('type', 'button')");
   });
 
-  test('the guard never stops propagation (Ghost handlers must still run)', () => {
-    expect(guard).not.toContain('stopPropagation');
-    expect(guard).not.toContain('stopImmediatePropagation');
+  test('mountPanel does not globally cancel ordinary Ghost clicks', () => {
+    const start = src.indexOf('function mountPanel()');
+    const block = src.slice(start, src.indexOf('function _esc', start));
+    expect(block).not.toContain("closest('#gitl button')");
+    expect(block).not.toContain('e.preventDefault()');
   });
 });

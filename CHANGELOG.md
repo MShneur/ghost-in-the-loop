@@ -1,40 +1,41 @@
 # Changelog
 
 
-## [8.8.1] — ChatGPT live-send repair (reviewed "Send message" identity)
+## [8.8.1] — ChatGPT send compatibility candidate and authority hardening
 
 Field regression on real ChatGPT after 8.8.0: Ghost inserted the continuation
 text into the composer but it never sent, and Ghost-owned controls appeared to
 jump the page toward the top.
 
-- **Send never fires (primary):** current ChatGPT labels its composer Send
-  control `aria-label="Send message"`, which the 8.8.0 reviewed selector list
-  did not include. `_reviewedSend()` returned null, `engineSend` fell to the
-  reviewed synthetic-Enter fallback, and current ChatGPT ignored the synthetic
-  key event. Added `button[aria-label="Send message"]` as the first reviewed
-  ChatGPT Send selector, so the real button resolves as a **single reviewed
-  actuator** (one click) and the Enter fallback is not reached. Exact-identity,
-  uniqueness (fail-closed on ambiguity), disabled/`aria-disabled` rejection,
-  `aria-haspopup`/`aria-expanded` structural veto and `SEND_VETO` are all
-  preserved; at-most-once dispatch is unchanged.
-- **Jump-to-top (defensive):** `mountPanel` now installs one panel-scoped,
-  capture-phase guard that cancels only the browser's default action on Ghost
-  button clicks (host-form submit / anchor navigation). It does not
-  `stopPropagation`, so Ghost's own handlers still run, and it covers every
-  button across re-renders. Duck-typed (`el.closest`) so it is safe in
-  userscript sandboxes that don't expose `Element` globally.
-- Regression coverage: `tests/chatgpt-send-selector.test.js` (source contract,
-  live `_reviewedSend()` resolution, ambiguity/disabled/decoy fail-closed, and
-  the panel guard contract). The diagnostic field shim
-  `diagnostics/gitl-chatgpt-8.8-hotfix.user.js` is superseded by this production
-  repair.
+- **Bounded Send compatibility:** added
+  `button[aria-label="Send message"]` to ChatGPT's reviewed selector set. This
+  covers a plausible host variant without changing the one-actuator transaction
+  model. It is not claimed as the proven field root cause: a current signed-out
+  public ChatGPT probe instead exposed `#composer-submit-button` with
+  `aria-label="Send prompt"` and `data-testid="send-button"`, both already
+  covered by 8.8.0. The failing authenticated layout remains unobserved.
+- **Global ambiguity rejection:** `_reviewedSend()` now deduplicates aliases for
+  the same DOM node across the complete reviewed selector set and returns an
+  actuator only when that union contains exactly one node. Previously, two
+  plausible controls could bypass fail-closed behavior when a later selector
+  happened to match only one of them.
+- **Ghost control semantics:** every rendered Ghost button is explicitly
+  normalized to `type="button"`. The earlier candidate's global click
+  `preventDefault()` guard was removed: `#gitl` mounts directly under `body`, so
+  no ChatGPT form/anchor ancestry was demonstrated, and intercepting every click
+  did not establish the scroll-jump root cause.
+- Regression coverage now includes exact-node alias deduplication, cross-selector
+  ambiguity, disabled/menu/disclosure decoys, hidden and replaced Send nodes,
+  the observed signed-out public composer shape, and a real-browser fixture for
+  Ghost state changes with no host form submission, URL/hash mutation, Send
+  click, or scroll movement. The diagnostic field shim remains a temporary
+  probe, not production architecture.
 
-**Live-certification boundary:** this repair is backed by deterministic tests
-and strong converging DOM evidence (independent multi-model review, the in-repo
-test fixture, the Gemini adapter's own use of the identity, and an external
-ChatGPT userscript). It was **not** verified against an authenticated live
-ChatGPT session in this environment (no live browser carrier was available).
-Live ChatGPT actuation remains a required release gate — see
+**Live-certification boundary:** this candidate is backed by deterministic tests
+and a read-only signed-out public DOM inspection. It was **not** verified against
+an authenticated live ChatGPT session and must not be described as a proven
+field repair or live-certified release. Live ChatGPT actuation remains a required
+release gate — see
 `docs/CHATGPT_8_8_LIVE_REGRESSION_HANDOFF.md`.
 
 ## [8.8.0] — workflow-neutral controls and explicit decisions

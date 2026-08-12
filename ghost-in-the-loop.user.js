@@ -1020,6 +1020,12 @@ function _reviewedSend() {
   const taught = TeachStore.matchEl('send');
   if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
   if (!PLAT?.reviewed) return null;
+  // Resolve the full reviewed selector set before granting authority. A page can
+  // expose two plausible controls where only one also matches a later, more
+  // specific selector. Returning that later singleton would bypass the earlier
+  // ambiguity and silently guess. Deduplicate the same DOM node across selector
+  // aliases, but fail closed if the union contains more than one safe actuator.
+  const candidates = new Set();
   for (const sel of PLAT.send || []) {
     let matches = [];
     try {
@@ -1032,9 +1038,10 @@ function _reviewedSend() {
     } catch(_) {
       matches = [];
     }
-    if (matches.length === 1) return matches[0];
+    for (const match of matches) candidates.add(match);
+    if (candidates.size > 1) return null;
   }
-  return null;
+  return candidates.size === 1 ? [...candidates][0] : null;
 }
 
 /* ── Answer selection (v8.5.3 item 1) ────────────────────────
@@ -5242,18 +5249,6 @@ function mountPanel() {
   // the natural resting state, so nothing downstream can depend on it.
   try { panel.classList.add('g-enter'); setTimeout(() => panel.classList.remove('g-enter'), 400); } catch(_) {}
   panel.addEventListener('click', _explainIntercept, true); // capture: explain mode swallows clicks before handlers
-  // Ghost controls are transport/configuration controls, never host-form
-  // submitters or anchors. Cancel only the browser's DEFAULT action on any Ghost
-  // button click (host-form submit / navigation → the reported jump-to-top on
-  // ChatGPT). We do NOT stopPropagation, so Ghost's own click handlers still run,
-  // and this covers every button across re-renders since it's delegated on the
-  // panel root. Buttons carry no meaningful default action, so this is inert
-  // except when a host form/anchor would otherwise hijack the click.
-  panel.addEventListener('click', (e) => {
-    const t = e.target;
-    const btn = t && t.closest ? t.closest('#gitl button') : null;
-    if (btn && !btn.closest('a[href]')) e.preventDefault();
-  }, true);
 }
 
 /* Escape untrusted text before interpolating into innerHTML templates.
@@ -5874,6 +5869,11 @@ function render() {
         ${tab==='settings'?renderSettingsTab():''}
       </div>
     </div>`);
+  // Every Ghost button is a panel control, never a submitter. Declare that
+  // native semantic after each template render instead of cancelling every
+  // click's default action. This preserves normal pointer/keyboard activation
+  // and remains safe if a host later reparents the panel near a form.
+  panel.querySelectorAll('button:not([type])').forEach(button => button.setAttribute('type', 'button'));
   bindEvents();
   applyPosition(GHOST.ui.position);
 }
