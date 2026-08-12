@@ -234,11 +234,14 @@ not captured, the field root cause remains **UNKNOWN**.
    compatibility addition, not a proven live-root-cause fix. It does not widen
    the actuator beyond a reviewed exact semantic identity.
 2. `_reviewedSend()` now builds a deduplicated union of all safe matches across
-   the reviewed selector set and grants click authority only when that union has
-   exactly one DOM node. The previous per-selector loop could see two
-   `Send message` controls, skip that ambiguous selector, then return one control
-   because a later `data-testid` selector happened to match only it. A new
-   regression first reproduced that fail-open behavior.
+   both the reviewed selector set and any human-taught Send selector, and grants
+   click authority only when that complete authority union has exactly one DOM
+   node. The previous per-selector loop could see two `Send message` controls,
+   skip that ambiguous selector, then return one control because a later
+   `data-testid` selector happened to match only it. A subsequent hardening pass
+   also reproduced a taught selector matching two live controls while a built-in
+   alias matched only one; the old taught-first path returned that first node.
+   Both ambiguity bypasses now fail closed.
 3. The candidate's panel-wide click `preventDefault()` guard was removed. The
    production panel is appended directly to `document.body`, not a ChatGPT form,
    and its buttons are not nested in anchors, so that guard did not demonstrate
@@ -252,11 +255,14 @@ not captured, the field root cause remains **UNKNOWN**.
 
 - `tests/chatgpt-send-selector.test.js`: `Send message` compatibility, the
   observed public `Send prompt`/`send-button` shape, same-node selector alias
-  deduplication, cross-selector ambiguity rejection, hidden/disabled/
-  `aria-disabled`/menu/disclosure decoys, and fresh resolution after node
-  replacement.
+  deduplication, cross-selector and taught-selector ambiguity rejection,
+  hidden/disabled/`aria-disabled`/menu/disclosure decoys, and fresh resolution
+  after node replacement.
 - `tests/sendtransaction.test.js`: source contract for union-wide exact-one
   dispatch authority while retaining the single selected actuator transaction.
+- `tests/e2e/teach.spec.js`: real-browser proof that a uniquely taught actuator
+  remains available on an unreviewed host, but a later two-node selector drift
+  returns no actuator.
 - `tests/e2e/chatgpt-live-regression.spec.js`: real-browser fixture asserting the
   observed public host node is unchanged, a visible alternate Send fails closed,
   Adaptive and committee controls mutate intended Ghost state, every Ghost
@@ -265,15 +271,18 @@ not captured, the field root cause remains **UNKNOWN**.
 
 ### Attached review calibration
 
-The review correctly identified the missing compatibility identity and several
-legitimate follow-ups, but its primary conclusion exceeded its evidence. Its
+The review correctly identified the missing compatibility identity, the
+taught-selector uniqueness weakness, and several legitimate follow-ups, but its
+primary conclusion exceeded its evidence. Its
 `pressEnter()` double-dispatch change is moot for this path because `engineSend`
 does not call `pressEnter()`. Its proposed sequential `requestSubmit` / Enter /
 click recovery, learned actuator fingerprints and self-healed Send authority
 were rejected because they can duplicate a delayed successful send or invent
-authority. GhostBus URL disclosure, Claude label casing, taught-selector
-uniqueness, FUZZY_CHOICE and a possibly sticky network-open counter remain
-separate follow-up candidates; none was bundled into this narrow hotfix.
+authority. Taught-selector uniqueness is now included because it directly
+enforces the existing exact-one invariant without widening authority. GhostBus
+URL disclosure, Claude label casing, FUZZY_CHOICE and a possibly sticky
+network-open counter remain separate follow-up candidates; none was bundled
+into this narrow hotfix.
 
 ### Verification boundary
 

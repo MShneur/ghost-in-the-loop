@@ -76,6 +76,39 @@ test.describe('Teach mode', () => {
     expect(result.controlFired).toBe(false);       // teaching never triggered the control
   });
 
+  test('a taught selector that drifts to two visible controls fails closed', async ({ page }) => {
+    await page.addInitScript(GM);
+    await page.addInitScript(SCRIPT);
+    await page.goto(PAGE);
+    await page.waitForTimeout(700);
+
+    const result = await page.evaluate(() => {
+      const original = document.getElementById('odd-send');
+      window.__GITL_Teach.arm('send');
+      original.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+      const uniqueBeforeDrift = window.__GITL_Adapter.getSendBtn();
+
+      // Model a host rerender that temporarily leaves two nodes matching the
+      // selector captured when the original control was unique.
+      const duplicate = original.cloneNode(true);
+      duplicate.textContent = 'Alternate send';
+      original.after(duplicate);
+      const afterDrift = window.__GITL_Adapter.getSendBtn();
+
+      return {
+        captured: window.__GITL_TeachStore.get('send'),
+        uniqueBeforeDrift: uniqueBeforeDrift === original,
+        matchingNodes: document.querySelectorAll(window.__GITL_TeachStore.get('send')).length,
+        resolvedAfterDrift: afterDrift ? afterDrift.id : null
+      };
+    });
+
+    expect(result.captured).toBeTruthy();
+    expect(result.uniqueBeforeDrift).toBe(true);
+    expect(result.matchingNodes).toBe(2);
+    expect(result.resolvedAfterDrift).toBeNull();
+  });
+
   test('tapping a popup-toggle is vetoed — nothing is stored', async ({ page }) => {
     await page.addInitScript(GM);
     await page.addInitScript(SCRIPT);

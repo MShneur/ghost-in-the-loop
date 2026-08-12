@@ -40,12 +40,13 @@ describe('wiring — taught controls are consulted (source contract)', () => {
   const fs = require('fs'), path = require('path');
   const src = fs.readFileSync(path.join(__dirname, '../ghost-in-the-loop.user.js'), 'utf8');
 
-  test('_reviewedSend consults a taught send BEFORE the reviewed-platform gate', () => {
-    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 400);
-    const taughtAt = fn.indexOf("TeachStore.matchEl('send')");
-    const gateAt = fn.indexOf('if (!PLAT?.reviewed) return null;');
+  test('_reviewedSend unions a taught send BEFORE the reviewed-platform gate', () => {
+    const fn = src.slice(src.indexOf('function _reviewedSend()'), src.indexOf('function _reviewedSend()') + 1800);
+    const taughtAt = fn.indexOf("TeachStore.get('send')");
     expect(taughtAt).toBeGreaterThan(-1);
-    expect(gateAt).toBeGreaterThan(taughtAt);
+    expect(fn).toContain('if (taughtSel && !collect(taughtSel)) return null;');
+    expect(fn).toContain('if (!PLAT?.reviewed) return candidates.size === 1 ? [...candidates][0] : null;');
+    expect(fn.indexOf('if (!PLAT?.reviewed)')).toBeGreaterThan(taughtAt);
   });
 
   test('peekInput consults a taught input', () => {

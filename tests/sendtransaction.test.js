@@ -18,9 +18,11 @@ function body(name, nextName) {
 describe('dispatch authority', () => {
   test('only reviewed platform selectors may return a button actuator', () => {
     expect(src).toContain('function _reviewedSend()');
-    expect(src).toContain('if (!PLAT?.reviewed) return null;');
     expect(src).toContain('const candidates = new Set();');
-    expect(src).toContain('if (candidates.size > 1) return null;');
+    expect(src).toContain("const taughtSel = TeachStore.get('send');");
+    expect(src).toContain('if (taughtSel && !collect(taughtSel)) return null;');
+    expect(src).toContain('if (!PLAT?.reviewed) return candidates.size === 1 ? [...candidates][0] : null;');
+    expect(src).toContain('if (!collect(sel)) return null;');
     expect(src).toContain("return candidates.size === 1 ? [...candidates][0] : null;");
   });
 

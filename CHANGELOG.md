@@ -15,21 +15,23 @@ jump the page toward the top.
   `aria-label="Send prompt"` and `data-testid="send-button"`, both already
   covered by 8.8.0. The failing authenticated layout remains unobserved.
 - **Global ambiguity rejection:** `_reviewedSend()` now deduplicates aliases for
-  the same DOM node across the complete reviewed selector set and returns an
-  actuator only when that union contains exactly one node. Previously, two
-  plausible controls could bypass fail-closed behavior when a later selector
-  happened to match only one of them.
+  the same DOM node across the complete reviewed-selector and human-taught
+  authority union, and returns an actuator only when that union contains exactly
+  one node. Previously, two plausible controls could bypass fail-closed behavior
+  when a later selector happened to match only one of them; a taught selector
+  that drifted to multiple live controls could also return its first match.
 - **Ghost control semantics:** every rendered Ghost button is explicitly
   normalized to `type="button"`. The earlier candidate's global click
   `preventDefault()` guard was removed: `#gitl` mounts directly under `body`, so
   no ChatGPT form/anchor ancestry was demonstrated, and intercepting every click
   did not establish the scroll-jump root cause.
 - Regression coverage now includes exact-node alias deduplication, cross-selector
-  ambiguity, disabled/menu/disclosure decoys, hidden and replaced Send nodes,
-  the observed signed-out public composer shape, and a real-browser fixture for
-  Ghost state changes with no host form submission, URL/hash mutation, Send
-  click, or scroll movement. The diagnostic field shim remains a temporary
-  probe, not production architecture.
+  and taught-selector ambiguity, disabled/menu/disclosure decoys, hidden and
+  replaced Send nodes, the observed signed-out public composer shape, and
+  real-browser fixtures for taught-selector drift plus Ghost state changes with
+  no host form submission, URL/hash mutation, Send click, or scroll movement.
+  The diagnostic field shim remains a temporary probe, not production
+  architecture.
 
 **Live-certification boundary:** this candidate is backed by deterministic tests
 and a read-only signed-out public DOM inspection. It was **not** verified against

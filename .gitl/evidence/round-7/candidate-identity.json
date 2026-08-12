@@ -4,7 +4,7 @@
   "releaseTarget": "8.8.1",
   "provenance": {
     "branch": "agent/8.8-repair-resume",
-    "head": "3995091091fa2a1a2d66dec3ef4a965c2b2dbbe8"
+    "head": "e6e775bd1c989a0df7cffce024504f2237f5afd5"
   },
   "channels": {
     "candidate": "agent/8.8-repair-resume",
@@ -34,8 +34,8 @@
   "payload": [
     {
       "path": "ghost-in-the-loop.user.js",
-      "bytes": 376272,
-      "sha256": "22e32adb53abc6a7b46e46f7fa12746687c0c1381a14f71dc1ef27dfe4c44c42"
+      "bytes": 376367,
+      "sha256": "fa08580b4cfc55e3b210bf38d8eaf02d1f33f98c14faab974dfa355fb202d274"
     },
     {
       "path": "extension/manifest.json",
@@ -44,8 +44,8 @@
     },
     {
       "path": "extension/content.js",
-      "bytes": 375413,
-      "sha256": "468b660b52ccc9750780bea46dbd0752efc13798902f77c6ca72fca2b0a925c7"
+      "bytes": 375508,
+      "sha256": "b492d7e65ab97d4450af2cdc84cfa9522b47977eba146485c2fdb3edf44d4080"
     },
     {
       "path": "extension/icon-48.png",

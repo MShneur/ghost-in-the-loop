@@ -100,6 +100,19 @@ describe('_reviewedSend fixture resolution', () => {
     expect(_reviewedSend()).toBeNull();
   });
 
+  test('an ambiguous taught selector cannot bypass exact-one authority through a reviewed alias', () => {
+    const reviewed = sendBtn('Send message', {
+      class: 'taught-send',
+      'data-testid': 'send-button'
+    });
+    const alternate = sendBtn('Deliver', { class: 'taught-send' });
+    document.body.appendChild(reviewed);
+    document.body.appendChild(alternate);
+    TeachStore.set('send', 'button.taught-send');
+
+    expect(_reviewedSend()).toBeNull();
+  });
+
   test('a hidden secondary control does not make the visible composer ambiguous', () => {
     const visible = sendBtn('Send prompt', { 'data-testid': 'send-button' });
     document.body.appendChild(visible);

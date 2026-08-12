@@ -1015,18 +1015,12 @@ const TeachStore = {
    actuator. Each selector tier must resolve to exactly one enabled, visible,
    veto-safe element. */
 function _reviewedSend() {
-  // A human-taught send control is a reviewed actuator (the user pointed at it),
-  // valid on any host — but it is re-veto'd on every resolve by matchEl.
-  const taught = TeachStore.matchEl('send');
-  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
-  if (!PLAT?.reviewed) return null;
-  // Resolve the full reviewed selector set before granting authority. A page can
-  // expose two plausible controls where only one also matches a later, more
-  // specific selector. Returning that later singleton would bypass the earlier
-  // ambiguity and silently guess. Deduplicate the same DOM node across selector
-  // aliases, but fail closed if the union contains more than one safe actuator.
+  // Resolve every source of reviewed authority into one union before granting
+  // a click. This includes the selector captured by Teach mode: it was reviewed
+  // by a human when stored, but host drift can later make it match two controls.
+  // A built-in singleton must never bypass that taught-selector ambiguity.
   const candidates = new Set();
-  for (const sel of PLAT.send || []) {
+  const collect = (sel) => {
     let matches = [];
     try {
       matches = [...document.querySelectorAll(sel)].filter(el =>
@@ -1039,7 +1033,19 @@ function _reviewedSend() {
       matches = [];
     }
     for (const match of matches) candidates.add(match);
-    if (candidates.size > 1) return null;
+    return candidates.size <= 1;
+  };
+
+  const taughtSel = TeachStore.get('send');
+  if (taughtSel && !collect(taughtSel)) return null;
+  if (!PLAT?.reviewed) return candidates.size === 1 ? [...candidates][0] : null;
+
+  // A page can expose two plausible controls where only one also matches a
+  // later, more specific selector. Returning that later singleton would bypass
+  // the earlier ambiguity and silently guess. Selector aliases for the same DOM
+  // node are deduplicated by the Set.
+  for (const sel of PLAT.send || []) {
+    if (!collect(sel)) return null;
   }
   return candidates.size === 1 ? [...candidates][0] : null;
 }
