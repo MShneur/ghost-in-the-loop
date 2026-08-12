@@ -90,6 +90,8 @@ async function boot(page) {
 test.describe('ChatGPT 8.8 regression fixture', () => {
   test('current public Send prompt identity resolves to the exact unmodified host node', async ({ page }) => {
     await boot(page);
+    await page.locator('#composer-submit-button').scrollIntoViewIfNeeded();
+    await expect(page.locator('#composer-submit-button')).toBeVisible();
 
     const resolved = await page.evaluate(() => {
       const chosen = window.__GITL_ReviewedSend();
@@ -118,6 +120,8 @@ test.describe('ChatGPT 8.8 regression fixture', () => {
 
   test('a visible alternate Send identity makes actuator authority ambiguous', async ({ page }) => {
     await boot(page);
+    await page.locator('#composer-submit-button').scrollIntoViewIfNeeded();
+    await expect(page.locator('#composer-submit-button')).toBeVisible();
 
     const result = await page.evaluate(() => {
       const duplicate = document.createElement('button');
