@@ -5,6 +5,7 @@ Repository: `MShneur/ghost-in-the-loop`
 Stable base inspected: `main@3fa1ad3ec6bef342260864f28693331b4f3cfd6f`
 Working branch: `hotfix/8.8-chatgpt-live-send`
 Draft PR: #36
+Claude Code handoff prompt: `docs/CLAUDE_CODE_CHATGPT_8_8_LIVE_REGRESSION_PROMPT.md`
 
 ## User-reported field failure
 
@@ -83,7 +84,7 @@ The regression suite proves:
 
 Draft PR #36 was opened solely to trigger ordinary repository-native CI. It is not authorization to merge or publish.
 
-CI run: `31598184515` on hotfix head `cdf3fdc26884e746c9bc7f8d8f17096db99f55cd` completed successfully.
+CI run: `31598184515` on code-bearing hotfix head `cdf3fdc26884e746c9bc7f8d8f17096db99f55cd` completed successfully.
 
 The normal CI contract includes:
 
@@ -95,7 +96,7 @@ The normal CI contract includes:
 - release-candidate packaging oracle
 - Playwright Chromium + Firefox browser safety suite
 
-The run completed green. This proves the branch is compatible with the repository's deterministic/hosted test contract. It does **not** prove the affected authenticated ChatGPT page is fixed.
+The run completed green. This proves the code-bearing hotfix head is compatible with the repository's deterministic/hosted test contract. Later commits on the branch add documentation only; they do not broaden the live-certification claim.
 
 ## Rejected repair direction
 
