@@ -294,8 +294,29 @@ parity). Completed commands on the working tree:
 but this worker had no installed browser binary. A second attempt with
 `PLAYWRIGHT_BROWSERS_PATH=/tmp/gitl-playwright npx playwright install chromium firefox`
 reached the download endpoint but received empty/truncated archives. Repository
-CI is therefore the browser execution oracle for the new fixture. Exact final
-SHA and CI run/job IDs must be appended after the candidate is pushed.
+CI was therefore used as the browser execution oracle.
+
+Final code-bearing head `b7c694e38306f063bfc8d2109127b78359bfa2ac`
+completed GitHub Actions run `31619121019` successfully:
+
+- Unit/base job `94189202923`: Node `20.20.2`, npm `10.8.2`; 47 suites /
+  513 passed / 3 todo; generated parity, syntax, base certification,
+  BUILD-IDENTITY (`head-moved-payload-identical`, `publishReady:false`) and
+  packaging passed.
+- Playwright job `94189203012`: 237 cases across Chromium, Firefox and selected
+  mobile lanes; 227 passed / 10 skipped. All six new ChatGPT regression
+  executions passed in Chromium and Firefox.
+- Candidate `SHA256SUMS`:
+  `aeadf0b41bbedb63ee1ca431044b3dabe446f9881b1bd2f4a92a64339a5bb63d`.
+- Artifacts: release-candidate package `9150492288`; base certification
+  `9150492815`.
+
+Intermediate run `31618551192` failed the first resolver fixture because its
+mock Send was placed 4,700 px off-screen; `_visible()` correctly rejected it,
+leaving the fixed alternate as the only visible candidate. The independent
+control-state/no-scroll test passed in both engines. Commit `b7c694e` scrolls
+the intended mock Send into view before resolver assertions; no production code
+changed in that follow-up.
 
 This remains **not live-certified**. One concrete blocker-clearing action remains:
 run the authenticated canary in "Required new release gate" on the reporter's
