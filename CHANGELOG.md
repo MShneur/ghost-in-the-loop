@@ -1,5 +1,25 @@
 # Changelog
 
+## [8.8.2] — live composer replacement repair
+
+Authenticated Chrome field tests on ChatGPT and Perplexity showed that 8.8.1
+could visibly insert the complete continuation and still pause before Send with
+`COMPOSER-002`. Both production editors can replace their contenteditable node
+during framework reconciliation, while Ghost 8.8.1 verified only the original
+pre-injection element.
+
+- Reacquire all reviewed current composer candidates after injection and accept
+  only the unique node retaining the complete normalized prompt.
+- Require the same exact prompt-bearing composer across two consecutive
+  observations before opening the at-most-once Send journal.
+- Use the reacquired composer for the reviewed Enter fallback and transaction
+  evidence, without adding a new actuator or weakening exact matching.
+- Add real-browser fixtures for whole-composer replacement with both retained
+  and truncated prompts; retained text dispatches once, truncated text remains
+  `COMPOSER-002` with zero Send activation.
+- Record the authenticated live-canary and BrowserStack evidence boundary so
+  hosted mocks and emulation cannot be promoted to live certification.
+
 
 ## [8.8.1] — ChatGPT send compatibility candidate and authority hardening
 
