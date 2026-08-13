@@ -34,7 +34,7 @@ describe('single reviewed dispatch selection', () => {
 
   test('selects the mechanism before opening the transaction journal', () => {
     const selectAt = send.indexOf('const strategy = btn ?');
-    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput)');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
     expect(beginAt).toBeGreaterThan(selectAt);
