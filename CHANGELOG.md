@@ -1,5 +1,64 @@
 # Changelog
 
+## [8.8.2] — live composer replacement repair
+
+Authenticated Chrome field tests on ChatGPT and Perplexity showed that 8.8.1
+could visibly insert the complete continuation and still pause before Send with
+`COMPOSER-002`. Both production editors can replace their contenteditable node
+during framework reconciliation, while Ghost 8.8.1 verified only the original
+pre-injection element.
+
+- Reacquire all reviewed current composer candidates after injection and accept
+  only the unique node retaining the complete normalized prompt.
+- Require the same exact prompt-bearing composer across two consecutive
+  observations before opening the at-most-once Send journal.
+- Use the reacquired composer for the reviewed Enter fallback and transaction
+  evidence, without adding a new actuator or weakening exact matching.
+- Add real-browser fixtures for whole-composer replacement with both retained
+  and truncated prompts; retained text dispatches once, truncated text remains
+  `COMPOSER-002` with zero Send activation.
+- Record the authenticated live-canary and BrowserStack evidence boundary so
+  hosted mocks and emulation cannot be promoted to live certification.
+
+
+## [8.8.1] — ChatGPT send compatibility candidate and authority hardening
+
+Field regression on real ChatGPT after 8.8.0: Ghost inserted the continuation
+text into the composer but it never sent, and Ghost-owned controls appeared to
+jump the page toward the top.
+
+- **Bounded Send compatibility:** added
+  `button[aria-label="Send message"]` to ChatGPT's reviewed selector set. This
+  covers a plausible host variant without changing the one-actuator transaction
+  model. It is not claimed as the proven field root cause: a current signed-out
+  public ChatGPT probe instead exposed `#composer-submit-button` with
+  `aria-label="Send prompt"` and `data-testid="send-button"`, both already
+  covered by 8.8.0. The failing authenticated layout remains unobserved.
+- **Global ambiguity rejection:** `_reviewedSend()` now deduplicates aliases for
+  the same DOM node across the complete reviewed-selector and human-taught
+  authority union, and returns an actuator only when that union contains exactly
+  one node. Previously, two plausible controls could bypass fail-closed behavior
+  when a later selector happened to match only one of them; a taught selector
+  that drifted to multiple live controls could also return its first match.
+- **Ghost control semantics:** every rendered Ghost button is explicitly
+  normalized to `type="button"`. The earlier candidate's global click
+  `preventDefault()` guard was removed: `#gitl` mounts directly under `body`, so
+  no ChatGPT form/anchor ancestry was demonstrated, and intercepting every click
+  did not establish the scroll-jump root cause.
+- Regression coverage now includes exact-node alias deduplication, cross-selector
+  and taught-selector ambiguity, disabled/menu/disclosure decoys, hidden and
+  replaced Send nodes, the observed signed-out public composer shape, and
+  real-browser fixtures for taught-selector drift plus Ghost state changes with
+  no host form submission, URL/hash mutation, Send click, or scroll movement.
+  The diagnostic field shim remains a temporary probe, not production
+  architecture.
+
+**Live-certification boundary:** this candidate is backed by deterministic tests
+and a read-only signed-out public DOM inspection. It was **not** verified against
+an authenticated live ChatGPT session and must not be described as a proven
+field repair or live-certified release. Live ChatGPT actuation remains a required
+release gate — see
+`docs/CHATGPT_8_8_LIVE_REGRESSION_HANDOFF.md`.
 
 ## [8.8.0] — workflow-neutral controls and explicit decisions
 

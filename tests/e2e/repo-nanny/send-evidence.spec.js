@@ -162,4 +162,81 @@ test.describe('pre-dispatch composer evidence', () => {
     expect(result.clicks).toBe(1);
     expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
   });
+  test('a framework replacement of the entire composer is reacquired before one dispatch', async ({ page }) => {
+    await boot(page, CONTENTEDITABLE_PAGE);
+    await page.evaluate(() => {
+      window.__sendClicks = 0;
+      const original = document.getElementById('composer');
+      let replaced = false;
+      original.addEventListener('input', () => {
+        if (replaced) return;
+        const visible = original.innerText || original.textContent || '';
+        if (!visible.includes('Complete staged prompt')) return;
+        replaced = true;
+        const replacement = document.createElement('div');
+        replacement.id = 'composer';
+        replacement.setAttribute('contenteditable', 'true');
+        replacement.textContent = visible;
+        original.replaceWith(replacement);
+      });
+      document.getElementById('send').addEventListener('click', () => {
+        window.__sendClicks += 1;
+        document.getElementById('composer').replaceChildren();
+        const stop = document.createElement('button');
+        stop.id = 'stop';
+        stop.textContent = 'Stop';
+        document.body.appendChild(stop);
+      });
+    });
+
+    const delivered = await page.evaluate(() => window.__GITL_TestSend(
+      'Complete staged prompt', { contenteditable: true }
+    ));
+    const result = await page.evaluate(() => ({
+      clicks: window.__sendClicks,
+      state: window.__GITL_TestState(),
+      composerConnected: !!document.getElementById('composer')
+    }));
+
+    expect(delivered).toBe(true);
+    expect(result.clicks).toBe(1);
+    expect(result.composerConnected).toBe(true);
+    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+  });
+
+  test('a replacement composer that drops the prompt fails closed without dispatch', async ({ page }) => {
+    await boot(page, CONTENTEDITABLE_PAGE);
+    await page.evaluate(() => {
+      window.__sendClicks = 0;
+      const original = document.getElementById('composer');
+      let replaced = false;
+      original.addEventListener('input', () => {
+        if (replaced) return;
+        replaced = true;
+        const replacement = document.createElement('div');
+        replacement.id = 'composer';
+        replacement.setAttribute('contenteditable', 'true');
+        replacement.textContent = 'Complete staged';
+        original.replaceWith(replacement);
+      });
+      document.getElementById('send').addEventListener('click', () => {
+        window.__sendClicks += 1;
+      });
+    });
+
+    const delivered = await page.evaluate(() => window.__GITL_TestSend(
+      'Complete staged prompt', { contenteditable: true }
+    ));
+    const result = await page.evaluate(() => ({
+      clicks: window.__sendClicks,
+      state: window.__GITL_TestState(),
+      report: window.__gmStore.lastDiagnostic || ''
+    }));
+
+    expect(delivered).toBe(false);
+    expect(result.clicks).toBe(0);
+    expect(result.state.pending).toBe(false);
+    expect(result.report).toContain('COMPOSER-002');
+  });
+
 });

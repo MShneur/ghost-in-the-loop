@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.8.0
+// @version      8.8.2
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.8.0';
+const VER = '8.8.2';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -537,7 +537,7 @@ const PROFILES = {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
-    send: ['button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
+    send: ['button[aria-label="Send message"]','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
     stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     continueLabels: ['Continue generating','Continue'],
@@ -1015,12 +1015,12 @@ const TeachStore = {
    actuator. Each selector tier must resolve to exactly one enabled, visible,
    veto-safe element. */
 function _reviewedSend() {
-  // A human-taught send control is a reviewed actuator (the user pointed at it),
-  // valid on any host — but it is re-veto'd on every resolve by matchEl.
-  const taught = TeachStore.matchEl('send');
-  if (taught && !taught.disabled && taught.getAttribute('aria-disabled') !== 'true') return taught;
-  if (!PLAT?.reviewed) return null;
-  for (const sel of PLAT.send || []) {
+  // Resolve every source of reviewed authority into one union before granting
+  // a click. This includes the selector captured by Teach mode: it was reviewed
+  // by a human when stored, but host drift can later make it match two controls.
+  // A built-in singleton must never bypass that taught-selector ambiguity.
+  const candidates = new Set();
+  const collect = (sel) => {
     let matches = [];
     try {
       matches = [...document.querySelectorAll(sel)].filter(el =>
@@ -1032,9 +1032,22 @@ function _reviewedSend() {
     } catch(_) {
       matches = [];
     }
-    if (matches.length === 1) return matches[0];
+    for (const match of matches) candidates.add(match);
+    return candidates.size <= 1;
+  };
+
+  const taughtSel = TeachStore.get('send');
+  if (taughtSel && !collect(taughtSel)) return null;
+  if (!PLAT?.reviewed) return candidates.size === 1 ? [...candidates][0] : null;
+
+  // A page can expose two plausible controls where only one also matches a
+  // later, more specific selector. Returning that later singleton would bypass
+  // the earlier ambiguity and silently guess. Selector aliases for the same DOM
+  // node are deduplicated by the Set.
+  for (const sel of PLAT.send || []) {
+    if (!collect(sel)) return null;
   }
-  return null;
+  return candidates.size === 1 ? [...candidates][0] : null;
 }
 
 /* ── Answer selection (v8.5.3 item 1) ────────────────────────
@@ -1160,6 +1173,25 @@ const Adapter = {
   },
   getSendCandidate() {
     return _heurSend(this.peekInput() || null);
+  },
+  /* Return the one current composer that contains the complete intended
+     prompt. This deliberately scans all reviewed input selectors instead of
+     trusting the cached pre-injection node, because framework editors can
+     replace that node during their input reconciliation. Exact prompt
+     equality is still required and ambiguity still fails closed. */
+  findStagedInput(expectedText, preferred) {
+    const candidates = new Set();
+    const add = el => {
+      if (el && el.isConnected !== false && !_isOwnUI(el)) candidates.add(el);
+    };
+    add(preferred);
+    for (const el of _qAll(PLAT.input || [])) add(el);
+    add(TeachStore.matchEl('input'));
+    add(SelectorMemory.lookup('input'));
+
+    const verified = [...candidates].filter(el =>
+      _promptStagedInComposer(el, expectedText));
+    return verified.length === 1 ? verified[0] : null;
   },
   stopVisible() { return _qAll(PLAT.stop).some(el => el && _visible(el) && el.getAttribute('aria-hidden') !== 'true' && el.getAttribute('disabled') == null); },
   isGenerating()  { return this.stopVisible() || GITL_NET.streaming(); },
@@ -2551,6 +2583,39 @@ function _promptStagedInComposer(input, expectedText) {
   return _normalizeStagedText(_composerText(input)) === expected;
 }
 
+/* Framework editors may replace the complete composer node after handling
+   Ghost's synthetic input event. Verifying only the pre-injection reference
+   then produces a false COMPOSER-002 even though the current live composer
+   retained the complete prompt. Reacquire through the adapter and require the
+   same unique, exact prompt-bearing composer on two consecutive observations.
+   This remains an observation-only gate: it cannot grant Send authority. */
+async function _awaitStagedComposer(originalInput, expectedText, timeoutMs = 1400) {
+  const deadline = Date.now() + Math.max(200, Number(timeoutMs) || 0);
+  let prior = null;
+  let stableObservations = 0;
+  let replaced = false;
+  let polls = 0;
+
+  while (Date.now() <= deadline) {
+    polls++;
+    const current = Adapter.findStagedInput(expectedText, originalInput);
+    if (current) {
+      replaced = replaced || current !== originalInput;
+      if (current === prior) stableObservations++;
+      else { prior = current; stableObservations = 1; }
+      if (stableObservations >= 2) {
+        return { ok: true, input: current, replaced, polls };
+      }
+    } else {
+      prior = null;
+      stableObservations = 0;
+    }
+    await sleep(100);
+  }
+
+  return { ok: false, input: null, replaced, polls };
+}
+
 function _settleSendPromise(ok) {
   const resolve = _pendingSendResolve;
   _pendingSendResolve = null;
@@ -2640,12 +2705,19 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('Chat composer rejected the prompt');
       return false;
     }
-    await sleep(500);
-    if (!_promptStagedInComposer(input, text)) {
+    // Allow the host's input handler to settle, then verify the unique current
+    // composer across two observations. React/ProseMirror may replace the node.
+    await sleep(400);
+    const staged = await _awaitStagedComposer(input, text);
+    if (!staged.ok) {
       Timeline.record('composer_unverified', { code: 'COMPOSER-002', stage: 'pre-dispatch' });
       Reporter.capture('COMPOSER-002', 'The host editor did not retain the complete staged prompt.');
       pauseWithProbe('Prompt could not be verified — nothing was sent');
       return false;
+    }
+    const stagedInput = staged.input;
+    if (staged.replaced) {
+      Timeline.record('composer_reacquired', { stage: 'pre-dispatch', polls: staged.polls });
     }
     const btn = Adapter.getSendBtn();
     // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
@@ -2657,7 +2729,7 @@ async function engineSend(text, skipDelay) {
       run: () => btn.click()
     } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
       path: 'reviewed-enter',
-      run: () => input.dispatchEvent(new KeyboardEvent('keydown', {
+      run: () => stagedInput.dispatchEvent(new KeyboardEvent('keydown', {
         key:'Enter', code:'Enter', keyCode:13, which:13,
         bubbles:true, cancelable:true, composed:true
       }))
@@ -2668,7 +2740,7 @@ async function engineSend(text, skipDelay) {
       return false;
     }
     DIAG.sendPath = strategy.path;
-    const completion = _beginSendAttempt(strategy.path, input);
+    const completion = _beginSendAttempt(strategy.path, stagedInput);
     try {
       strategy.run();
     } catch(_) {
@@ -5862,6 +5934,11 @@ function render() {
         ${tab==='settings'?renderSettingsTab():''}
       </div>
     </div>`);
+  // Every Ghost button is a panel control, never a submitter. Declare that
+  // native semantic after each template render instead of cancelling every
+  // click's default action. This preserves normal pointer/keyboard activation
+  // and remains safe if a host later reparents the panel near a form.
+  panel.querySelectorAll('button:not([type])').forEach(button => button.setAttribute('type', 'button'));
   bindEvents();
   applyPosition(GHOST.ui.position);
 }

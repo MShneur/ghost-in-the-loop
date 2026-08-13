@@ -18,8 +18,12 @@ function body(name, nextName) {
 describe('dispatch authority', () => {
   test('only reviewed platform selectors may return a button actuator', () => {
     expect(src).toContain('function _reviewedSend()');
-    expect(src).toContain('if (!PLAT?.reviewed) return null;');
-    expect(src).toContain('if (matches.length === 1) return matches[0];');
+    expect(src).toContain('const candidates = new Set();');
+    expect(src).toContain("const taughtSel = TeachStore.get('send');");
+    expect(src).toContain('if (taughtSel && !collect(taughtSel)) return null;');
+    expect(src).toContain('if (!PLAT?.reviewed) return candidates.size === 1 ? [...candidates][0] : null;');
+    expect(src).toContain('if (!collect(sel)) return null;');
+    expect(src).toContain("return candidates.size === 1 ? [...candidates][0] : null;");
   });
 
   test('generic and imported custom adapters are not reviewed actuators', () => {
@@ -46,9 +50,9 @@ describe('send transaction', () => {
   });
 
   test('strategy selection is complete before transaction creation', () => {
-    const evidence = send.indexOf('if (!_promptStagedInComposer(input, text))');
+    const evidence = send.indexOf('const staged = await _awaitStagedComposer(input, text)');
     const strategy = send.indexOf('const strategy = btn ?');
-    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput)');
     const dispatch = send.indexOf('strategy.run()');
     expect(evidence).toBeGreaterThan(-1);
     expect(strategy).toBeGreaterThan(evidence);

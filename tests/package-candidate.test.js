@@ -109,7 +109,7 @@ describe('release candidate package oracle', () => {
   test('kills release version drift', () => {
     const root = copyFixture();
     roots.push(root);
-    mutateJson(root, 'package.json', (pkg) => { pkg.version = '8.8.1'; });
+    mutateJson(root, 'package.json', (pkg) => { pkg.version = '8.8.0'; });
     expect(() => writePackage(root)).toThrow(/Version mismatch|Release target drift/);
   });
 
