@@ -109,6 +109,17 @@ test('uncertain Primary delivery locks both rescue actuators', async ({ page }) 
   await expect.poll(() => page.evaluate(() => window.__submitCount)).toBe(0);
 });
 
+test('silent Primary Play failure becomes explicit instead of looking like a successful click', async ({ page }) => {
+  await fixture(page);
+  // The fixture intentionally has no core handler on #g-play. The companion
+  // must make that no-op visible and remain conservative about delivery.
+  await page.locator('#g-play').click();
+  await expect(page.locator('#gitl-play-rescue-status')).toContainText('PRIMARY-START-001', { timeout: 5000 });
+  await expect(page.locator('#gitl-play-rescue-status')).toContainText('no send observed');
+  await expect(page.locator('#gitl-play-rescue-suggest')).toContainText('Alpha or Beta');
+  await expect(page.locator('#gitl-play-rescue-suggest')).toContainText('only if you can see that Primary did not send anything');
+});
+
 test('feedback is privacy-minimal and copies only coarse site/method/error metadata', async ({ page }) => {
   await fixture(page);
   await page.locator('#gitl-alpha').click();
