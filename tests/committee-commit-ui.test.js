@@ -1,15 +1,4 @@
-'use strict';
 const fs = require('fs');
-const path = require('path');
-const root = path.resolve(__dirname, '..');
-
-const directivesPath = path.join(root, 'tests', 'directives.test.js');
-let directives = fs.readFileSync(directivesPath, 'utf8');
-directives = directives.replace("    expect(_committeeCommitPrepared()).toBe(true);\n", '');
-fs.writeFileSync(directivesPath, directives);
-
-const testPath = path.join(root, 'tests', 'committee-commit-ui.test.js');
-fs.writeFileSync(testPath, `const fs = require('fs');
 const path = require('path');
 const src = fs.readFileSync(path.join(__dirname, '..', 'ghost-in-the-loop.user.js'), 'utf8');
 
@@ -49,5 +38,3 @@ describe('8.8.3 P0 committee commit source contract', () => {
     expect(src).toContain('if (_lastAppliedPosition !== GHOST.ui.position || _dynamicPosition)');
   });
 });
-`);
-console.log('Repaired one-shot 8.8.3 carrier test harness.');

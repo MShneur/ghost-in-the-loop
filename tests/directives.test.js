@@ -69,9 +69,9 @@ describe('runDirectives — Advanced composition', () => {
     expect(runDirectives(false)).toContain(POSTURES.evolving.clause);
   });
 
-  test('adds the committee P shortcut only when explicitly enabled', () => {
+  test('arms the committee P shortcut automatically for a real Advanced committee', () => {
     expect(runDirectives(false)).not.toContain('Recommended by committee');
-    GHOST.ui.committeeProceed = true;
+    GHOST.persona.selected = ['researcher', 'redteam'];
     expect(runDirectives(false)).toContain('Recommended by committee');
   });
 });
