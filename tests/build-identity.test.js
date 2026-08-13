@@ -53,7 +53,7 @@ describe('BUILD-IDENTITY oracle', () => {
     const fixture = makeFixture();
     fixtures.push(fixture);
     const current = collectCurrentIdentity(fixture, { head: HEAD_A });
-    expect(current.releaseTarget).toBe('8.8.1');
+    expect(current.releaseTarget).toBe('8.8.2');
     expect(current.channels.candidate).toBe('agent/8.8-repair-resume');
     expect(current.channels.stable).toBe('main');
     expect(current.channels.publishReady).toBe(false);
