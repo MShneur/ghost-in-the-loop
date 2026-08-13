@@ -50,9 +50,9 @@ describe('send transaction', () => {
   });
 
   test('strategy selection is complete before transaction creation', () => {
-    const evidence = send.indexOf('if (!_promptStagedInComposer(input, text))');
+    const evidence = send.indexOf('const staged = await _awaitStagedComposer(input, text)');
     const strategy = send.indexOf('const strategy = btn ?');
-    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, input)');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput)');
     const dispatch = send.indexOf('strategy.run()');
     expect(evidence).toBeGreaterThan(-1);
     expect(strategy).toBeGreaterThan(evidence);
