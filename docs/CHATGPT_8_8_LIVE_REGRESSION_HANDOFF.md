@@ -136,6 +136,38 @@ For ChatGPT support, a release must not be called live-certified/publish-ready u
 
 If a current authenticated live canary cannot run, record ChatGPT live support as unverified and block the live-support/release claim. Deterministic fixtures, BrowserStack, emulation, and CI remain supporting evidence, not substitutes.
 
+
+### Composer-replacement regression gate (2026-08-13)
+
+Authenticated Chrome field tests of 8.8.1 on both ChatGPT and Perplexity found
+the same boundary failure: Ghost visibly inserted the complete continuation,
+then paused with `COMPOSER-002` before opening a Send transaction. No outbound
+message or duplicate was produced. The common failure strongly implicates
+framework reconciliation replacing the contenteditable composer between
+injection and verification while Ghost retained the pre-injection node.
+
+Future certification must therefore include all of the following:
+
+1. A deterministic fixture that replaces the entire composer node after the
+   `input` event while preserving the intended prompt in the replacement.
+2. Verification that Ghost reacquires the unique current composer, observes
+   the exact normalized prompt twice, and dispatches exactly once.
+3. A negative fixture where the replacement drops or truncates the prompt and
+   Ghost produces `COMPOSER-002` with zero Send activation.
+4. An authenticated live canary on every claimed production adapter. A
+   BrowserStack run counts as live evidence only when it reaches the real site
+   with the required authenticated state and userscript/extension enabled;
+   hosted mocks and device emulation remain deterministic support evidence.
+5. Connector/browser-control runs must report the carrier, authentication
+   state, userscript version, whether the composer node changed, insertion,
+   Send activation, generation, outbound count, and duplicate/scroll outcome.
+
+Useful carriers, in descending evidentiary value, are: a controlled local
+browser with the actual Tampermonkey profile; BrowserStack Automate/Live with
+an authenticated test account and userscript injection; a connected external
+Chrome/Firefox control session; then ordinary Playwright fixtures. No carrier
+may be promoted above the evidence it actually observed.
+
 ## Tools and environments relevant to continuation
 
 Use only tools that are actually available in the current environment; verify before claiming use.
