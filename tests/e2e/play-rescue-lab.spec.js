@@ -73,8 +73,22 @@ test('branding exposes Ghost / in the Loop / core version and Settings identity'
     document.querySelector('#g-tc').appendChild(marker);
   });
   await expect(page.locator('.gitl-identity-card')).toContainText('Ghost in the Loop · v8.8.2');
+  await expect(page.locator('.gitl-identity-card')).toContainText('Play Rescue Lab 0.3.0');
   await expect(page.locator('.gitl-identity-card')).toContainText('Free forever');
   await expect(page.locator('.gitl-identity-card')).toContainText('supported by donations');
+});
+
+test('temporary compatibility frame groups Primary Alpha Beta and explains why all three are visible', async ({ page }) => {
+  await fixture(page);
+  const group = page.locator('#gitl-play-rescue-group');
+  await expect(group).toBeVisible();
+  await expect(group.locator('#g-play')).toBeVisible();
+  await expect(group.locator('#gitl-alpha')).toBeVisible();
+  await expect(group.locator('#gitl-beta')).toBeVisible();
+  await expect(group.locator('.pr-primary')).toHaveText('Primary · current Ghost');
+  await expect(group.locator('.pr-note')).toContainText('Three Play methods are shown temporarily while we figure out what changed.');
+  await expect(group.locator('.pr-note')).toContainText('Start with Primary.');
+  await expect(group.locator('.pr-note')).toContainText('Once Primary is reliable again, Ghost goes back to one Play button.');
 });
 
 test('Alpha click performs exactly one semantic Send and confirms one outbound turn', async ({ page }) => {
@@ -127,7 +141,7 @@ test('feedback is privacy-minimal and copies only coarse site/method/error metad
   await page.locator('#gitl-worked').click();
   const clip = await page.evaluate(() => window.__clip);
   expect(clip).toContain('GITL-FEEDBACK | ChatGPT | Alpha | WORKED');
-  expect(clip).toContain('core 8.8.2 | lab 0.2.0');
+  expect(clip).toContain('core 8.8.2 | lab 0.3.0');
   expect(clip).not.toContain('test rescue message');
   expect(clip).not.toContain('/c/play-rescue-test');
 });
@@ -150,6 +164,7 @@ test('rescue UI does not require innerHTML and survives a Trusted-Types-like sin
     });
   });
   await page.addScriptTag({ content: source });
+  await expect(page.locator('#gitl-play-rescue-group')).toBeVisible();
   await expect(page.locator('#gitl-play-rescue')).toBeVisible();
   await expect(page.locator('.gitl-brand-sub')).toHaveText('in the Loop · v8.8.2');
 });
