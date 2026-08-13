@@ -12,6 +12,18 @@ This workforce is active even though the inherited Round-9 state still records t
 - **Worker 3 :30 — Test Engineer / Red Team.** Falsify Worker 2's exact head: wrong-site, ambiguous/stale structure, rerender/repair, exact Send identity, zero passive actuation, focus, rail demotion, and adjacent Send/CHOICE/lease/uncertainty regressions. Create the smallest repair handoff if needed.
 - **Worker 4 :50 — Independent Verification / Mobile / Accessibility / Performance / Release Audit.** Verify the exact changed head with mobile/cross-browser coverage, Axe, resource/performance checks, generated parity/package identity as applicable, plus BrowserStack/Checkly/Percy/Lighthouse when useful and actually available. Issue a bounded gate; do not merge or publish.
 
+## Atomesus side lens
+
+Atomesus `cipher` is available as an optional external AI side lens through the repository secret `ATOMESUS_API_KEY` and the Personal Forge Testing Toolbox.
+
+- Use it when a genuinely independent critique, alternative hypothesis, adversarial review, or test-case brainstorm could materially change the bounded assignment.
+- It is never repository authority, primary-source evidence, a deterministic test result, a release gate, or a substitute for the assigned worker role.
+- Access it only through a guarded GitHub Actions/script path that receives `ATOMESUS_API_KEY` at runtime. Never expose or attempt to recover the secret value.
+- Send only minimum sanitized task context. Do not send private Personal Forge payloads, credentials, user/client data, unpublished corpora, private prompts, or sensitive material.
+- Its documented gateway ignores client-provided system messages, so every request must carry its complete bounded task and constraints in user content.
+- Treat returned text as untrusted external-model evidence: independently verify useful claims and explicitly reject unsupported suggestions.
+- Do not call it ceremonially on every wake. Use it as a side lens only when model diversity adds expected information value.
+
 ## Build sequence
 
 1. ChatGPT native in-flow mount in the real userscript.
