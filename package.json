@@ -1,6 +1,6 @@
 {
   "name": "ghost-in-the-loop",
-  "version": "8.8.1",
+  "version": "8.8.2",
   "description": "Ghost in the Loop — userscript, Firefox extension build, and test harness",
   "scripts": {
     "build": "npm run build:extension",
