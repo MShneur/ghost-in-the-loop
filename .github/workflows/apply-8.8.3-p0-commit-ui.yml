@@ -1,21 +1,21 @@
 name: Apply 8.8.3 P0 Commit UI
 
 on:
-  pull_request:
-    branches: [main]
-    types: [opened, reopened, synchronize]
+  push:
+    branches:
+      - hotfix/8.8.3-p0-commit-ui-stability
 
 permissions:
   contents: write
 
 jobs:
   apply-once:
-    if: github.event.pull_request.head.ref == 'hotfix/8.8.3-p0-commit-ui-stability'
+    if: github.ref == 'refs/heads/hotfix/8.8.3-p0-commit-ui-stability'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: hotfix/8.8.3-p0-commit-ui-stability
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -33,8 +33,6 @@ jobs:
           npm run check:generated
           npx jest tests/committee-commit-ui.test.js tests/directives.test.js --runInBand
       - name: Remove one-shot carrier and commit product patch
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
           rm -f scripts/apply-8.8.3-p0-commit-ui.js .github/workflows/apply-8.8.3-p0-commit-ui.yml
@@ -43,4 +41,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m 'fix: make P Commit a stable primary action (8.8.3)'
-          git push origin "HEAD:${HEAD_REF}"
+          git push origin HEAD:hotfix/8.8.3-p0-commit-ui-stability
