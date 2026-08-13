@@ -1,10 +1,10 @@
 {
   "schema": "gitl-build-identity-v1",
   "repository": "MShneur/ghost-in-the-loop",
-  "releaseTarget": "8.8.1",
+  "releaseTarget": "8.8.2",
   "provenance": {
     "branch": "agent/8.8-repair-resume",
-    "head": "e6e775bd1c989a0df7cffce024504f2237f5afd5"
+    "head": "92f24147d789c7ae5589c6052e30badcafa6c3c8"
   },
   "channels": {
     "candidate": "agent/8.8-repair-resume",
@@ -16,12 +16,12 @@
     "publishReady": false
   },
   "versions": {
-    "package": "8.8.1",
-    "packageLock": "8.8.1",
-    "packageLockRoot": "8.8.1",
-    "userscriptHeader": "8.8.1",
-    "runtime": "8.8.1",
-    "manifest": "8.8.1"
+    "package": "8.8.2",
+    "packageLock": "8.8.2",
+    "packageLockRoot": "8.8.2",
+    "userscriptHeader": "8.8.2",
+    "runtime": "8.8.2",
+    "manifest": "8.8.2"
   },
   "contracts": {
     "canonicalSource": "ghost-in-the-loop.user.js",
@@ -34,18 +34,18 @@
   "payload": [
     {
       "path": "ghost-in-the-loop.user.js",
-      "bytes": 376367,
-      "sha256": "fa08580b4cfc55e3b210bf38d8eaf02d1f33f98c14faab974dfa355fb202d274"
+      "bytes": 378882,
+      "sha256": "8b2d033035363e1c3bd88bf2d3a50cf965d599105be41a1d2b63c7afa328331b"
     },
     {
       "path": "extension/manifest.json",
       "bytes": 1589,
-      "sha256": "15ebec0ed751ed17a87b140bdcef22276a1e4b393ce636116914002ff1a33c38"
+      "sha256": "502c95d86278e4c441bf74b88443aa2d2a34a998c26909906cad1ff5c5b69c29"
     },
     {
       "path": "extension/content.js",
-      "bytes": 375508,
-      "sha256": "b492d7e65ab97d4450af2cdc84cfa9522b47977eba146485c2fdb3edf44d4080"
+      "bytes": 378023,
+      "sha256": "2d04736cfdabcb1f184df35a02bc4865c65e0b7f7e8c4fad951a9badb8a4b306"
     },
     {
       "path": "extension/icon-48.png",
