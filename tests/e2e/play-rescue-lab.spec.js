@@ -7,22 +7,29 @@ const source = fs.readFileSync(
   'utf8'
 ).replace(/\/\/ ==UserScript==[\s\S]*?\/\/ ==\/UserScript==/m, '');
 
+const hostHtml = `<!doctype html><html><head></head><body>
+  <main id="chat" style="min-height:700px;padding-bottom:120px"></main>
+  <form id="host-form" style="position:fixed;left:20px;bottom:20px;width:620px;height:90px">
+    <textarea id="composer" aria-label="Message" style="width:520px;height:70px">test rescue message</textarea>
+    <button id="host-send" type="button" aria-label="Send" style="width:70px;height:40px">Send</button>
+  </form>
+  <section id="gitl" data-run="0" style="position:fixed;right:10px;top:10px;width:260px;min-height:300px">
+    <div class="g-hdr"><span class="g-logo"><span class="g-ghost">👻</span> Ghost<span class="g-dot ok"></span></span></div>
+    <div class="g-body">
+      <div class="g-tabs"><button class="g-tab act" data-t="run">Run</button><button class="g-tab" data-t="settings">Setup</button></div>
+      <div id="g-tc"><div class="g-mod g-mod-transport"><button id="g-play" type="button">▶ Start</button></div></div>
+    </div>
+  </section>
+</body></html>`;
+
+async function loadAtChatGPT(page, html = hostHtml) {
+  await page.route('https://chatgpt.com/**', route => route.fulfill({ status: 200, contentType: 'text/html', body: html }));
+  await page.goto('https://chatgpt.com/c/play-rescue-test');
+}
+
 async function fixture(page) {
   await page.setViewportSize({ width: 900, height: 800 });
-  await page.setContent(`<!doctype html><html><head></head><body>
-    <main id="chat" style="min-height:700px;padding-bottom:120px"></main>
-    <form id="host-form" style="position:fixed;left:20px;bottom:20px;width:620px;height:90px">
-      <textarea id="composer" aria-label="Message" style="width:520px;height:70px">test rescue message</textarea>
-      <button id="host-send" type="button" aria-label="Send" style="width:70px;height:40px">Send</button>
-    </form>
-    <section id="gitl" data-run="0" style="position:fixed;right:10px;top:10px;width:260px;min-height:300px">
-      <div class="g-hdr"><span class="g-logo"><span class="g-ghost">👻</span> Ghost<span class="g-dot ok"></span></span></div>
-      <div class="g-body">
-        <div class="g-tabs"><button class="g-tab act" data-t="run">Run</button><button class="g-tab" data-t="settings">Setup</button></div>
-        <div id="g-tc"><div class="g-mod g-mod-transport"><button id="g-play" type="button">▶ Start</button></div></div>
-      </div>
-    </section>
-  </body></html>`);
+  await loadAtChatGPT(page);
   await page.evaluate(() => {
     window.__sendCount = 0;
     window.__submitCount = 0;
@@ -111,12 +118,12 @@ test('feedback is privacy-minimal and copies only coarse site/method/error metad
   expect(clip).toContain('GITL-FEEDBACK | ChatGPT | Alpha | WORKED');
   expect(clip).toContain('core 8.8.2 | lab 0.2.0');
   expect(clip).not.toContain('test rescue message');
-  expect(clip).not.toContain('/c/');
+  expect(clip).not.toContain('/c/play-rescue-test');
 });
 
 test('rescue UI does not require innerHTML and survives a Trusted-Types-like sink block', async ({ page }) => {
   await page.setViewportSize({ width: 900, height: 800 });
-  await page.setContent(`<!doctype html><html><body>
+  await loadAtChatGPT(page, `<!doctype html><html><body>
     <form style="position:fixed;left:20px;bottom:20px;width:620px;height:90px"><textarea aria-label="Message" style="width:520px;height:70px">hello</textarea><button type="button" aria-label="Send" style="width:70px;height:40px">Send</button></form>
     <section id="gitl" data-run="0" style="position:fixed;right:10px;top:10px;width:260px;min-height:300px"><div class="g-hdr"><span class="g-logo"><span class="g-ghost">👻</span> Ghost<span class="g-dot ok"></span></span></div><div class="g-tabs"><button class="g-tab act" data-t="run">Run</button></div><div id="g-tc"><div class="g-mod g-mod-transport"><button id="g-play" type="button">▶ Start</button></div></div></section>
   </body></html>`);
