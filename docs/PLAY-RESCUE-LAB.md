@@ -4,7 +4,7 @@ Status: **experimental field-test companion**
 
 Core release under test: **Ghost in the Loop 8.8.2**
 
-Rescue Lab build: **0.2.0**
+Rescue Lab build: **0.3.0**
 
 This lab exists because Play/auto-continue is Ghost's primary product promise. A green unit suite is not enough: users must be able to click Play and get one safe outbound turn, or receive a precise error that explains where execution stopped.
 
@@ -19,11 +19,21 @@ The rescue build deliberately makes identity visible instead of hiding it in dia
 
 Current product direction keeps **Free forever**. Do not replace that phrase with Pro/paywall messaging without a new explicit product decision. Optional donations and future non-blocking advertising may fund development; neither changes the current free-access promise.
 
+## Temporary three-method Play frame
+
+The field-test UI intentionally puts **Primary**, **Alpha**, and **Beta** inside one bordered compatibility frame so users understand that the expanded control is temporary rather than a permanent three-button product design.
+
+The message shown in that frame says:
+
+> Three Play methods are shown temporarily while we figure out what changed. Start with Primary. If it fails, confirm nothing was sent, then try Alpha or Beta. Once Primary is reliable again, Ghost goes back to one Play button.
+
+The product goal remains one dependable **Primary** Play button. Alpha and Beta exist only to isolate the failure mechanism and keep field testing productive while Primary is repaired.
+
 ## Why this is a companion script first
 
 The released Primary engine has years of safety work around exact-one Send authority, leases, route protection, uncertainty, and at-most-once delivery. We do not destabilize that release merely to collect fallback data.
 
-The rescue lab runs alongside the current Ghost userscript and adds a small panel immediately below the normal Transport control:
+The rescue lab runs alongside the current Ghost userscript and groups the current Transport control with two fallback test methods:
 
 - **Primary** — unchanged Ghost 8.8.2 Play path; remains the default.
 - **Alpha** — independent semantic Send-control lookup. It does not use Primary's reviewed selector list.
@@ -92,7 +102,7 @@ It never stores or copies prompt text, assistant text, full URLs, conversation I
 
 A click copies a line such as:
 
-`GITL-FEEDBACK | ChatGPT | Alpha | WORKED | CONFIRM | none | core 8.8.2 | lab 0.2.0`
+`GITL-FEEDBACK | ChatGPT | Alpha | WORKED | CONFIRM | none | core 8.8.2 | lab 0.3.0`
 
 This can be pasted into a bug report or development chat so we can build a site/method evidence matrix without collecting conversation content.
 
@@ -104,9 +114,12 @@ It verifies:
 
 - the Ghost / in the Loop / version branding is visible;
 - Setup shows version + Free forever + donation support;
+- one temporary border physically contains Primary, Alpha, and Beta;
+- the compatibility message says the three-method state is temporary and the end state is one Primary Play button;
 - Alpha performs exactly one semantic Send and does not use Beta;
 - Beta performs exactly one native form submit and does not use Alpha;
 - uncertain Primary delivery locks both rescue engines;
+- a silent Primary click becomes a visible `PRIMARY-START-001` failure;
 - copied feedback excludes prompt text;
 - the rescue UI still mounts when an `innerHTML` sink is forcibly blocked (Trusted-Types-like condition).
 
@@ -121,9 +134,10 @@ Install this second userscript from the isolated branch:
 Then reload the AI site. The normal Ghost panel should show:
 
 - the new two-line brand lockup;
-- the normal Primary Start button;
-- **Play rescue engines** directly beneath it;
-- Alpha and Beta test buttons;
+- one bordered **Play compatibility check** area marked **TEMP**;
+- **Primary · current Ghost** above the normal Start button;
+- Alpha and Beta fallback test buttons inside the same border;
+- a short note explaining why three methods are temporarily visible;
 - a method/stage/error status line;
 - version/funding identity on Setup.
 
