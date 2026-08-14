@@ -1,574 +1,76 @@
 // ==UserScript==
 // @name         GITL Proceed Endurance Canary
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      0.3.0
-// @description  Mobile-first 3/5-cycle endurance and Ghost-loop watcher for Proceed failures.
+// @version      0.4.0
+// @description  Mobile multi-strategy Proceed endurance, backup bench, rescue, and passive loop watcher.
 // @match        https://chatgpt.com/*
 // @match        https://www.perplexity.ai/*
 // @grant        GM_info
 // @grant        GM_setClipboard
+// @run-at       document-idle
+// @updateURL    https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/personal-forge/REC-GITL-EVAL-e483/dev/diagnostics/gitl-proceed-endurance.user.js
+// @downloadURL  https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/personal-forge/REC-GITL-EVAL-e483/dev/diagnostics/gitl-proceed-endurance.user.js
 // ==/UserScript==
-
 (() => {
-  'use strict';
-
-  const VERSION = '0.3.0';
-  const HOST = location.hostname.includes('perplexity') ? 'Perplexity' : 'ChatGPT';
-  const RID = 'gitl-proceed-endurance-canary';
-  const CK = `gitl-endurance-v03-checkpoint-${HOST.toLowerCase()}`;
-  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-  const now = () => new Date().toISOString();
-  const text = (el) => (el?.innerText || el?.textContent || el?.value || '').trim();
-
-  const REPORT = {
-    tool: 'GITL Proceed Endurance Canary',
-    version: VERSION,
-    startedAt: now(),
-    host: HOST,
-    manager: typeof GM_info === 'object' ? {
-      name: GM_info.scriptHandler || 'unknown',
-      version: GM_info.version || 'unknown',
-      injectInto: GM_info.injectInto || 'unknown'
-    } : null,
-    environment: {
-      mobile: matchMedia('(pointer: coarse)').matches || innerWidth <= 700,
-      viewportWidth: innerWidth,
-      viewportHeight: innerHeight
-    },
-    ghostAtStart: ghostSnapshot(),
-    recoveredCheckpoint: loadCheckpoint(),
-    runs: []
-  };
-
-  let currentRun = null;
-  let stopped = false;
-  let busy = false;
-  let UI = null;
-
-  function visible(el) {
-    if (!el || !el.isConnected) return false;
-    const cs = getComputedStyle(el);
-    const r = el.getBoundingClientRect();
-    return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0' && r.width > 0 && r.height > 0;
-  }
-
-  function enabled(el) {
-    return !!el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
-  }
-
-  function safeButton(el) {
-    return visible(el) && enabled(el) && el.getAttribute('aria-haspopup') !== 'menu' && !el.closest(`#${RID}`) && !el.closest('#gitl');
-  }
-
-  function composerCandidates() {
-    const selectors = HOST === 'Perplexity'
-      ? ['textarea', '[contenteditable="true"][role="textbox"]', '[contenteditable="true"]']
-      : ['#prompt-textarea', 'textarea', '[contenteditable="true"][role="textbox"]'];
-    return [...new Set(selectors.flatMap((s) => [...document.querySelectorAll(s)]))]
-      .filter((el) => visible(el) && !el.closest(`#${RID}`) && !el.closest('#gitl'));
-  }
-
-  function composer() {
-    const all = composerCandidates();
-    if (HOST === 'ChatGPT') {
-      const preferred = all.find((el) => el.id === 'prompt-textarea');
-      if (preferred) return { el: preferred, count: all.length, preferred: true };
-    }
-    return { el: all.length === 1 ? all[0] : null, count: all.length, preferred: false };
-  }
-
-  function reviewedSend() {
-    const selectors = HOST === 'Perplexity'
-      ? [
-          'button[aria-label="Submit"]',
-          'button[aria-label="Send"]',
-          'button[aria-label="Send message"]',
-          'button[type="submit"]'
-        ]
-      : [
-          'button#composer-submit-button',
-          'button[data-testid="send-button"]',
-          'button[aria-label="Send prompt"]',
-          'button[aria-label="Send message"]',
-          'button[aria-label="Submit"]'
-        ];
-    return [...new Set(selectors.flatMap((s) => [...document.querySelectorAll(s)]))].filter(safeButton);
-  }
-
-  function semanticSend() {
-    const c = composer().el;
-    const scope = c?.closest('form') || c?.parentElement?.parentElement || document;
-    return [...scope.querySelectorAll('button')].filter((b) => {
-      if (!safeButton(b)) return false;
-      const n = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('title') || ''} ${text(b)}`.trim();
-      return /^(send|send prompt|send message|submit|ask)$/i.test(n);
-    });
-  }
-
-  function authorityUnion() {
-    return [...new Set([...reviewedSend(), ...semanticSend()])];
-  }
-
-  function stopButtons() {
-    return [...document.querySelectorAll('button')].filter((b) => {
-      if (!visible(b) || b.closest(`#${RID}`) || b.closest('#gitl')) return false;
-      const n = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('title') || ''} ${text(b)}`;
-      return /\bstop\b/i.test(n);
-    });
-  }
-
-  function generationActive() {
-    return stopButtons().length > 0;
-  }
-
-  function ghostSnapshot() {
-    const panel = document.querySelector('#gitl');
-    const controls = panel ? [...panel.querySelectorAll('button')] : [];
-    const known = controls.map((b) => `${b.getAttribute('aria-label') || ''} ${text(b)}`.trim())
-      .filter((s) => /\b(play|proceed|pause|stop|commit)\b/i.test(s))
-      .slice(0, 8)
-      .map((s) => s.replace(/\s+/g, ' ').slice(0, 40));
-    return {
-      boot: document.documentElement.getAttribute('data-gitl-boot') || null,
-      panelPresent: !!panel,
-      knownControls: known,
-      disabledKnownControls: panel ? controls.filter((b) => !enabled(b) && /\b(play|proceed|pause|stop|commit)\b/i.test(`${b.getAttribute('aria-label') || ''} ${text(b)}`)).length : 0
-    };
-  }
-
-  function loadCheckpoint() {
-    try {
-      const raw = localStorage.getItem(CK);
-      return raw ? JSON.parse(raw) : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function saveCheckpoint(data) {
-    try { localStorage.setItem(CK, JSON.stringify(data)); } catch (_) {}
-  }
-
-  function clearCheckpoint() {
-    try { localStorage.removeItem(CK); } catch (_) {}
-  }
-
-  function snapshot(stage, extra = {}) {
-    const c = composer();
-    const s = {
-      at: now(),
-      stage,
-      cycle: currentRun?.cycle || 0,
-      composerCandidates: c.count,
-      composerPresent: !!c.el,
-      composerPreferred: c.preferred,
-      composerChars: text(c.el).length,
-      reviewedSendCount: reviewedSend().length,
-      semanticSendCount: semanticSend().length,
-      authorityUnionCount: authorityUnion().length,
-      generationActive: generationActive(),
-      stopButtonCount: stopButtons().length,
-      ghost: ghostSnapshot(),
-      ...extra
-    };
-    currentRun?.stages.push(s);
-    saveCheckpoint({
-      version: VERSION,
-      host: HOST,
-      runId: currentRun?.id || null,
-      mode: currentRun?.mode || null,
-      cycle: currentRun?.cycle || 0,
-      stage,
-      at: s.at,
-      extra
-    });
-    status(`${currentRun?.mode || ''} C${currentRun?.cycle || 0} · ${stage}`);
-    return s;
-  }
-
-  function status(msg, kind = 'info') {
-    if (!UI) return;
-    UI.status.textContent = msg;
-    UI.status.dataset.kind = kind;
-  }
-
-  function setBusy(v) {
-    busy = v;
-    if (!UI) return;
-    for (const b of UI.actionButtons) b.disabled = v;
-    UI.stop.disabled = !v;
-  }
-
-  function markerFor(cycle) {
-    const nonce = Math.random().toString(36).slice(2, 8).toUpperCase();
-    return `GITL-END-${HOST === 'Perplexity' ? 'PX' : 'CG'}-C${cycle}-${nonce}`;
-  }
-
-  function setEditorText(el, value) {
-    if (!el) return false;
-    try { el.focus(); } catch (_) {}
-
-    if (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) {
-      const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
-      if (setter) setter.call(el, value); else el.value = value;
-      el.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-      return true;
-    }
-
-    if (el.isContentEditable) {
-      try {
-        const sel = getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(el);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        if (document.execCommand?.('selectAll', false, null) !== false && document.execCommand?.('insertText', false, value)) {
-          el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: value, bubbles: true, composed: true }));
-          return true;
-        }
-      } catch (_) {}
-
-      try {
-        el.replaceChildren(document.createTextNode(value));
-        el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: value, bubbles: true, composed: true }));
-        return true;
-      } catch (_) {}
-    }
-    return false;
-  }
-
-  async function waitForStableIdle(timeoutMs = 180000) {
-    snapshot('WAIT-IDLE-BEGIN');
-    const end = Date.now() + timeoutMs;
-    let stable = 0;
-    while (Date.now() < end && !stopped) {
-      const c = composer();
-      const active = generationActive();
-      if (c.el && !active) stable += 1; else stable = 0;
-      if (stable >= 4) {
-        snapshot('IDLE-STABLE', { stablePolls: stable });
-        return { ok: true, composer: c.el };
-      }
-      await sleep(350);
-    }
-    snapshot('HALT-IDLE-TIMEOUT');
-    return { ok: false, code: stopped ? 'STOPPED' : 'IDLE-TIMEOUT' };
-  }
-
-  async function stageAndReacquire(marker) {
-    const c0 = composer();
-    snapshot('STAGE-BEGIN', { marker });
-    if (!c0.el) return { ok: false, code: `COMPOSER-${c0.count === 0 ? 'MISSING' : 'AMBIGUOUS'}` };
-    if (text(c0.el)) return { ok: false, code: 'COMPOSER-NOT-EMPTY' };
-    if (!setEditorText(c0.el, marker)) return { ok: false, code: 'STAGE-SETTER-FAILED' };
-
-    await sleep(220);
-    const staged = composerCandidates().filter((el) => text(el).includes(marker));
-    snapshot(staged.length === 1 ? 'STAGE-OK' : 'HALT-STAGE', {
-      marker,
-      exactMarkerComposerCount: staged.length,
-      nodeChanged: staged.length === 1 && staged[0] !== c0.el
-    });
-    if (staged.length !== 1) return { ok: false, code: `STAGE-MATCH-${staged.length}` };
-
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    await sleep(HOST === 'Perplexity' ? 300 : 180);
-    const reacquired = composerCandidates().filter((el) => text(el).includes(marker));
-    snapshot(reacquired.length === 1 ? 'REACQUIRE-OK' : 'HALT-REACQUIRE', {
-      marker,
-      exactMarkerComposerCount: reacquired.length,
-      nodeChanged: reacquired.length === 1 && reacquired[0] !== staged[0]
-    });
-    if (reacquired.length !== 1) return { ok: false, code: `REACQUIRE-MATCH-${reacquired.length}` };
-    return { ok: true, composer: reacquired[0] };
-  }
-
-  async function waitAuthority(timeoutMs = 8000) {
-    snapshot('WAIT-AUTHORITY-BEGIN');
-    const end = Date.now() + timeoutMs;
-    let last = -1;
-    while (Date.now() < end && !stopped) {
-      const union = authorityUnion();
-      last = union.length;
-      if (union.length === 1) {
-        snapshot('AUTHORITY-READY', { candidateCount: 1 });
-        return { ok: true, button: union[0] };
-      }
-      await sleep(180);
-    }
-    snapshot('HALT-AUTHORITY', { candidateCount: last });
-    return { ok: false, code: stopped ? 'STOPPED' : `AUTHORITY-${last}` };
-  }
-
-  async function dispatchAndConfirm(marker, button) {
-    snapshot('PRE-ACTUATION', { marker, buttonConnected: !!button?.isConnected });
-    if (!button || !button.isConnected) return { ok: false, code: 'BUTTON-STALE' };
-    button.click();
-    snapshot('ACTUATED', { marker, method: 'exact-one union HTMLElement.click' });
-
-    const end = Date.now() + 12000;
-    let sawStart = false;
-    let sawClear = false;
-    while (Date.now() < end && !stopped) {
-      await sleep(150);
-      const c = composer().el;
-      sawClear ||= !!c && !text(c).includes(marker);
-      sawStart ||= generationActive();
-      if (sawStart && sawClear) {
-        snapshot('DISPATCH-CONFIRMED', { marker, generationStarted: true, composerCleared: true });
-        return { ok: true };
-      }
-    }
-    snapshot('HALT-DISPATCH', { marker, generationStarted: sawStart, composerCleared: sawClear });
-    return { ok: false, code: stopped ? 'STOPPED' : 'DISPATCH-NOT-CONFIRMED' };
-  }
-
-  async function waitGenerationEnd(timeoutMs = 240000) {
-    snapshot('WAIT-GENERATION-END-BEGIN');
-    const end = Date.now() + timeoutMs;
-    let hadActive = generationActive();
-    let stableIdle = 0;
-    while (Date.now() < end && !stopped) {
-      await sleep(400);
-      const active = generationActive();
-      hadActive ||= active;
-      if (hadActive && !active && composer().el) stableIdle += 1; else if (active) stableIdle = 0;
-      if (hadActive && stableIdle >= 4) {
-        snapshot('GENERATION-END', { stableIdlePolls: stableIdle });
-        return { ok: true };
-      }
-    }
-    snapshot('HALT-GENERATION-END', { hadActive });
-    return { ok: false, code: stopped ? 'STOPPED' : hadActive ? 'GENERATION-END-TIMEOUT' : 'GENERATION-NEVER-STARTED' };
-  }
-
-  async function cleanupOwnMarker(marker) {
-    const c = composer().el;
-    if (c && text(c).includes(marker)) {
-      setEditorText(c, '');
-      await sleep(120);
-    }
-    snapshot('CLEANUP', { markerStillPresent: !!composer().el && text(composer().el).includes(marker) });
-  }
-
-  async function runEndurance(cycles) {
-    if (busy) return;
-    stopped = false;
-    currentRun = {
-      id: `E${cycles}-${Date.now()}`,
-      mode: `E${cycles}-HOST`,
-      cyclesRequested: cycles,
-      cycle: 0,
-      startedAt: now(),
-      stages: [],
-      result: 'running'
-    };
-    REPORT.runs.push(currentRun);
-    setBusy(true);
-    clearCheckpoint();
-
-    try {
-      for (let i = 1; i <= cycles; i += 1) {
-        currentRun.cycle = i;
-        snapshot('CYCLE-BEGIN');
-
-        const idle = await waitForStableIdle();
-        if (!idle.ok) throw new Error(`C${i}:${idle.code}`);
-        if (text(idle.composer)) throw new Error(`C${i}:COMPOSER-NOT-EMPTY`);
-
-        const marker = markerFor(i);
-        const staged = await stageAndReacquire(marker);
-        if (!staged.ok) {
-          await cleanupOwnMarker(marker);
-          throw new Error(`C${i}:${staged.code}`);
-        }
-
-        const authority = await waitAuthority(HOST === 'Perplexity' ? 10000 : 7000);
-        if (!authority.ok) {
-          await cleanupOwnMarker(marker);
-          throw new Error(`C${i}:${authority.code}`);
-        }
-
-        const sent = await dispatchAndConfirm(marker, authority.button);
-        if (!sent.ok) {
-          if (!generationActive()) await cleanupOwnMarker(marker);
-          throw new Error(`C${i}:${sent.code}`);
-        }
-
-        const ended = await waitGenerationEnd();
-        if (!ended.ok) throw new Error(`C${i}:${ended.code}`);
-
-        snapshot('CYCLE-PASS', { cyclePassed: i });
-      }
-
-      currentRun.result = 'success';
-      currentRun.finishedAt = now();
-      currentRun.code = `E${cycles}-ALL-CYCLES-PASS`;
-      clearCheckpoint();
-      status(`E${cycles} ✓ ${cycles}/${cycles} cycles`, 'ok');
-    } catch (err) {
-      currentRun.result = stopped ? 'stopped' : 'failed';
-      currentRun.finishedAt = now();
-      currentRun.code = String(err?.message || err);
-      snapshot('RUN-HALT', { haltCode: currentRun.code });
-      status(`${currentRun.mode} ✕ ${currentRun.code}`, 'fail');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function waitForNextGenerationStart(timeoutMs) {
-    const end = Date.now() + timeoutMs;
-    let composerHadText = false;
-    let sendAppeared = false;
-    while (Date.now() < end && !stopped) {
-      await sleep(250);
-      const c = composer().el;
-      composerHadText ||= !!c && text(c).length > 0;
-      sendAppeared ||= authorityUnion().length === 1;
-      if (generationActive()) {
-        snapshot('WATCH-GENERATION-START', { composerHadText, sendAppeared });
-        return { ok: true };
-      }
-    }
-    snapshot('WATCH-HALT-BEFORE-GENERATION', { composerHadText, sendAppeared });
-    return { ok: false, code: stopped ? 'STOPPED' : 'NO-NEXT-GENERATION' };
-  }
-
-  async function watchGhost(cycles = 3) {
-    if (busy) return;
-    stopped = false;
-    currentRun = {
-      id: `G${cycles}-${Date.now()}`,
-      mode: `G${cycles}-WATCH`,
-      cyclesRequested: cycles,
-      cycle: 0,
-      startedAt: now(),
-      stages: [],
-      result: 'running'
-    };
-    REPORT.runs.push(currentRun);
-    setBusy(true);
-    clearCheckpoint();
-
-    try {
-      snapshot('WATCH-ARMED', { instruction: 'Tap Ghost Play/Proceed now. Watcher does not actuate host controls.' });
-      for (let i = 1; i <= cycles; i += 1) {
-        currentRun.cycle = i;
-        snapshot('WATCH-CYCLE-BEGIN');
-        const started = await waitForNextGenerationStart(i === 1 ? 90000 : 120000);
-        if (!started.ok) throw new Error(`C${i}:${started.code}`);
-        const ended = await waitGenerationEnd(300000);
-        if (!ended.ok) throw new Error(`C${i}:${ended.code}`);
-        snapshot('WATCH-CYCLE-PASS', { cycleObserved: i });
-      }
-      currentRun.result = 'success';
-      currentRun.finishedAt = now();
-      currentRun.code = `G${cycles}-OBSERVED`;
-      clearCheckpoint();
-      status(`G${cycles} ✓ observed ${cycles} cycles`, 'ok');
-    } catch (err) {
-      currentRun.result = stopped ? 'stopped' : 'failed';
-      currentRun.finishedAt = now();
-      currentRun.code = String(err?.message || err);
-      snapshot('WATCH-RUN-HALT', { haltCode: currentRun.code });
-      status(`${currentRun.mode} ✕ ${currentRun.code}`, 'fail');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function copyReport() {
-    const payload = JSON.stringify(REPORT, null, 2);
-    try {
-      if (typeof GM_setClipboard === 'function') GM_setClipboard(payload, 'text');
-      else navigator.clipboard?.writeText(payload);
-      status('Report copied', 'ok');
-    } catch (_) {
-      status('Copy failed — use JSON', 'fail');
-    }
-  }
-
-  function downloadReport() {
-    try {
-      const blob = new Blob([JSON.stringify(REPORT, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `gitl-endurance-v03-${HOST.toLowerCase()}-${Date.now()}.json`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      status('JSON downloaded', 'ok');
-    } catch (_) {
-      status('Download failed — use COPY', 'fail');
-    }
-  }
-
-  function resetReport() {
-    if (busy) return;
-    REPORT.runs.length = 0;
-    REPORT.recoveredCheckpoint = null;
-    clearCheckpoint();
-    status('Report + checkpoint cleared');
-  }
-
-  function build() {
-    if (document.getElementById(RID)) return;
-    const host = document.createElement('div');
-    host.id = RID;
-    host.style.cssText = 'position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:2147483647;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;';
-    const root = host.attachShadow({ mode: 'open' });
-    root.innerHTML = `
-      <style>
-        *{box-sizing:border-box}button{font:inherit}.pill{pointer-events:auto;height:36px;min-width:62px;padding:0 11px;border:1px solid #777;border-radius:18px;background:#151515;color:#fff;font-weight:800;box-shadow:0 3px 12px #0007}.panel{pointer-events:auto;display:none;width:min(304px,calc(100vw - 12px));padding:7px;border:1px solid #666;border-radius:11px;background:#111;color:#eee;box-shadow:0 6px 24px #0009}.open{display:block}.head{display:flex;gap:6px;align-items:center}.title{flex:1;font-size:12px;font-weight:800}.meta{font-size:9px;opacity:.75}.x{width:30px;height:30px;border:0;border-radius:8px;background:#292929;color:#fff}.status{min-height:38px;margin:6px 0;padding:6px 7px;border-radius:8px;background:#242424;font-size:10.5px;line-height:1.25}.status[data-kind="ok"]{outline:1px solid #428a4c}.status[data-kind="fail"]{outline:1px solid #a64848}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.a{height:42px;border:1px solid #555;border-radius:9px;background:#1d1d1d;color:#fff;font-size:11px;font-weight:800}.a:disabled,.mini:disabled{opacity:.38}.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}.mini{height:32px;border:1px solid #555;border-radius:8px;background:#202020;color:#eee;font-size:9.5px;font-weight:700}.hint{margin-top:5px;font-size:9px;line-height:1.2;opacity:.72}
-      </style>
-      <button class="pill" type="button">E TEST</button>
-      <div class="panel">
-        <div class="head"><div class="title">Proceed Endurance v${VERSION}</div><div class="meta"></div><button class="x" type="button">×</button></div>
-        <div class="status" data-kind="info">Ready · E3/E5 sends test markers; G3 only watches Ghost</div>
-        <div class="actions">
-          <button class="a e3" type="button">E3 HOST</button>
-          <button class="a e5" type="button">E5 HOST</button>
-          <button class="a g3" type="button">G3 WATCH</button>
-        </div>
-        <div class="foot">
-          <button class="mini stop" type="button">STOP</button>
-          <button class="mini copy" type="button">COPY</button>
-          <button class="mini json" type="button">JSON</button>
-          <button class="mini reset" type="button">RESET</button>
-        </div>
-        <div class="hint">E3/E5 waits for each generation to FINISH before the next send. G3: tap it, then tap Ghost Play/Proceed; it watches 3 cycles without sending anything itself.</div>
-      </div>`;
-    document.documentElement.appendChild(host);
-
-    const pill = root.querySelector('.pill');
-    const panel = root.querySelector('.panel');
-    const statusEl = root.querySelector('.status');
-    const e3 = root.querySelector('.e3');
-    const e5 = root.querySelector('.e5');
-    const g3 = root.querySelector('.g3');
-    const stop = root.querySelector('.stop');
-    root.querySelector('.meta').textContent = `${HOST === 'Perplexity' ? 'PX' : 'CG'} · ${document.querySelector('#gitl') ? 'G:ON' : 'G:OFF'}`;
-
-    UI = { status: statusEl, stop, actionButtons: [e3, e5, g3] };
-    stop.disabled = true;
-    pill.onclick = () => panel.classList.toggle('open');
-    root.querySelector('.x').onclick = () => panel.classList.remove('open');
-    e3.onclick = () => runEndurance(3);
-    e5.onclick = () => runEndurance(5);
-    g3.onclick = () => watchGhost(3);
-    stop.onclick = () => { stopped = true; status('Stopping after current safe observation…', 'fail'); };
-    root.querySelector('.copy').onclick = copyReport;
-    root.querySelector('.json').onclick = downloadReport;
-    root.querySelector('.reset').onclick = resetReport;
-
-    if (REPORT.recoveredCheckpoint) {
-      const r = REPORT.recoveredCheckpoint;
-      status(`Recovered ${r.mode || 'run'} C${r.cycle || 0} after ${r.stage || 'unknown stage'}`, 'fail');
-    }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build, { once: true });
-  else build();
+'use strict';
+const V='0.4.0',H=location.hostname.includes('perplexity')?'Perplexity':'ChatGPT',RID='gitl-proceed-endurance-canary';
+const CK=`gitl-endurance-v04-checkpoint-${H.toLowerCase()}`,SK=`gitl-endurance-v04-stats-${H.toLowerCase()}`;
+const wait=m=>new Promise(r=>setTimeout(r,m)),ts=()=>new Date().toISOString(),tx=e=>(e?.innerText||e?.textContent||e?.value||'').trim();
+let run=null,busy=false,stopFlag=false,UI=null;
+const vis=e=>{if(!e||!e.isConnected)return false;const s=getComputedStyle(e),r=e.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&s.opacity!=='0'&&r.width>0&&r.height>0};
+const ena=e=>!!e&&!e.disabled&&e.getAttribute('aria-disabled')!=='true',uniq=a=>[...new Set(a.filter(Boolean))],name=e=>`${e?.getAttribute?.('aria-label')||''} ${e?.getAttribute?.('title')||''} ${tx(e)}`.trim().replace(/\s+/g,' ');
+function diag(e){const z=`${e?.id||''} ${String(e?.className||'')}`.toLowerCase();return e?.id===RID||/proceed-(diagnostic|ladder|matrix|endurance)|gitl-canary/.test(z)}
+function inGhost(e){for(let n=e,i=0;n&&i<8;i++,n=n.parentElement){if(diag(n))return false;const id=(n.id||'').toLowerCase(),cl=String(n.className||'').toLowerCase();if(id==='gitl'||n.hasAttribute?.('data-gitl')||n.hasAttribute?.('data-gitl-root')||(/^gitl-/.test(id)&&!/proceed-(diagnostic|ladder|matrix|endurance)/.test(id))||/ghost-in-the-loop/.test(`${id} ${cl}`))return true}return false}
+const safe=e=>vis(e)&&ena(e)&&e.getAttribute('aria-haspopup')!=='menu'&&!e.closest(`#${RID}`)&&!inGhost(e);
+function comps(){const s=H==='Perplexity'?['textarea','[contenteditable="true"][role="textbox"]','[contenteditable="true"]']:['#prompt-textarea','textarea','[contenteditable="true"][role="textbox"]'];return uniq(s.flatMap(q=>[...document.querySelectorAll(q)])).filter(e=>vis(e)&&!e.closest(`#${RID}`)&&!inGhost(e))}
+function comp(){const a=comps();if(H==='ChatGPT'){const p=a.find(e=>e.id==='prompt-textarea');if(p)return{el:p,count:a.length,preferred:true}}return{el:a.length===1?a[0]:null,count:a.length,preferred:false}}
+function reviewed(){const s=H==='Perplexity'?['button[aria-label="Submit"]','button[aria-label="Send"]','button[aria-label="Send message"]','button[type="submit"]','button[data-testid*="send" i]','button[data-testid*="submit" i]']:['button#composer-submit-button','button[data-testid="send-button"]','button[data-testid*="send" i]','button[aria-label="Send prompt"]','button[aria-label="Send message"]','button[aria-label="Submit"]','button[type="submit"]'];return uniq(s.flatMap(q=>{try{return[...document.querySelectorAll(q)]}catch(_){return[]}})).filter(safe)}
+function semantic(){const c=comp().el,sc=[];for(let n=c,i=0;n&&i<5;i++,n=n.parentElement)sc.push(n);sc.push(document);for(const x of sc){const a=[...x.querySelectorAll('button')].filter(b=>safe(b)&&/^(send|send prompt|send message|submit|ask)$/i.test(name(b)));if(a.length)return uniq(a)}return[]}
+function structural(){const c=comp().el;if(!c)return[];for(let n=c,i=0;n&&i<6;i++,n=n.parentElement){const a=[...n.querySelectorAll('button')].filter(b=>{if(!safe(b))return false;const t=(b.getAttribute('type')||'').toLowerCase(),d=(b.getAttribute('data-testid')||'').toLowerCase(),z=name(b).toLowerCase();if(/stop|attach|upload|voice|mic|model|menu|search|source|file/.test(`${z} ${d}`))return false;return t==='submit'||/send|submit/.test(d)||/^(send|submit|ask)(\s|$)/.test(z)});if(a.length)return uniq(a)}return[]}
+function auth(k='union'){return k==='reviewed'?reviewed():k==='semantic'?semantic():k==='structural'?structural():uniq([...reviewed(),...semantic()])}
+function rawAuth(){const a=[...document.querySelectorAll('button')].filter(b=>!b.closest(`#${RID}`)&&!inGhost(b)),s=a.filter(b=>/send|submit|ask/i.test(`${name(b)} ${b.getAttribute('data-testid')||''}`));return{rawSendishCount:s.length,rawVisibleSendishCount:s.filter(vis).length,rawEnabledSendishCount:s.filter(ena).length,rawSendish:s.slice(0,6).map(b=>({name:name(b).slice(0,50),type:b.getAttribute('type')||null,testid:b.getAttribute('data-testid')||null,visible:vis(b),enabled:ena(b)}))}}
+function stops(){return[...document.querySelectorAll('button')].filter(b=>vis(b)&&!b.closest(`#${RID}`)&&!inGhost(b)&&/\bstop\b/i.test(name(b)))}
+const active=()=>stops().length>0;
+function ghost(){let roots=[];for(const q of['#gitl','[data-gitl]','[data-gitl-root]','[id^="gitl-"]','[id*="ghost-in-the-loop" i]']){try{roots.push(...[...document.querySelectorAll(q)].filter(e=>!diag(e)&&!e.closest(`#${RID}`)))}catch(_){}}roots=uniq(roots);let cs=[];for(const r of roots){cs.push(...[...r.querySelectorAll?.('button,[role="button"]')||[]].filter(b=>/\b(play|proceed|pause|stop|commit|resume)\b/i.test(name(b))));if(r.shadowRoot)cs.push(...[...r.shadowRoot.querySelectorAll('button,[role="button"]')].filter(b=>/\b(play|proceed|pause|stop|commit|resume)\b/i.test(name(b))))}cs=uniq(cs);const boot=document.documentElement.getAttribute('data-gitl-boot')||document.body?.getAttribute?.('data-gitl-boot')||null;return{boot,rootCount:roots.length,panelPresent:roots.length>0,knownControls:cs.slice(0,8).map(b=>name(b).slice(0,45)),disabledKnownControls:cs.filter(b=>!ena(b)).length,detected:!!boot||roots.length>0||cs.length>0}}
+function load(k,d){try{const x=localStorage.getItem(k);return x?JSON.parse(x):d}catch(_){return d}}function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}}function clearCK(){try{localStorage.removeItem(CK)}catch(_){}}
+const REP={tool:'GITL Proceed Endurance Canary',version:V,startedAt:ts(),host:H,manager:typeof GM_info==='object'?{name:GM_info.scriptHandler||'unknown',version:GM_info.version||'unknown',injectInto:GM_info.injectInto||'unknown'}:null,environment:{mobile:matchMedia('(pointer: coarse)').matches||innerWidth<=700,viewportWidth:innerWidth,viewportHeight:innerHeight},ghostAtStart:ghost(),recoveredCheckpoint:load(CK,null),strategyStatsAtStart:load(SK,{}),runs:[]};
+function status(m,k='info'){if(UI){UI.status.textContent=m;UI.status.dataset.kind=k}}function lock(v){busy=v;if(UI){UI.actions.forEach(b=>b.disabled=v);UI.stop.disabled=!v}}
+function snap(stage,x={}){const c=comp(),s={at:ts(),stage,cycle:run?.cycle||0,strategy:run?.strategy||null,composerCandidates:c.count,composerPresent:!!c.el,composerPreferred:c.preferred,composerChars:tx(c.el).length,reviewedSendCount:reviewed().length,semanticSendCount:semantic().length,structuralSendCount:structural().length,authorityUnionCount:auth().length,generationActive:active(),stopButtonCount:stops().length,ghost:ghost(),...x};run?.stages.push(s);save(CK,{version:V,host:H,runId:run?.id||null,mode:run?.mode||null,strategy:run?.strategy||null,cycle:run?.cycle||0,stage,at:s.at,extra:x});status(`${run?.strategy||run?.mode||''} C${run?.cycle||0} · ${stage}`);return s}
+function marker(c,code){return`GITL-${code}-${H==='Perplexity'?'PX':'CG'}-C${c}-${Math.random().toString(36).slice(2,8).toUpperCase()}`}
+function focusEnd(e){try{e.focus()}catch(_){}if(e?.isContentEditable)try{const s=getSelection(),r=document.createRange();r.selectNodeContents(e);r.collapse(false);s.removeAllRanges();s.addRange(r)}catch(_){}else if(e&&'selectionStart'in e)try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}}
+function val(e,v){if(!(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement))return false;const p=e instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,set=Object.getOwnPropertyDescriptor(p,'value')?.set;if(set)set.call(e,v);else e.value=v;e.dispatchEvent(new Event('input',{bubbles:true,composed:true}));e.dispatchEvent(new Event('change',{bubbles:true,composed:true}));return true}
+function stage(e,v,m){if(!e)return false;if(!e.isContentEditable)return val(e,v);try{e.focus();if(m==='direct'){e.replaceChildren(document.createTextNode(v));e.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertText',data:v,bubbles:true,cancelable:true,composed:true}));e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:v,bubbles:true,composed:true}));return true}if(m==='range'){const s=getSelection(),r=document.createRange();r.selectNodeContents(e);r.deleteContents();const n=document.createTextNode(v);r.insertNode(n);r.setStartAfter(n);r.collapse(true);s.removeAllRanges();s.addRange(r);e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:v,bubbles:true,composed:true}));return true}const s=getSelection(),r=document.createRange();r.selectNodeContents(e);s.removeAllRanges();s.addRange(r);document.execCommand?.('selectAll',false,null);const ok=document.execCommand?.('insertText',false,v);e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:v,bubbles:true,composed:true}));return ok!==false}catch(_){return false}}
+async function clearEditor(e){if(!e)return false;if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement){val(e,'');await wait(100);return tx(e)===''}if(e.isContentEditable){try{e.focus();const s=getSelection(),r=document.createRange();r.selectNodeContents(e);s.removeAllRanges();s.addRange(r);document.execCommand?.('delete',false,null);e.dispatchEvent(new InputEvent('input',{inputType:'deleteContentBackward',data:null,bubbles:true,composed:true}))}catch(_){}await wait(100);if(tx(e)==='')return true;try{e.replaceChildren();e.dispatchEvent(new InputEvent('input',{inputType:'deleteContentBackward',data:null,bubbles:true,composed:true}))}catch(_){}await wait(100);return tx(e)===''}return false}
+async function idle(extra=0){snap('WAIT-IDLE-BEGIN',{extraSettleMs:extra});let stable=0,end=Date.now()+180000;while(Date.now()<end&&!stopFlag){const c=comp();if(c.el&&!active())stable++;else stable=0;if(stable>=4){if(extra)await wait(extra);if(!active()&&comp().el){snap('IDLE-STABLE',{stablePolls:stable,extraSettleMs:extra});return{ok:true}}stable=0}await wait(350)}snap('HALT-IDLE');return{ok:false,code:stopFlag?'STOPPED':'IDLE-TIMEOUT'}}
+async function stageVerify(mk,m){const c0=comp();snap('STAGE-BEGIN',{marker:mk,stageMethod:m});if(!c0.el)return{ok:false,code:`COMPOSER-${c0.count?'AMBIGUOUS':'MISSING'}`};if(tx(c0.el))return{ok:false,code:'COMPOSER-NOT-EMPTY'};if(!stage(c0.el,mk,m))return{ok:false,code:`STAGE-${m}-FAILED`};await wait(240);let a=comps().filter(e=>tx(e).includes(mk));snap(a.length===1?'STAGE-OK':'HALT-STAGE',{marker:mk,stageMethod:m,exactMarkerComposerCount:a.length,nodeChanged:a.length===1&&a[0]!==c0.el});if(a.length!==1)return{ok:false,code:`STAGE-MATCH-${a.length}`};await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));await wait(H==='Perplexity'?300:180);a=comps().filter(e=>tx(e).includes(mk));snap(a.length===1?'REACQUIRE-OK':'HALT-REACQUIRE',{marker:mk,exactMarkerComposerCount:a.length});return a.length===1?{ok:true}:{ok:false,code:`REACQUIRE-MATCH-${a.length}`}}
+async function recover(mk,r){const c=comp().el;if(!c||!tx(c).includes(mk))return{ok:false,code:'RECOVERY-MARKER-MISSING'};snap(`RECOVERY-${r.toUpperCase()}-BEGIN`);if(r==='nudge'){focusEnd(c);c.dispatchEvent(new Event('input',{bubbles:true,composed:true}));c.dispatchEvent(new Event('change',{bubbles:true,composed:true}));await wait(500)}else if(r==='focus'){c.blur();await wait(180);focusEnd(c);await wait(500)}else if(r==='restage-direct'||r==='restage-range'){if(!await clearEditor(c))return{ok:false,code:'RESTAGE-CLEAR-FAILED'};const c2=comp().el,method=r.endsWith('direct')?'direct':'range';if(!c2||!stage(c2,mk,method))return{ok:false,code:'RESTAGE-FAILED'};await wait(350);if(comps().filter(e=>tx(e).includes(mk)).length!==1)return{ok:false,code:'RESTAGE-MATCH-FAILED'}}else if(r==='long')await wait(20000);snap(`RECOVERY-${r.toUpperCase()}-END`,rawAuth());return{ok:true}}
+async function authority(k,timeout,mk,rec){snap('WAIT-AUTHORITY-BEGIN',{authorityKind:k,timeoutMs:timeout,recovery:rec});let end=Date.now()+timeout,last=-1;while(Date.now()<end&&!stopFlag){const a=auth(k);last=a.length;if(a.length===1){snap('AUTHORITY-READY',{authorityKind:k,candidateCount:1,recoveryUsed:'none'});return{ok:true,button:a[0],recoveryUsed:'none'}}await wait(180)}snap('AUTHORITY-FIRST-MISS',{authorityKind:k,candidateCount:last,...rawAuth()});if(stopFlag||rec==='none'){snap('HALT-AUTHORITY',{candidateCount:last});return{ok:false,code:stopFlag?'STOPPED':`AUTHORITY-${last}`}}const rr=await recover(mk,rec);if(!rr.ok){snap('HALT-RECOVERY',{recovery:rec,recoveryCode:rr.code});return rr}end=Date.now()+(rec==='long'?10000:7000);while(Date.now()<end&&!stopFlag){const a=auth(k);last=a.length;if(a.length===1){snap('AUTHORITY-RECOVERED',{authorityKind:k,candidateCount:1,recoveryUsed:rec});return{ok:true,button:a[0],recoveryUsed:rec}}await wait(180)}snap('HALT-AUTHORITY-AFTER-RECOVERY',{candidateCount:last,recoveryUsed:rec,...rawAuth()});return{ok:false,code:`AUTHORITY-${last}-AFTER-${rec.toUpperCase()}`}}
+async function actuate(mk,b,m){snap('PRE-ACTUATION',{marker:mk,actuator:m,buttonConnected:!!b?.isConnected});if(m==='requestSubmit'){const f=comp().el?.closest('form');if(!f||typeof f.requestSubmit!=='function'||!b?.isConnected)return{ok:false,pre:true,code:'REQUEST-SUBMIT-NOT-AVAILABLE'};f.requestSubmit(b)}else if(m==='pointer'){if(!b?.isConnected)return{ok:false,pre:true,code:'BUTTON-STALE'};try{for(const t of['pointerdown','mousedown','mouseup','pointerup','click']){const C=t.startsWith('pointer')&&typeof PointerEvent==='function'?PointerEvent:MouseEvent;b.dispatchEvent(new C(t,{bubbles:true,cancelable:true,composed:true,view:window,button:0,buttons:t.includes('down')?1:0}))}}catch(_){return{ok:false,pre:true,code:'POINTER-EXCEPTION'}}}else{if(!b?.isConnected)return{ok:false,pre:true,code:'BUTTON-STALE'};b.click()}snap('ACTUATED',{marker:mk,actuator:m,syntheticPointer:m==='pointer'});return{ok:true}}
+async function sent(mk){let end=Date.now()+12000,start=false,clear=false;while(Date.now()<end&&!stopFlag){await wait(150);const c=comp().el;clear||=!!c&&!tx(c).includes(mk);start||=active();if(start&&clear){snap('DISPATCH-CONFIRMED',{marker:mk,generationStarted:true,composerCleared:true});return{ok:true}}}snap('HALT-DISPATCH',{marker:mk,generationStarted:start,composerCleared:clear});return{ok:false,uncertain:start||clear,code:'DISPATCH-NOT-CONFIRMED'}}
+async function genEnd(){snap('WAIT-GENERATION-END-BEGIN');let end=Date.now()+240000,had=active(),stable=0;while(Date.now()<end&&!stopFlag){await wait(400);const a=active();had||=a;if(had&&!a&&comp().el)stable++;else if(a)stable=0;if(had&&stable>=4){snap('GENERATION-END',{stableIdlePolls:stable});return{ok:true}}}snap('HALT-GENERATION-END',{hadActive:had});return{ok:false,code:had?'GENERATION-END-TIMEOUT':'GENERATION-NEVER-STARTED'}}
+async function cleanup(mk){const c=comp().el;if(!c||!tx(c).includes(mk)){snap('CLEANUP-NOT-NEEDED');return true}const ok=await clearEditor(c),left=!!comp().el&&tx(comp().el).includes(mk);snap('CLEANUP',{markerStillPresent:left,cleanupOk:ok});return ok&&!left}
+function stat(code,pass,fail,halt){const a=load(SK,{}),s=a[code]||{runs:0,cyclesPassed:0,cyclesFailed:0,lastHalt:null,lastAt:null};s.runs++;s.cyclesPassed+=pass;s.cyclesFailed+=fail;if(halt)s.lastHalt=halt;s.lastAt=ts();a[code]=s;save(SK,a);score()}
+const S=[
+{code:'P0',label:'Primary union',stage:'exec',authority:'union',recovery:'none',actuator:'click',settle:0},
+{code:'D1',label:'Direct stage',stage:'direct',authority:'union',recovery:'none',actuator:'click',settle:0},
+{code:'R1',label:'Range stage',stage:'range',authority:'union',recovery:'none',actuator:'click',settle:0},
+{code:'N1',label:'Input nudge recovery',stage:'exec',authority:'union',recovery:'nudge',actuator:'click',settle:0},
+{code:'F1',label:'Focus recovery',stage:'exec',authority:'union',recovery:'focus',actuator:'click',settle:0},
+{code:'X1',label:'Direct restage recovery',stage:'exec',authority:'union',recovery:'restage-direct',actuator:'click',settle:0},
+{code:'L1',label:'Long authority wait',stage:'exec',authority:'union',recovery:'long',actuator:'click',settle:H==='Perplexity'?1200:500},
+{code:'V1',label:'Reviewed selector',stage:'exec',authority:'reviewed',recovery:'nudge',actuator:'click',settle:0},
+{code:'S1',label:'Semantic selector',stage:'exec',authority:'semantic',recovery:'nudge',actuator:'click',settle:0},
+{code:'T1',label:'Structural submit',stage:'exec',authority:'structural',recovery:'nudge',actuator:'click',settle:0},
+{code:'Q1',label:'requestSubmit',stage:'exec',authority:'reviewed',recovery:'nudge',actuator:'requestSubmit',settle:0},
+{code:'Y1',label:'Pointer sequence',stage:'exec',authority:'union',recovery:'nudge',actuator:'pointer',settle:0}
+],getS=c=>S.find(x=>x.code===c);
+async function strategy(code,cycles=3,bench=false){if(busy&&!bench)return{ok:false,code:'BUSY'};const st=getS(code);if(!st)return{ok:false,code:'UNKNOWN'};stopFlag=false;cycles=Math.max(3,cycles);run={id:`${code}-${Date.now()}`,mode:'STRATEGY',strategy:code,strategyLabel:st.label,cyclesRequested:cycles,cycle:0,startedAt:ts(),stages:[],result:'running'};REP.runs.push(run);if(!bench)lock(true);clearCK();let pass=0,halt=null;try{for(let i=1;i<=cycles;i++){run.cycle=i;snap('CYCLE-BEGIN',{strategyConfig:{stage:st.stage,authority:st.authority,recovery:st.recovery,actuator:st.actuator,settle:st.settle}});let z=await idle(st.settle);if(!z.ok){halt=`C${i}:${z.code}`;break}const mk=marker(i,code);z=await stageVerify(mk,st.stage);if(!z.ok){halt=`C${i}:${z.code}`;await cleanup(mk);break}const a=await authority(st.authority,st.recovery==='long'?8000:5000,mk,st.recovery);if(!a.ok){halt=`C${i}:${a.code}`;if(!await cleanup(mk))halt+=':CLEANUP-FAILED';break}z=await actuate(mk,a.button,st.actuator);if(!z.ok){halt=`C${i}:${z.code}`;if(z.pre)await cleanup(mk);break}z=await sent(mk);if(!z.ok){halt=`C${i}:${z.code}${z.uncertain?':UNCERTAIN':''}`;break}z=await genEnd();if(!z.ok){halt=`C${i}:${z.code}`;break}pass++;snap('CYCLE-PASS',{cyclePassed:i,recoveryUsed:a.recoveryUsed||'none'})}run.finishedAt=ts();run.result=!halt?'success':halt.includes('UNCERTAIN')?'uncertain':'failed';run.code=halt||`${code}-${pass}-CYCLES-PASS`;stat(code,pass,halt?1:0,halt);status(!halt?`${code} OK ${pass}/${cycles}`:`${code} FAIL ${halt}`,!halt?'ok':'fail');clearCK();return{ok:!halt,passed:pass,haltCode:halt,uncertain:!!halt?.includes('UNCERTAIN')}}catch(e){halt=`EXCEPTION:${String(e?.message||e)}`;run.result='failed';run.code=halt;run.finishedAt=ts();stat(code,pass,1,halt);return{ok:false,passed:pass,haltCode:halt}}finally{if(!bench)lock(false)}}
+async function bench3(){if(busy)return;lock(true);stopFlag=false;const list=['P0','D1','R1','N1','F1','X1','L1','V1','S1','T1'],b={id:`BENCH3-${Date.now()}`,mode:'BENCH3',strategy:'BENCH3',cycle:0,startedAt:ts(),stages:[],result:'running',methods:list.slice(),methodResults:[]};REP.runs.push(b);try{for(const c of list){if(stopFlag)break;status(`BENCH3 · ${c}`);const r=await strategy(c,3,true);b.methodResults.push({code:c,...r});if(r.uncertain){b.result='uncertain';b.code=`BENCH-HALT-${c}-UNCERTAIN`;break}if(comp().el&&tx(comp().el)){b.result='stopped';b.code=`BENCH-HALT-${c}-COMPOSER-NOT-CLEAN`;break}await wait(500)}if(b.result==='running'){b.result=stopFlag?'stopped':'complete';b.code=stopFlag?'BENCH-STOPPED':'BENCH-COMPLETE'}b.finishedAt=ts();status(b.code,b.result==='complete'?'ok':'fail')}finally{lock(false)}}
+async function rescue(){if(busy)return;lock(true);stopFlag=false;run={id:`RESCUE-${Date.now()}`,mode:'RESCUE',strategy:'RESCUE',cycle:1,startedAt:ts(),stages:[],result:'running'};REP.runs.push(run);try{const c=comp();snap('RESCUE-BEGIN');if(!c.el||!tx(c.el)){run.result='failed';run.code='RESCUE-COMPOSER-EMPTY';return}if(active()){run.result='failed';run.code='RESCUE-GENERATION-ACTIVE';return}const before=tx(c.el);let a=await authority('union',3000,before,'nudge');if(!a.ok)a=await authority('reviewed',3000,before,'focus');if(!a.ok){run.result='failed';run.code=`RESCUE-${a.code}`;return}const z=await actuate(before,a.button,'click');if(!z.ok){run.result='failed';run.code=`RESCUE-${z.code}`;return}let end=Date.now()+12000,start=false,changed=false;while(Date.now()<end){await wait(150);start||=active();changed||=tx(comp().el)!==before;if(start&&changed)break}snap('RESCUE-OBSERVE',{generationStarted:start,composerChanged:changed});run.result=start&&changed?'success':'uncertain';run.code=start&&changed?'RESCUE-DISPATCH-CONFIRMED':'RESCUE-UNCERTAIN';run.finishedAt=ts();status(run.code,run.result==='success'?'ok':'fail')}finally{lock(false)}}
+async function watch3(){if(busy)return;lock(true);stopFlag=false;run={id:`WATCH3-${Date.now()}`,mode:'WATCH3-PASSIVE',strategy:'WATCH',cyclesRequested:3,cycle:0,startedAt:ts(),stages:[],result:'running'};REP.runs.push(run);snap('WATCH-ARMED',{instruction:'Passive only: start Ghost Play/Proceed or another automation now.'});try{for(let i=1;i<=3;i++){run.cycle=i;snap('WATCH-CYCLE-BEGIN');let end=Date.now()+180000,hadText=false,hadSend=false,start=false;while(Date.now()<end&&!stopFlag){await wait(120);const c=comp().el;hadText||=!!c&&tx(c).length>0;hadSend||=auth().length>0;if(active()){start=true;break}}if(!start){snap('WATCH-HALT-BEFORE-GENERATION',{composerHadText:hadText,sendAppeared:hadSend,...rawAuth()});run.result='stopped';run.code=`C${i}:NO-GENERATION`;break}snap('WATCH-GENERATION-START',{composerHadText:hadText,sendAppeared:hadSend});const e=await genEnd();if(!e.ok){run.result='stopped';run.code=`C${i}:${e.code}`;break}snap('WATCH-CYCLE-PASS',{cyclePassed:i})}if(run.result==='running'){run.result='success';run.code='WATCH3-ALL-CYCLES-SEEN'}run.finishedAt=ts();status(run.code,run.result==='success'?'ok':'fail')}finally{lock(false)}}
+function copy(){REP.strategyStatsAtCopy=load(SK,{});const t=JSON.stringify(REP,null,2);try{typeof GM_setClipboard==='function'?GM_setClipboard(t,'text'):navigator.clipboard?.writeText(t);status('Report copied','ok')}catch(_){status('Copy failed','fail')}}
+function json(){REP.strategyStatsAtCopy=load(SK,{});try{const b=new Blob([JSON.stringify(REP,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`gitl-endurance-v040-${H.toLowerCase()}-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status('JSON downloaded','ok')}catch(_){status('Download failed','fail')}}
+function score(){if(!UI?.score)return;const a=load(SK,{});UI.score.textContent=S.map(s=>{const x=a[s.code];return x?`${s.code}:${x.cyclesPassed}/${x.cyclesPassed+x.cyclesFailed}`:`${s.code}:--`}).join('  ')}
+function build(){if(document.getElementById(RID))return;const h=document.createElement('div');h.id=RID;h.style.cssText='position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:2147483647;pointer-events:none;font-family:system-ui,-apple-system,sans-serif';const r=h.attachShadow({mode:'open'});r.innerHTML=`<style>*{box-sizing:border-box}button{font:inherit}.pill{pointer-events:auto;height:36px;min-width:64px;border:1px solid #777;border-radius:18px;background:#151515;color:#fff;font-weight:800;padding:0 11px}.panel{pointer-events:auto;display:none;width:min(306px,calc(100vw - 14px));max-height:48vh;overflow:auto;padding:7px;border:1px solid #666;border-radius:12px;background:#111;color:#eee;box-shadow:0 6px 24px #0009}.open{display:block}.head{display:flex;align-items:center;gap:6px;position:sticky;top:0;background:#111;padding-bottom:5px;z-index:2}.title{font-size:12px;font-weight:800;flex:1}.ghost{font-size:10px}.x{width:30px;height:30px;border:0;border-radius:8px;background:#292929;color:#fff}.status{min-height:32px;padding:6px 7px;margin-bottom:6px;border-radius:8px;background:#252525;font-size:10.5px}.status[data-kind=ok]{outline:1px solid #4b8}.status[data-kind=fail]{outline:1px solid #a55}.section{font-size:10px;font-weight:800;opacity:.8;margin:6px 1px 4px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.b{height:36px;border:1px solid #555;border-radius:8px;background:#1d1d1d;color:#fff;font-size:11px;font-weight:800}.b:disabled{opacity:.35}.wide{grid-column:span 2}.score{margin-top:6px;padding:5px;border-radius:7px;background:#181818;font:9px/1.35 ui-monospace,monospace;word-break:break-word}.legend{display:none;margin-top:6px;padding:6px;border-radius:7px;background:#191919;font-size:9.5px;line-height:1.35}.legend.open{display:block}.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px}.mini{height:31px;border:1px solid #555;border-radius:7px;background:#202020;color:#eee;font-size:9px;font-weight:700}</style><button class=pill type=button>E TEST</button><div class=panel><div class=head><div class=title>Proceed Bench v${V}</div><div class=ghost></div><button class=x type=button>×</button></div><div class=status data-kind=info>Ready · every strategy runs at least 3 cycles</div><div class=section>PRIMARY / FIELD</div><div class="grid primary"></div><div class=section>BACKUP METHODS · 3 CYCLES EACH</div><div class="grid backups"></div><div class=section>SCOREBOARD</div><div class=score></div><div class=legend></div><div class=foot><button class="mini codes">CODES</button><button class="mini copy">COPY</button><button class="mini json">JSON</button><button class="mini stop" disabled>STOP</button></div></div>`;document.documentElement.appendChild(h);const pill=r.querySelector('.pill'),panel=r.querySelector('.panel'),p=r.querySelector('.primary'),b=r.querySelector('.backups'),actions=[];function add(to,label,title,fn,cl=''){const x=document.createElement('button');x.type='button';x.className=`b ${cl}`;x.textContent=label;x.title=title;x.setAttribute('aria-label',title);x.onclick=fn;to.appendChild(x);actions.push(x)}add(p,'P0x3','Primary 3-cycle union test',()=>strategy('P0',3));add(p,'P0x5','Primary 5-cycle endurance',()=>strategy('P0',5));add(p,'RESCUE','Send existing staged text using exact-one authority and pre-send recovery',rescue);add(p,'WATCH3','Passive 3-cycle watcher; does not send',watch3);add(p,'BENCH3','Ten strategies, 3 cycles each; disposable conversation recommended',bench3,'wide');for(const s of S.filter(x=>x.code!=='P0'))add(b,s.code,`${s.code}: ${s.label}; stage=${s.stage}; authority=${s.authority}; recovery=${s.recovery}; actuator=${s.actuator}; 3 cycles`,()=>strategy(s.code,3));r.querySelector('.x').onclick=()=>panel.classList.remove('open');pill.onclick=()=>panel.classList.toggle('open');r.querySelector('.copy').onclick=copy;r.querySelector('.json').onclick=json;r.querySelector('.stop').onclick=()=>{stopFlag=true;status('Stop requested','fail')};const leg=r.querySelector('.legend');r.querySelector('.codes').onclick=()=>leg.classList.toggle('open');leg.textContent=S.map(s=>`${s.code} ${s.label}`).join(' · ');UI={status:r.querySelector('.status'),ghost:r.querySelector('.ghost'),score:r.querySelector('.score'),actions,stop:r.querySelector('.stop')};score();const g=()=>{const x=ghost();UI.ghost.textContent=x.detected?`G:ON ${x.knownControls[0]||''}`.slice(0,20):'G:OFF'};g();setInterval(g,1500);if(REP.recoveredCheckpoint)status(`Recovered ${REP.recoveredCheckpoint.strategy||REP.recoveredCheckpoint.mode} C${REP.recoveredCheckpoint.cycle} after ${REP.recoveredCheckpoint.stage}`,'fail')}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build,{once:true});else build();
 })();
