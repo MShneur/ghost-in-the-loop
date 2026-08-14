@@ -1,364 +1,63 @@
 // ==UserScript==
-// @name         GITL Proceed Diagnostic Ladder
+// @name         GITL Proceed Mobile Matrix
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      0.1.0
-// @description  Field diagnostic for Ghost in the Loop Proceed/Send failures. One explicit method per run; local redacted reports only.
+// @version      0.2.0
+// @description  Mobile-first P1-P10 field matrix for Ghost Proceed/Send failures.
 // @match        https://chatgpt.com/*
 // @match        https://www.perplexity.ai/*
 // @grant        GM_info
 // @grant        GM_setClipboard
 // ==/UserScript==
-
 (() => {
-  'use strict';
-
-  const VERSION = '0.1.0';
-  const REPORT = {
-    tool: 'GITL Proceed Diagnostic Ladder',
-    version: VERSION,
-    startedAt: new Date().toISOString(),
-    host: location.hostname.includes('perplexity') ? 'Perplexity' : 'ChatGPT',
-    manager: typeof GM_info === 'object' ? {
-      name: GM_info.scriptHandler || 'unknown',
-      version: GM_info.version || 'unknown',
-      injectInto: GM_info.injectInto || 'unknown'
-    } : null,
-    ghostBoot: document.documentElement.getAttribute('data-gitl-boot') || null,
-    ghostPanelPresent: !!document.querySelector('#gitl'),
-    runs: []
-  };
-
-  let locked = false;
-  let currentRun = null;
-
-  const now = () => new Date().toISOString();
-  const txt = (el) => (el?.innerText || el?.textContent || el?.value || '').trim();
-  const visible = (el) => {
-    if (!el || !el.isConnected) return false;
-    const cs = getComputedStyle(el);
-    const r = el.getBoundingClientRect();
-    return cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0' && r.width > 0 && r.height > 0;
-  };
-  const enabled = (el) => !!el && !el.disabled && el.getAttribute('aria-disabled') !== 'true';
-  const safeButton = (el) => visible(el) && enabled(el) && el.getAttribute('aria-haspopup') !== 'menu';
-
-  function fingerprint(s) {
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return (h >>> 0).toString(16).padStart(8, '0');
-  }
-
-  function composerCandidates() {
-    const selectors = location.hostname.includes('perplexity')
-      ? ['textarea', '[contenteditable="true"][role="textbox"]', '[contenteditable="true"]']
-      : ['#prompt-textarea', 'textarea', '[contenteditable="true"][role="textbox"]'];
-    return [...new Set(selectors.flatMap(s => [...document.querySelectorAll(s)]))]
-      .filter(el => visible(el) && !el.closest('#gitl') && !el.closest('#gitl-proceed-ladder'));
-  }
-
-  function exactComposer() {
-    const c = composerCandidates();
-    if (c.length !== 1) return { el: null, count: c.length };
-    return { el: c[0], count: 1 };
-  }
-
-  function reviewedButtons() {
-    const selectors = [
-      'button#composer-submit-button',
-      'button[data-testid="send-button"]',
-      'button[aria-label="Send prompt"]',
-      'button[aria-label="Send message"]',
-      'button[aria-label="Submit"]'
-    ];
-    return [...new Set(selectors.flatMap(s => [...document.querySelectorAll(s)]))]
-      .filter(b => safeButton(b) && !b.closest('#gitl') && !b.closest('#gitl-proceed-ladder'));
-  }
-
-  function semanticButtons(composer) {
-    const scope = composer?.closest('form') || composer?.parentElement?.parentElement || document;
-    return [...scope.querySelectorAll('button')].filter(b => {
-      if (!safeButton(b) || b.closest('#gitl') || b.closest('#gitl-proceed-ladder')) return false;
-      const name = `${b.getAttribute('aria-label') || ''} ${b.getAttribute('title') || ''} ${txt(b)}`.trim();
-      return /^(send|send prompt|send message|submit)$/i.test(name);
-    });
-  }
-
-  function snapshot(stage, extra = {}) {
-    const c = exactComposer();
-    const content = c.el ? txt(c.el) : '';
-    const reviewed = reviewedButtons();
-    const semantic = semanticButtons(c.el);
-    const s = {
-      at: now(), stage,
-      composerCount: c.count,
-      composerConnected: !!c.el?.isConnected,
-      composerChars: content.length,
-      composerFingerprint: content ? fingerprint(content) : null,
-      reviewedSendCount: reviewed.length,
-      semanticSendCount: semantic.length,
-      ghostBoot: document.documentElement.getAttribute('data-gitl-boot') || null,
-      ghostPanelPresent: !!document.querySelector('#gitl'),
-      ...extra
-    };
-    currentRun?.stages.push(s);
-    renderStatus(`${stage} | composer:${s.composerCount} reviewed:${s.reviewedSendCount} semantic:${s.semanticSendCount}`);
-    return { snap: s, composer: c.el, reviewed, semantic };
-  }
-
-  async function observeAfterActuation(beforeText) {
-    const beforeFp = fingerprint(beforeText || '');
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 200));
-      const c = exactComposer();
-      const nowText = c.el ? txt(c.el) : '';
-      const stop = [...document.querySelectorAll('button')].some(b => safeButton(b) && /stop/i.test(`${b.getAttribute('aria-label') || ''} ${txt(b)}`));
-      const changed = nowText !== beforeText;
-      if (changed || stop) {
-        snapshot('OBSERVE-CHANGED', { beforeFingerprint: beforeFp, composerChanged: changed, stopVisible: stop });
-        return { changed, stop };
-      }
-    }
-    snapshot('OBSERVE-TIMEOUT', { beforeFingerprint: beforeFp });
-    return { changed: false, stop: false };
-  }
-
-  function begin(id, label) {
-    if (locked) throw new Error('A method has already actuated in this page load. Reload before another method.');
-    currentRun = { id, label, startedAt: now(), stages: [], result: 'running' };
-    REPORT.runs.push(currentRun);
-    snapshot('BEGIN');
-  }
-
-  function finish(result, code, note) {
-    currentRun.result = result;
-    currentRun.code = code;
-    currentRun.note = note || '';
-    currentRun.finishedAt = now();
-    renderStatus(`${code} — ${note || result}`);
-  }
-
-  function requireOneComposer() {
-    const { composer, snap } = snapshot('ACQUIRE');
-    if (!composer) throw new Error(`COMPOSER-${snap.composerCount === 0 ? 'MISSING' : 'AMBIGUOUS'}`);
-    return composer;
-  }
-
-  async function runMethod(id) {
-    const def = METHODS[id - 1];
-    begin(id, def.name);
-    try {
-      await def.run();
-    } catch (e) {
-      finish('failed', 'EXCEPTION', String(e?.message || e));
-    }
-  }
-
-  const METHODS = [
-    {
-      name: '1. Observe only — manager/Ghost/composer/Send boundary',
-      risk: 'none',
-      run: async () => {
-        snapshot('OBSERVE-ONLY');
-        finish('complete', 'T1-OBSERVE', 'No input and no Send actuation. Use this first.');
-      }
-    },
-    {
-      name: '2. Injection survival — current composer identity/text stability',
-      risk: 'no send',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        const idBefore = c;
-        await new Promise(r => setTimeout(r, 100));
-        const a = exactComposer();
-        await new Promise(r => setTimeout(r, 100));
-        const b = exactComposer();
-        snapshot('RECONCILE', {
-          sameNodeObservation1: a.el === idBefore,
-          sameNodeObservation2: b.el === a.el,
-          exactTextSurvived: !!b.el && txt(b.el) === before,
-          originalFingerprint: before ? fingerprint(before) : null
-        });
-        finish('complete', 'T2-SURVIVAL', 'No Send. If exactTextSurvived=true, injection is probably not the P0 boundary.');
-      }
-    },
-    {
-      name: '3. Reacquire after editor churn — exact staged text wins',
-      risk: 'no send',
-      run: async () => {
-        const c = requireOneComposer();
-        const expected = txt(c);
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const matches = composerCandidates().filter(el => txt(el) === expected);
-        snapshot('EXACT-TEXT-REACQUIRE', { exactPromptComposerCount: matches.length, reacquiredDifferentNode: matches.length === 1 && matches[0] !== c });
-        finish('complete', matches.length === 1 ? 'T3-REACQUIRE-OK' : 'T3-REACQUIRE-FAIL', `Exact prompt-bearing composer count=${matches.length}`);
-      }
-    },
-    {
-      name: '4. Authority census — reviewed vs semantic Send candidates',
-      risk: 'no send',
-      run: async () => {
-        const c = requireOneComposer();
-        const r = reviewedButtons();
-        const s = semanticButtons(c);
-        snapshot('AUTHORITY-CENSUS', { reviewedExactOne: r.length === 1, semanticExactOne: s.length === 1, sameAuthority: r.length === 1 && s.length === 1 && r[0] === s[0] });
-        finish('complete', 'T4-AUTHORITY', 'No Send. This tells us whether exact-one selector authority is the blocker.');
-      }
-    },
-    {
-      name: '5. Primary-like exact reviewed button .click()',
-      risk: 'sends one message',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        const r = reviewedButtons();
-        snapshot('PRE-ACTUATION', { method: 'reviewed-click', candidateCount: r.length });
-        if (r.length !== 1) return finish('failed', 'T5-AUTHORITY-NOT-EXACT', `Reviewed candidate count=${r.length}; nothing sent.`);
-        locked = true;
-        r[0].click();
-        snapshot('ACTUATED', { method: 'HTMLElement.click' });
-        const o = await observeAfterActuation(before);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T5-DISPATCH-EVIDENCE' : 'T5-NO-DISPATCH-EVIDENCE', 'Reload before trying another send method.');
-      }
-    },
-    {
-      name: '6. Semantic exact-one button .click() within composer form',
-      risk: 'sends one message',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        const s = semanticButtons(c);
-        snapshot('PRE-ACTUATION', { method: 'semantic-click', candidateCount: s.length });
-        if (s.length !== 1) return finish('failed', 'T6-SEMANTIC-NOT-EXACT', `Semantic candidate count=${s.length}; nothing sent.`);
-        locked = true;
-        s[0].click();
-        snapshot('ACTUATED', { method: 'semantic HTMLElement.click' });
-        const o = await observeAfterActuation(before);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T6-DISPATCH-EVIDENCE' : 'T6-NO-DISPATCH-EVIDENCE', 'Experimental diagnostic authority; do not promote unless field evidence supports it.');
-      }
-    },
-    {
-      name: '7. Exact reviewed button MouseEvent dispatch',
-      risk: 'sends one message',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        const r = reviewedButtons();
-        if (r.length !== 1) return finish('failed', 'T7-AUTHORITY-NOT-EXACT', `Reviewed candidate count=${r.length}; nothing sent.`);
-        locked = true;
-        r[0].dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, composed: true, view: window }));
-        snapshot('ACTUATED', { method: 'MouseEvent(click)', isTrustedExpected: false });
-        const o = await observeAfterActuation(before);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T7-DISPATCH-EVIDENCE' : 'T7-NO-DISPATCH-EVIDENCE', 'Synthetic event test only; JavaScript cannot manufacture isTrusted=true.');
-      }
-    },
-    {
-      name: '8. Composer form requestSubmit(exact reviewed button)',
-      risk: 'sends one message',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        const r = reviewedButtons();
-        const form = c.closest('form');
-        snapshot('PRE-ACTUATION', { method: 'requestSubmit', hasForm: !!form, candidateCount: r.length });
-        if (!form || r.length !== 1 || typeof form.requestSubmit !== 'function') return finish('failed', 'T8-NOT-AVAILABLE', 'Missing unique reviewed submitter/form/requestSubmit; nothing sent.');
-        locked = true;
-        form.requestSubmit(r[0]);
-        snapshot('ACTUATED', { method: 'form.requestSubmit(submitter)' });
-        const o = await observeAfterActuation(before);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T8-DISPATCH-EVIDENCE' : 'T8-NO-DISPATCH-EVIDENCE', 'Diagnostic only; not a generic production fallback.');
-      }
-    },
-    {
-      name: '9. Synthetic Enter on authoritative composer',
-      risk: 'may send one message',
-      run: async () => {
-        const c = requireOneComposer();
-        const before = txt(c);
-        locked = true;
-        for (const type of ['keydown', 'keypress', 'keyup']) c.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true, composed: true }));
-        snapshot('ACTUATED', { method: 'synthetic Enter', isTrustedExpected: false });
-        const o = await observeAfterActuation(before);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T9-DISPATCH-EVIDENCE' : 'T9-NO-DISPATCH-EVIDENCE', 'Diagnostic only; expected to fail on hosts requiring trusted input.');
-      }
-    },
-    {
-      name: '10. Two-phase Proceed candidate — exact text + exact authority + one click',
-      risk: 'sends one message',
-      run: async () => {
-        const first = requireOneComposer();
-        const expected = txt(first);
-        if (!expected) return finish('failed', 'T10-EMPTY', 'Composer is empty; nothing sent.');
-        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-        const exact = composerCandidates().filter(el => txt(el) === expected);
-        snapshot('PHASE-1-RECONCILE', { exactPromptComposerCount: exact.length });
-        if (exact.length !== 1) return finish('failed', 'T10-COMPOSER-NOT-EXACT', `Exact prompt-bearing composer count=${exact.length}; nothing sent.`);
-        await new Promise(r => setTimeout(r, 80));
-        const r = reviewedButtons();
-        const s = semanticButtons(exact[0]);
-        const union = [...new Set([...r, ...s])];
-        snapshot('PHASE-2-AUTHORITY', { reviewedCount: r.length, semanticCount: s.length, unionCount: union.length });
-        if (union.length !== 1) return finish('failed', 'T10-SEND-NOT-EXACT', `Authority union count=${union.length}; nothing sent.`);
-        locked = true;
-        union[0].click();
-        snapshot('ACTUATED', { method: 'two-phase exact-one click' });
-        const o = await observeAfterActuation(expected);
-        finish(o.changed || o.stop ? 'candidate-worked' : 'uncertain', o.changed || o.stop ? 'T10-PROCEED-CANDIDATE' : 'T10-UNCERTAIN', 'This is the strongest production candidate if it works consistently in the field.');
-      }
-    }
-  ];
-
-  const host = document.createElement('div');
-  host.id = 'gitl-proceed-ladder';
-  host.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:2147483647;width:min(420px,calc(100vw - 20px));max-height:72vh;overflow:auto;background:#111;color:#eee;border:1px solid #777;border-radius:10px;padding:10px;font:13px/1.35 system-ui,sans-serif;box-shadow:0 4px 20px #0008';
-  const title = document.createElement('div');
-  title.textContent = `GITL Proceed Ladder v${VERSION}`;
-  title.style.cssText = 'font-weight:700;margin-bottom:6px';
-  host.appendChild(title);
-  const warning = document.createElement('div');
-  warning.textContent = 'Run 1–4 freely. Tests 5–10 may send exactly one message. After any send test, RELOAD before trying another method.';
-  warning.style.cssText = 'padding:7px;background:#2a2100;border-radius:7px;margin-bottom:8px';
-  host.appendChild(warning);
-  const status = document.createElement('div');
-  status.id = 'gitl-ladder-status';
-  status.textContent = 'Ready. Start with Test 1.';
-  status.style.cssText = 'margin:6px 0;padding:6px;background:#222;border-radius:6px;white-space:pre-wrap';
-  host.appendChild(status);
-
-  function renderStatus(s) { status.textContent = s; }
-
-  for (let i = 0; i < METHODS.length; i++) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = METHODS[i].name;
-    b.style.cssText = 'display:block;width:100%;text-align:left;margin:5px 0;padding:7px;border:1px solid #555;border-radius:6px;background:#191919;color:#eee';
-    b.addEventListener('click', () => runMethod(i + 1));
-    host.appendChild(b);
-  }
-
-  const actions = document.createElement('div');
-  actions.style.cssText = 'display:flex;gap:6px;margin-top:8px;flex-wrap:wrap';
-  const copy = document.createElement('button');
-  copy.type = 'button'; copy.textContent = 'Copy redacted report';
-  const download = document.createElement('button');
-  download.type = 'button'; download.textContent = 'Download JSON';
-  for (const b of [copy, download]) b.style.cssText = 'padding:7px;border:1px solid #555;border-radius:6px;background:#222;color:#eee';
-  copy.onclick = () => {
-    const data = JSON.stringify(REPORT, null, 2);
-    if (typeof GM_setClipboard === 'function') GM_setClipboard(data, 'text');
-    else navigator.clipboard?.writeText(data);
-    renderStatus('Report copied.');
-  };
-  download.onclick = () => {
-    const blob = new Blob([JSON.stringify(REPORT, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `gitl-proceed-${REPORT.host.toLowerCase()}-${Date.now()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    renderStatus('Report downloaded.');
-  };
-  actions.append(copy, download);
-  host.appendChild(actions);
-  document.documentElement.appendChild(host);
+'use strict';
+const V='0.2.0',RID='gitl-proceed-matrix-v02',WK='gitl-proceed-winner-v02',H=location.hostname.includes('perplexity')?'Perplexity':'ChatGPT';
+const wait=m=>new Promise(r=>setTimeout(r,m)),ts=()=>new Date().toISOString(),norm=s=>String(s||'').replace(/\u200B/g,'').replace(/\u00A0/g,' ').replace(/\r/g,'').trim();
+const R={tool:'GITL Proceed Mobile Matrix',version:V,startedAt:ts(),host:H,manager:typeof GM_info==='object'?{name:GM_info.scriptHandler||'unknown',version:GM_info.version||'unknown',injectInto:GM_info.injectInto||'unknown'}:null,environment:{mobile:matchMedia('(pointer: coarse)').matches||innerWidth<700,viewportWidth:innerWidth,viewportHeight:innerHeight},ghostAtStart:{boot:document.documentElement.getAttribute('data-gitl-boot')||null,panelPresent:!!document.querySelector('#gitl')},runs:[],winner:null};
+window.__GITL_PROCEED_REPORT__=R;
+let run=null,busy=false,locked=false,UI=null,winner=loadWinner();R.winner=winner;
+function loadWinner(){try{const x=JSON.parse(localStorage.getItem(WK)||'null');return x&&x.host===H?x:null}catch(_){return null}}
+function saveWinner(id,dispatch){winner={id,dispatch,host:H,version:V,at:ts()};R.winner=winner;try{localStorage.setItem(WK,JSON.stringify(winner))}catch(_){};winnerUI()}
+function vis(e){if(!e||!e.isConnected)return false;const c=getComputedStyle(e),r=e.getBoundingClientRect();return c.display!=='none'&&c.visibility!=='hidden'&&c.opacity!=='0'&&r.width>0&&r.height>0}
+function safe(e){return vis(e)&&!e.disabled&&e.getAttribute('aria-disabled')!=='true'&&e.getAttribute('aria-haspopup')!=='menu'&&!e.closest(`#${RID}`)&&!e.closest('#gitl')}
+function text(e){if(!e)return'';return norm((e.tagName==='TEXTAREA'||e.tagName==='INPUT')?e.value:(e.innerText||e.textContent||''))}
+function composers(){const ss=H==='ChatGPT'?['#prompt-textarea','div.ProseMirror[contenteditable="true"]','[contenteditable="true"][role="textbox"]','textarea']:['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','[contenteditable="true"][role="textbox"]','div.ProseMirror[contenteditable="true"]','textarea'];let a=[];for(const s of ss)try{document.querySelectorAll(s).forEach(e=>a.push(e))}catch(_){};return[...new Set(a)].filter(e=>vis(e)&&!e.closest(`#${RID}`)&&!e.closest('#gitl'))}
+function composer(){const a=composers();if(a.length===1)return{el:a[0],count:1};if(H==='ChatGPT'){const p=a.filter(e=>e.id==='prompt-textarea'&&e.getAttribute('contenteditable')==='true');if(p.length===1)return{el:p[0],count:a.length,preferred:true}}return{el:null,count:a.length}}
+function reviewed(){const ss=H==='ChatGPT'?['button#composer-submit-button','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send message"]','button[aria-label="Send"]','form button[type="submit"]']:['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'];let a=[];for(const s of ss)try{document.querySelectorAll(s).forEach(e=>a.push(e))}catch(_){};return[...new Set(a)].filter(safe)}
+function currentSend(){if(H!=='ChatGPT')return reviewed();const b=document.querySelector('#composer-submit-button');return safe(b)?[b]:[]}
+function semantic(c){const scope=c?.closest('form')||document,a=[];try{scope.querySelectorAll('button').forEach(b=>{if(!safe(b))return;const n=norm(`${b.getAttribute('aria-label')||''} ${b.getAttribute('title')||''} ${b.textContent||''}`);if(/^(send|send prompt|send message|submit)$/i.test(n))a.push(b)})}catch(_){};return[...new Set(a)]}
+function stop(){return['button[data-testid="stop-button"]','button[aria-label="Stop generating"]','button[aria-label*="Stop" i]'].some(s=>{try{return[...document.querySelectorAll(s)].some(safe)}catch(_){return false}})}
+function userMarker(m){if(!m)return false;const ss=H==='ChatGPT'?['[data-message-author-role="user"]','article [data-message-author-role="user"]']:['[data-testid*="user"]','[class*="user-message"]'];for(const s of ss)try{for(const e of document.querySelectorAll(s))if(norm(e.innerText||e.textContent).includes(m))return true}catch(_){};return false}
+function snap(stage,x={}){const c=composer(),t=text(c.el),s={at:ts(),stage,composerCandidates:c.count,composerPreferred:!!c.preferred,composerPresent:!!c.el,composerChars:t.length,reviewedSendCount:reviewed().length,semanticSendCount:semantic(c.el).length,ghostBoot:document.documentElement.getAttribute('data-gitl-boot')||null,ghostPanelPresent:!!document.querySelector('#gitl'),...x};if(run)run.stages.push(s);return s}
+function status(s,k='info'){if(!UI)return;UI.status.textContent=s;UI.status.dataset.kind=k;UI.pill.textContent=k==='ok'?'P ✓':k==='fail'?'P !':'P TEST'}
+function lock(on){busy=on;if(!UI)return;UI.tests.forEach(b=>b.disabled=on||locked);UI.win.disabled=on||locked||!winner}
+function winnerUI(){if(!UI)return;UI.win.textContent=winner?`★P${winner.id}`:'★--';UI.win.disabled=busy||locked||!winner}
+function begin(d){run={id:d.id,name:d.name,dispatch:d.dispatch,marker:`GITL-P${d.id}-${Math.random().toString(36).slice(2,8).toUpperCase()}`,startedAt:ts(),stages:[],result:'running'};R.runs.push(run);snap('BEGIN');return run}
+function finish(res,code,note){if(!run)return;const id=run.id,dispatch=run.dispatch;run.result=res;run.code=code;run.note=note;run.finishedAt=ts();if(res==='success'&&typeof id==='number')saveWinner(id,dispatch);status(res==='success'?`P${id} ✓ SENT — ${code}`:res==='uncertain'?`P${id} ? ${code} — reload`:`P${id} ✕ ${code}`,res==='success'?'ok':'fail');run=null}
+function selectAll(e){try{e.focus();if(e.tagName==='TEXTAREA'||e.tagName==='INPUT'){e.setSelectionRange(0,e.value.length);return true}const r=document.createRange();r.selectNodeContents(e);const s=getSelection();s.removeAllRanges();s.addRange(r);return true}catch(_){return false}}
+async function ghostStage(e,t){if(!selectAll(e))return false;if(e.tagName==='TEXTAREA'||e.tagName==='INPUT'){const p=e.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,set=Object.getOwnPropertyDescriptor(p,'value')?.set;set?set.call(e,t):e.value=t;e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}else{let ok=false;try{ok=document.execCommand('insertText',false,t)}catch(_){};if(!ok)return false;try{e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true,composed:true}))}catch(_){e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}}await wait(120);return true}
+async function directStage(e,t){if(!selectAll(e))return false;if(e.tagName==='TEXTAREA'||e.tagName==='INPUT'){e.value=t;e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}else{try{e.replaceChildren(document.createTextNode(t))}catch(_){e.textContent=t}try{e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true,composed:true}))}catch(_){e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}}await wait(120);return true}
+async function pasteStage(e,t){if(!selectAll(e))return false;try{const d=new DataTransfer();d.setData('text/plain',t);e.dispatchEvent(new ClipboardEvent('paste',{clipboardData:d,bubbles:true,cancelable:true,composed:true}))}catch(_){return false}await wait(160);return true}
+async function rangeStage(e,t){if(e.tagName==='TEXTAREA'||e.tagName==='INPUT')return directStage(e,t);if(!selectAll(e))return false;try{const s=getSelection(),r=s.getRangeAt(0);r.deleteContents();r.insertNode(document.createTextNode(t));r.collapse(false);s.removeAllRanges();s.addRange(r);e.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true,composed:true}))}catch(_){return false}await wait(120);return true}
+async function cleanup(m){const a=composers().filter(e=>text(e).includes(m));if(a.length!==1)return false;const e=a[0];try{if(e.tagName==='TEXTAREA'||e.tagName==='INPUT'){e.value='';e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}else{selectAll(e);let ok=false;try{ok=document.execCommand('delete',false,null)}catch(_){};if(!ok||text(e).includes(m)){try{e.replaceChildren()}catch(_){e.textContent=''};e.dispatchEvent(new Event('input',{bubbles:true,composed:true}))}}await wait(80);snap('CLEANUP',{ownMarkerRemoved:!text(composer().el).includes(m)});return true}catch(_){return false}}
+async function stageVerify(d,r){const c=composer();if(!c.el){snap('PRECHECK-FAIL',{reason:c.count?'composer-ambiguous':'composer-missing'});return{ok:false,code:c.count?'COMPOSER-AMBIGUOUS':'COMPOSER-MISSING'}}if(text(c.el).length){snap('PRECHECK-FAIL',{reason:'composer-not-empty',existingChars:text(c.el).length});return{ok:false,code:'COMPOSER-NOT-EMPTY'}}const p=`${r.marker} test. Reply only OK.`;status(`P${d.id} · STAGING ${d.stageLabel}`);snap('STAGE-BEGIN',{stageMethod:d.stageKey});if(!await d.stage(c.el,p)){snap('STAGE-FAIL',{reason:'method-returned-false'});return{ok:false,code:'STAGE-METHOD-FAILED'}}await wait(100);const n=composer(),v=text(n.el),ok=!!n.el&&v.includes(r.marker);snap(ok?'STAGE-OK':'STAGE-FAIL',{stageMethod:d.stageKey,markerPresent:ok,nodeChanged:!!n.el&&n.el!==c.el,stagedChars:v.length});if(!ok)return{ok:false,code:'STAGE-NOT-SURVIVED'};status(`P${d.id} · TEXT ✓ · FIND SEND`);return{ok:true,composer:n.el,text:v}}
+async function exact(get,ms=1800){const end=Date.now()+ms;let a=[];do{a=get();if(a.length===1)return{ok:true,a};await wait(80)}while(Date.now()<end);return{ok:false,a}}
+async function dispatch(key,c,m,doWait=true){let g,a=[],f=c?.closest('form')||null;if(key==='exact-click'){g=doWait?await exact(currentSend):{ok:currentSend().length===1,a:currentSend()};a=g.a;snap('AUTHORITY',{dispatch:key,candidateCount:a.length});if(!g.ok)return{ok:false,code:`SEND-EXACT-${a.length}`};a[0].click()}else if(key==='reviewed-click'){g=doWait?await exact(reviewed):{ok:reviewed().length===1,a:reviewed()};a=g.a;snap('AUTHORITY',{dispatch:key,candidateCount:a.length});if(!g.ok)return{ok:false,code:`SEND-REVIEWED-${a.length}`};a[0].click()}else if(key==='semantic-click'){const q=()=>semantic(composer().el);g=doWait?await exact(q):{ok:q().length===1,a:q()};a=g.a;snap('AUTHORITY',{dispatch:key,candidateCount:a.length});if(!g.ok)return{ok:false,code:`SEND-SEMANTIC-${a.length}`};a[0].click()}else if(key==='request-submit'){g=doWait?await exact(reviewed):{ok:reviewed().length===1,a:reviewed()};a=g.a;c=composer().el||c;f=c?.closest('form')||f;snap('AUTHORITY',{dispatch:key,candidateCount:a.length,formPresent:!!f,requestSubmitPresent:typeof f?.requestSubmit==='function'});if(!g.ok||!f||typeof f.requestSubmit!=='function')return{ok:false,code:'REQUEST-SUBMIT-NOT-AVAILABLE'};f.requestSubmit(a[0])}else if(key==='enter'){snap('AUTHORITY',{dispatch:key,candidateCount:1,synthetic:true});try{c.focus();try{c.dispatchEvent(new InputEvent('beforeinput',{inputType:'insertParagraph',bubbles:true,cancelable:true,composed:true}))}catch(_){};for(const t of['keydown','keypress','keyup'])c.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true,cancelable:true,composed:true}))}catch(_){return{ok:false,code:'ENTER-DISPATCH-FAILED'}}}else if(key==='union-click'){const q=()=>[...new Set([...reviewed(),...semantic(composer().el)])];g=doWait?await exact(q,2200):{ok:q().length===1,a:q()};a=g.a;snap('AUTHORITY',{dispatch:key,candidateCount:a.length});if(!g.ok)return{ok:false,code:`SEND-UNION-${a.length}`};a[0].click()}else return{ok:false,code:'UNKNOWN-DISPATCH'};snap('ACTUATED',{dispatch:key,markerPresentBeforeActuation:m?text(composer().el).includes(m):null});return{ok:true}}
+async function observe(m,before){const end=Date.now()+7000;let sawStop=false;do{await wait(140);const c=composer().el,t=text(c),inBox=!!c&&t.includes(m),out=userMarker(m),st=stop();sawStop||=st;if(out){snap('OUTBOUND-CONFIRMED',{userMarkerPresent:true,stopVisible:st,composerHasMarker:inBox});return{success:true,code:'OUTBOUND-MARKER'}}}while(Date.now()<end);const c=composer().el,still=text(c).includes(m);snap('OBSERVE-END',{userMarkerPresent:userMarker(m),stopSeen:sawStop,composerHasMarker:still});if(userMarker(m))return{success:true,code:'OUTBOUND-MARKER-LATE'};if(sawStop&&!still)return{success:true,code:'GENERATION-AND-CLEAR'};if(still)return{success:false,uncertain:false,code:'NO-DISPATCH-COMPOSER-STILL-STAGED'};return{success:false,uncertain:true,code:'COMPOSER-CHANGED-WITHOUT-COMMIT-EVIDENCE'}}
+async function test(d){if(busy||locked)return;lock(true);const r=begin(d);try{const s=await stageVerify(d,r);if(!s.ok){await cleanup(r.marker);finish('failed',s.code,'Nothing sent.');return}if(d.reacquire){status(`P${d.id} · REACQUIRE`);const first=s.composer;await new Promise(x=>requestAnimationFrame(()=>requestAnimationFrame(x)));await wait(d.delay||120);const a=composers().filter(e=>text(e).includes(r.marker));snap('REACQUIRE',{exactMarkerComposerCount:a.length,nodeChanged:a.length===1&&a[0]!==first});if(a.length!==1){await cleanup(r.marker);finish('failed',`REACQUIRE-${a.length}`,'Nothing sent; marker cleaned.');return}s.composer=a[0]}status(`P${d.id} · TEXT ✓ · SEND`);const x=await dispatch(d.dispatch,s.composer,r.marker,true);if(!x.ok){await cleanup(r.marker);finish('failed',x.code,'No Send actuation; marker cleaned.');return}status(`P${d.id} · SENT? · VERIFY`);const o=await observe(r.marker,s.text);if(o.success)finish('success',o.code,'Confirmed field candidate.');else if(o.uncertain){locked=true;finish('uncertain',o.code,'Reload before another method.')}else{await cleanup(r.marker);finish('failed',o.code,'No outbound evidence; marker cleaned.')}}catch(e){finish('failed','EXCEPTION',String(e?.message||e))}finally{lock(false);if(!locked&&stop()){lock(true);const z=setInterval(()=>{if(!stop()){clearInterval(z);lock(false)}},500)}}}
+async function useWinner(){if(!winner||busy||locked)return;lock(true);run={id:`winner-P${winner.id}`,name:'Use confirmed winner on existing composer text',dispatch:winner.dispatch,marker:null,startedAt:ts(),stages:[],result:'running'};R.runs.push(run);try{const c=composer();if(!c.el)return finish('failed','WINNER-COMPOSER-MISSING','Nothing sent.');if(!text(c.el))return finish('failed','WINNER-COMPOSER-EMPTY','Nothing sent.');snap('WINNER-PRECHECK',{composerChars:text(c.el).length,sourceWinner:winner.id});const x=await dispatch(winner.dispatch,c.el,'',true);if(!x.ok)return finish('failed',`WINNER-${x.code}`,'Nothing sent.');const end=Date.now()+5000;let st=false,clear=false;do{await wait(150);st||=stop();clear||=!text(composer().el);if(st&&clear)break}while(Date.now()<end);snap('WINNER-OBSERVE',{stopSeen:st,composerCleared:clear});if(st&&clear)finish('success','WINNER-GENERATION-AND-CLEAR','Existing composer text appears dispatched.');else{locked=true;finish('uncertain','WINNER-NO-STRONG-EVIDENCE','Reload before further actuation.')}}catch(e){finish('failed','WINNER-EXCEPTION',String(e?.message||e))}finally{lock(false)}}
+const M=[
+{id:1,name:'Ghost-style execCommand injection + exact current Send',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,dispatch:'exact-click'},
+{id:2,name:'Direct DOM/InputEvent injection + exact current Send',stageKey:'direct-input',stageLabel:'INPUT',stage:directStage,dispatch:'exact-click'},
+{id:3,name:'Paste-event-only injection + exact current Send',stageKey:'paste-only',stageLabel:'PASTE',stage:pasteStage,dispatch:'exact-click'},
+{id:4,name:'Range insertion/InputEvent + exact current Send',stageKey:'range-input',stageLabel:'RANGE',stage:rangeStage,dispatch:'exact-click'},
+{id:5,name:'Ghost-style stage + post-render marker reacquire + exact current Send',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,reacquire:true,delay:180,dispatch:'exact-click'},
+{id:6,name:'Ghost-style stage + reviewed selector union + one click',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,dispatch:'reviewed-click'},
+{id:7,name:'Ghost-style stage + semantic exact-one Send + one click',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,dispatch:'semantic-click'},
+{id:8,name:'Ghost-style stage + exact reviewed submitter + requestSubmit',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,dispatch:'request-submit'},
+{id:9,name:'Ghost-style stage + synthetic Enter',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,dispatch:'enter'},
+{id:10,name:'Two-phase: stage + settle/reacquire + exact-one authority union + one click',stageKey:'ghost-execCommand',stageLabel:'GHOST',stage:ghostStage,reacquire:true,delay:260,dispatch:'union-click'}];
+function copy(){const t=JSON.stringify(R,null,2);try{typeof GM_setClipboard==='function'?GM_setClipboard(t,'text'):navigator.clipboard?.writeText(t);status('Report copied','ok')}catch(_){status('Copy failed — use JSON','fail')}}
+function json(){try{const b=new Blob([JSON.stringify(R,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`gitl-proceed-v02-${H.toLowerCase()}-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status('JSON downloaded','ok')}catch(_){status('Download failed — use COPY','fail')}}
+function build(){if(document.getElementById(RID))return;const h=document.createElement('div');h.id=RID;h.style.cssText='position:fixed;top:max(8px,env(safe-area-inset-top));right:8px;z-index:2147483647;pointer-events:none;font-family:system-ui,-apple-system,sans-serif;';const s=h.attachShadow({mode:'open'});s.innerHTML=`<style>*{box-sizing:border-box}button{font:inherit}.pill{pointer-events:auto;min-width:62px;height:38px;border:1px solid #777;border-radius:19px;background:#151515;color:#fff;font-weight:800;padding:0 12px;box-shadow:0 3px 12px #0007}.panel{pointer-events:auto;display:none;width:min(320px,calc(100vw - 16px));padding:8px;border:1px solid #666;border-radius:12px;background:#111;color:#eee;box-shadow:0 6px 24px #0009}.open{display:block}.head{display:flex;align-items:center;gap:6px;margin-bottom:6px}.title{font-size:13px;font-weight:800;flex:1}.ghost{font-size:10px;opacity:.8}.x{width:32px;height:32px;border:0;border-radius:8px;background:#292929;color:#fff}.status{min-height:34px;padding:6px 8px;margin-bottom:7px;border-radius:8px;background:#252525;font-size:11px;line-height:1.2;display:flex;align-items:center}.status[data-kind="ok"]{outline:1px solid #428a4c}.status[data-kind="fail"]{outline:1px solid #a64848}.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}.p{height:42px;border:1px solid #555;border-radius:9px;background:#1d1d1d;color:#fff;font-size:13px;font-weight:800}.p:disabled,.mini:disabled{opacity:.38}.foot{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:7px}.mini{height:34px;border:1px solid #555;border-radius:8px;background:#202020;color:#eee;font-size:10px;font-weight:700}@media(max-width:420px){.panel{width:min(300px,calc(100vw - 12px));padding:7px}.grid{gap:5px}.p{height:40px}.pill{height:36px;min-width:58px}}</style><button class="pill" type="button">P TEST</button><div class="panel"><div class="head"><div class="title">Proceed Matrix v${V}</div><div class="ghost"></div><button class="x" type="button">×</button></div><div class="status" data-kind="info">Ready · each P stages its own marker</div><div class="grid"></div><div class="foot"><button class="mini win" type="button">★--</button><button class="mini copy" type="button">COPY</button><button class="mini json" type="button">JSON</button><button class="mini clr" type="button">CLR★</button></div></div>`;document.documentElement.appendChild(h);const pill=s.querySelector('.pill'),panel=s.querySelector('.panel'),grid=s.querySelector('.grid'),st=s.querySelector('.status'),win=s.querySelector('.win'),tests=[];s.querySelector('.ghost').textContent=document.querySelector('#gitl')?'G:ON':'G:OFF';for(const d of M){const b=document.createElement('button');b.type='button';b.className='p';b.textContent=`P${d.id}`;b.title=d.name;b.setAttribute('aria-label',`${d.name}. May send one unique diagnostic message.`);b.onclick=()=>test(d);grid.appendChild(b);tests.push(b)}pill.onclick=()=>panel.classList.toggle('open');s.querySelector('.x').onclick=()=>panel.classList.remove('open');s.querySelector('.copy').onclick=copy;s.querySelector('.json').onclick=json;s.querySelector('.clr').onclick=()=>{winner=null;R.winner=null;try{localStorage.removeItem(WK)}catch(_){};winnerUI();status('Winner cleared')};win.onclick=useWinner;UI={pill,panel,status:st,win,tests};winnerUI();lock(false)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',build,{once:true});else build();
 })();
