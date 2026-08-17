@@ -1,0 +1,48 @@
+name: Apply 8.8.3 field repair
+
+on:
+  push:
+    branches:
+      - hotfix/8.8.3-p0-proceed-field-repair
+    paths:
+      - scripts/apply-883-field-repair.mjs
+      - .github/workflows/apply-883-field-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: hotfix/8.8.3-p0-proceed-field-repair
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Apply anchored field repair
+        run: node scripts/apply-883-field-repair.mjs
+      - name: Regenerate extension parity
+        run: npm run build:extension
+      - name: Syntax and unit verification
+        run: |
+          npm run lint
+          npm run test:unit -- --runInBand
+      - name: Base certification
+        run: npm run cert:base
+      - name: Diff safety
+        run: git diff --check
+      - name: Commit verified candidate
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ghost-in-the-loop.user.js extension/content.js tests/basic-advanced-boundary.test.js tests/send-readiness-gate.test.js
+          git diff --cached --exit-code && { echo "No candidate changes produced"; exit 1; } || true
+          git commit -m "fix: wait for reviewed send readiness before fallback"
+          git push origin HEAD:hotfix/8.8.3-p0-proceed-field-repair
