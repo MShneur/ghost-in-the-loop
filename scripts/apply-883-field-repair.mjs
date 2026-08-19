@@ -23,7 +23,7 @@ function replaceBetween(label, startMarker, endMarker, replacement) {
 replaceOnce(
   'send-ready constant',
   "const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)",
-  "const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)\nconst SEND_READY_MS    = 2200;  // bounded pre-transaction wait for a reviewed Send control to become enabled"
+  "const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)\nconst SEND_READY_MS    = 5500;  // real-phone canary bound: wait pre-transaction for reviewed Send/Submit readiness"
 );
 
 replaceBetween(
@@ -61,9 +61,8 @@ replaceBetween(
   if (taughtSel && !collect(taughtSel)) return state();
   if (!PLAT?.reviewed) return state();
 
-  // A page can expose two plausible controls where only one also matches a
-  // later, more specific selector. Selector aliases for the same DOM node are
-  // deduplicated by the Set; distinct enabled controls remain ambiguous.
+  // Selector aliases for one DOM node are deduplicated by the Set. Distinct
+  // enabled reviewed controls remain ambiguous and are never actuated.
   for (const sel of PLAT.send || []) {
     if (!collect(sel)) return state();
   }
@@ -103,27 +102,41 @@ replaceBetween(
   'engine send readiness gate',
   '    const btn = Adapter.getSendBtn();',
   '    if (!strategy) {',
-`    // The real mobile hosts can retain the exact staged prompt before their
-    // framework flips Submit/Send from disabled to enabled. Wait only BEFORE
-    // opening the at-most-once transaction. This is observation, not actuation.
-    const sendReady = await _awaitReviewedSend();
+`    // Real-phone canaries proved that ChatGPT/Perplexity can retain the exact
+    // staged prompt before their framework flips Send/Submit from disabled to
+    // enabled. Observe that transition BEFORE opening the at-most-once send
+    // transaction. This wait never clicks, types, or retries an actuator.
+    const requireReviewedButton = PLAT?.key === 'chatgpt' || PLAT?.key === 'perplexity';
+    const sendReady = requireReviewedButton
+      ? await _awaitReviewedSend()
+      : { button: Adapter.getSendBtn(), ambiguous: false, count: 0, polls: 1, waitedMs: 0, timedOut: false };
+
     if (sendReady.ambiguous) {
       Timeline.record('send_blocked', { reason: 'reviewed-send-ambiguous', candidates: sendReady.count });
       Reporter.capture('SEND-001', 'Multiple enabled reviewed Send controls were present; nothing was sent.');
       pauseWithProbe('Ambiguous Send controls — nothing was sent');
       return false;
     }
+
     const btn = sendReady.button;
-    Timeline.record(btn ? 'send_ready' : 'send_ready_timeout', {
-      polls: sendReady.polls,
-      waitedMs: sendReady.waitedMs,
-      platform: PLAT?.key || 'generic'
-    });
-    // Choose exactly one dispatch mechanism BEFORE opening the at-most-once
-    // journal. If no reviewed button becomes ready inside the bounded window,
-    // retain the pre-existing reviewed Enter fallback for hosts/layouts that
-    // intentionally expose no button. Once the journal opens there is still
-    // no actuator escalation or retry.
+    if (requireReviewedButton) {
+      Timeline.record(btn ? 'send_ready' : 'send_ready_timeout', {
+        polls: sendReady.polls,
+        waitedMs: sendReady.waitedMs,
+        platform: PLAT?.key || 'generic'
+      });
+      // On the two field-certified hosts, a real reviewed button is the send
+      // authority. If it never becomes enabled, fail closed with the prompt
+      // still staged instead of firing a synthetic Enter into a disabled UI.
+      if (!btn) {
+        Reporter.capture('SEND-001', 'The staged prompt was verified, but the reviewed Send/Submit control did not become enabled. Nothing was sent.');
+        pauseWithProbe('Send did not become ready — nothing was sent');
+        return false;
+      }
+    }
+
+    // v8.5.3 item 2 remains intact: choose one dispatch mechanism BEFORE the
+    // at-most-once journal opens. No fallback or escalation exists afterward.
     const strategy = btn ? {
       path: 'reviewed-button',
       run: () => btn.click()
@@ -152,7 +165,7 @@ if (!boundary.includes(oldCommittee)) throw new Error('basic boundary committee 
 boundary = boundary.replace(oldCommittee, newCommittee);
 fs.writeFileSync(boundaryPath, boundary);
 
-const readinessTest = `/**\n * 8.8.3 field-repair contract: staged text may be committed before the host\n * enables its reviewed Send/Submit control. The wait is pre-transaction only.\n */\nconst fs = require('fs');\nconst path = require('path');\nconst SRC = fs.readFileSync(path.join(__dirname, '..', 'ghost-in-the-loop.user.js'), 'utf8');\n\nfunction between(start, end) {\n  const a = SRC.indexOf(start);\n  const b = SRC.indexOf(end, a + start.length);\n  if (a < 0 || b < 0) throw new Error('source marker not found');\n  return SRC.slice(a, b);\n}\n\ndescribe('reviewed Send readiness gate', () => {\n  test('waits for reviewed button readiness before selecting Enter fallback', () => {\n    expect(SRC).toContain('const SEND_READY_MS    = 2200;');\n    expect(SRC).toContain('async function _awaitReviewedSend(timeoutMs = SEND_READY_MS)');\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    expect(send).toContain('const sendReady = await _awaitReviewedSend();');\n    expect(send.indexOf('const sendReady = await _awaitReviewedSend();')).toBeLessThan(send.indexOf("path: 'reviewed-enter'"));\n    expect(send.indexOf('const sendReady = await _awaitReviewedSend();')).toBeLessThan(send.indexOf('_beginSendAttempt(strategy.path, stagedInput)'));\n  });\n\n  test('reviewed ambiguity fails closed before the send transaction', () => {\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    const ambiguous = send.indexOf('if (sendReady.ambiguous)');\n    const transaction = send.indexOf('_beginSendAttempt(strategy.path, stagedInput)');\n    expect(ambiguous).toBeGreaterThan(0);\n    expect(transaction).toBeGreaterThan(ambiguous);\n    expect(send.slice(ambiguous, transaction)).toContain('return false;');\n    expect(SRC).toContain('function _reviewedSendState()');\n    expect(SRC).toContain('ambiguous: candidates.size > 1');\n  });\n\n  test('there is still exactly one actuator invocation after transaction start', () => {\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    const afterTxn = send.slice(send.indexOf('const completion = _beginSendAttempt'));\n    expect(afterTxn.match(/strategy\\.run\\(\\)/g) || []).toHaveLength(1);\n    expect(afterTxn).not.toContain('btn.click()');\n    expect(afterTxn).not.toContain("dispatchFallback === 'enter'");\n  });\n});\n`;
+const readinessTest = `/**\n * 8.8.3 field-repair contract: real mobile hosts can retain the exact staged\n * prompt before their reviewed Send/Submit control becomes enabled. The wait\n * is observation-only and occurs before the at-most-once transaction.\n */\nconst fs = require('fs');\nconst path = require('path');\nconst SRC = fs.readFileSync(path.join(__dirname, '..', 'ghost-in-the-loop.user.js'), 'utf8');\n\nfunction between(start, end) {\n  const a = SRC.indexOf(start);\n  const b = SRC.indexOf(end, a + start.length);\n  if (a < 0 || b < 0) throw new Error('source marker not found');\n  return SRC.slice(a, b);\n}\n\ndescribe('reviewed Send readiness gate', () => {\n  test('uses the real-phone readiness window before a field-host send transaction', () => {\n    expect(SRC).toContain('const SEND_READY_MS    = 5500;');\n    expect(SRC).toContain('async function _awaitReviewedSend(timeoutMs = SEND_READY_MS)');\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    expect(send).toContain("const requireReviewedButton = PLAT?.key === 'chatgpt' || PLAT?.key === 'perplexity';");\n    expect(send).toContain('const sendReady = requireReviewedButton');\n    expect(send.indexOf('await _awaitReviewedSend()')).toBeLessThan(send.indexOf('_beginSendAttempt(strategy.path, stagedInput)'));\n  });\n\n  test('field hosts fail closed instead of Enter when Send never becomes ready', () => {\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    const timeoutGuard = send.indexOf('if (!btn) {');\n    const enterFallback = send.indexOf("path: 'reviewed-enter'");\n    const transaction = send.indexOf('_beginSendAttempt(strategy.path, stagedInput)');\n    expect(timeoutGuard).toBeGreaterThan(0);\n    expect(timeoutGuard).toBeLessThan(enterFallback);\n    expect(send.slice(timeoutGuard, enterFallback)).toContain('return false;');\n    expect(transaction).toBeGreaterThan(enterFallback);\n  });\n\n  test('reviewed ambiguity fails closed before the send transaction', () => {\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    const ambiguous = send.indexOf('if (sendReady.ambiguous)');\n    const transaction = send.indexOf('_beginSendAttempt(strategy.path, stagedInput)');\n    expect(ambiguous).toBeGreaterThan(0);\n    expect(transaction).toBeGreaterThan(ambiguous);\n    expect(send.slice(ambiguous, transaction)).toContain('return false;');\n    expect(SRC).toContain('function _reviewedSendState()');\n    expect(SRC).toContain('ambiguous: candidates.size > 1');\n  });\n\n  test('there is still exactly one actuator invocation after transaction start', () => {\n    const send = between('async function engineSend(text, skipDelay)', '/* Commit is the only transition allowed to advance state. */');\n    const afterTxn = send.slice(send.indexOf('const completion = _beginSendAttempt'));\n    expect(afterTxn.match(/strategy\\.run\\(\\)/g) || []).toHaveLength(1);\n    expect(afterTxn).not.toContain('btn.click()');\n    expect(afterTxn).not.toContain("dispatchFallback === 'enter'");\n  });\n});\n`;
 fs.writeFileSync('tests/send-readiness-gate.test.js', readinessTest);
 
 console.log('APPLY_883_FIELD_REPAIR_PASS');
