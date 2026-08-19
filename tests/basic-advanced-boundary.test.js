@@ -34,14 +34,15 @@ describe('Basic is neutral and Advanced is additive', () => {
 
   test('Advanced is off by default, persisted, and visibly reports ON/OFF', () => {
     expect(SRC).toContain("runAdv: GM_getValue('runAdv',false)");
-    expect(SRC).toContain("committeeProceed: GM_getValue('committeeProceed',false)");
+    expect(SRC).not.toContain("committeeProceed: GM_getValue('committeeProceed',false)");
     expect(SRC).toContain("Advanced ON ▴':'Advanced OFF ▾");
     expect(SRC).toContain("_save('runAdv',GHOST.ui.runAdv)");
   });
 
-  test('committee P shortcut is Advanced-only and exact-P only', () => {
-    expect(SRC).toContain('if (GHOST.ui.committeeProceed) out += COMMITTEE_P_SHORTCUT;');
-    expect(SRC).toContain("advancedRunOn() && GHOST.ui.committeeProceed && /^p$/i.test(typed)");
+  test('committee P shortcut requires a real Advanced multi-persona committee and exact-P', () => {
+    expect(SRC).toContain('return advancedRunOn() && active.length >= 2;');
+    expect(SRC).toContain('if (_committeeCommitPrepared()) out += COMMITTEE_P_SHORTCUT;');
+    expect(SRC).toContain("_committeeCommitPrepared() && /^p$/i.test(typed)");
     expect(SRC).toContain('Recommended by committee');
   });
 
