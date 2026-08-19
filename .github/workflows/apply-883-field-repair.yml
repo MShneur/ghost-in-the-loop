@@ -46,3 +46,5 @@ jobs:
           git diff --cached --exit-code && { echo "No candidate changes produced"; exit 1; } || true
           git commit -m "fix: wait for reviewed send readiness before fallback"
           git push origin HEAD:hotfix/8.8.3-p0-proceed-field-repair
+
+# Triggered after repairing the stale Advanced committee boundary contract.
