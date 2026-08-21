@@ -25,10 +25,11 @@ jobs:
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
-      # Parity must be checked on the committed bytes, before any step can
-      # rewrite them — that artifact is what a clone/zip install actually runs.
+      # Parity is checked on the committed bytes — that artifact is what a
+      # clone/zip install actually runs. Reading blobs rather than the working
+      # tree keeps the gate honest wherever this step sits in the job.
       - name: Verify committed extension artifact matches source
-        run: npm run check:generated
+        run: npm run check:committed
       - name: Certify extension artifacts
         run: npm run cert:base
       # Guards the invariant rather than one ordering mistake: if any cert step

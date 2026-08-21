@@ -196,10 +196,11 @@ jobs:
         run: npm ci
 
       # Fail closed on a stale artifact instead of silently rebuilding it
-      # mid-release: publish the bytes that were reviewed at $TARGET_SHA.
+      # mid-release. HEAD is asserted to be $TARGET_SHA above, so reading blobs
+      # certifies exactly the bytes that were reviewed there.
       - name: Verify committed extension artifact matches source
         if: steps.gate.outputs.release_exists != 'true'
-        run: npm run check:generated
+        run: npm run check:committed
 
       - name: Certify release payload
         if: steps.gate.outputs.release_exists != 'true'
