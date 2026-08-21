@@ -195,7 +195,13 @@ jobs:
         if: steps.gate.outputs.release_exists != 'true'
         run: npm ci
 
-      - name: Build and certify release payload
+      # Fail closed on a stale artifact instead of silently rebuilding it
+      # mid-release: publish the bytes that were reviewed at $TARGET_SHA.
+      - name: Verify committed extension artifact matches source
+        if: steps.gate.outputs.release_exists != 'true'
+        run: npm run check:generated
+
+      - name: Certify release payload
         if: steps.gate.outputs.release_exists != 'true'
         run: |
           npm run cert:base
