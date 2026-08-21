@@ -6,6 +6,7 @@
     "build": "npm run build:extension",
     "build:extension": "node scripts/build-extension.js",
     "check:generated": "node scripts/build-extension.js --check",
+    "check:clean-tree": "git diff --exit-code -- extension/content.js",
     "cert:preflight": "node scripts/certify-extension.js preflight",
     "cert:manifest-audit": "node scripts/certify-extension.js manifest",
     "cert:artifact-index": "node scripts/certify-extension.js artifacts --out test-results/extension-artifact-index.json",

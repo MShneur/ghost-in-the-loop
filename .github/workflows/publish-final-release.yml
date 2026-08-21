@@ -209,6 +209,7 @@ jobs:
           npm run test:unit
           npm run identity:oracle
           npm run package:oracle
+          npm run check:clean-tree
 
       - name: Externalize certified release assets before E2E workspace cleanup
         if: steps.gate.outputs.release_exists != 'true'

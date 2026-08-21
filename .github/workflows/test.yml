@@ -31,6 +31,10 @@ jobs:
         run: npm run check:generated
       - name: Certify extension artifacts
         run: npm run cert:base
+      # Guards the invariant rather than one ordering mistake: if any cert step
+      # ever rewrites the artifact again, this fails instead of hiding it.
+      - name: Assert certification did not mutate the artifact
+        run: npm run check:clean-tree
       - name: Syntax checks
         run: npm run lint
       - name: Run unit tests
