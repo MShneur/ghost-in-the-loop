@@ -17,8 +17,10 @@ describe('canonical source tree', () => {
     expect(fs.existsSync(path.join(ROOT, 'dev'))).toBe(false);
   });
 
+  /* --check-committed, not --check: jest runs after cert:base, so a working-tree
+     comparison would report parity the build step had just manufactured. */
   test('the committed extension artifact matches the canonical userscript', () => {
-    const result = spawnSync(process.execPath, ['scripts/build-extension.js', '--check'], {
+    const result = spawnSync(process.execPath, ['scripts/build-extension.js', '--check-committed'], {
       cwd: ROOT,
       encoding: 'utf8'
     });
