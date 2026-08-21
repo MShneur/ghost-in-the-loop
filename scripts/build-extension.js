@@ -3,22 +3,37 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const root = path.resolve(__dirname, '..');
 const userscriptPath = path.join(root, 'ghost-in-the-loop.user.js');
 const extensionPath = path.join(root, 'extension', 'content.js');
 const checkOnly = process.argv.includes('--check');
+/* --check-committed reads both sides from git instead of the working tree, so
+   parity holds even if an earlier step in the same job rewrote the artifact. */
+const checkCommitted = process.argv.includes('--check-committed');
 
-const userscript = fs.readFileSync(userscriptPath, 'utf8');
-const headerEnd = '// ==/UserScript==';
-const markerIndex = userscript.indexOf(headerEnd);
-
-if (markerIndex < 0) {
-  throw new Error('Userscript metadata terminator was not found.');
+function readCommitted(relPath) {
+  const r = spawnSync('git', ['show', `HEAD:${relPath}`], {
+    cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024
+  });
+  if (r.status !== 0) {
+    console.error(`Could not read HEAD:${relPath} from git.`);
+    process.exit(1);
+  }
+  return r.stdout;
 }
 
-const runtime = userscript.slice(markerIndex + headerEnd.length).trim();
-const wrapper = `/* GENERATED FILE — edit ghost-in-the-loop.user.js, then run npm run build.
+function build(userscript) {
+  const headerEnd = '// ==/UserScript==';
+  const markerIndex = userscript.indexOf(headerEnd);
+
+  if (markerIndex < 0) {
+    throw new Error('Userscript metadata terminator was not found.');
+  }
+
+  const runtime = userscript.slice(markerIndex + headerEnd.length).trim();
+  return `/* GENERATED FILE — edit ghost-in-the-loop.user.js, then run npm run build.
    Firefox MV3 wrapper: GM_* compatibility over browser.storage.local. */
 const _store = typeof browser !== 'undefined' ? browser.storage.local : chrome.storage.local;
 const _cache = {};
@@ -46,8 +61,17 @@ _initStore().then(() => {
 ${runtime}
 });
 `;
+}
 
-if (checkOnly) {
+if (checkCommitted) {
+  const expected = build(readCommitted('ghost-in-the-loop.user.js'));
+  if (readCommitted('extension/content.js') !== expected) {
+    console.error('Committed extension/content.js does not match the committed userscript.');
+    process.exit(1);
+  }
+  console.log('Committed extension artifact matches the committed userscript.');
+} else if (checkOnly) {
+  const wrapper = build(fs.readFileSync(userscriptPath, 'utf8'));
   const current = fs.existsSync(extensionPath) ? fs.readFileSync(extensionPath, 'utf8') : '';
   if (current !== wrapper) {
     console.error('extension/content.js is stale. Run: npm run build');
@@ -55,6 +79,6 @@ if (checkOnly) {
   }
   console.log('Generated extension artifact is current.');
 } else {
-  fs.writeFileSync(extensionPath, wrapper);
+  fs.writeFileSync(extensionPath, build(fs.readFileSync(userscriptPath, 'utf8')));
   console.log('Generated extension/content.js from ghost-in-the-loop.user.js.');
 }
