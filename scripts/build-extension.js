@@ -17,8 +17,16 @@ function readCommitted(relPath) {
   const r = spawnSync('git', ['show', `HEAD:${relPath}`], {
     cwd: root, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024
   });
+  /* A gate that fails closed still has to say why: distinguish "git is absent"
+     from "the blob is absent" instead of reporting both the same way. */
+  if (r.error) {
+    console.error(`Could not run git to read HEAD:${relPath} — ${r.error.message}`);
+    process.exit(1);
+  }
   if (r.status !== 0) {
-    console.error(`Could not read HEAD:${relPath} from git.`);
+    const detail = (r.stderr || '').trim()
+      || (r.signal ? `killed by signal ${r.signal}` : `git exited ${r.status}`);
+    console.error(`Could not read HEAD:${relPath} from git — ${detail}`);
     process.exit(1);
   }
   return r.stdout;
