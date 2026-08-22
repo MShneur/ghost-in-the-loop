@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.8.3] — P0 committee Commit button and panel stability
+
+- Replaced the small `Reply P` ON/OFF toggle with a large semantic `P · COMMIT RECOMMENDATION` button. It is armed automatically for a real Advanced multi-persona committee and becomes actionable only at a safe `CHOICE` boundary.
+- The P action stages and verifies the literal `P` through the same live-composer replacement gate before reusing the existing CHOICE/at-most-once Send path. Missing, replaced-with-wrong-text, pending, or uncertain states fail closed.
+- Adaptive/Locked/Audit posture clicks now patch their own state in place instead of rebuilding the entire Ghost panel.
+- Full renders preserve the panel's internal scroll and no longer re-apply a static configured anchor on every state update, preventing a manually moved panel from snapping back after ordinary clicks.
+- Updated the ChatGPT control regression fixture to require a large native button and pixel-stable Ghost panel/page position across Adaptive selection.
+
+**Field boundary:** this patch directly repairs the source-level toggle/remount defects and is covered by Chromium/Firefox fixtures. Authenticated real-Firefox ChatGPT/Perplexity canaries remain the final live-host proof.
+
 ## [8.8.2] — live composer replacement repair
 
 Authenticated Chrome field tests on ChatGPT and Perplexity showed that 8.8.1

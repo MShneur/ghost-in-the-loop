@@ -81,7 +81,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.8.2';
+const VER = '8.8.3';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -1376,6 +1376,51 @@ function advancedRunOn() { return !!(GHOST && GHOST.ui && GHOST.ui.runAdv); }
 /* Advanced is a functional boundary, not merely a collapsed panel. Basic gets
    only BASIC_CONTROL_PROTOCOL. Persona, strategy, posture, and the committee
    P shortcut are appended only after the user explicitly enables Advanced. */
+function _committeeCommitPrepared() {
+  const selected = Array.isArray(GHOST.persona.selected) ? GHOST.persona.selected : [GHOST.persona.selected];
+  const active = selected.filter(id => id && id !== 'none');
+  return advancedRunOn() && active.length >= 2;
+}
+
+function _committeeCommitReady() {
+  const L = GHOST.loop;
+  return _committeeCommitPrepared()
+    && L.state === 'CHOICE'
+    && !L.isSending
+    && !L.sendPending
+    && L.sendTxn?.state !== 'uncertain';
+}
+
+async function commitCommitteeRecommendation() {
+  if (!_committeeCommitReady()) return false;
+  const input = Adapter.getInput();
+  if (!input) {
+    Reporter.capture('COMPOSER-001', 'P Commit could not find the live composer.');
+    GHOST.loop.detail = '⚠ P Commit could not find the chat composer';
+    render();
+    return false;
+  }
+  if (!Adapter.injectText(input, 'P')) {
+    Reporter.capture('COMPOSER-001', 'P Commit could not stage the recommendation shortcut.');
+    GHOST.loop.detail = '⚠ P Commit could not stage P';
+    render();
+    return false;
+  }
+  // React/ProseMirror may replace the whole editor after the input event.
+  // Reuse the same exact staging gate as normal Proceed before startLoop reads it.
+  await sleep(150);
+  const staged = await _awaitStagedComposer(input, 'P');
+  if (!staged.ok) {
+    Reporter.capture('COMPOSER-002', 'P Commit was not retained by the live composer; nothing was sent.');
+    GHOST.loop.detail = '⚠ P Commit was not retained — nothing sent';
+    render();
+    return false;
+  }
+  Timeline.record('committee_commit', { choice: 'recommended', source: 'p-button' });
+  startLoop();
+  return true;
+}
+
 function runDirectives(includeStrategy = true) {
   const L = GHOST.loop;
   let out = BASIC_CONTROL_PROTOCOL;
@@ -1385,7 +1430,7 @@ function runDirectives(includeStrategy = true) {
   if (persona) out += `\n\n[Active persona]\n${persona}`;
   if (includeStrategy && PAYLOADS[L.payloadMode]) out += PAYLOADS[L.payloadMode].inject;
   out += posture.clause + (L.posture === 'standard' ? '' : POSTURE_CEILING);
-  if (GHOST.ui.committeeProceed) out += COMMITTEE_P_SHORTCUT;
+  if (_committeeCommitPrepared()) out += COMMITTEE_P_SHORTCUT;
   return out;
 }
 function hasPendingDirectives() {
@@ -3173,7 +3218,7 @@ function startLoop() {
     L.phase = 'dispatching';
     L.lastActivity = Date.now();
     Timeline.record('choice_answered', { round: L.round, chars: typed.length });
-    const pShortcut = advancedRunOn() && GHOST.ui.committeeProceed && /^p$/i.test(typed)
+    const pShortcut = _committeeCommitPrepared() && /^p$/i.test(typed)
       ? ' Apply the option that was clearly labeled "Recommended by committee".'
       : '';
     const answer = typed + `\n\n[Ghost continuation: apply this user input to the existing task.${pShortcut} End with [[GITL::PROCEED]] if work remains, [[GITL::CHOICE]] if another user decision is required, or [[GITL::HALT]] when complete.]`;
@@ -5181,6 +5226,8 @@ function injectStyles() {
 .g-report-preview textarea{box-sizing:border-box;width:100%;height:110px;margin-top:4px;padding:5px;resize:vertical;background:#120f11;border:1px solid #43292d;border-radius:4px;color:#c9b8bb;font:8px/1.35 ui-monospace,SFMono-Regular,Consolas,monospace}
 .g-report-btns{display:flex;gap:5px;margin-top:5px}
 .g-report-btns .g-btn-sm{margin-top:0;border-color:#5a2e2e;background:#1c1416;color:#e0a0a0;flex:1}
+.g-committee-commit{width:100%!important;min-height:48px!important;margin-top:5px!important;font-size:12px!important;font-weight:800!important;letter-spacing:.25px!important}
+.g-committee-commit[disabled]{opacity:.42!important;cursor:not-allowed!important;filter:saturate(.35)}
 .g-limit{margin:6px 0;padding:8px 9px;background:#231a0c;border:1px solid #5a4420;border-radius:7px;text-align:center}
 .g-limit-h{font-size:10px;font-weight:700;color:#fcd34d}
 .g-limit-b{font-size:9px;color:#caa968;line-height:1.4;margin:3px 0 7px}
@@ -5218,6 +5265,7 @@ function injectStyles() {
 const panel = document.createElement('div');
 panel.id = 'gitl';
 let _panelMounted = false;
+let _lastAppliedPosition = null;
 /* ── EXPLAIN MODE (d9) — tap ⓘ, then tap any control for a one-breath answer.
    Registry-driven; capture-phase intercept swallows the click so nothing fires. */
 const EXPLAIN = [
@@ -5432,9 +5480,9 @@ function renderRunTab() {
     </div>
     </div>
     <div class="g-mod g-mod-adv">
-      <div class="g-mod-h"><span class="g-mod-i">P</span>Committee shortcut<span class="g-mod-x">${GHOST.ui.committeeProceed?'ON':'OFF'}</span></div>
-      <div class="g-row"><label>Reply P = recommendation</label><div class="g-tog${GHOST.ui.committeeProceed?' on':''}" id="g-committee-p"></div></div>
-      <div class="g-hint">At a real decision, the committee labels one option Recommended. Reply P to accept only that labeled option.</div>
+      <div class="g-mod-h"><span class="g-mod-i">P</span>Committee commit<span class="g-mod-x">${_committeeCommitPrepared() ? (GHOST.loop.state==='CHOICE' ? 'READY' : 'ARMED') : 'NEEDS COMMITTEE'}</span></div>
+      <button class="g-btn go g-committee-commit" id="g-committee-commit"${_committeeCommitReady()?'':' disabled'}>P · COMMIT RECOMMENDATION</button>
+      <div class="g-hint">With 2+ Advanced committee members, Ghost automatically asks the committee to label one recommendation. At a real CHOICE, this large P button accepts only that clearly labeled recommendation.</div>
     </div>
     <div class="g-peek-btn" id="g-peek-btn">${peekOpen?'▾ Hide prompt':'▸ What gets injected'}</div>
     <div class="g-peek${peekOpen?' open':''}" id="g-peek">${_esc(runDirectives(true).trim())}</div>
@@ -5853,6 +5901,7 @@ function renderReportBadge() {
 }
 
 function render() {
+  const _preserveBodyScroll = panel.querySelector('.g-body')?.scrollTop || 0;
   try { panel.dataset.run = (GHOST.loop.state === 'RUNNING') ? '1' : '0'; panel.dataset.explain = GHOST.ui.explain ? '1' : '0'; } catch(_) {}
   const L = GHOST.loop, tab = GHOST.ui.tab, col = GHOST.ui.collapsed;
   const isDock = GHOST.ui.position==='dock' || GHOST.ui.position==='dock-left';
@@ -5919,7 +5968,13 @@ function render() {
   // and remains safe if a host later reparents the panel near a form.
   panel.querySelectorAll('button:not([type])').forEach(button => button.setAttribute('type', 'button'));
   bindEvents();
-  applyPosition(GHOST.ui.position);
+  const _dynamicPosition = GHOST.ui.position === 'rail' || GHOST.ui.position === 'orb';
+  if (_lastAppliedPosition !== GHOST.ui.position || _dynamicPosition) {
+    applyPosition(GHOST.ui.position);
+    _lastAppliedPosition = GHOST.ui.position;
+  }
+  const _restoredBody = panel.querySelector('.g-body');
+  if (_restoredBody && _preserveBodyScroll > 0) _restoredBody.scrollTop = _preserveBodyScroll;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -5975,17 +6030,18 @@ function bindEvents() {
     }
     GHOST.ui.runAdv=!GHOST.ui.runAdv; _save('runAdv',GHOST.ui.runAdv); render();
   });
-  $('#g-committee-p')?.addEventListener('click', () => {
-    if (!GHOST.ui.runAdv || !['IDLE','COMPLETE'].includes(GHOST.loop.state)) return;
-    GHOST.ui.committeeProceed=!GHOST.ui.committeeProceed;
-    _save('committeeProceed',GHOST.ui.committeeProceed);
-    render();
-  });
+  $('#g-committee-commit')?.addEventListener('click', () => { commitCommitteeRecommendation(); });
   $('#g-goto-personas')?.addEventListener('click', e => { e.preventDefault(); GHOST.ui.tab='personas'; render(); });
   $('#g-reground')?.addEventListener('click', () => { if (GHOST.loop.state==='RUNNING'||GHOST.loop.state==='PAUSED') regroundLoop(); });
   $$('.g-pst').forEach(b => b.addEventListener('click', () => {
     if (GHOST.loop.state==='RUNNING') return;
-    GHOST.loop.posture=b.dataset.pst; _save('posture',GHOST.loop.posture); render();
+    GHOST.loop.posture=b.dataset.pst; _save('posture',GHOST.loop.posture);
+    $$('.g-pst').forEach(btn => btn.classList.toggle('act', btn.dataset.pst === GHOST.loop.posture));
+    const mod = b.closest('.g-mod');
+    const badge = mod?.querySelector('.g-mod-x');
+    if (badge) badge.textContent = POSTURES[GHOST.loop.posture]?.label || '';
+    const peek = $('#g-peek');
+    if (peek?.classList.contains('open')) peek.textContent = runDirectives(true).trim();
   }));
   $('#g-posture-help')?.addEventListener('click', () => { GHOST.ui.prevTab=GHOST.ui.tab; GHOST.ui.helpSec='posture'; GHOST.ui.tab='info'; render(); });
   $('#g-play')?.addEventListener('click', primaryAction);
