@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.8.3
+// @version      8.8.4
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.8.3';
+const VER = '8.8.4';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -147,7 +147,7 @@ const MIN_RESPONSE_LEN = 50;
    actually start within this window. Guards the "Enter swallowed by a
    notification focus-steal" failure where the script thinks it sent
    but the platform never began generating. */
-const SEND_CONFIRM_MS  = 9000;  // grace for generation to begin (covers slow first-token)
+const SEND_CONFIRM_MS  = 18000;  // grace for generation to begin (covers slow first-token)
 
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0.5 — BOOT SAFETY + TAB LOCK + FOCUS GUARD
@@ -540,6 +540,7 @@ const PROFILES = {
     send: ['button[aria-label="Send message"]','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
     stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
+    user: ['div[data-message-author-role="user"]','article [data-message-author-role="user"]','div[data-testid^="conversation-turn"] div[data-message-author-role="user"]'],
     continueLabels: ['Continue generating','Continue'],
     dispatchFallback: 'enter', // mobile web hides the send button until a native keystroke; Enter submits the ProseMirror composer. Selected before transaction start, only when no unique reviewed button resolves.
     useCE: false, useNS: true
@@ -2678,6 +2679,7 @@ function _beginSendAttempt(path, input) {
     path: String(path || 'reviewed-button'),
     attemptedAt: Date.now(),
     assistantCount: _qAll(PLAT.assistant).length,
+    userCount: Array.isArray(PLAT.user) ? _qAll(PLAT.user).length : null,
     assistantTextLength: lastText.length,
     assistantTail: lastText.slice(-180),
     trustedPulseAt: GITL_NET.lastPulseT || 0,
@@ -2700,6 +2702,11 @@ function _sendEvidence() {
   const L = GHOST.loop;
   const txn = L.sendTxn;
   if (!txn || txn.state !== 'dispatching') return { confirmed: false, evidence: 'none' };
+
+  if (Number.isFinite(txn.userCount) && Array.isArray(PLAT.user)) {
+    const userCount = _qAll(PLAT.user).length;
+    if (userCount > txn.userCount) return { confirmed: true, evidence: 'user-turn' };
+  }
 
   const assistantCount = _qAll(PLAT.assistant).length;
   const assistantTextLength = (Adapter.getLastText() || '').length;

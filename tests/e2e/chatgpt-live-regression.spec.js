@@ -152,8 +152,15 @@ test.describe('ChatGPT 8.8 regression fixture', () => {
     }));
 
     await page.locator('#run-adv').click();
+    const beforeAdaptive = await page.evaluate(() => {
+      const r = document.getElementById('gitl').getBoundingClientRect();
+      return { left:r.left, top:r.top, scrollY:window.scrollY };
+    });
     await page.locator('.g-pst[data-pst="evolving"]').click();
-    await page.locator('#g-committee-p').click();
+    const commit = page.locator('#g-committee-commit');
+    await expect(commit).toBeVisible();
+    await expect(commit).toBeDisabled();
+    await expect(commit).toHaveJSProperty('type', 'button');
 
     const after = await page.evaluate(() => ({
       url: location.href,
@@ -163,7 +170,9 @@ test.describe('ChatGPT 8.8 regression fixture', () => {
       buttonTypes: [...document.querySelectorAll('#gitl button')].map(button => button.type),
       runAdv: window.__gmStore.runAdv,
       posture: window.__gmStore.posture,
-      committeeProceed: window.__gmStore.committeeProceed,
+      commitTag: document.getElementById('g-committee-commit')?.tagName,
+      commitHeight: document.getElementById('g-committee-commit')?.getBoundingClientRect().height || 0,
+      panelRect: (() => { const r=document.getElementById('gitl').getBoundingClientRect(); return {left:r.left,top:r.top}; })(),
       host: { ...window.__hostProbe }
     }));
 
@@ -173,7 +182,11 @@ test.describe('ChatGPT 8.8 regression fixture', () => {
     expect(new Set(after.buttonTypes)).toEqual(new Set(['button']));
     expect(after.runAdv).toBe(true);
     expect(after.posture).toBe('evolving');
-    expect(after.committeeProceed).toBe(true);
+    expect(after.commitTag).toBe('BUTTON');
+    expect(after.commitHeight).toBeGreaterThanOrEqual(40);
+    expect(Math.abs(after.panelRect.left - beforeAdaptive.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.panelRect.top - beforeAdaptive.top)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.scrollY - beforeAdaptive.scrollY)).toBeLessThanOrEqual(1);
     expect(after.host).toEqual({ submits: 0, hashChanges: 0, sendClicks: 0 });
     expect(after.url).toBe(before.url);
     expect(after.hash).toBe(before.hash);

@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.8.4] — mobile Send confirmation and release parity
+
+- Confirm a reviewed Send when ChatGPT creates a new user turn after the at-most-once actuation; this adds an independent delivery signal without treating composer clearing or Send disappearance alone as success.
+- Extend the bounded Send-confirmation window from 9s to 18s for slower Firefox/Android host transitions. Unconfirmed attempts still become SEND-002 and fail closed with no resend.
+- Preserve the 8.8.3 large P · COMMIT RECOMMENDATION action and panel-position/scroll stability, while bringing the stale regression fixtures forward.
+- Restore package, manifest, userscript, and generated Firefox extension parity.
+- Carry the separately tested Alpha/Beta/Gamma/Delta R3 recovery fallback as release-candidate evidence.
+
+**Field boundary:** Chromium/Firefox automated certification can validate the state machine and UI, but authenticated Firefox/Android remains the final live-host proof.
+
 ## [8.8.2] — live composer replacement repair
 
 Authenticated Chrome field tests on ChatGPT and Perplexity showed that 8.8.1
