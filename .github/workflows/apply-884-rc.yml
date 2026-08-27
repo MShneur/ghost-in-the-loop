@@ -45,13 +45,20 @@ jobs:
       - name: Write candidate identity
         run: node scripts/build-identity.js --write .gitl/evidence/round-7/candidate-identity.json
 
-      - name: Source and unit certification
-        run: |
-          npm run lint
-          npm run test:unit
-          npm run check:generated
-          node scripts/certify-extension.js
-          git diff --check
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Generated extension parity
+        run: npm run check:generated
+
+      - name: Extension certification
+        run: node scripts/certify-extension.js
+
+      - name: Diff whitespace check
+        run: git diff --check
 
       - name: Install Chromium and Firefox
         run: npx playwright install --with-deps chromium firefox
