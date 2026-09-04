@@ -1,0 +1,71 @@
+name: Assemble and certify 8.8.5 send router
+
+on:
+  push:
+    branches:
+      - agent/8.8.5-send-router
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  assemble-and-certify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply guarded 8.8.5 production repair
+        run: node scripts/apply-885-send-router.mjs
+
+      - name: Regenerate extension
+        run: npm run build:extension
+
+      - name: Write candidate identity
+        run: npm run identity:write
+
+      - name: Syntax and lint safety
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: Generated extension parity
+        run: npm run check:generated
+
+      - name: Extension certification
+        run: node scripts/certify-extension.js
+
+      - name: Diff whitespace check
+        run: git diff --check
+
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Browser certification
+        run: npm run test:e2e
+
+      - name: Commit certified candidate bytes
+        shell: bash
+        run: |
+          git add ghost-in-the-loop.user.js extension/content.js extension/manifest.json package.json package-lock.json CHANGELOG.md .gitl/autopilot-state.json .gitl/evidence/round-7/candidate-identity.json tests/e2e/chatgpt-live-regression.spec.js tests/send-router-885.test.js
+          if git diff --cached --quiet; then
+            echo 'No assembled candidate changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'release: assemble 8.8.5 send-router candidate [assembled-885]'
+          git push origin HEAD:agent/8.8.5-send-router
