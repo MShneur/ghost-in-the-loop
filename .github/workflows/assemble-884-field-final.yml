@@ -1,9 +1,7 @@
 name: Assemble and certify 8.8.4 field final
 
+# GitHub-hosted release assembly is manual last-resort fallback only.
 on:
-  push:
-    branches:
-      - release/8.8.4-field-final
   workflow_dispatch:
 
 permissions:

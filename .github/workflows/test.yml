@@ -1,12 +1,7 @@
 name: Ghost in the Loop — CI
 
+# GitHub-hosted CI is manual last-resort fallback only.
 on:
-  push:
-    branches:
-      - main
-      - 'agent/**'
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
