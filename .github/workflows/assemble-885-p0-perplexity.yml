@@ -1,0 +1,66 @@
+name: Assemble and certify 8.8.5 Perplexity P0
+
+on:
+  push:
+    branches:
+      - hotfix/8.8.5-p0-perplexity-fallback-ui
+    paths:
+      - scripts/apply-885-send-router.mjs
+      - scripts/apply-885-perplexity-ui.mjs
+      - .github/workflows/assemble-885-p0-perplexity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  assemble-and-certify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply 8.8.5 production send router
+        run: node scripts/apply-885-send-router.mjs
+
+      - name: Apply Perplexity staging, fallback UI, and Resume repair
+        run: node scripts/apply-885-perplexity-ui.mjs
+
+      - name: Regenerate Firefox extension
+        run: npm run build:extension
+
+      - name: Syntax and unit gates
+        run: |
+          npm run lint
+          npm run test:unit
+          npm run check:generated
+          git diff --check
+
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Browser certification
+        run: npm run test:e2e
+
+      - name: Commit certified candidate bytes to isolated branch
+        shell: bash
+        run: |
+          git add ghost-in-the-loop.user.js extension/content.js extension/manifest.json package.json package-lock.json CHANGELOG.md .gitl/autopilot-state.json tests/send-router-885.test.js tests/perplexity-fallback-885.test.js tests/e2e/chatgpt-live-regression.spec.js
+          if git diff --cached --quiet; then
+            echo 'No generated candidate changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: assemble certified 8.8.5 Perplexity fallback candidate [assembled-885-p0]'
+          git push origin HEAD:hotfix/8.8.5-p0-perplexity-fallback-ui
