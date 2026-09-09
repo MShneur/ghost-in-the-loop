@@ -7,6 +7,7 @@ on:
     paths:
       - scripts/apply-885-send-router.mjs
       - scripts/apply-885-perplexity-ui.mjs
+      - scripts/run-885-perplexity-assembler.mjs
       - .github/workflows/assemble-885-p0-perplexity.yml
 
 permissions:
@@ -34,7 +35,7 @@ jobs:
         run: node scripts/apply-885-send-router.mjs
 
       - name: Apply Perplexity staging, fallback UI, and Resume repair
-        run: node scripts/apply-885-perplexity-ui.mjs
+        run: node scripts/run-885-perplexity-assembler.mjs
 
       - name: Regenerate Firefox extension
         run: npm run build:extension
