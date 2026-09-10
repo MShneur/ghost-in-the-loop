@@ -122,7 +122,7 @@ test.describe('pre-dispatch composer evidence', () => {
 
     expect(delivered).toBe(true);
     expect(result.clicks).toBe(1);
-    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+    expect(result.state).toEqual({ round: 1, path: 'alpha-click', pending: false });
   });
 
   test('a block-normalized multiline contenteditable prompt verifies and dispatches once', async ({ page }) => {
@@ -160,7 +160,7 @@ test.describe('pre-dispatch composer evidence', () => {
 
     expect(delivered).toBe(true);
     expect(result.clicks).toBe(1);
-    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+    expect(result.state).toEqual({ round: 1, path: 'alpha-click', pending: false });
   });
   test('a framework replacement of the entire composer is reacquired before one dispatch', async ({ page }) => {
     await boot(page, CONTENTEDITABLE_PAGE);
@@ -201,7 +201,7 @@ test.describe('pre-dispatch composer evidence', () => {
     expect(delivered).toBe(true);
     expect(result.clicks).toBe(1);
     expect(result.composerConnected).toBe(true);
-    expect(result.state).toEqual({ round: 1, path: 'reviewed-button', pending: false });
+    expect(result.state).toEqual({ round: 1, path: 'alpha-click', pending: false });
   });
 
   test('a replacement composer that drops the prompt fails closed without dispatch', async ({ page }) => {
