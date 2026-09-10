@@ -1,8 +1,8 @@
 {
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
-  "releaseTarget": "8.8.4",
-  "status": "release-candidate-certification",
+  "releaseTarget": "8.8.5",
+  "status": "p0-perplexity-fallback-certification",
   "round": 9,
   "roundPhase": "complete",
   "mode": "continuous-local-human-gates",
@@ -13,7 +13,7 @@
     4,
     6
   ],
-  "branch": "release/8.8.4-field-final",
+  "branch": "hotfix/8.8.5-p0-perplexity-fallback-ui",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
   "orchestrationLocation": ".gitl/orchestration/README.md",

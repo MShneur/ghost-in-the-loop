@@ -1,5 +1,24 @@
 # Changelog
 
+## [8.8.5] — production dispatch router and Firefox/Android round-2 repair
+
+### P0 Perplexity / fallback controls follow-up
+
+- Fix current Perplexity Lexical staging so one Ghost command produces one composer payload instead of a duplicated payload that fails COMPOSER-002 verification.
+- Add one bounded pre-dispatch repair for the exact duplicate-payload field signature; it cannot grant Send authority.
+- Put Auto / Alpha / Beta / Gamma / Delta directly in the production Transport panel and bind them to the production dispatch router.
+- After a human confirms a route did not send, Auto suppresses that failed route temporarily and selects another eligible route on the next safe attempt.
+- Resume now retries the exact volatile command after a known pre-dispatch failure; the retry memory is cleared before the at-most-once journal opens and on reset.
+
+- Integrate Alpha/Beta/Gamma/Delta into the production engine instead of leaving them in a recovery-only sidecar. Alpha uses the freshly reacquired reviewed Send click; Beta uses the exact current composer form with requestSubmit; Gamma uses the reviewed Enter fallback; Delta stages for one manual host Send when no automatic route is safe.
+- On Firefox/Android ChatGPT, rotate Alpha → Beta → Gamma by confirmed round so the known second-round failure no longer repeats the identical reviewed-button actuator. Exactly one route is selected before the at-most-once journal starts; there is still no post-dispatch automatic retry.
+- Suppress a route for 12 hours after an ambiguous SEND-002 so a later safe run can exercise another route without blindly resending the uncertain transaction.
+- Add #composer-submit-button as a first-class ChatGPT Send identity, wait two animation frames for ProseMirror/React reconciliation, then reacquire both staged composer and Send authority immediately before dispatch.
+- Enrich redacted telemetry with route, composer replacement/poll counts, Send connectivity, same-form/requestSubmit eligibility, user-turn delta, and trusted-pulse age. No prompts, selectors, URLs, or conversation text are added.
+- Add regression coverage for a replaced ChatGPT composer where the first identical send selects Alpha and the second selects Beta on Firefox/Android.
+
+**Safety boundary:** an ambiguous post-dispatch state still hard-stops. Alternate automatic actuators are never fired inside the same uncertain transaction.
+
 ## [8.8.4] — mobile Send confirmation and release parity
 
 - Confirm a reviewed Send when ChatGPT creates a new user turn after the at-most-once actuation; this adds an independent delivery signal without treating composer clearing or Send disappearance alone as success.

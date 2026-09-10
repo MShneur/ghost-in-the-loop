@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      8.8.4
+// @version      8.8.5
 // @description  👻 AI workflow engine — auto-proceed, pipelines, personas, export, diagnostics, roadmap autopilot, handoff capsules. ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus + 13 more.
 // @author       Michael S (CTRL-AI) — v8.3.0 main editor: Agent CG (ChatGPT); prior architecture by Claude
 // @match        https://chatgpt.com/*
@@ -102,7 +102,7 @@ try {
 /* ═══════════════════════════════════════════════════════════════
    LAYER 0 — CONSTANTS
    ═══════════════════════════════════════════════════════════════ */
-const VER = '8.8.4';
+const VER = '8.8.5';
 const SUPPORT_URL = 'https://github.com/sponsors/MShneur';
 const REPORT_REPO = 'MShneur/ghost-in-the-loop';
 
@@ -537,7 +537,7 @@ const PROFILES = {
     host: /chatgpt\.com|chat\.openai\.com/,
     label: 'ChatGPT',
     input: ['#prompt-textarea','div[contenteditable="true"][id="prompt-textarea"]','div[contenteditable="true"][data-placeholder]','textarea[data-id="root"]','textarea'],
-    send: ['button[aria-label="Send message"]','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
+    send: ['#composer-submit-button','button[aria-label="Send message"]','button[data-testid="send-button"]','button[aria-label="Send prompt"]','button[aria-label="Send"]','form button[type="submit"]','button[data-testid*="send"]','button[data-testid*="submit"]','button[class*="send"]'],
     stop: ['button[aria-label="Stop generating"]','button[data-testid="stop-button"]','button[aria-label*="Stop"]','button[data-testid*="stop"]'],
     assistant: ['div[data-message-author-role="assistant"]','article [data-message-author-role="assistant"]','div[data-testid^="conversation-turn"] div[data-message-author-role="assistant"]'],
     user: ['div[data-message-author-role="user"]','article [data-message-author-role="user"]','div[data-testid^="conversation-turn"] div[data-message-author-role="user"]'],
@@ -549,7 +549,7 @@ const PROFILES = {
     key: 'perplexity', reviewed: true,
     host: /perplexity\.ai/,
     label: 'Perplexity',
-    input: ['textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
+    input: ['#ask-input[data-lexical-editor="true"][contenteditable="true"]','textarea[placeholder*="Ask"]','textarea[placeholder*="Follow"]','div[contenteditable="true"][role="textbox"]','div[class*="ProseMirror"]','[data-testid="composer"]','textarea:not([disabled])'],
     send: ['button[aria-label="Submit"]','button[aria-label="Send"]','button[type="submit"]'],
     stop: ['button[aria-label="Stop"]','button[aria-label*="Stop"]','[data-testid="stop-button"]','button[data-testid*="stop"]'],
     staleTicks: 24,   // Deep Research thinks for minutes with no DOM growth and no stop button
@@ -1219,8 +1219,21 @@ const Adapter = {
     el.focus();
     // Path 1: contenteditable (ProseMirror/Quill/Lexical)
     if (el.getAttribute('contenteditable') === 'true' || PLAT.useCE) {
-      // FIX: selectAll+insertText preserves ProseMirror state (innerHTML='' destroys it)
-      document.execCommand('selectAll', false, null);
+      // 8.8.5: scope replacement to the live editor. Perplexity Lexical can
+      // apply a synthetic insertText event in addition to execCommand, producing
+      // two copies of the command. Selection stays inside this composer only.
+      const isLexical = el.getAttribute('data-lexical-editor') === 'true';
+      if (isLexical) {
+        try {
+          const sel = window.getSelection?.();
+          const range = document.createRange();
+          range.selectNodeContents(el);
+          sel?.removeAllRanges();
+          sel?.addRange(range);
+        } catch(_) { document.execCommand('selectAll', false, null); }
+      } else {
+        document.execCommand('selectAll', false, null);
+      }
       const ok = document.execCommand('insertText', false, text);
       if (!ok) {
         // execCommand unavailable — fall back with proper InputEvent
@@ -1240,8 +1253,12 @@ const Adapter = {
           }
         } catch(_) {}
       }
-      el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
-      if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = 'contenteditable';
+      // Lexical already observed the insertion above. A second InputEvent with
+      // data:text is a second edit on current Perplexity builds, so only send a
+      // data-less notification there. Other CE hosts preserve the legacy path.
+      if (isLexical) el.dispatchEvent(new Event('input', { bubbles:true }));
+      else el.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:text, composed:true }));
+      if (DIAG.sendPath !== 'ce-paste') DIAG.sendPath = isLexical ? 'lexical-once' : 'contenteditable';
       return true;
     }
     // Path 2: native React setter
@@ -2635,16 +2652,51 @@ function _promptStagedInComposer(input, expectedText) {
    retained the complete prompt. Reacquire through the adapter and require the
    same unique, exact prompt-bearing composer on two consecutive observations.
    This remains an observation-only gate: it cannot grant Send authority. */
+
+function _isExactDoubleStagedComposer(input, expectedText) {
+  const expected = _normalizeStagedText(expectedText);
+  if (!input || !expected) return false;
+  return _normalizeStagedText(_composerText(input)) === expected + expected;
+}
+
+function _repairExactDoubleStagedComposer(input, expectedText) {
+  if (!input || input.getAttribute?.('contenteditable') !== 'true') return false;
+  try {
+    input.focus();
+    const sel = window.getSelection?.();
+    const range = document.createRange();
+    range.selectNodeContents(input);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    const ok = document.execCommand('insertText', false, expectedText);
+    if (!ok) return false;
+    input.dispatchEvent(new Event('input', { bubbles:true }));
+    Timeline.record('composer_duplicate_repaired', { stage:'pre-dispatch', platform: PLAT?.key || 'unknown' });
+    return true;
+  } catch(_) { return false; }
+}
+
 async function _awaitStagedComposer(originalInput, expectedText, timeoutMs = 1400) {
   const deadline = Date.now() + Math.max(200, Number(timeoutMs) || 0);
   let prior = null;
   let stableObservations = 0;
   let replaced = false;
   let polls = 0;
+  let duplicateRepairAttempted = false;
 
   while (Date.now() <= deadline) {
     polls++;
-    const current = Adapter.findStagedInput(expectedText, originalInput);
+    let current = Adapter.findStagedInput(expectedText, originalInput);
+    if (!current && !duplicateRepairAttempted) {
+      const candidate = Adapter.peekInput();
+      if (_isExactDoubleStagedComposer(candidate, expectedText)) {
+        duplicateRepairAttempted = true;
+        if (_repairExactDoubleStagedComposer(candidate, expectedText)) {
+          await sleep(90);
+          current = Adapter.findStagedInput(expectedText, candidate);
+        }
+      }
+    }
     if (current) {
       replaced = replaced || current !== originalInput;
       if (current === prior) stableObservations++;
@@ -2670,7 +2722,7 @@ function _settleSendPromise(ok) {
   }
 }
 
-function _beginSendAttempt(path, input) {
+function _beginSendAttempt(path, input, meta = {}) {
   const L = GHOST.loop;
   const lastText = Adapter.getLastText() || '';
   const txn = {
@@ -2683,7 +2735,11 @@ function _beginSendAttempt(path, input) {
     assistantTextLength: lastText.length,
     assistantTail: lastText.slice(-180),
     trustedPulseAt: GITL_NET.lastPulseT || 0,
-    composerHadText: _composerText(input).length > 0
+    composerHadText: _composerText(input).length > 0,
+    route: String(meta.route || path || 'unknown'),
+    composerReplaced: !!meta.composerReplaced,
+    composerPolls: Math.max(0, Number(meta.composerPolls || 0)),
+    preflight: meta.preflight && typeof meta.preflight === 'object' ? meta.preflight : null
   };
   L.sendTxn = txn;
   L.sendPending = true;
@@ -2693,7 +2749,15 @@ function _beginSendAttempt(path, input) {
   Timeline.record('send_attempted', {
     command: txn.id.slice(0, 8),
     round: L.round + 1,
-    path: txn.path
+    path: txn.path,
+    route: txn.route,
+    composer_replaced: txn.composerReplaced,
+    composer_polls: txn.composerPolls,
+    send_connected: !!txn.preflight?.sendConnected,
+    send_enabled: !!txn.preflight?.sendEnabled,
+    same_form: !!txn.preflight?.sameForm,
+    request_submit: !!txn.preflight?.canRequestSubmit,
+    enter_ready: !!txn.preflight?.canEnter
   });
   return new Promise(resolve => { _pendingSendResolve = resolve; });
 }
@@ -2724,12 +2788,164 @@ function _sendEvidence() {
   return { confirmed: false, evidence: 'insufficient' };
 }
 
+
+/* ── 8.8.5 reviewed dispatch router ─────────────────────────────
+   Production Alpha/Beta/Gamma/Delta live here, not in a sidecar tester.
+   Critical invariant: exactly ONE automatic actuator is selected BEFORE the
+   at-most-once journal opens. After _beginSendAttempt() there is no fallback.
+   A prior ambiguous route is suppressed on the next safe run so field testing
+   can advance without ever risking an immediate duplicate. */
+const SEND_ROUTE_HEALTH_TTL = 12 * 60 * 60 * 1000;
+
+const SEND_ROUTE_PREFS = ['auto','alpha','beta','gamma','delta'];
+function _sendRoutePrefKey() { return 'gitl:send-route-pref:' + location.hostname; }
+function _getSendRoutePref() {
+  const v = String(GM_getValue(_sendRoutePrefKey(), 'auto') || 'auto').toLowerCase();
+  return SEND_ROUTE_PREFS.includes(v) ? v : 'auto';
+}
+function _setSendRoutePref(v) {
+  const next = String(v || '').toLowerCase();
+  if (!SEND_ROUTE_PREFS.includes(next)) return false;
+  if (GHOST.loop.sendTxn?.state === 'uncertain') return false;
+  GM_setValue(_sendRoutePrefKey(), next);
+  Timeline.record('send_route_preference', { route: next });
+  return true;
+}
+function _renderSendRouteControls() {
+  const current = _getSendRoutePref();
+  const locked = GHOST.loop.sendTxn?.state === 'uncertain';
+  const labels = [['auto','Auto'],['alpha','Alpha'],['beta','Beta'],['gamma','Gamma'],['delta','Delta']];
+  const buttons = labels.map(([id,label]) => {
+    const active = current === id;
+    return '<button class="g-btn' + (active ? ' go' : '') + '" data-g-send-route="' + id + '" '
+      + (locked ? 'disabled ' : '')
+      + 'style="min-width:0;padding:7px 4px;font-size:10px;' + (active ? 'outline:1px solid currentColor;' : '') + '" '
+      + 'title="' + (locked ? 'Send result is uncertain — reconcile it before changing routes' : 'Use ' + label + ' for the next safe pre-dispatch attempt') + '">'
+      + label + '</button>';
+  }).join('');
+  const status = locked ? 'locked: reconcile uncertain Send first' : (current === 'auto' ? 'Auto picks one safe route before Send' : current.charAt(0).toUpperCase() + current.slice(1) + ' selected');
+  return '<div style="padding:6px 8px 0"><div style="font-size:9px;opacity:.72;margin-bottom:4px">SEND METHOD · ' + status + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px">' + buttons + '</div></div>';
+}
+
+
+function _routeHealthKey() {
+  return 'gitl:send-route-health:' + location.hostname;
+}
+
+function _readRouteHealth() {
+  try {
+    const raw = GM_getValue(_routeHealthKey(), '{}');
+    const parsed = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch(_) { return {}; }
+}
+
+function _noteDispatchRoute(path, outcome) {
+  if (!path) return;
+  try {
+    const health = _readRouteHealth();
+    health[String(path)] = { outcome: String(outcome || 'unknown'), at: Date.now() };
+    GM_setValue(_routeHealthKey(), JSON.stringify(health));
+  } catch(_) {}
+}
+
+function _recentlyUncertain(path, health) {
+  const rec = health && health[path];
+  return !!rec && (rec.outcome === 'uncertain' || rec.outcome === 'failed') && Number.isFinite(rec.at)
+    && Date.now() - rec.at < SEND_ROUTE_HEALTH_TTL;
+}
+
+function _isFirefoxAndroid() {
+  const ua = String(navigator.userAgent || '');
+  return /Android/i.test(ua) && /Firefox\//i.test(ua);
+}
+
+async function _twoAnimationFrames() {
+  if (typeof requestAnimationFrame !== 'function') { await sleep(34); return; }
+  await new Promise(resolve => requestAnimationFrame(() => resolve()));
+  await new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
+function _selectDispatchStrategy(stagedInput, roundOverride = null) {
+  const round = Number.isFinite(roundOverride) ? Number(roundOverride) : Number(GHOST.loop.round || 0);
+  const button = Adapter.getSendBtn(); // fresh authority lookup for THIS transaction
+  const form = stagedInput?.closest?.('form') || null;
+  const sendConnected = !!button && button.isConnected !== false;
+  const sendEnabled = sendConnected && !button.disabled && button.getAttribute?.('aria-disabled') !== 'true';
+  const sameForm = !!(sendEnabled && form && (button.form === form || form.contains(button)));
+  const canRequestSubmit = !!(sameForm && typeof form.requestSubmit === 'function' && String(button.type || 'submit').toLowerCase() === 'submit');
+  const canEnter = !!(stagedInput?.isConnected !== false && PLAT?.reviewed && PLAT.dispatchFallback === 'enter');
+  const firefoxAndroid = _isFirefoxAndroid();
+  const health = _readRouteHealth();
+
+  const candidates = new Map();
+  if (sendEnabled) {
+    candidates.set('alpha-click', {
+      route: 'alpha', path: 'alpha-click', manual: false,
+      run: () => button.click()
+    });
+  }
+  if (canRequestSubmit) {
+    candidates.set('beta-request-submit', {
+      route: 'beta', path: 'beta-request-submit', manual: false,
+      run: () => form.requestSubmit(button)
+    });
+  }
+  if (canEnter) {
+    candidates.set('gamma-enter', {
+      route: 'gamma', path: 'gamma-enter', manual: false,
+      run: () => stagedInput.dispatchEvent(new KeyboardEvent('keydown', {
+        key:'Enter', code:'Enter', keyCode:13, which:13,
+        bubbles:true, cancelable:true, composed:true
+      }))
+    });
+  }
+
+  let order = ['alpha-click', 'beta-request-submit', 'gamma-enter'];
+  /* The real regression is Firefox/Android round 2. Rotate automatic routes
+     per confirmed round there, so round 1 uses Alpha, round 2 Beta, round 3
+     Gamma. Other hosts preserve Alpha-first behavior. */
+  if (PLAT?.label === 'ChatGPT' && firefoxAndroid) {
+    const shift = ((round % order.length) + order.length) % order.length;
+    order = [...order.slice(shift), ...order.slice(0, shift)];
+  }
+
+  const unsuppressed = order.filter(path => !_recentlyUncertain(path, health));
+  const usableOrder = unsuppressed.length ? unsuppressed : [];
+  const path = usableOrder.find(id => candidates.has(id));
+  const preflight = {
+    firefoxAndroid,
+    round,
+    composerConnected: !!stagedInput && stagedInput.isConnected !== false,
+    sendConnected,
+    sendEnabled,
+    sameForm,
+    canRequestSubmit,
+    canEnter,
+    suppressedRoutes: order.filter(id => _recentlyUncertain(id, health)).length
+  };
+
+  const pref = _getSendRoutePref();
+  if (pref === 'delta') return { route:'delta', path:'delta-manual', manual:true, run:null, preflight };
+  if (pref !== 'auto') {
+    const prefPath = { alpha:'alpha-click', beta:'beta-request-submit', gamma:'gamma-enter' }[pref];
+    if (prefPath && candidates.has(prefPath)) return { ...candidates.get(prefPath), preflight };
+    return { route:pref, path:(prefPath || pref + '-unavailable'), manual:false, blocked:true, run:null, preflight };
+  }
+  if (path) return { ...candidates.get(path), preflight };
+  return { route:'delta', path:'delta-manual', manual:true, run:null, preflight };
+}
+
+let _pendingPreDispatch = null;
+
 async function engineSend(text, skipDelay) {
   const L = GHOST.loop;
   if (L.isSending) { DIAG.push('Send blocked — lock active'); return false; }
   const safe = assertInteractionSafe();
   if (!safe.ok) { DIAG.push(`Send blocked — ${safe.reason}`); L.detail = `⚠ ${safe.reason}`; render(); return false; }
   L.isSending = true;
+  _pendingPreDispatch = { text:String(text || ''), skipDelay:!!skipDelay, at:Date.now() };
   try {
     if (!skipDelay) await _sleepCountdown(randomDelay(L.round));
     if (L.state !== 'RUNNING') return false;
@@ -2767,32 +2983,59 @@ async function engineSend(text, skipDelay) {
       pauseWithProbe('Prompt could not be verified — nothing was sent');
       return false;
     }
-    const stagedInput = staged.input;
+    let stagedInput = staged.input;
     if (staged.replaced) {
       Timeline.record('composer_reacquired', { stage: 'pre-dispatch', polls: staged.polls });
     }
-    const btn = Adapter.getSendBtn();
-    // v8.5.3 item 2 — choose exactly one reviewed dispatch mechanism BEFORE
-    // opening the at-most-once journal. Once `_beginSendAttempt()` runs there
-    // is no fallback or escalation: the selected mechanism fires once, then
-    // Ghost only observes confirmation evidence or enters `uncertain`.
-    const strategy = btn ? {
-      path: 'reviewed-button',
-      run: () => btn.click()
-    } : (PLAT?.reviewed && PLAT.dispatchFallback === 'enter' ? {
-      path: 'reviewed-enter',
-      run: () => stagedInput.dispatchEvent(new KeyboardEvent('keydown', {
-        key:'Enter', code:'Enter', keyCode:13, which:13,
-        bubbles:true, cancelable:true, composed:true
-      }))
-    } : null);
-    if (!strategy) {
-      Reporter.capture('SEND-001', 'This site has no single reviewed dispatch mechanism; use manual Send.');
-      pauseWithProbe('No safe Send mechanism — prompt left for manual review');
+
+    // ProseMirror/React can show the text before the host's controlled state
+    // and Send control finish reconciling. Wait through two paints, then
+    // reacquire the exact prompt-bearing composer AGAIN before route choice.
+    await _twoAnimationFrames();
+    const finalStage = await _awaitStagedComposer(stagedInput, text, 1200);
+    if (!finalStage.ok) {
+      Timeline.record('composer_unverified', { code: 'COMPOSER-002', stage: 'dispatch-recheck' });
+      Reporter.capture('COMPOSER-002', 'The live editor changed before dispatch. Nothing was sent.');
+      pauseWithProbe('Composer changed before Send — nothing was sent');
+      return false;
+    }
+    stagedInput = finalStage.input;
+    if (finalStage.replaced) {
+      Timeline.record('composer_reacquired', { stage: 'dispatch-recheck', polls: finalStage.polls });
+    }
+
+    const strategy = _selectDispatchStrategy(stagedInput);
+    Timeline.record('send_route_selected', {
+      round: L.round + 1,
+      route: strategy?.route || 'none',
+      path: strategy?.path || 'none',
+      composer_replaced: !!(staged.replaced || finalStage.replaced),
+      firefox_android: !!strategy?.preflight?.firefoxAndroid,
+      send_connected: !!strategy?.preflight?.sendConnected,
+      same_form: !!strategy?.preflight?.sameForm,
+      request_submit: !!strategy?.preflight?.canRequestSubmit,
+      enter_ready: !!strategy?.preflight?.canEnter,
+      suppressed_routes: Number(strategy?.preflight?.suppressedRoutes || 0)
+    });
+    if (!strategy || strategy.blocked) {
+      Reporter.capture('SEND-001', 'The selected Send method is not available on the current live composer. Nothing was sent.');
+      pauseWithProbe((strategy?.route || 'Selected') + ' unavailable — choose another Send method, then Resume');
+      return false;
+    }
+    if (strategy.manual) {
+      _pendingPreDispatch = null;
+      Reporter.capture('SEND-001', 'Delta selected: Ghost staged the prompt but will not click Send. Tap the site Send button once.');
+      pauseWithProbe('Delta/manual — prompt staged; tap the site Send button once');
       return false;
     }
     DIAG.sendPath = strategy.path;
-    const completion = _beginSendAttempt(strategy.path, stagedInput);
+    _pendingPreDispatch = null; // boundary: any later ambiguity must never auto-retry
+    const completion = _beginSendAttempt(strategy.path, stagedInput, {
+      route: strategy.route,
+      composerReplaced: !!(staged.replaced || finalStage.replaced),
+      composerPolls: Number(staged.polls || 0) + Number(finalStage.polls || 0),
+      preflight: strategy.preflight
+    });
     try {
       strategy.run();
     } catch(_) {
@@ -2835,6 +3078,7 @@ function _confirmSend(evidence) {
   L.replyKey=''; L.replyStableTicks=0; L.lastDispatchConfirmedAt=Date.now();
   _setLoopPhase('generating','Waiting for AI output…');
   try { GM_setValue('sendTier:' + location.hostname, txn.path); } catch(_) {}
+  _noteDispatchRoute(txn.path, 'confirmed');
   Timeline.record('send_confirmed', {
     command: txn.id.slice(0, 8),
     round: L.round,
@@ -2854,10 +3098,22 @@ function _markSendUncertain() {
   txn.uncertainAt = Date.now();
   L.sendPending = false;
   L.sendDeadline = 0;
+  _noteDispatchRoute(txn.path, 'uncertain');
+  const postInput = Adapter.peekInput();
+  const postSend = Adapter.getSendBtn();
+  const postUserCount = Array.isArray(PLAT.user) ? _qAll(PLAT.user).length : null;
   Timeline.record('send_uncertain', {
     code: 'SEND-002',
     command: txn.id.slice(0, 8),
-    round: L.round
+    round: L.round,
+    path: txn.path,
+    route: txn.route,
+    composer_present: !!postInput,
+    composer_connected: !!postInput && postInput.isConnected !== false,
+    send_present: !!postSend,
+    send_connected: !!postSend && postSend.isConnected !== false,
+    user_delta: Number.isFinite(txn.userCount) && Number.isFinite(postUserCount) ? postUserCount - txn.userCount : null,
+    trusted_pulse_age_ms: GITL_NET.lastPulseT ? Math.max(0, Date.now() - GITL_NET.lastPulseT) : null
   });
   _setLoopPhase('error','Send could not be confirmed');
   Reporter.capture('SEND-002', 'Send could not be confirmed. Nothing was resent.');
@@ -2876,6 +3132,7 @@ function reconcileUncertainSend(delivered) {
   if (!delivered) {
     txn.state = 'failed';
     txn.reconciledAt = Date.now();
+    _noteDispatchRoute(txn.path, 'failed');
     L.detail = 'Prompt left in the composer — use the site’s Send button manually.';
     Timeline.record('send_reconciled', { command: txn.id.slice(0, 8), delivered: false });
     render();
@@ -2883,6 +3140,7 @@ function reconcileUncertainSend(delivered) {
   }
   txn.state = 'committed';
   txn.evidence = 'human-confirmed';
+  _noteDispatchRoute(txn.path, 'confirmed');
   txn.committedAt = Date.now();
   L.round++;
   L.lastActivity = Date.now();
@@ -3259,6 +3517,17 @@ function startLoop() {
   // Mark first run done
   if (GHOST.ui.firstRun) { GHOST.ui.firstRun = false; _save('firstRun', false); }
 
+  // 8.8.5: COMPOSER-002/SEND-001 before dispatch is known NOT SENT. Resume
+  // retries that exact volatile command once through the selected route. No
+  // post-dispatch/uncertain transaction can reach this path.
+  if (L.state === 'PAUSED' && _pendingPreDispatch && L.sendTxn?.state !== 'uncertain') {
+    const pending = _pendingPreDispatch;
+    L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = 'Retrying safe pre-send step…';
+    render();
+    engineSend(pending.text, true);
+    return;
+  }
+
   // Case 1: resume from pause
   if (!L.needsPayload) {
     L.state = 'RUNNING'; L.lastActivity = Date.now(); L.detail = '';
@@ -3344,6 +3613,7 @@ function resetLoop() {
   L.originalTask = '';
   L.lastSignal = 'none'; L.lastConfidence = 0; L.needsPayload = true; L.detail = '';
   L.sendPending = false; L.sendDeadline = 0; L.sendTxn = null;
+  _pendingPreDispatch = null;
   GHOST.persona._reviewDone = false;
   GHOST.persona._delivered = false;
   Ticker.stop(); L.timer = null;
@@ -5446,6 +5716,7 @@ function renderRunTab() {
     ${L.state==='LIMIT' ? `<div class="g-limit"><div class="g-limit-h">⏸ Drift checkpoint — ${L.maxRounds} auto-continues reached</div><div class="g-limit-b">A grounding pause so the run cannot wander off-task unattended.</div><div class="g-limit-btns"><button class="g-btn go pulse" id="g-limit-go">▶ Continue ${L.limitStep} more</button><button class="g-btn rg" id="g-limit-reground">⊕ Reground</button><button class="g-btn st" id="g-limit-wait">✋ Stop &amp; wait</button></div></div>` : ''}
     <div class="g-mod g-mod-transport">
       <div class="g-mod-h"><span class="g-mod-i">🎛</span>Transport<span class="g-mod-x" style="color:${statColor()}">${_esc(statLabel())}</span></div>
+    ${_renderSendRouteControls()}
     <div class="g-btns">
       <button class="g-btn go${L.state==='LIMIT'?' pulse':''}" id="g-play" title="${L.state==='RUNNING'?'Pause auto-continue':'Start / Resume'} (Alt+P)">${L.state==='RUNNING'?'⏸ Pause':L.state==='CHOICE'?'▶ Send choice':L.state==='LIMIT'?'▶ Continue':L.state==='PAUSED'?'▶ Resume':'▶ Start'}</button>
       <button class="g-btn st${idle?' g-dim':''}" id="g-stop" title="Stop automation and preserve progress (Alt+S)">■ Stop</button>
@@ -6073,6 +6344,9 @@ function bindEvents() {
   }));
   $('#g-posture-help')?.addEventListener('click', () => { GHOST.ui.prevTab=GHOST.ui.tab; GHOST.ui.helpSec='posture'; GHOST.ui.tab='info'; render(); });
   $('#g-play')?.addEventListener('click', primaryAction);
+  $$('[data-g-send-route]').forEach(btn => btn.addEventListener('click', () => {
+    if (_setSendRoutePref(btn.dataset.gSendRoute)) render();
+  }));
   $('#g-repair-resume')?.addEventListener('click', repairAndResume);
   $('#g-limit-go')?.addEventListener('click', extendLimit);
   $('#g-limit-reground')?.addEventListener('click', regroundLoop);

@@ -14,6 +14,18 @@ const RAW = fs.readFileSync(path.join(__dirname, '../../ghost-in-the-loop.user.j
 
 const EXPOSE = `
   window.__GITL_ReviewedSend = () => _reviewedSend();
+  window.__GITL_TestRoute = (round) => {
+    const input = Adapter.getInput();
+    const strategy = _selectDispatchStrategy(input, round);
+    return { path: strategy?.path || null, route: strategy?.route || null, manual: !!strategy?.manual, preflight: strategy?.preflight || null };
+  };
+  window.__GITL_TestRunRoute = (round) => {
+    const input = Adapter.getInput();
+    const strategy = _selectDispatchStrategy(input, round);
+    if (!strategy || strategy.manual || typeof strategy.run !== 'function') return { path: strategy?.path || null, ran: false };
+    strategy.run();
+    return { path: strategy.path, ran: true };
+  };
 `;
 
 const SCRIPT = /\n\} catch\(__gitlBootErr\)/.test(RAW)
@@ -74,12 +86,17 @@ const FIXTURE = `<!doctype html>
 </body>
 </html>`;
 
-async function boot(page) {
+async function boot(page, options = {}) {
   await page.route('https://chatgpt.com/**', route => route.fulfill({
     status: 200,
     contentType: 'text/html',
     body: FIXTURE
   }));
+  if (options.firefoxAndroid) {
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'userAgent', { configurable: true, get: () => 'Mozilla/5.0 (Android 16; Mobile; rv:155.0) Gecko/155.0 Firefox/155.0' });
+    });
+  }
   await page.addInitScript(GM);
   await page.addInitScript(SCRIPT);
   await page.goto('https://chatgpt.com/gitl-regression#field-probe');
@@ -137,6 +154,56 @@ test.describe('ChatGPT 8.8 regression fixture', () => {
     });
 
     expect(result).toEqual({ resolved: false, sendClicks: 0, submits: 0 });
+  });
+
+
+  test('Firefox Android uses a fresh distinct route on the second identical send after composer replacement', async ({ page }) => {
+    await boot(page, { firefoxAndroid: true });
+    await page.locator('#composer-submit-button').scrollIntoViewIfNeeded();
+
+    await page.evaluate(() => {
+      const input = document.getElementById('prompt-textarea');
+      input.textContent = 'Continue.';
+      input.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:'Continue.' }));
+    });
+
+    const first = await page.evaluate(() => window.__GITL_TestRoute(0));
+    expect(first.path).toBe('alpha-click');
+    expect(first.preflight.sendConnected).toBe(true);
+    const firstRun = await page.evaluate(() => window.__GITL_TestRunRoute(0));
+    expect(firstRun).toEqual({ path:'alpha-click', ran:true });
+
+    const beforeReplacement = await page.evaluate(() => ({ ...window.__hostProbe }));
+    await page.evaluate(() => {
+      const oldForm = document.getElementById('composer');
+      const freshForm = oldForm.cloneNode(true);
+      oldForm.replaceWith(freshForm);
+      const form = document.getElementById('composer');
+      const button = document.getElementById('composer-submit-button');
+      form.addEventListener('submit', (event) => {
+        window.__hostProbe.submits += 1;
+        event.preventDefault();
+      });
+      button.addEventListener('click', () => { window.__hostProbe.sendClicks += 1; });
+      const input = document.getElementById('prompt-textarea');
+      input.textContent = 'Continue.';
+      input.dispatchEvent(new InputEvent('input', { bubbles:true, inputType:'insertText', data:'Continue.' }));
+    });
+
+    const second = await page.evaluate(() => window.__GITL_TestRoute(1));
+    expect(second.path).toBe('beta-request-submit');
+    expect(second.preflight.sendConnected).toBe(true);
+    expect(second.preflight.sameForm).toBe(true);
+    expect(second.preflight.canRequestSubmit).toBe(true);
+    const secondRun = await page.evaluate(() => window.__GITL_TestRunRoute(1));
+    expect(secondRun).toEqual({ path:'beta-request-submit', ran:true });
+
+    const third = await page.evaluate(() => window.__GITL_TestRoute(2));
+    expect(third.path).toBe('gamma-enter');
+
+    const after = await page.evaluate(() => ({ ...window.__hostProbe }));
+    expect(after.sendClicks).toBeGreaterThanOrEqual(beforeReplacement.sendClicks);
+    expect(after.submits).toBeGreaterThan(beforeReplacement.submits);
   });
 
   test('Adaptive and committee controls mutate Ghost only, without form, URL, hash, or scroll side effects', async ({ page }) => {
