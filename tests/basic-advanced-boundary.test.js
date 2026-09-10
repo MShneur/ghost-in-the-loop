@@ -40,8 +40,8 @@ describe('Basic is neutral and Advanced is additive', () => {
   });
 
   test('committee P shortcut is Advanced-only and exact-P only', () => {
-    expect(SRC).toContain('if (GHOST.ui.committeeProceed) out += COMMITTEE_P_SHORTCUT;');
-    expect(SRC).toContain("advancedRunOn() && GHOST.ui.committeeProceed && /^p$/i.test(typed)");
+    expect(SRC).toContain('if (_committeeCommitPrepared()) out += COMMITTEE_P_SHORTCUT;');
+    expect(SRC).toContain("_committeeCommitPrepared() && /^p$/i.test(typed)");
     expect(SRC).toContain('Recommended by committee');
   });
 
