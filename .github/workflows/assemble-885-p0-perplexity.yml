@@ -40,6 +40,9 @@ jobs:
       - name: Regenerate Firefox extension
         run: npm run build:extension
 
+      - name: Refresh candidate identity for assembled bytes
+        run: npm run identity:write
+
       - name: Check userscript syntax
         id: userscript_syntax
         shell: bash
@@ -99,7 +102,7 @@ jobs:
       - name: Commit certified candidate bytes to isolated branch
         shell: bash
         run: |
-          git add ghost-in-the-loop.user.js extension/content.js extension/manifest.json package.json package-lock.json CHANGELOG.md .gitl/autopilot-state.json tests/send-router-885.test.js tests/perplexity-fallback-885.test.js tests/e2e/chatgpt-live-regression.spec.js
+          git add ghost-in-the-loop.user.js extension/content.js extension/manifest.json package.json package-lock.json CHANGELOG.md .gitl/autopilot-state.json .gitl/evidence/round-7/candidate-identity.json tests/send-router-885.test.js tests/perplexity-fallback-885.test.js tests/e2e/chatgpt-live-regression.spec.js
           if git diff --cached --quiet; then
             echo 'No generated candidate changes.'
             exit 0
