@@ -39,11 +39,14 @@ describe('dispatch authority', () => {
 
 describe('send transaction', () => {
   const send = body('engineSend', '_confirmSend');
+  const router = body('_selectDispatchStrategy', 'engineSend');
   const confirm = body('_confirmSend', '_markSendUncertain');
 
-  test('one transaction authorizes exactly one dispatch invocation', () => {
-    expect((send.match(/\.click\(\)/g) || []).length).toBe(1);
+  test('one transaction authorizes exactly one preselected dispatch invocation', () => {
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
+    expect((router.match(/button\.click\(\)/g) || []).length).toBe(1);
+    expect((router.match(/form\.requestSubmit\(button\)/g) || []).length).toBe(1);
+    expect((router.match(/new KeyboardEvent\('keydown'/g) || []).length).toBe(1);
     expect(send).not.toContain('send_escalate');
     expect(send).not.toContain('reviewed-paragraph');
     expect(send).not.toContain('reviewed-form');
@@ -51,12 +54,11 @@ describe('send transaction', () => {
 
   test('strategy selection is complete before transaction creation', () => {
     const evidence = send.indexOf('const staged = await _awaitStagedComposer(input, text)');
-    const strategy = send.indexOf('const strategy = btn ?');
-    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput)');
+    const strategy = send.indexOf('const strategy = _selectDispatchStrategy(stagedInput);');
+    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput');
     const dispatch = send.indexOf('strategy.run()');
     expect(evidence).toBeGreaterThan(-1);
     expect(strategy).toBeGreaterThan(evidence);
-    expect(strategy).toBeGreaterThan(-1);
     expect(begin).toBeGreaterThan(strategy);
     expect(dispatch).toBeGreaterThan(begin);
   });
