@@ -63,7 +63,23 @@ jobs:
         run: node --check extension/content.js
 
       - name: Run unit tests
-        run: npm run test:unit
+        id: unit
+        shell: bash
+        run: |
+          set +e
+          npm run test:unit > unit.log 2>&1
+          status=$?
+          cat unit.log
+          exit $status
+
+      - name: Upload unit diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 885-unit-log
+          path: unit.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Verify generated extension parity
         run: npm run check:generated
