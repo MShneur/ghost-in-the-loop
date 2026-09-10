@@ -40,12 +40,39 @@ jobs:
       - name: Regenerate Firefox extension
         run: npm run build:extension
 
-      - name: Syntax and unit gates
+      - name: Check userscript syntax
+        id: userscript_syntax
+        shell: bash
         run: |
-          npm run lint
-          npm run test:unit
-          npm run check:generated
-          git diff --check
+          set +e
+          node --check ghost-in-the-loop.user.js > userscript-syntax.log 2>&1
+          status=$?
+          cat userscript-syntax.log
+          exit $status
+
+      - name: Upload syntax diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 885-userscript-syntax
+          path: userscript-syntax.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Check extension syntax
+        run: node --check extension/content.js
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Verify generated extension parity
+        run: npm run check:generated
+
+      - name: Diff whitespace check
+        run: git diff --check
+
+      - name: Certify extension
+        run: node scripts/certify-extension.js
 
       - name: Install Chromium and Firefox
         run: npx playwright install --with-deps chromium firefox
