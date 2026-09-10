@@ -1,5 +1,5 @@
 /**
- * SINGLE-DISPATCH SELECTION (v8.5.3 item 2)
+ * SINGLE-DISPATCH SELECTION (8.8.5)
  *
  * A transaction selects one reviewed dispatch mechanism before the journal
  * opens. Once dispatch begins, Ghost may observe, confirm, or pause uncertain;
@@ -17,6 +17,7 @@ function body(name, nextName) {
 
 describe('single reviewed dispatch selection', () => {
   const send = body('engineSend', '_confirmSend');
+  const router = body('_selectDispatchStrategy', 'engineSend');
 
   test('the buttonless reviewed Enter fallback is opt-in per adapter (Perplexity + ChatGPT)', () => {
     const perpStart = src.indexOf("perplexity: {");
@@ -27,34 +28,35 @@ describe('single reviewed dispatch selection', () => {
     const cg = src.slice(cgStart, src.indexOf("\n  perplexity:", cgStart));
     expect(cg).toContain("dispatchFallback: 'enter'");
 
-    // Still explicit opt-in — declared only by adapters that submit on Enter,
-    // never a universal default. (Both composers are Enter-to-send.)
     expect((src.match(/dispatchFallback:\s*'enter'/g) || []).length).toBe(2);
   });
 
   test('selects the mechanism before opening the transaction journal', () => {
-    const selectAt = send.indexOf('const strategy = btn ?');
-    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput)');
+    const selectAt = send.indexOf('const strategy = _selectDispatchStrategy(stagedInput);');
+    const beginAt = send.indexOf('const completion = _beginSendAttempt(strategy.path, stagedInput');
     const runAt = send.indexOf('strategy.run()');
     expect(selectAt).toBeGreaterThan(-1);
     expect(beginAt).toBeGreaterThan(selectAt);
     expect(runAt).toBeGreaterThan(beginAt);
   });
 
-  test('button wins; Enter is used only when the reviewed adapter opts in', () => {
-    expect(send).toContain("path: 'reviewed-button'");
-    expect(send).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
-    expect(send).toContain("path: 'reviewed-enter'");
-    expect(send).toContain("new KeyboardEvent('keydown'");
-    expect(send).not.toContain("new KeyboardEvent('keypress'");
-    expect(send).not.toContain("new KeyboardEvent('keyup'");
+  test('Alpha, Beta, and Gamma are genuinely different preselected mechanisms', () => {
+    expect(router).toContain("path: 'alpha-click'");
+    expect(router).toContain('button.click()');
+    expect(router).toContain("path: 'beta-request-submit'");
+    expect(router).toContain('form.requestSubmit(button)');
+    expect(router).toContain("PLAT?.reviewed && PLAT.dispatchFallback === 'enter'");
+    expect(router).toContain("path: 'gamma-enter'");
+    expect(router).toContain("new KeyboardEvent('keydown'");
+    expect(router).not.toContain("new KeyboardEvent('keypress'");
+    expect(router).not.toContain("new KeyboardEvent('keyup'");
   });
 
   test('contains no post-begin fallback or actuator escalation', () => {
     expect(send).not.toContain('reviewed-paragraph');
     expect(send).not.toContain('reviewed-form');
     expect(send).not.toContain('send_escalate');
-    expect(send).not.toContain('requestSubmit');
+    expect(send).not.toContain('form.requestSubmit(button)');
     expect(send).not.toMatch(/for\s*\([^)]*tiers/);
     expect((send.match(/strategy\.run\(\)/g) || []).length).toBe(1);
   });
@@ -68,14 +70,14 @@ describe('single reviewed dispatch selection', () => {
     expect(send.slice(catchAt, uncertainAt + 22)).not.toContain('Adapter.getSendBtn');
   });
 
-  test('no strategy leaves the injected prompt for manual review before a transaction starts', () => {
-    const noStrategyAt = send.indexOf('if (!strategy)');
-    // Target the actual CALL, not the earlier explanatory comment that also
-    // mentions _beginSendAttempt() (the loose search matched the comment).
+  test('blocked or Delta routes leave the staged prompt before any transaction starts', () => {
+    const noStrategyAt = send.indexOf('if (!strategy || strategy.blocked)');
+    const manualAt = send.indexOf('if (strategy.manual)');
     const beginAt = send.indexOf('const completion = _beginSendAttempt(');
     expect(noStrategyAt).toBeGreaterThan(-1);
-    expect(beginAt).toBeGreaterThan(-1);
-    expect(noStrategyAt).toBeLessThan(beginAt);
-    expect(send).toContain('No safe Send mechanism — prompt left for manual review');
+    expect(manualAt).toBeGreaterThan(noStrategyAt);
+    expect(beginAt).toBeGreaterThan(manualAt);
+    expect(send).toContain('The selected Send method is not available on the current live composer. Nothing was sent.');
+    expect(send).toContain('Delta/manual — prompt staged; tap the site Send button once');
   });
 });
