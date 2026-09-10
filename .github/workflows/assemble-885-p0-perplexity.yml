@@ -8,6 +8,7 @@ on:
       - scripts/apply-885-send-router.mjs
       - scripts/apply-885-perplexity-ui.mjs
       - scripts/run-885-perplexity-assembler.mjs
+      - tests/e2e/repo-nanny/send-evidence.spec.js
       - .github/workflows/assemble-885-p0-perplexity.yml
 
 permissions:
