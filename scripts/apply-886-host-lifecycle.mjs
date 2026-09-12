@@ -75,6 +75,18 @@ function _hostLifecycleRouteChanged(reason = 'spa') {
   return true;
 }
 
+function _hostLifecycleMutationRelevant(records) {
+  const current = HOST_LIFECYCLE.composer;
+  if (!current || current.isConnected === false) return true;
+  for (const record of records || []) {
+    for (const node of record.removedNodes || []) {
+      if (node === current) return true;
+      if (typeof node?.contains === 'function' && node.contains(current)) return true;
+    }
+  }
+  return false;
+}
+
 function _hostLifecycleSchedule(reason = 'mutation') {
   if (HOST_LIFECYCLE.pending) return;
   HOST_LIFECYCLE.pending = true;
@@ -87,15 +99,19 @@ function _hostLifecycleSchedule(reason = 'mutation') {
   else Promise.resolve().then(run);
 }
 
+function _hostLifecycleObserve() {
+  if (HOST_LIFECYCLE.observer || typeof MutationObserver !== 'function' || !document.documentElement) return;
+  HOST_LIFECYCLE.observer = new MutationObserver((records) => {
+    if (_hostLifecycleMutationRelevant(records)) _hostLifecycleSchedule('mutation');
+  });
+  HOST_LIFECYCLE.observer.observe(document.documentElement, { childList: true, subtree: true });
+}
+
 function startHostLifecycleController() {
   if (HOST_LIFECYCLE.started) return;
   HOST_LIFECYCLE.started = true;
   HOST_LIFECYCLE.composer = Adapter.peekInput() || null;
-
-  if (typeof MutationObserver === 'function' && document.documentElement) {
-    HOST_LIFECYCLE.observer = new MutationObserver(() => _hostLifecycleSchedule('mutation'));
-    HOST_LIFECYCLE.observer.observe(document.documentElement, { childList: true, subtree: true });
-  }
+  _hostLifecycleObserve();
 
   for (const name of ['popstate', 'hashchange']) {
     window.addEventListener(name, () => _hostLifecycleSchedule('spa'), { passive: true });
@@ -116,13 +132,18 @@ function startHostLifecycleController() {
   window.addEventListener('pagehide', () => {
     try { HOST_LIFECYCLE.observer?.disconnect(); } catch(_) {}
     HOST_LIFECYCLE.observer = null;
-    HOST_LIFECYCLE.started = false;
-  }, { once: true });
+  });
+  window.addEventListener('pageshow', () => {
+    if (!HOST_LIFECYCLE.started) return;
+    HOST_LIFECYCLE.composer = Adapter.peekInput() || null;
+    _hostLifecycleObserve();
+    _hostLifecycleSchedule('pageshow');
+  });
 }
 
-async function _verifyLifecycleComposer(stagedInput, expectedText) {
+async function _verifyLifecycleComposer(expectedText) {
   const before = _hostLifecycleRefresh('pre-dispatch');
-  const current = before.input || stagedInput;
+  const current = before.input;
   if (!current || current.isConnected === false) {
     _hostLifecycleRecord('pre-dispatch-failure', {
       composerReplaced: true,
@@ -143,6 +164,7 @@ async function _verifyLifecycleComposer(stagedInput, expectedText) {
   }
   return {
     ...staged,
+    input: current,
     replaced: !!(before.replaced || staged.replaced),
     epoch: HOST_LIFECYCLE.epoch,
     routeEpoch: HOST_LIFECYCLE.routeEpoch,
@@ -163,8 +185,15 @@ src = replaceOne(
 src = replaceOne(
   src,
   'const finalStage = await _awaitStagedComposer(stagedInput, text, 1200);',
-  'const finalStage = await _verifyLifecycleComposer(stagedInput, text);',
+  'const finalStage = await _verifyLifecycleComposer(text);',
   'pre-dispatch lifecycle verification'
+);
+
+src = replaceOne(
+  src,
+  'const strategy = _selectDispatchStrategy(stagedInput);',
+  'const dispatchInput = finalStage.input;\n    const strategy = _selectDispatchStrategy(dispatchInput);',
+  'route selection uses verified live composer'
 );
 
 src = replaceOne(
@@ -187,7 +216,7 @@ manifest.version = '8.8.6';
 write('extension/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
 
 let changelog = read('CHANGELOG.md');
-const entry = `## [8.8.6] — host lifecycle and composer remount hardening\n\n- Add a read-only host lifecycle controller that observes composer subtree replacement and SPA navigation without gaining Send authority.\n- Reacquire and re-verify the exact staged composer immediately before the existing 8.8.5 route-selection boundary. If the live editor cannot prove the intended text, fail before dispatch.\n- Reset bounded lifecycle state on SPA route changes and clean up the mutation observer on pagehide.\n- Record redacted lifecycle epoch/remount/route-change metadata and exact pre-dispatch lifecycle failure stage without prompts, selectors, URLs, conversation IDs, or user-agent strings.\n- Preserve Perplexity single-write staging and the 8.8.5 at-most-once rule: after an actuator may have fired or delivery is ambiguous, no second automatic actuator is attempted.\n\n`;
+const entry = `## [8.8.6] — host lifecycle and composer remount hardening\n\n- Add a read-only host lifecycle controller that observes composer subtree replacement and SPA navigation without gaining Send authority.\n- Reacquire and re-verify the live composer immediately before the existing 8.8.5 route-selection boundary, and use only that verified live node for route selection. If reacquisition cannot prove the intended text, fail before dispatch rather than falling back to a stale node.\n- Filter unrelated long-chat DOM mutations, reset bounded host state on SPA changes, and restore observation after bfcache/pageshow without duplicating listeners.\n- Record redacted lifecycle epoch/remount/route-change metadata and exact pre-dispatch lifecycle failure stage without prompts, selectors, URLs, conversation IDs, or user-agent strings.\n- Preserve Perplexity single-write staging and the 8.8.5 at-most-once rule: after an actuator may have fired or delivery is ambiguous, no second automatic actuator is attempted.\n\n`;
 if (!changelog.includes('## [8.8.6]')) changelog = changelog.replace(/^# Changelog\s*\n/, m => m + '\n' + entry);
 write('CHANGELOG.md', changelog);
 
