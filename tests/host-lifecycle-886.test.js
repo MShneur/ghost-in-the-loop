@@ -23,12 +23,13 @@ describe('8.8.6 host lifecycle hardening', () => {
     expect(block).not.toContain("KeyboardEvent('keydown'");
   });
 
-  test('reacquires and verifies composer before route selection', () => {
-    const send = between('async function engineSend(text, skipDelay)', 'function _beginSendAttempt');
-    const verify = send.indexOf('const finalStage = await _verifyLifecycleComposer(stagedInput, text);');
-    const select = send.indexOf('const strategy = _selectDispatchStrategy(stagedInput);');
-    const begin = send.indexOf('const completion = _beginSendAttempt(strategy.path');
-    expect(verify).toBeGreaterThan(-1);
+  test('reacquires and verifies composer before route selection and transaction start', () => {
+    const engine = src.indexOf('async function engineSend(text, skipDelay)');
+    const verify = src.indexOf('const finalStage = await _verifyLifecycleComposer(stagedInput, text);', engine);
+    const select = src.indexOf('const strategy = _selectDispatchStrategy(stagedInput);', engine);
+    const begin = src.indexOf('const completion = _beginSendAttempt(strategy.path', engine);
+    expect(engine).toBeGreaterThan(-1);
+    expect(verify).toBeGreaterThan(engine);
     expect(select).toBeGreaterThan(verify);
     expect(begin).toBeGreaterThan(select);
   });
@@ -42,6 +43,7 @@ describe('8.8.6 host lifecycle hardening', () => {
     expect(postBoundary).not.toContain('_selectDispatchStrategy(');
     expect(postBoundary).not.toContain('button.click()');
     expect(postBoundary).not.toContain('requestSubmit(');
+    expect(postBoundary).not.toContain("KeyboardEvent('keydown'");
   });
 
   test('keeps Perplexity single-write guard present', () => {
@@ -49,9 +51,11 @@ describe('8.8.6 host lifecycle hardening', () => {
     expect(src).toContain('data-less compatibility signalling');
   });
 
-  test('lifecycle telemetry is metadata only', () => {
+  test('lifecycle failure telemetry names exact pre-dispatch stage without prompt data', () => {
     const block = between('function _hostLifecycleRecord', 'function _hostLifecycleRefresh');
     expect(block).toContain("Timeline.record('host_lifecycle'");
+    expect(block).toContain('failure_stage');
+    expect(block).toContain('failure_code');
     expect(block).not.toContain('expectedText');
     expect(block).not.toContain('location.href');
     expect(block).not.toContain('selector');
