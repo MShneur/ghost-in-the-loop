@@ -1,0 +1,84 @@
+name: Assemble and certify 8.8.6 host lifecycle
+
+on:
+  push:
+    branches:
+      - candidate/8.8.6-host-lifecycle-hardening
+    paths:
+      - scripts/apply-886-host-lifecycle.mjs
+      - tests/host-lifecycle-886.test.js
+      - .github/workflows/assemble-886-host-lifecycle.yml
+      - docs/research/8.8.6-host-lifecycle-hardening.md
+
+permissions:
+  contents: write
+
+jobs:
+  assemble-and-certify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply 8.8.6 host lifecycle hardening
+        run: node scripts/apply-886-host-lifecycle.mjs
+
+      - name: Regenerate Firefox extension
+        run: npm run build:extension
+
+      - name: Refresh candidate identity
+        run: npm run identity:write
+
+      - name: Syntax and lint
+        run: npm run lint
+
+      - name: Host lifecycle focused tests
+        run: npx jest tests/host-lifecycle-886.test.js tests/send-router-885.test.js tests/perplexity-fallback-885.test.js tests/sendtransaction.test.js --runInBand
+
+      - name: Full unit tests
+        run: npm run test:unit
+
+      - name: Verify generated extension parity
+        run: npm run check:generated
+
+      - name: Commit whitespace check
+        run: git diff --check
+
+      - name: Base certification
+        run: npm run cert:base
+
+      - name: Build identity
+        run: npm run identity:check
+
+      - name: Package candidate
+        run: npm run package:oracle
+
+      - name: Install Chromium and Firefox
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Browser certification
+        run: npm run test:e2e
+
+      - name: Commit certified candidate bytes to isolated branch
+        shell: bash
+        run: |
+          git add ghost-in-the-loop.user.js extension/content.js extension/manifest.json package.json package-lock.json CHANGELOG.md .gitl/evidence/round-7/candidate-identity.json
+          if git diff --cached --quiet; then
+            echo 'No generated candidate changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: assemble certified 8.8.6 host lifecycle candidate [assembled-886]'
+          git push origin HEAD:candidate/8.8.6-host-lifecycle-hardening
