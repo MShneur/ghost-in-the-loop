@@ -70,7 +70,7 @@ const S={mode:'IDLE',detail:'Ready',round:0,max:+GM_getValue('v9.max',25)||25,se
 const ON={}; Object.keys(ACT).forEach(k=>ON[k]=!!GM_getValue(`v9.act.${k}`,false));
 let custom=String(GM_getValue('v9.custom','')||'');
 
-const clean=s=>String(s||'').replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim();
+const clean=s=>String(s||'').replace(/\u00a0/g,' ').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const visible=e=>!!e&&e.isConnected&&!e.disabled&&e.getAttribute('aria-disabled')!=='true'&&!!(e.offsetWidth||e.offsetHeight||e.getClientRects().length);
 function qs(list,root=document){for(const s of list||[]){try{const e=[...root.querySelectorAll(s)].find(visible);if(e)return e}catch(_){}}return null}
