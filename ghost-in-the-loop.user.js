@@ -152,14 +152,26 @@ function finalLine(text) {
   const lines = String(text || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
   return lines.length ? lines[lines.length - 1] : '';
 }
+function terminalCandidate(text) {
+  const source = String(text || '').trim();
+  const line = finalLine(source);
+  const exact = [G.proceed, G.human, G.halt, A.proceed, A.human, A.halt];
+  if (exact.includes(line) || /^\[\[AOA::RELAY:([^\]\r\n]{1,80})\]\]$/.test(line)) {
+    return { raw: line || '(empty)', normalized: false };
+  }
+  const suffix = source.match(/(?:^|\s)(\[\[(?:GITL::(?:PROCEED|HUMAN|HALT)|AOA::(?:CONTINUE|HUMAN|HALT)|AOA::RELAY:[^\]\r\n]{1,80})\]\])\s*$/);
+  if (suffix) return { raw: suffix[1], normalized: true };
+  return { raw: line || '(empty)', normalized: false };
+}
 function terminal(text) {
-  const line = finalLine(text);
-  if (line === G.proceed || line === A.proceed) return { type: 'proceed', raw: line };
-  if (line === G.human || line === A.human) return { type: 'human', raw: line };
-  if (line === G.halt || line === A.halt) return { type: 'halt', raw: line };
+  const candidate = terminalCandidate(text);
+  const line = candidate.raw;
+  if (line === G.proceed || line === A.proceed) return { type: 'proceed', raw: line, normalized: candidate.normalized };
+  if (line === G.human || line === A.human) return { type: 'human', raw: line, normalized: candidate.normalized };
+  if (line === G.halt || line === A.halt) return { type: 'halt', raw: line, normalized: candidate.normalized };
   const relay = line.match(/^\[\[AOA::RELAY:([^\]\r\n]{1,80})\]\]$/);
-  if (relay) return { type: 'relay', raw: line, model: relay[1].trim() };
-  return { type: 'bad', raw: line || '(empty)' };
+  if (relay) return { type: 'relay', raw: line, model: relay[1].trim(), normalized: candidate.normalized };
+  return { type: 'bad', raw: line || '(empty)', normalized: false };
 }
 function log(type, data = {}) {
   S.events.push({ at: new Date().toISOString(), type, data });
@@ -324,6 +336,7 @@ async function handleTerminal(text, parsed) {
   const fp = hash(text);
   if (!text || fp === S.lastHandled || S.mode !== 'RUNNING' || S.sending) return;
   S.lastHandled = fp;
+  if (parsed.normalized) log('terminal-normalized', { type: parsed.type });
   if (parsed.type === 'halt') {
     S.drift = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.'); return;
   }
