@@ -45,6 +45,9 @@ const STALL_GRACE_MS = 2 * 60 * 1000;
 const STOP_CONFIRM_MS = 5000;
 const STOP_RETRY_DELAY_MS = 1500;
 const STOP_MAX_ATTEMPTS = 3;
+const TOP_MAX_PASSES = 24;
+const TOP_WAIT_MS = 500;
+const TOP_STABLE_PASSES = 2;
 
 const G = Object.freeze({
   proceed: '[[GITL::PROCEED]]',
@@ -106,6 +109,7 @@ const S = {
   drift: 0, bootstrapped: false, relay: '', timer: null,
   generationStartedAt: 0, lastProgressAt: 0, lastProgressFingerprint: '',
   stallState: 'IDLE', stopAttempts: 0, recoveryCount: 0, watchdogBusy: false,
+  topBusy: false,
   tab: String(GM_getValue('v9.tab', 'play') || 'play'), events: [], lastError: null
 };
 const ON = {};
@@ -540,6 +544,98 @@ function stop() {
 }
 function complete(detail) { S.mode = 'COMPLETE'; S.detail = detail; clearGenerationWatchdog(); clearInterval(S.timer); S.timer = null; render(); }
 
+function conversationNodes() {
+  return queryAll([...(HOST.user || []), ...(HOST.assistant || [])]).filter(el => el.isConnected);
+}
+function scrollableConversationAncestor() {
+  const nodes = conversationNodes();
+  const anchor = nodes[0] || nodes[nodes.length - 1];
+  if (!anchor) return null;
+  for (let el = anchor.parentElement, depth = 0; el && depth < 14; el = el.parentElement, depth++) {
+    if (el === panel || el === document.body || el === document.documentElement) continue;
+    try {
+      const style = getComputedStyle(el);
+      const overflowY = style.overflowY;
+      if (/(auto|scroll|overlay)/.test(overflowY) && el.scrollHeight > el.clientHeight + 8) return el;
+    } catch (_) {}
+  }
+  return null;
+}
+function conversationScrollContainer() {
+  const ancestor = scrollableConversationAncestor();
+  if (ancestor) return ancestor;
+  const preferred = HOST.id === 'chatgpt'
+    ? ['main', '[role="main"]']
+    : HOST.id === 'perplexity'
+      ? ['main', '[role="main"]']
+      : ['main', '[role="main"]'];
+  for (const selector of preferred) {
+    let el = null;
+    try { el = document.querySelector(selector); } catch (_) {}
+    if (!el || el === panel) continue;
+    try {
+      const style = getComputedStyle(el);
+      if (/(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 8) return el;
+    } catch (_) {}
+  }
+  return document.scrollingElement || document.documentElement;
+}
+function topScrollPosition(scroller) {
+  if (!scroller || scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) {
+    return window.scrollY || document.documentElement.scrollTop || document.body?.scrollTop || 0;
+  }
+  return scroller.scrollTop || 0;
+}
+function topSnapshot(scroller) {
+  const nodes = conversationNodes();
+  const first = nodes[0];
+  const extent = (!scroller || scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body)
+    ? Math.max(document.documentElement.scrollHeight || 0, document.body?.scrollHeight || 0)
+    : scroller.scrollHeight || 0;
+  return `${nodes.length}:${extent}:${hash(nodeText(first || ''))}`;
+}
+function scrollContainerToTop(scroller) {
+  if (!scroller || scroller === document.scrollingElement || scroller === document.documentElement || scroller === document.body) {
+    window.scrollTo(0, 0);
+    return;
+  }
+  try { scroller.scrollTo({ top: 0, left: scroller.scrollLeft || 0, behavior: 'auto' }); }
+  catch (_) { scroller.scrollTop = 0; }
+}
+async function goTop() {
+  if (S.mode === 'RUNNING' || S.sending || S.watchdogBusy || S.topBusy) {
+    S.detail = 'Pause Play before using ↑ Top.'; render(); return false;
+  }
+  S.topBusy = true;
+  const beforeUrl = location.href;
+  const scroller = conversationScrollContainer();
+  let previous = '';
+  let stable = 0;
+  let passes = 0;
+  try {
+    for (passes = 0; passes < TOP_MAX_PASSES; passes++) {
+      S.detail = passes ? 'Loading older chat…' : 'Going to first prompt…'; render();
+      const before = topSnapshot(scroller);
+      scrollContainerToTop(scroller);
+      await sleep(TOP_WAIT_MS);
+      const after = topSnapshot(scroller);
+      const atTop = topScrollPosition(scroller) <= 2;
+      if (atTop && after === before && after === previous) stable += 1;
+      else stable = 0;
+      previous = after;
+      if (stable >= TOP_STABLE_PASSES) break;
+    }
+    scrollContainerToTop(scroller);
+    if (location.href !== beforeUrl) log('top-url-changed-external', { before: beforeUrl, after: location.href });
+    S.detail = 'At top';
+    log('top-navigation', { host: HOST.id, passes: Math.min(passes + 1, TOP_MAX_PASSES) });
+    render();
+    return true;
+  } finally {
+    S.topBusy = false;
+  }
+}
+
 function domTurns() {
   const rows = [];
   if (HOST.id === 'chatgpt') {
@@ -630,7 +726,7 @@ function report() {
     product: 'Ghost in the Loop', version: VER, platform: HOST.id, state: S.mode, round: S.round, maxRounds: S.max,
     sending: S.sending, uncertain: S.uncertain, driftCount: S.drift,
     watchdog: { state: S.stallState, stopAttempts: S.stopAttempts, recoveryCount: S.recoveryCount, lastProgressAt: S.lastProgressAt || null },
-    capabilities: { input: !!composer(), send: !!localSendButton(), stop: generating(), assistant: !!assistantText() },
+    capabilities: { input: !!composer(), send: !!localSendButton(), stop: generating(), assistant: !!assistantText(), top: S.mode !== 'RUNNING' && !S.topBusy },
     lastError: S.lastError, relayRequested: S.relay || null, events: S.events.slice(-20), when: new Date().toISOString()
   };
 }
@@ -641,7 +737,7 @@ function copyReport() {
 }
 
 const style = document.createElement('style');
-style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:#17161a;color:#eee;border:1px solid #45414b;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:#26242b;color:#eee;border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:#0c4434;border-color:#178063}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:#0f0e11;border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:#201e24}#gitl9 input[type="text"],#gitl9 input[type="number"]{width:100%;background:#0f0e11;color:#eee;border:1px solid #45414b;border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;opacity:.7;margin-top:5px}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
+style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:#17161a;color:#eee;border:1px solid #45414b;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:#26242b;color:#eee;border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:#0c4434;border-color:#178063}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:#0f0e11;border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:#201e24}#gitl9 input[type="text"],#gitl9 input[type="number"]{width:100%;background:#0f0e11;color:#eee;border:1px solid #45414b;border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;opacity:.7;margin-top:5px}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -651,7 +747,7 @@ function render() {
     <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button></div>
     <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}</div>
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
-      <div class="row"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button></div>
+      <div class="row"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
@@ -668,6 +764,9 @@ function render() {
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
   panel.querySelector('[data-a="reload"]')?.addEventListener('click', () => location.reload());
+  const topButton = panel.querySelector('[data-a="top"]');
+  topButton?.addEventListener('pointerdown', e => e.preventDefault());
+  topButton?.addEventListener('click', () => goTop().catch(error => { S.detail = 'Could not reach the top safely.'; log('top-navigation-error', { message: String(error?.message || error) }); render(); }));
   panel.querySelector('[data-a="report"]')?.addEventListener('click', copyReport);
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
