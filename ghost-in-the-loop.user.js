@@ -40,6 +40,11 @@ const DRIFT_QUIET_MS = 9000;
 const WRITE_VERIFY_MS = 1800;
 const SEND_WAIT_MS = 2200;
 const SEND_CONFIRM_MS = 16000;
+const STALL_SOFT_MS = 5 * 60 * 1000;
+const STALL_GRACE_MS = 2 * 60 * 1000;
+const STOP_CONFIRM_MS = 5000;
+const STOP_RETRY_DELAY_MS = 1500;
+const STOP_MAX_ATTEMPTS = 3;
 
 const G = Object.freeze({
   proceed: '[[GITL::PROCEED]]',
@@ -99,6 +104,8 @@ const S = {
   max: Math.max(1, Math.min(100, Number(GM_getValue('v9.max', 25)) || 25)),
   sending: false, uncertain: false, lastHandled: '', awaitingFrom: '', stableHash: '', stableSince: 0,
   drift: 0, bootstrapped: false, relay: '', timer: null,
+  generationStartedAt: 0, lastProgressAt: 0, lastProgressFingerprint: '',
+  stallState: 'IDLE', stopAttempts: 0, recoveryCount: 0, watchdogBusy: false,
   tab: String(GM_getValue('v9.tab', 'play') || 'play'), events: [], lastError: null
 };
 const ON = {};
@@ -143,6 +150,7 @@ function assistantText() {
 }
 function userCount() { return queryAll(HOST.user).filter(el => el.isConnected).length; }
 function generating() { return !!queryFirst(HOST.stop); }
+function visibleStopButtons() { return queryAll(HOST.stop).filter(visible); }
 function hash(value) {
   const s = String(value || ''); let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -184,6 +192,39 @@ function fail(code, detail, data = {}) {
 }
 function notify(title, text) {
   try { if (typeof GM_notification === 'function') GM_notification({ title, text, timeout: 8000 }); } catch (_) {}
+}
+function clearGenerationWatchdog() {
+  S.generationStartedAt = 0;
+  S.lastProgressAt = 0;
+  S.lastProgressFingerprint = '';
+  S.stallState = 'IDLE';
+  S.stopAttempts = 0;
+}
+function watchdogPhase(elapsedMs, recoveryCount = S.recoveryCount) {
+  if (elapsedMs < STALL_SOFT_MS) return 'OBSERVING';
+  if (elapsedMs < STALL_SOFT_MS + STALL_GRACE_MS) return 'SUSPECTED_STALL';
+  return recoveryCount >= 1 ? 'HUMAN_REQUIRED' : 'STOPPING';
+}
+function noteGenerationProgress() {
+  const t = now();
+  const fp = hash(assistantText());
+  if (!S.generationStartedAt) {
+    S.generationStartedAt = t;
+    S.lastProgressAt = t;
+    S.lastProgressFingerprint = fp;
+    S.stallState = 'OBSERVING';
+    S.stopAttempts = 0;
+    log('watchdog-armed', { host: HOST.id });
+    return;
+  }
+  if (fp !== S.lastProgressFingerprint) {
+    const wasSuspected = S.stallState === 'SUSPECTED_STALL';
+    S.lastProgressFingerprint = fp;
+    S.lastProgressAt = t;
+    S.stallState = 'OBSERVING';
+    S.stopAttempts = 0;
+    if (wasSuspected) log('watchdog-progress-resumed', { host: HOST.id });
+  }
 }
 
 function contractText() {
@@ -241,6 +282,9 @@ function regroundPrompt() {
 }
 function cleanerzPrompt() {
   return `Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`;
+}
+function stallRecoveryPrompt() {
+  return `You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`;
 }
 
 async function setComposerText(text) {
@@ -302,6 +346,17 @@ async function confirmSend(beforeUsers, beforeComposer, beforeAssistantHash) {
   }
   return { ok: false, why: 'unconfirmed' };
 }
+async function waitForGenerationStop() {
+  const started = now(); let absentSince = 0;
+  while (now() - started < STOP_CONFIRM_MS) {
+    if (!generating()) {
+      if (!absentSince) absentSince = now();
+      if (now() - absentSince >= 600) return true;
+    } else absentSince = 0;
+    await sleep(200);
+  }
+  return false;
+}
 
 async function sendOnce(text, reason) {
   if (S.mode !== 'RUNNING' || S.sending || S.uncertain) return false;
@@ -329,7 +384,63 @@ async function sendOnce(text, reason) {
     S.uncertain = true; fail('PLAY-SEND-UNCERTAIN', 'Send was attempted but host acceptance could not be confirmed. Ghost will not resend.'); return false;
   }
   S.round += 1; S.awaitingFrom = beforeAssistantHash; S.stableHash = ''; S.stableSince = 0;
+  clearGenerationWatchdog();
+  if (reason !== 'stall recovery') S.recoveryCount = 0;
   S.detail = `Sent once · ${confirmed.why}`; log('send-confirmed', { round: S.round, why: confirmed.why }); render(); return true;
+}
+
+async function recoverStall() {
+  if (S.watchdogBusy || S.mode !== 'RUNNING') return;
+  if (S.recoveryCount >= 1) {
+    S.stallState = 'HUMAN_REQUIRED';
+    pause('Needs you — response stalled again after automatic recovery.');
+    notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.');
+    return;
+  }
+  S.watchdogBusy = true;
+  S.stallState = 'STOPPING';
+  S.detail = 'Stopping stalled response…'; render();
+  let stopped = false;
+  try {
+    for (let attempt = 1; attempt <= STOP_MAX_ATTEMPTS; attempt++) {
+      const stops = visibleStopButtons();
+      if (stops.length !== 1) {
+        log('watchdog-stop-ambiguous', { attempt, count: stops.length });
+        S.stallState = 'HUMAN_REQUIRED';
+        pause('Needs you — recovery uncertain. Stop control was missing or ambiguous.');
+        return;
+      }
+      S.stopAttempts = attempt;
+      log('watchdog-stop-click', { attempt, host: HOST.id });
+      try { stops[0].click(); }
+      catch (error) {
+        log('watchdog-stop-threw', { attempt, message: String(error?.message || error) });
+        S.stallState = 'HUMAN_REQUIRED';
+        pause('Needs you — recovery uncertain. Stop could not be safely activated.');
+        return;
+      }
+      if (await waitForGenerationStop()) { stopped = true; break; }
+      if (attempt < STOP_MAX_ATTEMPTS) await sleep(STOP_RETRY_DELAY_MS);
+    }
+    if (!stopped) {
+      S.stallState = 'HUMAN_REQUIRED';
+      pause('Needs you — stalled response could not be confirmed stopped.');
+      notify('Ghost needs you', 'Automatic Stop could not be confirmed after three bounded attempts.');
+      return;
+    }
+    S.stallState = 'REGROUNDING';
+    S.detail = 'Regrounding stalled step…'; render();
+    S.recoveryCount += 1;
+    clearGenerationWatchdog();
+    S.stallState = 'REGROUNDING';
+    const sent = await sendOnce(stallRecoveryPrompt(), 'stall recovery');
+    if (!sent) return;
+    S.stallState = 'RESUMED';
+    S.detail = 'Recovery sent once · watching for progress';
+    log('watchdog-recovery-sent', { recoveryCount: S.recoveryCount }); render();
+  } finally {
+    S.watchdogBusy = false;
+  }
 }
 
 async function handleTerminal(text, parsed) {
@@ -338,7 +449,7 @@ async function handleTerminal(text, parsed) {
   S.lastHandled = fp;
   if (parsed.normalized) log('terminal-normalized', { type: parsed.type });
   if (parsed.type === 'halt') {
-    S.drift = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.'); return;
+    S.drift = 0; S.recoveryCount = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.'); return;
   }
   if (parsed.type === 'human') {
     S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.'); return;
@@ -358,10 +469,28 @@ async function handleDrift(tail) {
   pause(`Protocol drift repeated ${S.drift} times. Human review required.`); notify('Ghost paused', 'Repeated protocol drift needs a human check.');
 }
 async function tick() {
-  if (S.mode !== 'RUNNING' || S.sending || S.uncertain) return;
+  if (S.mode !== 'RUNNING' || S.sending || S.uncertain || S.watchdogBusy) return;
   if (generating()) {
-    S.detail = 'Model working...'; S.stableHash = ''; S.stableSince = 0; render(); return;
+    noteGenerationProgress();
+    S.stableHash = ''; S.stableSince = 0;
+    const elapsed = Math.max(0, now() - (S.lastProgressAt || now()));
+    const phase = watchdogPhase(elapsed);
+    if (phase === 'HUMAN_REQUIRED') {
+      S.stallState = phase;
+      pause('Needs you — response stalled again after automatic recovery.');
+      notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.');
+      return;
+    }
+    if (phase === 'STOPPING') { await recoverStall(); return; }
+    if (phase === 'SUSPECTED_STALL') {
+      if (S.stallState !== 'SUSPECTED_STALL') log('watchdog-stall-suspected', { elapsed });
+      S.stallState = 'SUSPECTED_STALL';
+      S.detail = 'No visible progress — checking…'; render(); return;
+    }
+    S.stallState = 'OBSERVING';
+    S.detail = 'Model working...'; render(); return;
   }
+  if (S.generationStartedAt || S.stallState !== 'IDLE') clearGenerationWatchdog();
   const text = assistantText();
   if (!text) { S.detail = 'Waiting for assistant output...'; render(); return; }
   const fp = hash(text);
@@ -388,7 +517,7 @@ async function play() {
   if (S.uncertain) { S.detail = 'Prior Send is uncertain. Inspect the chat or use Page Reload before resuming.'; render(); return; }
   const input = composer();
   if (!input) { fail('PLAY-INPUT', 'Current chat composer was not found.', { host: HOST.id }); return; }
-  S.mode = 'RUNNING'; S.detail = 'Starting...'; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.relay = ''; render();
+  S.mode = 'RUNNING'; S.detail = 'Starting...'; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.relay = ''; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); render();
   const draft = nodeText(input); const latest = assistantText(); const parsed = terminal(latest);
   if (draft.trim()) {
     S.bootstrapped = true; if (!await sendOnce(bootstrapPrompt(draft), 'initial task')) return;
@@ -406,10 +535,10 @@ async function play() {
 }
 function pause(detail) { S.mode = 'PAUSED'; S.detail = detail; clearInterval(S.timer); S.timer = null; render(); }
 function stop() {
-  S.mode = 'IDLE'; S.detail = 'Stopped'; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0;
+  S.mode = 'IDLE'; S.detail = 'Stopped'; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog();
   clearInterval(S.timer); S.timer = null; log('stop'); render();
 }
-function complete(detail) { S.mode = 'COMPLETE'; S.detail = detail; clearInterval(S.timer); S.timer = null; render(); }
+function complete(detail) { S.mode = 'COMPLETE'; S.detail = detail; clearGenerationWatchdog(); clearInterval(S.timer); S.timer = null; render(); }
 
 function domTurns() {
   const rows = [];
@@ -500,6 +629,7 @@ function report() {
   return {
     product: 'Ghost in the Loop', version: VER, platform: HOST.id, state: S.mode, round: S.round, maxRounds: S.max,
     sending: S.sending, uncertain: S.uncertain, driftCount: S.drift,
+    watchdog: { state: S.stallState, stopAttempts: S.stopAttempts, recoveryCount: S.recoveryCount, lastProgressAt: S.lastProgressAt || null },
     capabilities: { input: !!composer(), send: !!localSendButton(), stop: generating(), assistant: !!assistantText() },
     lastError: S.lastError, relayRequested: S.relay || null, events: S.events.slice(-20), when: new Date().toISOString()
   };
@@ -523,7 +653,7 @@ function render() {
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       <div class="row"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button></div>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
-      <div class="tiny">Core only: final control line → one Send → repeat. No automatic resend after an uncertain Send.</div>
+      <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
     <div class="pane ${S.tab==='aoa'?'show':''}" data-pane="aoa">
       <div class="grid">${Object.entries(ACT).map(([k,v])=>`<label><input type="checkbox" data-act="${k}" ${ON[k]?'checked':''}>${esc(v[0])}</label>`).join('')}</div>
