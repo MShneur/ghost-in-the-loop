@@ -4,7 +4,7 @@
   "releaseTarget": "9.0.0-alpha.2",
   "provenance": {
     "branch": "feature/v9-integration-candidate",
-    "head": "2dbd1db2aa7df53b742f8db769e27edec07ef2db"
+    "head": "27564568ebfb505a4aad780b1be03756384ee973"
   },
   "channels": {
     "candidate": "feature/v9-integration-candidate",
@@ -35,8 +35,8 @@
   "payload": [
     {
       "path": "ghost-in-the-loop.user.js",
-      "bytes": 73549,
-      "sha256": "536c9c4a8d85b018f49a5ff27f9cb5714b469f9b889886aa99b582c2bf03eadc"
+      "bytes": 73665,
+      "sha256": "779ec984eccedfe7c63aea2dd08eab3ea6eda4f3f55848cfc487da4bc8cd004f"
     },
     {
       "path": "extension/manifest.json",
@@ -45,8 +45,8 @@
     },
     {
       "path": "extension/content.js",
-      "bytes": 73440,
-      "sha256": "b58f6c99e22478b53d2720d26a1ba7fb5c6471c07ede2da580a3f639ed36a797"
+      "bytes": 73556,
+      "sha256": "d67955ef1617a77427acd74580b276cf73883499aef29d297ab643cc8a1aeaae"
     },
     {
       "path": "extension/icon-48.png",
