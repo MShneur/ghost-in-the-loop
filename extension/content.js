@@ -279,7 +279,7 @@ function queryAll(selectors) {
   return out;
 }
 function composer() { return queryFirst(HOST.input); }
-function nodeText(el) { return displayText(el?.innerText ?? el?.textContent ?? el?.value ?? ''); }
+function nodeText(el) { if (!el) return ''; if (typeof el.value === 'string' && /^(TEXTAREA|INPUT)$/.test(el.tagName || '')) return displayText(el.value); return displayText(el.innerText ?? el.textContent ?? ''); }
 function assistantText() {
   const nodes = queryAll(HOST.assistant).filter(el => el.isConnected && nodeText(el));
   return nodes.length ? nodeText(nodes[nodes.length - 1]) : '';
