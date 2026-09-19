@@ -66,8 +66,15 @@ function validateVersionContract(versions, changelog) {
     if (!value) fail(`Version source ${name} is missing.`);
   }
   const expected = versions.package;
+  const expectedNumeric = expected.split('-')[0];
   for (const [name, value] of entries) {
-    if (value !== expected) fail(`Version mismatch: package=${expected}, ${name}=${value}`);
+    if (name === 'manifest') {
+      if (value !== expectedNumeric) fail(`Version mismatch: package=${expected}, manifest=${value}`);
+    } else if (name === 'manifestDisplay') {
+      if (value !== expected) fail(`Version mismatch: package=${expected}, manifestDisplay=${value}`);
+    } else if (value !== expected) {
+      fail(`Version mismatch: package=${expected}, ${name}=${value}`);
+    }
   }
   if (!changelog.includes(`## [${expected}]`)) fail(`CHANGELOG is missing current version ${expected}.`);
   return expected;
@@ -109,7 +116,8 @@ function collectCurrentIdentity(root = DEFAULT_ROOT, options = {}) {
     packageLockRoot: lock.packages?.['']?.version,
     userscriptHeader: user.versionHeader,
     runtime: user.runtimeVersion,
-    manifest: manifest.version
+    manifest: manifest.version,
+    manifestDisplay: manifest.version_name || manifest.version
   };
   const version = validateVersionContract(versions, changelog);
   const candidateChannel = options.candidateChannel || state.branch;
