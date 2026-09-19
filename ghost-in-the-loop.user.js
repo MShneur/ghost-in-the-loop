@@ -229,7 +229,7 @@ const S = {
   drift: 0, bootstrapped: false, relay: '', timer: null,
   generationStartedAt: 0, lastProgressAt: 0, lastProgressFingerprint: '',
   stallState: 'IDLE', stopAttempts: 0, recoveryCount: 0, watchdogBusy: false,
-  topBusy: false,
+  topBusy: false, stageProgress: null,
   tab: String(GM_getValue('v9.tab', 'play') || 'play'), events: [], lastError: null
 };
 const ON = {};
@@ -246,6 +246,8 @@ let personaId = String(GM_getValue('v9.persona','none')||'none');
 let workflowId = String(GM_getValue('v9.workflow','none')||'none');
 let postureId = String(GM_getValue('v9.posture','standard')||'standard');
 let workshopOpen = false;
+let soundOn = !!GM_getValue('v9.soundOn', GM_getValue('soundOn', false));
+let notifyOn = !!GM_getValue('v9.notifyOn', GM_getValue('notifyOn', false));
 if(!allPersonas()[personaId]) personaId='none';
 if(!allWorkflows()[workflowId]) workflowId='none';
 if(!POSTURES[postureId]) postureId='standard';
