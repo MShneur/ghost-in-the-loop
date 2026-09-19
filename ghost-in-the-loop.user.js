@@ -71,6 +71,25 @@ const ACT = Object.freeze({
   rduck: ['R-Duck', 'https://raw.githubusercontent.com/MShneur/R-Duck/main/AGENTS.md']
 });
 
+const SKINS = Object.freeze({
+  classic:{ name:'Classic', bg:'#17161a', surface:'#201e24', panel:'#0f0e11', border:'#45414b', text:'#eeeeee', muted:'#9a96a0', accent:'#34d399', accentBg:'#0c4434', radius:'12px', shadow:'0 8px 30px rgba(0,0,0,.4)' },
+  aurora:{ name:'Aurora', bg:'#12132b', surface:'#1a1c3a', panel:'#0b0c1f', border:'#3a3d78', text:'#eef0ff', muted:'#a3a7d1', accent:'#8b9dff', accentBg:'#2a2d62', radius:'12px', shadow:'0 12px 40px rgba(40,30,120,.45)' },
+  glass:{ name:'Glass', bg:'rgba(23,26,31,.92)', surface:'rgba(32,36,43,.9)', panel:'rgba(12,15,20,.92)', border:'#46505f', text:'#eef2f7', muted:'#9ca8b8', accent:'#7dd3fc', accentBg:'#17384a', radius:'14px', shadow:'0 10px 36px rgba(0,0,0,.5)' },
+  metal:{ name:'Metal', bg:'#16171a', surface:'#24262c', panel:'#101114', border:'#454956', text:'#dfe3ea', muted:'#9aa2ad', accent:'#93a6c4', accentBg:'#273244', radius:'10px', shadow:'0 8px 28px rgba(0,0,0,.7)' },
+  neon:{ name:'Neon', bg:'#0a0b0f', surface:'#14161d', panel:'#060709', border:'#2b2f45', text:'#e9edff', muted:'#8890a8', accent:'#22d3ee', accentBg:'#0b3940', radius:'10px', shadow:'0 0 24px rgba(34,211,238,.22),0 10px 32px rgba(0,0,0,.7)' },
+  clay:{ name:'Clay', bg:'#17161a', surface:'#27242c', panel:'#121015', border:'#423d4a', text:'#efe8f1', muted:'#aa9fac', accent:'#f19a7e', accentBg:'#503027', radius:'16px', shadow:'0 12px 30px rgba(0,0,0,.55)' },
+  liquid:{ name:'Liquid', bg:'rgba(18,22,30,.88)', surface:'rgba(36,43,58,.88)', panel:'rgba(10,13,20,.92)', border:'rgba(160,190,240,.42)', text:'#edf5ff', muted:'#a6b2c8', accent:'#8fd0ff', accentBg:'#245071', radius:'16px', shadow:'0 16px 48px rgba(10,20,40,.55)' },
+  oled:{ name:'OLED', bg:'#000000', surface:'#101014', panel:'#000000', border:'#2a2a34', text:'#f0f0f6', muted:'#8d8d9a', accent:'#7c8cff', accentBg:'#191d58', radius:'12px', shadow:'0 0 0 1px #14141a,0 14px 34px rgba(0,0,0,.9)' },
+  paper:{ name:'Paper', bg:'#f5f1e8', surface:'#efe9dc', panel:'#fffdf7', border:'#c4b99f', text:'#2a261f', muted:'#6e6759', accent:'#6d4fc4', accentBg:'#e9e1f7', radius:'12px', shadow:'0 10px 28px rgba(90,80,60,.25)' },
+  hud:{ name:'HUD', bg:'#050708', surface:'#0d1415', panel:'#000000', border:'#1a464b', text:'#bdf5f7', muted:'#5f9498', accent:'#22e0e6', accentBg:'#07383b', radius:'8px', shadow:'0 0 0 1px #123033,0 10px 30px rgba(0,0,0,.8)' },
+  nova:{ name:'Nova', bg:'#14101f', surface:'#241d3a', panel:'#0c0a17', border:'#4b3e72', text:'#f1eaff', muted:'#ab9bbb', accent:'#c084fc', accentBg:'#42245d', radius:'14px', shadow:'0 14px 40px rgba(44,20,70,.5)' },
+  ion:{ name:'Ion', bg:'#0d1520', surface:'#172536', panel:'#091019', border:'#35536b', text:'#e5f2ff', muted:'#8ca7bc', accent:'#60a5fa', accentBg:'#17395e', radius:'12px', shadow:'0 12px 36px rgba(5,20,35,.55)' },
+  flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' }
+});
+const ACCENTS = Object.freeze({
+  auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
+});
+
 const PROFILES = [
   {
     id: 'perplexity',
@@ -116,6 +135,12 @@ const ON = {};
 for (const key of Object.keys(ACT)) ON[key] = !!GM_getValue(`v9.act.${key}`, false);
 let custom = String(GM_getValue('v9.custom', '') || '');
 let exportRaw = !!GM_getValue('v9.exportRaw', false);
+let skinId = String(GM_getValue('v9.skin', 'classic') || 'classic');
+if (!SKINS[skinId]) skinId = 'classic';
+let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
+if (!(accentId in ACCENTS)) accentId = 'auto';
+let quickStartOpen = !GM_getValue('v9.quickStartSeen', false);
+let helpOpen = false;
 
 let _ttPolicy = null;
 try { if (window.trustedTypes?.createPolicy) _ttPolicy = window.trustedTypes.createPolicy('gitl9-ui', { createHTML: s => s }); } catch (_) {}
@@ -785,16 +810,33 @@ function copyReport() {
 }
 
 const style = document.createElement('style');
-style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:#17161a;color:#eee;border:1px solid #45414b;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.4);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:#26242b;color:#eee;border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:#0c4434;border-color:#178063}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:#0f0e11;border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:#201e24}#gitl9 input[type="text"],#gitl9 input[type="number"]{width:100%;background:#0f0e11;color:#eee;border:1px solid #45414b;border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;opacity:.7;margin-top:5px}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
+style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:var(--g-radius);box-shadow:var(--g-shadow);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:var(--g-surface);color:var(--g-text);border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:var(--g-accent-bg);border-color:var(--g-accent);color:var(--g-text)}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:var(--g-panel);border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:var(--g-surface)}#gitl9 input[type="text"],#gitl9 input[type="number"]{width:100%;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;color:var(--g-muted);margin-top:5px}.helpbox{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:7px;margin:5px 0}.helpbox b{color:var(--g-accent)}.swatches{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.swatches button{flex:0 0 28px;height:28px;padding:0}.headtools{display:flex;align-items:center;gap:5px}.helpbtn{padding:3px 6px!important;font-size:10px!important}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
+function applyAppearance() {
+  const skin = SKINS[skinId] || SKINS.classic;
+  const accent = ACCENTS[accentId] || skin.accent;
+  panel.style.setProperty('--g-bg', skin.bg);
+  panel.style.setProperty('--g-surface', skin.surface);
+  panel.style.setProperty('--g-panel', skin.panel);
+  panel.style.setProperty('--g-border', skin.border);
+  panel.style.setProperty('--g-text', skin.text);
+  panel.style.setProperty('--g-muted', skin.muted);
+  panel.style.setProperty('--g-accent', accent);
+  panel.style.setProperty('--g-accent-bg', accentId === 'auto' ? skin.accentBg : 'color-mix(in srgb, ' + accent + ' 28%, ' + skin.panel + ')');
+  panel.style.setProperty('--g-radius', skin.radius);
+  panel.style.setProperty('--g-shadow', skin.shadow);
+}
+applyAppearance();
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function render() {
   panel.innerHTML = trustedHTML(`
-    <div class="head"><span class="brand">👻 GHOST</span><span class="meta">${esc(HOST.id)} · ${VER}</span></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button></div>
+    <div class="head"><span class="brand">👻 GHOST</span><span class="headtools"><button class="helpbtn" data-a="help">? Help</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Settings</button></div>
     <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}</div>
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
+      ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
+      ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
       <div class="row"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
@@ -808,11 +850,24 @@ function render() {
       <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON in saved JSON</label>
       <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
+    </div>
+    <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
+      <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
+      <div class="tiny">Accent</div>
+      <div class="swatches">${Object.entries(ACCENTS).map(([id,color])=>'<button data-accent="'+id+'" class="'+(accentId===id?'on':'')+'" title="'+id+'" style="'+(color?'background:'+color:'')+'">'+(id==='auto'?'A':'')+'</button>').join('')}</div>
+      <div class="row" style="margin-top:6px"><button data-a="show-quick">Show Quick Start</button><button data-a="reset-look">Reset look</button></div>
+      <div class="tiny">Appearance changes only Ghost's panel. It does not alter prompts, Play, Export, or the host page.</div>
     </div>`);
   panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; GM_setValue('v9.tab', S.tab); render(); }));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
   panel.querySelector('[data-a="reload"]')?.addEventListener('click', () => location.reload());
+  panel.querySelector('[data-a="help"]')?.addEventListener('click', () => { helpOpen = !helpOpen; if (helpOpen) S.tab = 'play'; render(); });
+  panel.querySelector('[data-a="quick-done"]')?.addEventListener('click', () => { quickStartOpen = false; GM_setValue('v9.quickStartSeen', true); S.detail = 'Quick Start hidden. You can reopen it in Settings.'; render(); });
+  panel.querySelector('[data-a="show-quick"]')?.addEventListener('click', () => { quickStartOpen = true; helpOpen = false; S.tab = 'play'; render(); });
+  panel.querySelector('[data-a="reset-look"]')?.addEventListener('click', () => { skinId = 'classic'; accentId = 'auto'; GM_setValue('v9.skin', skinId); GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Appearance reset.'; render(); });
+  panel.querySelector('[data-skin]')?.addEventListener('change', e => { skinId = SKINS[e.target.value] ? e.target.value : 'classic'; GM_setValue('v9.skin', skinId); applyAppearance(); S.detail = SKINS[skinId].name + ' skin applied.'; render(); });
+  panel.querySelectorAll('[data-accent]').forEach(btn => btn.addEventListener('click', () => { accentId = btn.dataset.accent in ACCENTS ? btn.dataset.accent : 'auto'; GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Accent updated.'; render(); }));
   const topButton = panel.querySelector('[data-a="top"]');
   topButton?.addEventListener('pointerdown', e => e.preventDefault());
   topButton?.addEventListener('click', () => goTop().catch(error => { S.detail = 'Could not reach the top safely.'; log('top-navigation-error', { message: String(error?.message || error) }); render(); }));
