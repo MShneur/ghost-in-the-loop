@@ -330,8 +330,49 @@ function fail(code, detail, data = {}) {
   S.lastError = { code, detail, at: new Date().toISOString(), ...data };
   log('error', { code, ...data }); pause(`${code}: ${detail}`);
 }
-function notify(title, text) {
-  try { if (typeof GM_notification === 'function') GM_notification({ title, text, timeout: 8000 }); } catch (_) {}
+function playCue(kind = 'notice') {
+  if (!soundOn) return false;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return false;
+    const ctx = new Ctx();
+    const map = kind === 'complete' ? [660,880] : kind === 'human' ? [520,520] : kind === 'error' ? [260,220] : [440,620];
+    map.forEach((f,i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      const at = ctx.currentTime + i * 0.14;
+      osc.type = 'sine'; osc.frequency.value = f;
+      gain.gain.setValueAtTime(0.06, at);
+      gain.gain.exponentialRampToValueAtTime(0.001, at + 0.28);
+      osc.connect(gain).connect(ctx.destination); osc.start(at); osc.stop(at + 0.3);
+    });
+    setTimeout(() => { try { ctx.close(); } catch (_) {} }, 900);
+    return true;
+  } catch (_) { return false; }
+}
+function notify(title, text, kind = 'notice') {
+  playCue(kind);
+  if (!notifyOn) return false;
+  try {
+    if (typeof GM_notification === 'function') { GM_notification({ title, text, timeout: 8000 }); return true; }
+  } catch (_) {}
+  return false;
+}
+function stageProgress(text) {
+  const matches = [...String(text || '').matchAll(/\[\[GITL::STAGE:(\d{1,3})\/(\d{1,3})\]\]/g)];
+  if (!matches.length) return null;
+  const m = matches[matches.length - 1], step = Number(m[1]), total = Number(m[2]);
+  if (!Number.isInteger(step) || !Number.isInteger(total) || step < 1 || total < 1 || step > total || total > 100) return null;
+  return { step, total };
+}
+function progressSummary() {
+  const workflow = allWorkflows()[workflowId], stages = workflow?.stages?.length || 0;
+  const roundPct = S.max ? Math.min(100, Math.round((S.round / S.max) * 100)) : 0;
+  return {
+    roundPct,
+    workflow: workflow?.label || 'Manual',
+    stages,
+    stage: S.stageProgress && (!stages || S.stageProgress.total === stages) ? S.stageProgress : null
+  };
 }
 function clearGenerationWatchdog() {
   S.generationStartedAt = 0;
