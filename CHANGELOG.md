@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.0.0-alpha.2] — v9 assembly candidate
+
+- Rebuilt Play around one fail-closed Send authority.
+- Added bounded stall watchdog recovery, lazy-load-aware Top navigation, API-first truthful Export, restored appearance/help/prompt features, observational progress, and opt-in feedback.
+- Firefox/WebExtension manifest uses numeric `9.0.0` with display `version_name: 9.0.0-alpha.2` to satisfy current browser/store version-format requirements.
+- Candidate remains unpublished and requires real Firefox Android field proof before release.
+
 ## [8.8.5] — production dispatch router and Firefox/Android round-2 repair
 
 ### P0 Perplexity / fallback controls follow-up
