@@ -7,7 +7,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 
 const DEFAULT_ROOT = path.resolve(__dirname, '..');
-const DEFAULT_RECORD = '.gitl/evidence/round-7/candidate-identity.json';
+const DEFAULT_RECORD = '.gitl/evidence/v9/candidate-identity.json';
 const REPOSITORY = 'MShneur/ghost-in-the-loop';
 const STABLE_BRANCH = 'main';
 const STABLE_USERSCRIPT_URL = 'https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js';
