@@ -1,0 +1,62 @@
+{
+  "schema": "gitl-build-identity-v1",
+  "repository": "MShneur/ghost-in-the-loop",
+  "releaseTarget": "9.0.0-alpha.2",
+  "provenance": {
+    "branch": "feature/v9-integration-candidate",
+    "head": "2dbd1db2aa7df53b742f8db769e27edec07ef2db"
+  },
+  "channels": {
+    "candidate": "feature/v9-integration-candidate",
+    "stable": "main",
+    "stableUserscriptUpdateUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
+    "stableUserscriptDownloadUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
+    "stableVersionObserved": null,
+    "publicationState": "candidate-not-published",
+    "publishReady": false
+  },
+  "versions": {
+    "package": "9.0.0-alpha.2",
+    "packageLock": "9.0.0-alpha.2",
+    "packageLockRoot": "9.0.0-alpha.2",
+    "userscriptHeader": "9.0.0-alpha.2",
+    "runtime": "9.0.0-alpha.2",
+    "manifest": "9.0.0",
+    "manifestDisplay": "9.0.0-alpha.2"
+  },
+  "contracts": {
+    "canonicalSource": "ghost-in-the-loop.user.js",
+    "generatedExtensionRuntime": "extension/content.js",
+    "generationAuthority": "scripts/build-extension.js",
+    "generatedParityCommand": "npm run check:generated",
+    "baseCertificationCommand": "npm run cert:base",
+    "versionConsistencyTest": "tests/version.test.js"
+  },
+  "payload": [
+    {
+      "path": "ghost-in-the-loop.user.js",
+      "bytes": 73549,
+      "sha256": "536c9c4a8d85b018f49a5ff27f9cb5714b469f9b889886aa99b582c2bf03eadc"
+    },
+    {
+      "path": "extension/manifest.json",
+      "bytes": 1582,
+      "sha256": "2a097e4edf3f1f863abc23695f9b1f0b89102f238d582b825382242279645087"
+    },
+    {
+      "path": "extension/content.js",
+      "bytes": 73440,
+      "sha256": "b58f6c99e22478b53d2720d26a1ba7fb5c6471c07ede2da580a3f639ed36a797"
+    },
+    {
+      "path": "extension/icon-48.png",
+      "bytes": 197,
+      "sha256": "d698ec8171597e6954d37016082bd5d4740ab91678769bf90e4a826be2037057"
+    },
+    {
+      "path": "extension/icon-96.png",
+      "bytes": 352,
+      "sha256": "05425051e2a49b1a896477c3c43d09f1458c99749149f331f4a89dc9a1a28815"
+    }
+  ]
+}
