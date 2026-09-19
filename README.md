@@ -1,302 +1,149 @@
-# 👻 Ghost in the Loop
+# 👻 Ghost in the Loop v9 candidate
 
-[![CI](https://github.com/MShneur/ghost-in-the-loop/actions/workflows/test.yml/badge.svg)](https://github.com/MShneur/ghost-in-the-loop/actions/workflows/test.yml)
-[![Install](https://img.shields.io/badge/Install-Tampermonkey-green)](https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue)](LICENSE)
+Ghost in the Loop is a userscript / Firefox extension that keeps long AI tasks moving while preserving one hard transport rule:
 
----
+> **Everything may influence the prompt. Only Play may influence Send.**
 
-The machines can reason.
+This branch is the **v9 integration candidate**. It is not the stable/public channel yet.
 
-The answers have been found.
+## Current v9 architecture
 
-Against all odds, humanity won.
+Play is deliberately small:
 
-Hunger ended. War faded. The future finally opened its doors.
+`setComposerText → reacquire one valid Send → click once → confirm once`
 
-> *Proceed to the next stage of civilization?*
+If any of those steps are uncertain, Ghost fails closed. There is no Enter fallback, `requestSubmit` escalation, automatic resend, or controller-side semantic reasoning.
 
-And suddenly the most advanced technology on Earth is waiting for Steve from accounting to press Enter.
+## What v9 includes
 
-**Ghost in the Loop fixes that.**
+- one-Send Play transport
+- strict terminal control markers
+- bounded stall watchdog: 5 minutes quiet + 2 minute grace, then confirmed Stop recovery
+- compact `↑ Top` navigation with bounded lazy-history loading
+- API-first Markdown/JSON export with truthful visible-page fallback
+- platform-visible reasoning export only when the host exposes it
+- optional raw platform JSON export
+- 13 appearance skins + accent colors
+- Quick Start and plain-language help
+- personas, workflows, and Locked / Adaptive / Audit prompt postures
+- bounded additive custom Workshop JSON imports
+- observational round/workflow stage display
+- opt-in sound and notifications
+- external Agents-of-AI / CTRL-AI / R-Duck activators
 
-Ghost automatically continues multi-step AI conversations across ChatGPT, Claude, Gemini, Perplexity, DeepSeek, Copilot, Grok, Manus, and more.
+## Control markers
 
-Because if the AI already knows the next step, somebody should probably let it take it.
+Default Ghost control lines:
 
----
-
-## How It Works
-
-Humanity's greatest minds spent centuries advancing science.
-
-Ghost needs five steps.
-
-1. You give the AI a mission.
-2. Ghost attaches a loop protocol to your message.
-3. The AI works through the problem, step by step.
-4. Ghost automatically continues the conversation at each stage.
-5. You return later and pretend you were involved the whole time.
-
-Three modes. One premise.
-
-**Loop** — step-by-step auto-proceed until the task is complete or the AI admits defeat.
-
-**Think First** — the AI creates a plan before acting. This is generally considered an improvement over most corporate strategy meetings.
-
-**Roadmap Autopilot** — the AI generates a roadmap, then follows it, then completes it. For the first time in recorded history, a roadmap may actually be executed.
-
----
-
-## Why Ghost Exists
-
-Modern AI can:
-
-✓ Write software  
-✓ Analyze research  
-✓ Build business plans  
-✓ Review code  
-✓ Debate ideas across eight distinct personas  
-✓ Generate multi-stage roadmaps  
-✓ Export a full structured record of everything it did  
-
-Modern AI cannot:
-
-✗ Press Enter
-
----
-
-## Install
-
-**Tampermonkey** (Chrome, Firefox, Edge, Safari)
-
-1. Install [Tampermonkey](https://www.tampermonkey.net/).
-2. Click: [![Install](https://img.shields.io/badge/Install-Tampermonkey-green)](https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js)
-3. Click "Install."
-4. Give an AI a task.
-5. Leave.
-6. Return to discover that progress occurred entirely without your supervision.
-
-It's unsettling at first. You get used to it.
-
-**Firefox Extension** (no Tampermonkey needed)
-
-1. Clone this repo.
-2. Go to `about:debugging` → This Firefox → Load Temporary Add-on → `extension/manifest.json`.
-3. See steps 4–6 above.
-
-### 8.8 release-candidate status
-
-The install links above deliberately remain on **`main`**, which is the stable userscript channel. The repository's isolated `agent/8.8-repair-resume` branch contains the **8.8.0 release candidate**, but candidate identity is not publication identity: it has not been promoted to `main`, tagged, published as a GitHub Release, or declared store/stable output.
-
-The accepted 8.8 evidence is deliberately bounded. Deterministic/hosted lifecycle, long-chat, ChatGPT+Claude structural, and build-identity evidence does not certify exact current live ChatGPT/Claude structural insertion, physical Android/WebView/GeckoView, real mobile IME or assistive-technology combinations, or calibrated low-end-device performance. Hosted long-chat timing also has recorded red/green variance without any weakening of its accepted thresholds. See [8.8 Release-Candidate Evidence Boundary](docs/RELEASE-CANDIDATE-8.8.md) for the claim ledger and dependency-audit disposition.
-
----
-
-## Features
-
-### Loop Mode
-
-The AI works.  
-Ghost listens.  
-Steve is no longer a critical dependency.
-
-### Think First
-
-Before taking action, the AI creates a plan. The plan is then followed. This alone puts it ahead of approximately 80% of Q3 initiatives.
-
-### Roadmap Autopilot
-
-The AI generates a numbered roadmap. Ghost runs every step in sequence. The AI synthesizes the results.
-
-Somewhere, a project manager is weeping and they don't know why.
-
-### Prompt Queue
-
-Paste a list of tasks. Walk away. Ghost runs them one after another, in order, without forgetting what it was doing, without needing coffee, and without asking to push the deadline.
-
-Like an intern. Except it shows up on time.
-
-### Personas
-
-Need a Researcher? Ghost has one.  
-Need a Builder? Ghost has one.  
-Need a Devil's Advocate?
-
-We regret to inform you that Ghost has several.
-
-Choose from: Researcher · Builder · Red Team · Devil's Advocate · Tester · Customer Voice · Executive · Round Table. The Round Table convenes all of them simultaneously, which is exactly as chaotic as it sounds and twice as useful.
-
-### Workflows
-
-Pre-built pipelines for: Deep Research · R&D Lab · Shipyard · Debate · Pre-Mortem · Trollproof.
-
-Trollproof attempts to find every possible objection to your idea before anyone else does. It finds them.
-
-### Recovery Engine
-
-Sometimes websites change.  
-Sometimes buttons disappear.  
-Sometimes the frontend team chooses violence.
-
-Ghost now fails closed when the page no longer matches a reviewed adapter. It can
-identify a composer heuristically, but only one unique, reviewed Send control has
-authority to click. If delivery cannot be independently confirmed, Ghost pauses
-in an **uncertain** state and never sends the prompt again behind your back.
-
-### Export
-
-Every transcript export reports one of three outcomes:
-
-- **Complete** — a platform archive returned the expected supported turns.
-- **Partial** — a DOM fallback, lazy-loaded history, attachment, branch, or filter
-  means completeness cannot be proved.
-- **Failed** — no usable messages were captured, so no misleading empty export is
-  presented as success.
-
-Markdown and `gitl.transcript.v1` JSON include this validation result. Cancel
-aborts the active archive request and promises no file.
-
-Because eventually someone will ask *"wait, how did we get this result?"*
-
-And for once, you'll have an answer.
-
-### Handoff and Experimental Capsule
-
-One click. Ghost writes a compressed briefing — mission, current position, last output, open questions — formatted for immediate paste into any AI model.
-
-The baton passes. The work continues. Nobody has to explain anything from scratch.
-
-The separate Capsule v2 machine format is under **Export → Advanced**. It
-preserves short and repeated turns, but it is explicitly experimental and Ghost
-does not claim that it is resumable until an importer exists.
-
-### Crash Recovery
-
-Browser crashes.  
-Tabs close.  
-Power goes out.  
-Civilizations collapse.
-
-Ghost remembers where it left off.
-
-### Health Badge 🟢🟡🔴
-
-A live readiness score in the panel header. Green means everything's working. Yellow means something's drifting. Red means the platform changed its selectors again, which happens more than anyone would like.
-
-### Walk-Away Alerts
-
-Desktop notification when the loop completes, pauses, or encounters an error. So you can actually leave the room instead of watching a progress bar like it owes you money.
-
----
-
-## Technical Highlights
-
-For people who want to know what's actually happening under the hood:
-
-| What | How |
-|------|-----|
-| **Boot safety** | Transactional boot isolates optional subsystems, mounts a fail-loud banner for critical failures, and records stable local error codes. An independent canary distinguishes “Ghost failed” from “the userscript manager never injected it.” |
-| **Signal detection** | Weighted scoring: custom sigils `[[GITL::PROCEED]]` / `[[GITL::HALT]]` (+4), legacy keywords (+3), fuzzy matches (+2). HALT always wins ties. |
-| **Private diagnostics** | Network telemetry stores timing and byte counts only. Reports omit prompts, message text, full URLs, query strings, and conversation identifiers; users review locally before copying or downloading. |
-| **At-most-once send** | A two-phase tab lease gates one preselected reviewed actuator: a unique button, or an adapter-approved single Enter fallback when no button exists. Ghost first verifies that the complete intended prompt is present. State advances only after independent delivery evidence; ambiguity pauses for human reconciliation and is never retried. |
-| **Anti-automation delay** | Randomized 8–15s between sends (2s on the first round). |
-| **Truthful export** | Platform API capture is checked against expected counts and unsupported parts. DOM capture is always labeled partial. Capsule hashes are integrity hints, never a reason to delete legitimate repeated turns. |
-| **Transactional import** | Config and Workshop bundles require exact schemas, validate every field before mutation, and roll back if persistence fails. |
-| **Own-UI isolation** | All DOM selectors exclude `#gitl` descendants. Ghost cannot accidentally type into its own panel. This needed to be a feature. |
-| **CI tested** | Jest contract tests plus Playwright boot, mobile staging, and send-safety tests in Chromium and Firefox when those engines are available. Runs on configured `main`/`agent/**` pushes and pull requests. |
-
----
-
-## Architecture
-
-```
-Layer 0:   Transactional boot + two-phase tab lease
-Layer 0.5: Metadata-only network telemetry
-Layer 0.7: Selector diagnostics + health scoring
-Layer 1:   Reviewed platform adapters; read-only selector learning
-Layer 2:   State + persisted send transaction journal
-Layer 3:   Redacted diagnostics + bounded timeline
-Layer 4:   Signal engine (pure logic)
-Layer 5:   At-most-once loop engine + human reconciliation
-Layer 6:   Validated export + transactional import
-Layer 7:   Basic controls + progressively disclosed advanced UI
+```text
+[[GITL::PROCEED]]
+[[GITL::HUMAN]]
+[[GITL::HALT]]
 ```
 
-The userscript is the canonical source. `npm run build` deterministically
-generates `extension/content.js`; CI rejects drift. There is no second `dev/`
-copy of the product.
+When Model Relay is enabled:
 
-No runtime dependencies. One userscript source. Works anywhere Tampermonkey works.
+```text
+[[AOA::CONTINUE]]
+[[AOA::HUMAN]]
+[[AOA::HALT]]
+[[AOA::RELAY:MODEL_LABEL]]
+```
 
----
+The valid control line must be the final non-whitespace control suffix. Ghost does not infer intent from normal prose.
 
-## Safety and Troubleshooting
+Workflow stage reporting is optional and display-only:
 
-- **Pause** and **Stop** are always text-labeled. Stop preserves the run; Reset is
-  a separate Advanced action.
-- A guessed Send candidate is diagnostic evidence only. Generic/custom sites are
-  manual-send unless they have a reviewed adapter.
-- If Ghost attempted a Send but cannot prove delivery, choose either **I see it
-  in chat** or leave the prompt for manual Send. Ghost never re-clicks.
-- On a failure, open **Settings → Advanced → Diagnostics**. Ghost automatically
-  prepares a redacted local report with a stable error code and offers **Review**,
-  **Copy**, and **Download**. Public bug reporting never includes report content
-  automatically.
-- If no Ghost UI or error banner appears at all, install the independent canary
-  from [`diagnostics/`](diagnostics/) to determine whether the userscript manager
-  executed on that site.
+```text
+[[GITL::STAGE:X/Y]]
+```
 
----
+It never authorizes Send or advances a workflow.
 
-## Supported Platforms
+## Stall watchdog
 
-**First-class:** ChatGPT · Claude · Perplexity · Gemini · DeepSeek · Copilot · Grok · Manus
+Ghost watches for **observable output change**, not total task duration.
 
-**Generic adapter:** Mistral · Kimi · Qwen · Meta AI · Poe · HuggingChat · You.com · Pi · Z.ai · Genspark · MiniMax · LMArena · Duck.ai
+- output still changing → leave the model alone
+- 5 minutes unchanged → suspected stall
+- another 2 minutes unchanged → bounded Stop recovery
+- Stop is reacquired and attempted at most 3 times
+- after confirmed Stop, one reground prompt goes through normal Play
+- a second recovered stall requires a human
 
-**Custom:** any chat interface, via custom selectors in the settings panel.
+## Export
 
----
+Ghost prefers host conversation/archive data where supported.
 
-## For Developers and Future AI Collaborators
+- **full platform history** — supported archive/API parse succeeded
+- **may be incomplete** — visible-page fallback was required
+- raw platform JSON is opt-in
+- platform-visible reasoning/steps are labeled explicitly
+- Ghost does not claim access to hidden chain-of-thought
 
-Before touching anything, read:
+## Prompt features
 
-- **[DEVLOG.md](DEVLOG.md)** — what was tried, what failed, and why. If something seems like a good idea, there's a chance it's already in here with a postmortem.
-- **[CHANGELOG.md](CHANGELOG.md)** — what shipped, what bugs were found, and what Replit's Playwright tests caught that the unit tests missed.
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — contracts, selector patterns, signal scoring, platform quirks, test harness design.
-- **[docs/RELEASE-CANDIDATE-8.8.md](docs/RELEASE-CANDIDATE-8.8.md)** — current 8.8 candidate/stable boundary and bounded certification ledger.
+Personas, workflows, postures, AoA activators, and custom Workshop content only change **prompt construction**.
 
-Product, build, test-semantic, release-facing, and user-facing changes should update the relevant DEVLOG/CHANGELOG/documentation in the same workstream so later sessions do not re-solve solved problems. Pure `.gitl` coordination/evidence commits do **not** require synthetic DEVLOG or CHANGELOG churn; their durable history belongs in `.gitl/evidence/**` and the orchestration state/plan.
+They do not gain Send authority.
 
-Historical note: **Release 8.3.0** was updated by MShneur with **Agent CG (ChatGPT)** as the main editor for that release. This attribution is not current release or publication authority.
+Custom Workshop bundles are bounded JSON data, additive only, and cannot replace built-ins.
 
----
+## Appearance and feedback
 
-## The AI Duct Tape Collection
+Settings include:
 
-The future showed up early and forgot the manual. Everything's brilliant, nothing's finished, and half of it forgets your name between Tuesday and Wednesday. These are the strips of duct tape — free, because the parts that hold your work together shouldn't cost a subscription.
+- 13 skins
+- accent colors
+- Quick Start replay
+- sound cues
+- notifications
 
-They work on their own. Use one, or tape a few together:
+Sound and notifications are optional/status-only and do not mutate loop state.
 
-- **[CTRL-FORGE](https://github.com/MShneur/ctrl-forge)** — Your AI forgot everything. Again. This is the repo that didn't.
-- **[CTRL-AI](https://github.com/MShneur/CTRL-AI)** — Teaches your AI to say "I'm not sure" instead of confidently inventing a citation.
-- **[R-Duck](https://github.com/MShneur/R-Duck)** — Autopilot. You mumble an idea, it hands back a plan with a straight face.
-- **[Agents of AI](https://github.com/MShneur/Agents-of-AI)** — A cast of specialists. No coffee, no PTO, no LinkedIn updates.
-- **[Ghost in the Loop](https://github.com/MShneur/ghost-in-the-loop)** *(this repo)* — Moves work between AIs without dropping it down the stairs. Full chat export, handoffs.
-- **[Control Walkthrough](https://github.com/MShneur/Ctrl-Walkthrough)** — The hands. It finds the page, clicks the safe buttons, fills the boring fields, verifies the result, and gets out of the way.
+## Supported focus for v9 certification
 
-Each keeps its own license — don't assume they match.
+First-class field certification is currently focused on:
 
----
+1. ChatGPT
+2. Perplexity
+3. Firefox Android + Tampermonkey
 
-## License
+Other hosts remain generic / lower-evidence until separately verified.
 
-AGPL-3.0 — see [LICENSE](LICENSE).
+## Candidate identity
 
----
+- Userscript / npm version: **9.0.0-alpha.2**
+- WebExtension numeric version: **9.0.0**
+- WebExtension display version: **9.0.0-alpha.2**
+- Stable update/download channel remains `main`
+- Candidate publication state remains **not published**
 
-*Humanity achieved godlike AI. The last bottleneck was a guy named Steve.*
+The extension runtime is deterministically generated from `ghost-in-the-loop.user.js` by `scripts/build-extension.js`.
 
-*Steve has been removed from the critical path.*
+## Required release proof
+
+Automated/source/browser checks are not enough to certify the real mobile path.
+
+Before v9 release, the exact candidate still needs authenticated Firefox Android/Tampermonkey proof on both ChatGPT and Perplexity:
+
+- at least 5 consecutive PROCEED cycles per host
+- HUMAN and HALT
+- no duplicate Sends
+- uncertain Send fails closed
+- watchdog recovery
+- `↑ Top` on a long/lazy-loaded conversation
+- reload
+- Export truthfulness
+- mobile panel usability
+
+## Development authority
+
+For current work, use:
+
+- GitHub repository state as implementation authority
+- `docs/handoffs/` for v9 bounded-batch returns
+- issue #47 for the v9 product/reconciliation scope
+- legacy 8.8 branches/issues only as failure archaeology
+
+Do not restore old alternate Send engines merely to make a historical test pass.
