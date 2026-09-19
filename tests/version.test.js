@@ -30,8 +30,10 @@ describe('Version consistency', () => {
     expect(headerMatch[1]).toBe(verMatch[1]);
   });
 
-  test('@version matches manifest.json version', () => {
-    expect(headerMatch[1]).toBe(manifest.version);
+  test('@version maps to manifest numeric version + display version', () => {
+    const numeric = headerMatch[1].split('-')[0];
+    expect(manifest.version).toBe(numeric);
+    expect(manifest.version_name).toBe(headerMatch[1]);
   });
 
   test('@version matches package metadata', () => {
