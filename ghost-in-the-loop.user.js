@@ -115,6 +115,7 @@ const S = {
 const ON = {};
 for (const key of Object.keys(ACT)) ON[key] = !!GM_getValue(`v9.act.${key}`, false);
 let custom = String(GM_getValue('v9.custom', '') || '');
+let exportRaw = !!GM_getValue('v9.exportRaw', false);
 
 let _ttPolicy = null;
 try { if (window.trustedTypes?.createPolicy) _ttPolicy = window.trustedTypes.createPolicy('gitl9-ui', { createHTML: s => s }); } catch (_) {}
@@ -636,88 +637,135 @@ async function goTop() {
   }
 }
 
+function visibleReasoningText(root) {
+  if (!root?.querySelectorAll) return '';
+  const selectors = ['[data-testid*="reasoning" i]','[data-testid*="thinking" i]','[data-message-content-part-type="reasoning"]','[data-workflow-step]'];
+  const seen = new Set(), parts = [];
+  for (const selector of selectors) {
+    let nodes = []; try { nodes = [...root.querySelectorAll(selector)]; } catch (_) {}
+    for (const el of nodes) { const text = displayText(el.innerText || el.textContent || ''); if (text && !seen.has(text)) { seen.add(text); parts.push(text); } }
+  }
+  return parts.join('\n\n');
+}
 function domTurns() {
   const rows = [];
   if (HOST.id === 'chatgpt') {
-    const nodes = [...document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]')];
-    for (const el of nodes) {
-      const role = el.getAttribute('data-message-author-role'); const text = displayText(el.innerText || el.textContent || '');
-      if (role && text) rows.push({ role, text });
+    for (const el of document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]')) {
+      const role = el.getAttribute('data-message-author-role'), text = displayText(el.innerText || el.textContent || '');
+      if (!role || !text) continue;
+      const thinking = role === 'assistant' ? visibleReasoningText(el) : '';
+      rows.push(thinking ? { role, text, thinking } : { role, text });
     }
     return rows;
   }
   if (HOST.id === 'perplexity') {
-    const all = [...document.querySelectorAll('.group\\/user-bubble,[data-workflow-final-text]')];
-    for (const el of all) {
+    for (const el of document.querySelectorAll('.group\\/user-bubble,[data-workflow-final-text]')) {
       const text = displayText(el.innerText || el.textContent || ''); if (!text) continue;
-      rows.push({ role: el.matches('.group\\/user-bubble') ? 'user' : 'assistant', text });
+      const role = el.matches('.group\\/user-bubble') ? 'user' : 'assistant';
+      const thinking = role === 'assistant' ? visibleReasoningText(el.closest('article,main,section,div') || el) : '';
+      rows.push(thinking ? { role, text, thinking } : { role, text });
     }
     return rows;
   }
-  const users = queryAll(HOST.user).map(el => ({ el, role: 'user' }));
-  const assistants = queryAll(HOST.assistant).map(el => ({ el, role: 'assistant' }));
-  for (const item of [...users, ...assistants].sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1)) {
-    const text = displayText(item.el.innerText || item.el.textContent || ''); if (text) rows.push({ role: item.role, text });
+  const users = queryAll(HOST.user).map(el => ({ el, role: 'user' })), assistants = queryAll(HOST.assistant).map(el => ({ el, role: 'assistant' }));
+  for (const item of [...users, ...assistants].sort((a,b)=>(a.el.compareDocumentPosition(b.el)&Node.DOCUMENT_POSITION_FOLLOWING)?-1:1)) {
+    const text = displayText(item.el.innerText || item.el.textContent || ''); if (!text) continue;
+    const thinking = item.role === 'assistant' ? visibleReasoningText(item.el) : '';
+    rows.push(thinking ? { role:item.role, text, thinking } : { role:item.role, text });
   }
   return rows;
 }
 function chatgptId() { const m = location.pathname.match(/\/c\/([0-9a-z-]+)/i); return m ? m[1] : ''; }
 function perplexitySlug() { const m = location.pathname.match(/\/search\/([^/?#]+)/i); return m ? decodeURIComponent(m[1]) : ''; }
+function asText(value) {
+  if (typeof value === 'string') return displayText(value);
+  if (Array.isArray(value)) return displayText(value.map(v => typeof v === 'string' ? v : (v?.text || v?.content || '')).filter(Boolean).join('\n'));
+  if (value && typeof value === 'object') return displayText(value.text || value.content || value.answer || value.query || value.message || '');
+  return '';
+}
+function visibleThinkingFrom(value) {
+  if (!value || typeof value !== 'object') return '';
+  const out = [];
+  for (const item of [value.thinking,value.reasoning,value.thoughts,value.summary,value.reasoning_summary,value.thinking_summary]) {
+    const text = asText(item); if (text && !out.includes(text)) out.push(text);
+  }
+  return out.join('\n\n');
+}
 function parseChatGPTApi(data) {
   if (!data?.mapping || typeof data.mapping !== 'object') return [];
-  const out = [];
-  for (const node of Object.values(data.mapping)) {
-    const msg = node?.message; const role = msg?.author?.role; const parts = msg?.content?.parts;
-    if (!['user', 'assistant'].includes(role) || !Array.isArray(parts)) continue;
-    const text = displayText(parts.filter(x => typeof x === 'string').join('\n'));
-    if (text) out.push({ role, text, at: Number(msg.create_time || 0) });
+  const chain = [];
+  if (data.current_node && data.mapping[data.current_node]) {
+    let node=data.mapping[data.current_node]; const seen=new Set();
+    while (node && !seen.has(node.id)) { seen.add(node.id); chain.unshift(node); node=node.parent ? data.mapping[node.parent] : null; }
+  } else chain.push(...Object.values(data.mapping).sort((a,b)=>Number(a?.message?.create_time||0)-Number(b?.message?.create_time||0)));
+  const out=[];
+  for (const node of chain) {
+    const msg=node?.message, role=msg?.author?.role; if (!['user','assistant'].includes(role)) continue;
+    const text=asText(msg?.content?.parts?.length ? msg.content.parts : msg?.content);
+    const thinking=role==='assistant' ? visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata) : '';
+    if (text||thinking) out.push(thinking ? {role,text,thinking}:{role,text});
   }
-  out.sort((a, b) => a.at - b.at);
-  return out.map(({ role, text }) => ({ role, text }));
+  return out;
+}
+function parsePerplexityApi(data) {
+  if (!data || typeof data !== 'object') return [];
+  const entries=Array.isArray(data.entries)?data.entries:Array.isArray(data.thread?.entries)?data.thread.entries:Array.isArray(data.messages)?data.messages:[];
+  const out=[];
+  for (const entry of entries) {
+    const rawRole=String(entry?.role||entry?.author||entry?.sender||entry?.type||'').toLowerCase();
+    const role=/user|human|query|question/.test(rawRole)?'user':/assistant|ai|answer|response/.test(rawRole)?'assistant':(entry?.query&&!entry?.answer?'user':'assistant');
+    const text=asText(entry?.text||entry?.content||entry?.answer||entry?.query||entry?.message);
+    const steps=Array.isArray(entry?.steps)?entry.steps:Array.isArray(entry?.reasoning_steps)?entry.reasoning_steps:[];
+    const stepText=steps.map(s=>asText(s?.summary||s?.text||s?.content||s)).filter(Boolean).join('\n\n');
+    const thinking=role==='assistant'?[visibleThinkingFrom(entry),stepText].filter(Boolean).join('\n\n'):'';
+    if (text||thinking) out.push(thinking?{role,text,thinking}:{role,text});
+  }
+  if (!out.length && Array.isArray(data.steps)) {
+    const text=asText(data.answer||data.response||data.text||''), thinking=data.steps.map(s=>asText(s?.summary||s?.text||s?.content||s)).filter(Boolean).join('\n\n');
+    if (text||thinking) out.push(thinking?{role:'assistant',text,thinking}:{role:'assistant',text});
+  }
+  return out;
 }
 async function apiCapture() {
   try {
     if (HOST.id === 'chatgpt') {
-      const id = chatgptId(); if (!id) return null;
-      const r = await fetch(`/backend-api/conversation/${encodeURIComponent(id)}`, { credentials: 'include' });
-      if (!r.ok) return null; const raw = await r.json(); const turns = parseChatGPTApi(raw);
-      return { source: turns.length ? 'api' : 'api-raw', turns, raw };
+      const id=chatgptId(); if (!id) return null;
+      const r=await fetch('/backend-api/conversation/'+encodeURIComponent(id),{credentials:'include'}); if (!r.ok) return null;
+      const raw=await r.json(), turns=parseChatGPTApi(raw); return {source:turns.length?'platform archive':'platform archive (unparsed)',turns,raw};
     }
     if (HOST.id === 'perplexity') {
-      const slug = perplexitySlug(); if (!slug) return null;
-      const r = await fetch(`/rest/thread/${encodeURIComponent(slug)}`, { credentials: 'include' });
-      if (!r.ok) return null; return { source: 'api-raw', turns: [], raw: await r.json() };
+      const slug=perplexitySlug(); if (!slug) return null;
+      const r=await fetch('/rest/thread/'+encodeURIComponent(slug),{credentials:'include'}); if (!r.ok) return null;
+      const raw=await r.json(), turns=parsePerplexityApi(raw); return {source:turns.length?'platform archive':'platform archive (unparsed)',turns,raw};
     }
-  } catch (error) { log('export-api-failed', { host: HOST.id, message: String(error?.message || error) }); }
+  } catch (error) { log('export-api-failed',{host:HOST.id,message:String(error?.message||error)}); }
   return null;
 }
 async function captureExport() {
-  const api = await apiCapture(); const dom = domTurns();
-  if (api?.turns?.length) return { version: VER, platform: HOST.id, capturedAt: new Date().toISOString(), source: 'api', partial: false, turns: api.turns, raw: api.raw };
-  if (api) return { version: VER, platform: HOST.id, capturedAt: new Date().toISOString(), source: 'api-raw+dom', partial: true, turns: dom, raw: api.raw };
-  return { version: VER, platform: HOST.id, capturedAt: new Date().toISOString(), source: 'dom', partial: true, turns: dom };
+  const api=await apiCapture();
+  if (api?.turns?.length) return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,...(exportRaw?{raw:api.raw}:{})};
+  const dom=domTurns();
+  if (api) return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,note:'Ghost could read the platform archive but could not safely map its current shape. Visible chat was exported instead.',turns:dom,...(exportRaw?{raw:api.raw}:{})};
+  return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,note:'This export uses what is currently visible on the page and may omit older unloaded turns.',turns:dom};
 }
 function markdown(cap) {
-  const lines = ['# Ghost conversation export', '', `- Platform: ${cap.platform}`, `- Captured: ${cap.capturedAt}`, `- Source: ${cap.source}${cap.partial ? ' (partial)' : ''}`, ''];
-  cap.turns.forEach((turn, i) => { lines.push(`## ${i + 1}. ${turn.role === 'user' ? 'User' : 'Assistant'}`, '', turn.text, ''); });
+  const lines=['# Ghost conversation export','', '- Platform: '+cap.platform, '- Captured: '+cap.capturedAt, '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''), ''];
+  if (cap.note) lines.push('> '+cap.note,'');
+  cap.turns.forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':'Assistant'),'',turn.text||''); if(turn.thinking) lines.push('','### Platform-visible reasoning','',turn.thinking); lines.push(''); });
   return lines.join('\n');
 }
-function download(name, text, type) {
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name;
-  document.documentElement.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+function download(name,text,type) {
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
+  document.documentElement.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
 }
+function exportStatus(cap,action) { return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history'); }
 async function doExport(kind) {
-  S.detail = 'Capturing export...'; render(); const cap = await captureExport();
-  if (!cap.turns.length && !cap.raw) { S.detail = 'Export found no conversation data.'; render(); return; }
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  if (kind === 'copy') {
-    const text = markdown(cap); try { GM_setClipboard(text, 'text'); } catch (_) { await navigator.clipboard?.writeText(text); }
-    S.detail = `Copied ${cap.turns.length} turns · ${cap.source}${cap.partial ? ' partial' : ''}`;
-  } else if (kind === 'md') {
-    download(`ghost-${HOST.id}-${stamp}.md`, markdown(cap), 'text/markdown;charset=utf-8'); S.detail = `Markdown exported · ${cap.source}${cap.partial ? ' partial' : ''}`;
-  } else {
-    download(`ghost-${HOST.id}-${stamp}.json`, JSON.stringify(cap, null, 2), 'application/json;charset=utf-8'); S.detail = `JSON exported · ${cap.source}${cap.partial ? ' partial' : ''}`;
-  }
+  S.detail='Reading conversation…'; render(); const cap=await captureExport();
+  if (!cap.turns.length && !cap.raw) { S.detail='No conversation data was available to export.'; render(); return; }
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  if (kind==='copy') { const text=markdown(cap); try { GM_setClipboard(text,'text'); } catch (_) { await navigator.clipboard?.writeText(text); } S.detail=exportStatus(cap,'Copied Markdown'); }
+  else if (kind==='md') { download('ghost-'+HOST.id+'-'+stamp+'.md',markdown(cap),'text/markdown;charset=utf-8'); S.detail=exportStatus(cap,'Markdown saved'); }
+  else { download('ghost-'+HOST.id+'-'+stamp+'.json',JSON.stringify(cap,null,2),'application/json;charset=utf-8'); S.detail=exportStatus(cap,'JSON saved'); }
   render();
 }
 
@@ -758,7 +806,8 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
-      <div class="tiny">API-first where supported; DOM fallback is explicitly marked partial.</div>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON in saved JSON</label>
+      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
     </div>`);
   panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; GM_setValue('v9.tab', S.tab); render(); }));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
@@ -771,6 +820,7 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
+  panel.querySelector('[data-export-raw]')?.addEventListener('change', e => { exportRaw = !!e.target.checked; GM_setValue('v9.exportRaw', exportRaw); S.detail = exportRaw ? 'Raw platform JSON will be included in saved JSON.' : 'Raw platform JSON is off.'; render(); });
   panel.querySelector('[data-max]')?.addEventListener('change', e => { S.max = Math.max(1, Math.min(100, Number(e.target.value) || 25)); GM_setValue('v9.max', S.max); render(); });
   panel.querySelectorAll('[data-act]').forEach(box => box.addEventListener('change', () => { ON[box.dataset.act] = box.checked; GM_setValue(`v9.act.${box.dataset.act}`, box.checked); S.detail = `${ACT[box.dataset.act][0]} ${box.checked?'enabled':'disabled'} for the next injected prompt.`; render(); }));
   panel.querySelector('[data-custom]')?.addEventListener('change', e => { custom = String(e.target.value || '').trim(); GM_setValue('v9.custom', custom); S.detail = custom ? 'Custom AoA path saved.' : 'Custom AoA path cleared.'; render(); });
