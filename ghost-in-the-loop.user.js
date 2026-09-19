@@ -90,6 +90,107 @@ const ACCENTS = Object.freeze({
   auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
 });
 
+const PERSONA_LIBRARY = Object.freeze({
+  none:{label:'None',inject:''},
+  researcher:{label:'Researcher',inject:'Adopt the persona of a rigorous senior researcher: clarify assumptions, gather evidence, compare alternatives, and explicitly note uncertainty when evidence is weak.'},
+  builder:{label:'Builder',inject:'Adopt the persona of a senior builder/operator: prefer implementation detail, sequence, dependencies, tradeoffs, and concrete execution steps over vague theory.'},
+  redteam:{label:'Red Team',inject:'Adopt the persona of a hostile but fair red-team reviewer: attack weak assumptions, find failure modes, identify exploit paths, and surface how this could go wrong in reality.'},
+  devil:{label:"Devil's Advocate",inject:"Adopt the persona of a devil's advocate: challenge the dominant framing, propose contrarian interpretations, and test whether the current direction is overconfident or incomplete."},
+  tester:{label:'Tester',inject:'Adopt the persona of a destructive QA and reliability tester: search for breakage, edge cases, race conditions, user-error paths, and ambiguous states.'},
+  customer:{label:'Customer Voice',inject:'Adopt the persona of a skeptical end user/customer: surface confusion, friction, mistrust, negative feedback, missing explanations, and why adoption might fail.'},
+  executive:{label:'Executive',inject:'Adopt the persona of an executive operator: prioritize leverage, decision quality, clarity, speed, downside risk, and what matters most if time is limited.'},
+  roundtable:{label:'Round Table',inject:'Run a compact round-table with Researcher, Builder, Red Team, Customer Voice, and Executive. Keep viewpoints distinct, preserve real disagreement, then synthesize the strongest result.'}
+});
+const POSTURES = Object.freeze({
+  standard:{label:'Locked',clause:'[Posture: LOCKED] Follow the current task and plan exactly. Do not add unrelated scope. If the plan is wrong, state the conflict rather than silently expanding.'},
+  adaptive:{label:'Adaptive',clause:'[Posture: ADAPTIVE] You may revise a future step only when a concrete blocker, missing prerequisite, or material gap makes the current plan likely to fail. Explain the reason briefly and stay inside the original goal.'},
+  audit:{label:'Audit',clause:'[Posture: AUDIT] Execute the current plan first. Before HALT, perform one bounded coverage check for material gaps or errors and close only the highest-value gaps. Do not add nice-to-have scope.'}
+});
+const WORKFLOW_LIBRARY = Object.freeze({
+  none:{label:'Manual',desc:'No extra workflow guidance.',stages:[]},
+  deep_research:{label:'Deep Research',desc:'Research → branch → red team → synthesis.',stages:[
+    'Expand the research: identify missing angles, weak assumptions, hidden dependencies, and adjacent questions that materially affect the goal.',
+    'Generate a small set of high-value research branches. Rank them by upside, risk reduction, and novelty, then pursue the strongest branch.',
+    'Red-team the work. Find what is brittle, overconfident, unsupported, or likely to fail in reality.',
+    'Synthesize the strongest final result. Preserve useful dissent and remove weak material.'
+  ]},
+  rd_lab:{label:'R&D Lab',desc:'Invent → prototype → evaluate → converge.',stages:[
+    'Generate ambitious but plausible directions beyond the current framing.',
+    'Turn the strongest directions into concrete mechanisms or prototypes.',
+    'Compare candidates, identify fatal flaws, and decide what to merge, cut, or reframe.',
+    'Deliver the strongest evolved concept with rationale and unresolved questions.'
+  ]},
+  shipyard:{label:'Shipyard',desc:'Concept → execution plan → QA → production-ready.',stages:[
+    'Translate the work into an execution plan with milestones, dependencies, and a first shippable version.',
+    'Run QA/operations review for implementation, onboarding, edge cases, maintenance, and rollback.',
+    'Produce the production-ready plan: prioritized, resilient, and minimal.'
+  ]},
+  debate:{label:'Debate',desc:'Distinct viewpoints → disagreement → synthesis.',stages:[
+    'Run distinct Researcher, Builder, Red Team, Customer Voice, and Executive assessments.',
+    'Force substantive disagreement: identify what each perspective thinks the others underestimate.',
+    'Resolve what can be resolved and synthesize the answer that best survives critique.'
+  ]},
+  pre_mortem:{label:'Pre-Mortem',desc:'Assume failure → warning signs → harden.',stages:[
+    'Assume this fails badly in six months. Identify concrete product, technical, human, and operational causes.',
+    'Identify early warning signals and the smallest interventions that could prevent the failure.',
+    'Rewrite the strategy to address the material failure modes.'
+  ]},
+  trollproof:{label:'Trollproof',desc:'Hostile reading → filter noise → harden.',stages:[
+    'Generate the strongest hostile or bad-faith interpretations this could attract.',
+    'Separate unfair noise from critiques that reveal a real weakness.',
+    'Rewrite the output so it is clearer and more resilient without overreacting to noise.'
+  ]},
+  lens_relay:{label:'Lens Relay',desc:'Independent lens turns with preserved dissent.',stages:[
+    'Give an independent assessment of the work so far. Challenge assumptions and add what your lens uniquely contributes.',
+    'Focus on what previous lenses underestimated or missed.',
+    'Draft a synthesis that keeps real disagreements explicit.',
+    'Verify the synthesis against prior critiques and deliver the strongest final result.'
+  ]}
+});
+const WORKSHOP_SCHEMA = 'gitl-workshop/1';
+const WORKSHOP_LIMITS = Object.freeze({fileBytes:512*1024,maxItems:100,label:40,inject:4000,desc:200,stage:1600,stages:12});
+const Workshop = {
+  personas:{}, workflows:{},
+  load(){
+    try { const p=JSON.parse(GM_getValue('v9.customPersonas','{}')); this.personas=p&&typeof p==='object'&&!Array.isArray(p)?p:{}; } catch(_){ this.personas={}; }
+    try { const w=JSON.parse(GM_getValue('v9.customWorkflows','{}')); this.workflows=w&&typeof w==='object'&&!Array.isArray(w)?w:{}; } catch(_){ this.workflows={}; }
+  },
+  persist(){ GM_setValue('v9.customPersonas',JSON.stringify(this.personas)); GM_setValue('v9.customWorkflows',JSON.stringify(this.workflows)); },
+  slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,40)||'item'; },
+  unique(base,taken){ let id=this.slug(base),n=2; while(taken.has(id)) id=this.slug(base)+'_'+n++; return id; },
+  validPersona(p){ return !!p&&typeof p.label==='string'&&p.label.trim().length>0&&typeof p.inject==='string'&&p.inject.trim().length>0; },
+  validWorkflow(w){ return !!w&&typeof w.label==='string'&&w.label.trim().length>0&&Array.isArray(w.stages)&&w.stages.length>0&&w.stages.every(s=>typeof s==='string'&&s.trim().length>0); },
+  importBundle(text){
+    if(typeof text!=='string') return {ok:false,error:'No import text.'};
+    if(text.length>WORKSHOP_LIMITS.fileBytes) return {ok:false,error:'Import is too large.'};
+    let data; try{data=JSON.parse(text);}catch(_){return {ok:false,error:'Import is not valid JSON.'};}
+    if(!data||typeof data!=='object'||Array.isArray(data)) return {ok:false,error:'Import is malformed.'};
+    if(data.schema!==WORKSHOP_SCHEMA) return {ok:false,error:'Not a supported Ghost Workshop file.'};
+    const ps=Array.isArray(data.personas)?data.personas:[], ws=Array.isArray(data.workflows)?data.workflows:[];
+    if(ps.length+ws.length===0) return {ok:false,error:'No personas or workflows found.'};
+    if(ps.length+ws.length>WORKSHOP_LIMITS.maxItems) return {ok:false,error:'Too many imported items.'};
+    const res={ok:true,personas:0,workflows:0,skipped:0,renamed:0};
+    const pt=new Set([...Object.keys(PERSONA_LIBRARY),...Object.keys(this.personas)]);
+    for(const p of ps){
+      if(!this.validPersona(p)){res.skipped++;continue;}
+      const base=p.id||p.label,id=this.unique(base,pt); if(this.slug(base)!==id)res.renamed++; pt.add(id);
+      this.personas[id]={label:p.label.trim().slice(0,WORKSHOP_LIMITS.label),inject:p.inject.trim().slice(0,WORKSHOP_LIMITS.inject),custom:true}; res.personas++;
+    }
+    const wt=new Set([...Object.keys(WORKFLOW_LIBRARY),...Object.keys(this.workflows)]);
+    for(const w of ws){
+      if(!this.validWorkflow(w)){res.skipped++;continue;}
+      const base=w.id||w.label,id=this.unique(base,wt); if(this.slug(base)!==id)res.renamed++; wt.add(id);
+      this.workflows[id]={label:w.label.trim().slice(0,WORKSHOP_LIMITS.label),desc:String(w.desc||'').trim().slice(0,WORKSHOP_LIMITS.desc),stages:w.stages.slice(0,WORKSHOP_LIMITS.stages).map(s=>s.trim().slice(0,WORKSHOP_LIMITS.stage)),custom:true}; res.workflows++;
+    }
+    this.persist(); return res;
+  },
+  exportBundle(){ return JSON.stringify({schema:WORKSHOP_SCHEMA,tool:'Ghost in the Loop',version:VER,personas:Object.entries(this.personas).map(([id,p])=>({id,label:p.label,inject:p.inject})),workflows:Object.entries(this.workflows).map(([id,w])=>({id,label:w.label,desc:w.desc,stages:w.stages}))},null,2); }
+};
+Workshop.load();
+function allPersonas(){ return Object.assign({},PERSONA_LIBRARY,Workshop.personas); }
+function allWorkflows(){ return Object.assign({},WORKFLOW_LIBRARY,Workshop.workflows); }
+
+
 const PROFILES = [
   {
     id: 'perplexity',
@@ -141,6 +242,13 @@ let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
 if (!(accentId in ACCENTS)) accentId = 'auto';
 let quickStartOpen = !GM_getValue('v9.quickStartSeen', false);
 let helpOpen = false;
+let personaId = String(GM_getValue('v9.persona','none')||'none');
+let workflowId = String(GM_getValue('v9.workflow','none')||'none');
+let postureId = String(GM_getValue('v9.posture','standard')||'standard');
+let workshopOpen = false;
+if(!allPersonas()[personaId]) personaId='none';
+if(!allWorkflows()[workflowId]) workflowId='none';
+if(!POSTURES[postureId]) postureId='standard';
 
 let _ttPolicy = null;
 try { if (window.trustedTypes?.createPolicy) _ttPolicy = window.trustedTypes.createPolicy('gitl9-ui', { createHTML: s => s }); } catch (_) {}
@@ -295,26 +403,43 @@ function activatorText() {
   }
   return out.join('\n\n');
 }
+function promptFeatureText() {
+  const parts=[];
+  const persona=allPersonas()[personaId];
+  if(persona?.inject) parts.push('[Active persona]\n'+persona.inject);
+  const workflow=allWorkflows()[workflowId];
+  if(workflow?.stages?.length) parts.push('[Workflow: '+workflow.label+']\nYou own workflow progress. Follow these stages in order when they remain relevant; Ghost will not interpret or auto-advance them:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n'));
+  const posture=POSTURES[postureId]||POSTURES.standard;
+  if(posture?.clause) parts.push(posture.clause);
+  return parts.join('\n\n');
+}
+function withPromptFeatures(base) {
+  const features=promptFeatureText();
+  return features ? base+'\n\n---\n\n'+features : base;
+}
+
 function bootstrapPrompt(existing = '') {
   const parts = [];
   if (existing.trim()) parts.push(existing.trim());
   parts.push(contractText());
   const activators = activatorText(); if (activators) parts.push(activators);
+  const features = promptFeatureText(); if (features) parts.push(features);
   return parts.join('\n\n---\n\n');
 }
 function continuationPrompt() {
-  return ON.relay
+  const base = ON.relay
     ? 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Model Relay control line as the final non-whitespace line.'
     : 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Ghost control line as the final non-whitespace line.';
+  return withPromptFeatures(base);
 }
 function regroundPrompt() {
-  return `You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`;
+  return withPromptFeatures(`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`);
 }
 function cleanerzPrompt() {
-  return `Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`;
+  return withPromptFeatures(`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`);
 }
 function stallRecoveryPrompt() {
-  return `You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`;
+  return withPromptFeatures(`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`);
 }
 
 async function setComposerText(text) {
@@ -810,7 +935,7 @@ function copyReport() {
 }
 
 const style = document.createElement('style');
-style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:var(--g-radius);box-shadow:var(--g-shadow);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:var(--g-surface);color:var(--g-text);border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:var(--g-accent-bg);border-color:var(--g-accent);color:var(--g-text)}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:var(--g-panel);border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:var(--g-surface)}#gitl9 input[type="text"],#gitl9 input[type="number"]{width:100%;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;color:var(--g-muted);margin-top:5px}.helpbox{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:7px;margin:5px 0}.helpbox b{color:var(--g-accent)}.swatches{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.swatches button{flex:0 0 28px;height:28px;padding:0}.headtools{display:flex;align-items:center;gap:5px}.helpbtn{padding:3px 6px!important;font-size:10px!important}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
+style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:var(--g-radius);box-shadow:var(--g-shadow);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:var(--g-surface);color:var(--g-text);border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:var(--g-accent-bg);border-color:var(--g-accent);color:var(--g-text)}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:var(--g-panel);border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:var(--g-surface)}#gitl9 input[type="text"],#gitl9 input[type="number"],#gitl9 select,#gitl9 textarea{width:100%;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;color:var(--g-muted);margin-top:5px}.helpbox{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:7px;margin:5px 0}.helpbox b{color:var(--g-accent)}.swatches{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.swatches button{flex:0 0 28px;height:28px;padding:0}.headtools{display:flex;align-items:center;gap:5px}.helpbtn{padding:3px 6px!important;font-size:10px!important}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9 button{padding:6px 4px}}`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -832,7 +957,7 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;',
 function render() {
   panel.innerHTML = trustedHTML(`
     <div class="head"><span class="brand">👻 GHOST</span><span class="headtools"><button class="helpbtn" data-a="help">? Help</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Settings</button></div>
+    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">Prompt</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Settings</button></div>
     <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}</div>
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
@@ -840,6 +965,14 @@ function render() {
       <div class="row"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
+    </div>
+    <div class="pane ${S.tab==='prompt'?'show':''}" data-pane="prompt">
+      <label style="display:block"><span class="tiny">Persona</span><select data-persona style="width:100%;margin-top:3px">${Object.entries(allPersonas()).map(([id,p])=>'<option value="'+esc(id)+'" '+(personaId===id?'selected':'')+'>'+esc(p.label)+(p.custom?' · custom':'')+'</option>').join('')}</select></label>
+      <label style="display:block;margin-top:5px"><span class="tiny">Workflow</span><select data-workflow style="width:100%;margin-top:3px">${Object.entries(allWorkflows()).map(([id,w])=>'<option value="'+esc(id)+'" '+(workflowId===id?'selected':'')+'>'+esc(w.label)+(w.custom?' · custom':'')+'</option>').join('')}</select></label>
+      <label style="display:block;margin-top:5px"><span class="tiny">Posture</span><select data-posture style="width:100%;margin-top:3px">${Object.entries(POSTURES).map(([id,p])=>'<option value="'+id+'" '+(postureId===id?'selected':'')+'>'+esc(p.label)+'</option>').join('')}</select></label>
+      <div class="tiny">${esc(allWorkflows()[workflowId]?.desc||'')} These settings change prompt guidance only; Play remains the sole Send authority.</div>
+      <button data-a="workshop" style="width:100%;margin-top:6px">Workshop ${workshopOpen?'▴':'▾'}</button>
+      ${workshopOpen?'<div class="helpbox"><b>Custom personas/workflows</b><br>Paste a Ghost Workshop JSON bundle. Imports are additive; built-ins cannot be replaced.<textarea data-workshop-text rows="5" placeholder="{ &quot;schema&quot;: &quot;gitl-workshop/1&quot;, ... }" style="width:100%;margin-top:6px"></textarea><div class="row" style="margin-top:5px"><button data-a="workshop-import">Import</button><button data-a="workshop-copy">Copy custom JSON</button></div></div>':''}
     </div>
     <div class="pane ${S.tab==='aoa'?'show':''}" data-pane="aoa">
       <div class="grid">${Object.entries(ACT).map(([k,v])=>`<label><input type="checkbox" data-act="${k}" ${ON[k]?'checked':''}>${esc(v[0])}</label>`).join('')}</div>
@@ -872,6 +1005,21 @@ function render() {
   topButton?.addEventListener('pointerdown', e => e.preventDefault());
   topButton?.addEventListener('click', () => goTop().catch(error => { S.detail = 'Could not reach the top safely.'; log('top-navigation-error', { message: String(error?.message || error) }); render(); }));
   panel.querySelector('[data-a="report"]')?.addEventListener('click', copyReport);
+  panel.querySelector('[data-persona]')?.addEventListener('change', e => { personaId = allPersonas()[e.target.value] ? e.target.value : 'none'; GM_setValue('v9.persona', personaId); S.detail = 'Persona saved for future Ghost prompts.'; render(); });
+  panel.querySelector('[data-workflow]')?.addEventListener('change', e => { workflowId = allWorkflows()[e.target.value] ? e.target.value : 'none'; GM_setValue('v9.workflow', workflowId); S.detail = 'Workflow guidance saved.'; render(); });
+  panel.querySelector('[data-posture]')?.addEventListener('change', e => { postureId = POSTURES[e.target.value] ? e.target.value : 'standard'; GM_setValue('v9.posture', postureId); S.detail = 'Posture saved.'; render(); });
+  panel.querySelector('[data-a="workshop"]')?.addEventListener('click', () => { workshopOpen = !workshopOpen; render(); });
+  panel.querySelector('[data-a="workshop-import"]')?.addEventListener('click', () => {
+    const raw = String(panel.querySelector('[data-workshop-text]')?.value || '');
+    const res = Workshop.importBundle(raw);
+    if (!res.ok) { S.detail = res.error; render(); return; }
+    S.detail = 'Imported '+res.personas+' personas and '+res.workflows+' workflows'+(res.skipped?' · '+res.skipped+' skipped':'')+'.';
+    render();
+  });
+  panel.querySelector('[data-a="workshop-copy"]')?.addEventListener('click', async () => {
+    const text = Workshop.exportBundle(); try { GM_setClipboard(text,'text'); } catch (_) { await navigator.clipboard?.writeText(text); }
+    S.detail = 'Custom Workshop JSON copied.'; render();
+  });
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
