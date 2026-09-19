@@ -2,7 +2,7 @@
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "9.0.0-alpha.2",
-  "status": "v9-assembly-candidate",
+  "status": "v9-final-integration",
   "round": 9,
   "roundPhase": "complete",
   "mode": "continuous-local-human-gates",
@@ -13,7 +13,7 @@
     4,
     6
   ],
-  "branch": "feature/v9-package-identity",
+  "branch": "feature/v9-integration-candidate",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
   "orchestrationLocation": ".gitl/orchestration/README.md",
@@ -33,8 +33,8 @@
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
   "headAtLastHandoff": null,
-  "currentStep": "v9 Batches 1-7 reconciled on isolated candidate; package/extension identity aligned; field certification remains pending.",
-  "nextAction": "Run final integrated source/runtime verification, then perform authenticated Firefox Android canary on ChatGPT and Perplexity before any publication.",
+  "currentStep": "Final integrated candidate assembled; automated/browser verification in progress.",
+  "nextAction": "Complete E2/E3 integration verification, then E4 authenticated Firefox Android canary on ChatGPT and Perplexity.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": null,
@@ -98,9 +98,9 @@
     "canonicalSource": "ghost-in-the-loop.user.js",
     "generatedExtensionRuntime": "extension/content.js",
     "generationAuthority": "scripts/build-extension.js",
-    "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
+    "identityRecord": ".gitl/evidence/v9/candidate-identity.json",
     "provenanceHead": "30c49f690afb14683014e0a7c40c5c2093aaba2a",
-    "candidateChannel": "feature/v9-package-identity",
+    "candidateChannel": "feature/v9-integration-candidate",
     "stableChannel": "main",
     "stableVersionObserved": "8.7.1",
     "publicationState": "candidate-not-published",
@@ -269,8 +269,8 @@
   "publishReady": false,
   "verificationSummary": {
     "round": "v9",
-    "program": "V9-ASSEMBLY",
-    "status": "integration-verification-pending",
+    "program": "V9-FINAL-INTEGRATION",
+    "status": "browser-verification-in-progress",
     "verdict": "candidate-not-published-field-proof-required"
   }
 }
