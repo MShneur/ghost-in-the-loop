@@ -1,8 +1,8 @@
 {
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
-  "releaseTarget": "8.8.5",
-  "status": "p0-perplexity-fallback-certification",
+  "releaseTarget": "9.0.0-alpha.2",
+  "status": "v9-assembly-candidate",
   "round": 9,
   "roundPhase": "complete",
   "mode": "continuous-local-human-gates",
@@ -13,7 +13,7 @@
     4,
     6
   ],
-  "branch": "hotfix/8.8.5-p0-perplexity-fallback-ui",
+  "branch": "feature/v9-package-identity",
   "stateLocation": ".gitl/autopilot-state.json",
   "planLocation": ".gitl/orchestration/round-plan.json",
   "orchestrationLocation": ".gitl/orchestration/README.md",
@@ -32,9 +32,9 @@
     ".gitl/user-directives/2026-08-07-release-pressure.md"
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
-  "headAtLastHandoff": "05120658733579b5b307a1931fd6fc49ef9d3dfe",
-  "currentStep": "R9-A3-FINAL-CERT-PACKAGE-AUDIT is accepted. FINAL-CERT-PACKAGE is complete at bounded deterministic/non-published release-candidate package scope. The exact five immutable payload bytes, deterministic SHA256SUMS/package manifest, A1/A2/latest CI artifacts and provenance are internally consistent. Hosted timing red/green dissent, development-tooling advisory limits, live/physical uncertified claims, and all fail-closed safeguards remain explicit. publishReady remains false.",
-  "nextAction": "Halt autonomous release mutation and preserve the isolated 8.8 candidate/evidence unchanged. Await separate explicit user authority before any merge to main, auto-merge, tag, GitHub Release, store upload, stable-channel mutation, or publication action.",
+  "headAtLastHandoff": null,
+  "currentStep": "v9 Batches 1-7 reconciled on isolated candidate; package/extension identity aligned; field certification remains pending.",
+  "nextAction": "Run final integrated source/runtime verification, then perform authenticated Firefox Android canary on ChatGPT and Perplexity before any publication.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": null,
@@ -94,13 +94,13 @@
     "round9": "FINAL-CERT-PACKAGE accepted only at exact deterministic staged-payload/checksum/manifest/provenance/CI-evidence and non-published candidate scope; not publication, live-host, physical-platform, calibrated-hardware, universal timing, or universal dependency-nonexploitability certification."
   },
   "identityContract": {
-    "version": "8.8.0",
+    "version": "9.0.0-alpha.2",
     "canonicalSource": "ghost-in-the-loop.user.js",
     "generatedExtensionRuntime": "extension/content.js",
     "generationAuthority": "scripts/build-extension.js",
     "identityRecord": ".gitl/evidence/round-7/candidate-identity.json",
     "provenanceHead": "30c49f690afb14683014e0a7c40c5c2093aaba2a",
-    "candidateChannel": "agent/8.8-repair-resume isolated candidate branch",
+    "candidateChannel": "feature/v9-package-identity",
     "stableChannel": "main",
     "stableVersionObserved": "8.7.1",
     "publicationState": "candidate-not-published",
@@ -268,29 +268,9 @@
   },
   "publishReady": false,
   "verificationSummary": {
-    "round": 9,
-    "program": "FINAL-CERT-PACKAGE",
-    "status": "completed-certified-bounded-nonpublished",
-    "assignment": "R9-A3-FINAL-CERT-PACKAGE-AUDIT",
-    "verdict": "accepted-bounded-nonpublished-final-cert-package",
-    "evidence": ".gitl/evidence/round-9/worker-6.md",
-    "evidenceCommit": "a6b1da829803a8198ca351dfada528fe8cdc2a23",
-    "latestGreenPreAuditCi": {
-      "run": 31258662956,
-      "head": "fb27c0e3ad752094681c9bf580103895d269ad32",
-      "unitBaseIdentityPackage": "success",
-      "e2e": "success",
-      "packageArtifact": 9022132642,
-      "packageArtifactSha256": "24ba12ff3ee1d529ed377eb1ea5e5e63aa48210a7f225433c8dee39216e95d9e"
-    },
-    "retainedA2TimingRed": {
-      "run": 31258314731,
-      "head": "ae4f34e8b0e2da0a9e29566d0321eccb8897a07e",
-      "unitBaseIdentityPackage": "success",
-      "e2e": "timing-only-red"
-    },
-    "publishReady": false,
-    "finalMarker": "[[GITL::HALT]]",
-    "haltReason": "All authorized 8.8 release-candidate certification/package/checksum work is complete; publication remains a separate explicit user gate."
+    "round": "v9",
+    "program": "V9-ASSEMBLY",
+    "status": "integration-verification-pending",
+    "verdict": "candidate-not-published-field-proof-required"
   }
 }
