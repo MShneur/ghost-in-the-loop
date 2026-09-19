@@ -451,7 +451,7 @@ function promptFeatureText() {
   const persona=allPersonas()[personaId];
   if(persona?.inject) parts.push('[Active persona]\n'+persona.inject);
   const workflow=allWorkflows()[workflowId];
-  if(workflow?.stages?.length) parts.push('[Workflow: '+workflow.label+']\nYou own workflow progress. Follow these stages in order when they remain relevant; Ghost will not interpret or auto-advance them:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n'));
+  if(workflow?.stages?.length) parts.push('[Workflow: '+workflow.label+']\nYou own workflow progress. Follow these stages in order when they remain relevant; Ghost will not interpret or auto-advance them:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n')+'\n\nFor display only, when actively working within this workflow, place one line immediately before the final Ghost control line: [[GITL::STAGE:X/Y]] where X is the current workflow stage and Y is '+workflow.stages.length+'. This never controls Send. If stage is unclear, omit it rather than guess.');
   const posture=POSTURES[postureId]||POSTURES.standard;
   if(posture?.clause) parts.push(posture.clause);
   return parts.join('\n\n');
@@ -592,7 +592,7 @@ async function recoverStall() {
   if (S.recoveryCount >= 1) {
     S.stallState = 'HUMAN_REQUIRED';
     pause('Needs you — response stalled again after automatic recovery.');
-    notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.');
+    notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.', 'human');
     return;
   }
   S.watchdogBusy = true;
@@ -623,7 +623,7 @@ async function recoverStall() {
     if (!stopped) {
       S.stallState = 'HUMAN_REQUIRED';
       pause('Needs you — stalled response could not be confirmed stopped.');
-      notify('Ghost needs you', 'Automatic Stop could not be confirmed after three bounded attempts.');
+      notify('Ghost needs you', 'Automatic Stop could not be confirmed after three bounded attempts.', 'error');
       return;
     }
     S.stallState = 'REGROUNDING';
@@ -647,13 +647,13 @@ async function handleTerminal(text, parsed) {
   S.lastHandled = fp;
   if (parsed.normalized) log('terminal-normalized', { type: parsed.type });
   if (parsed.type === 'halt') {
-    S.drift = 0; S.recoveryCount = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.'); return;
+    S.drift = 0; S.recoveryCount = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.', 'complete'); return;
   }
   if (parsed.type === 'human') {
-    S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.'); return;
+    S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.', 'human'); return;
   }
   if (parsed.type === 'relay') {
-    S.drift = 0; S.relay = parsed.model; pause(`Model Relay requested: ${parsed.model}.`); notify('Model Relay requested', parsed.model); return;
+    S.drift = 0; S.relay = parsed.model; pause(`Model Relay requested: ${parsed.model}.`); notify('Model Relay requested', parsed.model, 'human'); return;
   }
   if (parsed.type === 'proceed') {
     S.drift = 0; if (S.round >= S.max) { pause('Round safety limit reached.'); return; }
@@ -664,7 +664,7 @@ async function handleDrift(tail) {
   S.drift += 1; log('protocol-drift', { count: S.drift, tail: String(tail || '').slice(0, 80) });
   if (S.drift === 1) { await sendOnce(regroundPrompt(), 'protocol reground'); return; }
   if (S.drift === 2 && ON.cleanerz) { await sendOnce(cleanerzPrompt(), 'Cleanerz recovery'); return; }
-  pause(`Protocol drift repeated ${S.drift} times. Human review required.`); notify('Ghost paused', 'Repeated protocol drift needs a human check.');
+  pause(`Protocol drift repeated ${S.drift} times. Human review required.`); notify('Ghost paused', 'Repeated protocol drift needs a human check.', 'error');
 }
 async function tick() {
   if (S.mode !== 'RUNNING' || S.sending || S.uncertain || S.watchdogBusy) return;
@@ -676,7 +676,7 @@ async function tick() {
     if (phase === 'HUMAN_REQUIRED') {
       S.stallState = phase;
       pause('Needs you — response stalled again after automatic recovery.');
-      notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.');
+      notify('Ghost needs you', 'The recovered lane stalled again. Automatic recovery stopped.', 'human');
       return;
     }
     if (phase === 'STOPPING') { await recoverStall(); return; }
@@ -691,6 +691,8 @@ async function tick() {
   if (S.generationStartedAt || S.stallState !== 'IDLE') clearGenerationWatchdog();
   const text = assistantText();
   if (!text) { S.detail = 'Waiting for assistant output...'; render(); return; }
+  const parsedStage = stageProgress(text);
+  if (parsedStage) S.stageProgress = parsedStage;
   const fp = hash(text);
   if (S.awaitingFrom) {
     if (fp === S.awaitingFrom) { S.detail = 'Waiting for the next answer...'; render(); return; }
