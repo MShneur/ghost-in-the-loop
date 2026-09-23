@@ -742,22 +742,140 @@ async function recoverStall() {
   }
 }
 
+
+function armTickLoop() {
+  clearInterval(S.timer);
+  S.timer = setInterval(() => { tick().catch(error => fail('PLAY-TICK', String(error?.message || error))); }, TICK_MS);
+}
+function enterRunning(detail = 'Starting...') {
+  S.mode = 'RUNNING'; S.detail = detail; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0;
+  S.drift = 0; S.relay = ''; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); render();
+}
+function clearMechanicalRuns() {
+  queueRun.active=false;
+  roadmapRun.capture=false; roadmapRun.active=false;
+  flowRun.active=false;
+}
+function activeMechanicalRun() {
+  if(queueRun.active) return 'queue';
+  if(roadmapRun.capture || roadmapRun.active) return 'roadmap';
+  if(flowRun.active) return 'flow';
+  return '';
+}
+async function startQueueRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const items=queueDraft.map(x=>String(x||'').trim()).filter(Boolean).slice(0,30);
+  if(!items.length){ S.detail='Add at least one queue step first.'; S.tab='auto'; render(); return false; }
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const context=nodeText(input);
+  clearMechanicalRuns();
+  queueRun={active:true,items,index:0};
+  enterRunning('Starting prompt queue…');
+  const sent=await sendOnce(mechanicalStepPrompt('queue',1,items.length,items[0],items.length===1,context),'queue step 1');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+async function startRoadmapRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const draft=nodeText(input);
+  const latest=assistantText();
+  if(!draft.trim() && !latest){ S.detail='Type the task in the chat first, then start Roadmap.'; S.tab='run'; render(); return false; }
+  const context=draft.trim() || 'Continue the existing task from this conversation without restarting or repeating completed work.';
+  clearMechanicalRuns();
+  roadmapRun={capture:true,active:false,steps:[],index:0};
+  enterRunning('Asking the AI to write the roadmap…');
+  const sent=await sendOnce(roadmapBootstrapPrompt(context),'roadmap plan');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+async function startFlowRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const wf=allWorkflows()[workflowId];
+  if(!wf?.stages?.length){ S.detail='Choose a workflow with stages first.'; S.tab='flow'; render(); return false; }
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const context=nodeText(input);
+  clearMechanicalRuns();
+  flowRun={active:true,index:0};
+  enterRunning('Starting '+wf.label+'…');
+  const sent=await sendOnce(mechanicalStepPrompt(wf.label,1,wf.stages.length,wf.stages[0],wf.stages.length===1,context),'workflow stage 1');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+function resumeMechanicalRun() {
+  if(!activeMechanicalRun() || S.mode==='RUNNING' || S.sending || S.uncertain) return false;
+  S.mode='RUNNING'; S.detail='Resuming…'; S.lastHandled=''; S.stableHash=''; S.stableSince=0; render();
+  armTickLoop();
+  tick().catch(error=>fail('PLAY-TICK',String(error?.message||error)));
+  return true;
+}
+async function advanceQueueRun() {
+  if(!queueRun.active) return false;
+  const next=queueRun.index+1;
+  if(next>=queueRun.items.length){
+    queueRun.active=false; complete('Prompt queue complete'); notify('Ghost complete','Prompt queue finished.','complete'); return true;
+  }
+  queueRun.index=next;
+  return await sendOnce(mechanicalStepPrompt('queue',next+1,queueRun.items.length,queueRun.items[next],next===queueRun.items.length-1),'queue step '+(next+1));
+}
+async function captureOrAdvanceRoadmap(text) {
+  if(roadmapRun.capture){
+    const steps=parseRoadmapBlock(text);
+    if(!steps.length){
+      roadmapRun.capture=false;
+      pause('Roadmap format was missing or invalid. Nothing was guessed or auto-inferred.');
+      return true;
+    }
+    roadmapRun.capture=false; roadmapRun.active=true; roadmapRun.steps=steps; roadmapRun.index=0;
+    S.detail='Roadmap captured · '+steps.length+' steps'; render();
+    return await sendOnce(mechanicalStepPrompt('roadmap',1,steps.length,steps[0],steps.length===1),'roadmap step 1');
+  }
+  if(!roadmapRun.active) return false;
+  const next=roadmapRun.index+1;
+  if(next>=roadmapRun.steps.length){
+    roadmapRun.active=false; complete('Roadmap complete'); notify('Ghost complete','Roadmap finished.','complete'); return true;
+  }
+  roadmapRun.index=next;
+  return await sendOnce(mechanicalStepPrompt('roadmap',next+1,roadmapRun.steps.length,roadmapRun.steps[next],next===roadmapRun.steps.length-1),'roadmap step '+(next+1));
+}
+async function advanceFlowRun() {
+  if(!flowRun.active) return false;
+  const wf=allWorkflows()[workflowId];
+  if(!wf?.stages?.length){ flowRun.active=false; pause('Workflow is no longer available.'); return true; }
+  const next=flowRun.index+1;
+  if(next>=wf.stages.length){
+    flowRun.active=false; complete(wf.label+' complete'); notify('Ghost complete',wf.label+' finished.','complete'); return true;
+  }
+  flowRun.index=next;
+  if(flowPauseBetween){
+    pause(wf.label+' stage '+next+' complete · press Play to continue to stage '+(next+1)+'.');
+    return true;
+  }
+  return await sendOnce(mechanicalStepPrompt(wf.label,next+1,wf.stages.length,wf.stages[next],next===wf.stages.length-1),'workflow stage '+(next+1));
+}
+
 async function handleTerminal(text, parsed) {
   const fp = hash(text);
   if (!text || fp === S.lastHandled || S.mode !== 'RUNNING' || S.sending) return;
   S.lastHandled = fp;
   if (parsed.normalized) log('terminal-normalized', { type: parsed.type });
   if (parsed.type === 'halt') {
-    S.drift = 0; S.recoveryCount = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.', 'complete'); return;
+    S.drift = 0; S.recoveryCount = 0;
+    clearMechanicalRuns();
+    complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.', 'complete'); return;
   }
   if (parsed.type === 'human') {
     S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.', 'human'); return;
   }
   if (parsed.type === 'relay') {
-    S.drift = 0; S.relay = parsed.model; pause(`Model Relay requested: ${parsed.model}.`); notify('Model Relay requested', parsed.model, 'human'); return;
+    S.drift = 0; S.relay = parsed.model; pause(\`Model Relay requested: \${parsed.model}.\`); notify('Model Relay requested', parsed.model, 'human'); return;
   }
   if (parsed.type === 'proceed') {
-    S.drift = 0; if (S.round >= S.max) { pause('Round safety limit reached.'); return; }
+    S.drift = 0;
+    if (S.round >= S.max) { pause('Round safety limit reached. Increase the limit or press Play after review to resume.'); return; }
+    if (queueRun.active) { await advanceQueueRun(); return; }
+    if (roadmapRun.capture || roadmapRun.active) { await captureOrAdvanceRoadmap(text); return; }
+    if (flowRun.active) { await advanceFlowRun(); return; }
     await sendOnce(continuationPrompt(), 'continue');
   }
 }
