@@ -487,43 +487,99 @@ function activatorText() {
   }
   return out.join('\n\n');
 }
-function promptFeatureText() {
+function activePersonaText(repeat = false) {
+  const all=allPersonas();
+  if (committeeOn) {
+    if (repeat && !committeePerTask) return '';
+    const ids=personaIds.filter(id=>all[id] && id!=='none').slice(0,8);
+    if (!ids.length) return '';
+    const rows=ids.map(id=>'• '+all[id].label+': '+all[id].inject).join('\n');
+    let out='Operate as a committee of '+ids.length+' distinct perspectives. Give each perspective an independent assessment when relevant, preserve real disagreement, then synthesize.\n\n'+rows;
+    if (committeeFinalReview) out+='\n\nBefore the task reaches its final HALT, perform one bounded committee review for material gaps and correct them before finishing.';
+    return out;
+  }
+  const persona=all[personaId];
+  return persona?.inject || '';
+}
+function strategyText() {
+  if (runMode === 'plan') {
+    return '[Strategy: PLAN FIRST]\nYou own the plan. First make or maintain a concise plan for this task, then execute it step by step. Ghost will not interpret that plan; it only relays exact prompts and terminal markers. Keep planning inside your responses and use the normal Ghost terminal marker.';
+  }
+  return '';
+}
+function promptFeatureText(options = {}) {
+  const includePersona = options.includePersona !== false;
+  const repeatPersona = !!options.repeatPersona;
+  const includeWorkflow = options.includeWorkflow !== false;
   const parts=[];
-  const persona=allPersonas()[personaId];
-  if(persona?.inject) parts.push('[Active persona]\n'+persona.inject);
+  const persona=includePersona ? activePersonaText(repeatPersona) : '';
+  if(persona) parts.push('[Active persona'+(committeeOn?' committee':'')+']\n'+persona);
   const workflow=allWorkflows()[workflowId];
-  if(workflow?.stages?.length) parts.push('[Workflow: '+workflow.label+']\nYou own workflow progress. Follow these stages in order when they remain relevant; Ghost will not interpret or auto-advance them:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n')+'\n\nFor display only, when actively working within this workflow, place one line immediately before the final Ghost control line: [[GITL::STAGE:X/Y]] where X is the current workflow stage and Y is '+workflow.stages.length+'. This never controls Send. If stage is unclear, omit it rather than guess.');
+  if(includeWorkflow && workflow?.stages?.length && !flowRun.active) {
+    parts.push('[Workflow reference: '+workflow.label+']\nThe AI owns workflow reasoning. Treat these as optional prompt guidance only; Ghost does not infer stages from prose:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n'));
+  }
   const posture=POSTURES[postureId]||POSTURES.standard;
   if(posture?.clause) parts.push(posture.clause);
+  const strategy=strategyText(); if(strategy) parts.push(strategy);
   return parts.join('\n\n');
 }
-function withPromptFeatures(base) {
-  const features=promptFeatureText();
+function withPromptFeatures(base, options = {}) {
+  const features=promptFeatureText(options);
   return features ? base+'\n\n---\n\n'+features : base;
 }
-
 function bootstrapPrompt(existing = '') {
   const parts = [];
   if (existing.trim()) parts.push(existing.trim());
   parts.push(contractText());
   const activators = activatorText(); if (activators) parts.push(activators);
-  const features = promptFeatureText(); if (features) parts.push(features);
+  const features = promptFeatureText({repeatPersona:false}); if (features) parts.push(features);
   return parts.join('\n\n---\n\n');
 }
 function continuationPrompt() {
   const base = ON.relay
     ? 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Model Relay control line as the final non-whitespace line.'
     : 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Ghost control line as the final non-whitespace line.';
-  return withPromptFeatures(base);
+  return withPromptFeatures(base,{repeatPersona:true});
+}
+function roadmapBootstrapPrompt(existing = '') {
+  const parts=[];
+  if(existing.trim()) parts.push(existing.trim());
+  parts.push('[GHOST ROADMAP AUTOPILOT]\nDo not execute the task yet. You own all planning intelligence. Produce a concrete roadmap of 3–30 self-contained executable steps using EXACTLY this structure:\n\n[[GITL::ROADMAP]]\n1. first step\n2. second step\n3. third step\n\nAfter the final numbered step, end the response with exactly [[GITL::PROCEED]] as the final non-whitespace line. Do not place any other Ghost control marker in the response.');
+  parts.push(contractText());
+  const activators=activatorText(); if(activators) parts.push(activators);
+  const features=promptFeatureText({includeWorkflow:false,repeatPersona:false}); if(features) parts.push(features);
+  return parts.join('\n\n---\n\n');
+}
+function parseRoadmapBlock(text) {
+  const source=String(text||'');
+  const at=source.lastIndexOf('[[GITL::ROADMAP]]');
+  if(at<0) return [];
+  const after=source.slice(at+'[[GITL::ROADMAP]]'.length);
+  const steps=[];
+  for(const line of after.split(/\r?\n/)) {
+    const trimmed=line.trim();
+    if(!trimmed) continue;
+    if(/^\[\[(?:GITL|AOA)::/.test(trimmed)) break;
+    const m=trimmed.match(/^\d{1,2}[.)]\s+(.{3,4000})$/);
+    if(m) steps.push(m[1].trim());
+    if(steps.length>=30) break;
+  }
+  return steps.length>=2 ? steps : [];
+}
+function mechanicalStepPrompt(kind, step, total, text, last = false) {
+  const terminal = last ? G.halt : G.proceed;
+  const base='[Ghost '+kind+' — step '+step+' of '+total+']\n'+text+
+    '\n\nComplete ONLY this injected step, using the existing conversation as context. Do not invent or advance to a different Ghost step. When this step is complete, the FINAL non-whitespace line must be exactly '+terminal+'.';
+  return withPromptFeatures(base+'\n\n'+contractText(),{includeWorkflow:false,repeatPersona:true});
 }
 function regroundPrompt() {
-  return withPromptFeatures(`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`);
+  return withPromptFeatures(\`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n\${contractText()}\`,{repeatPersona:true});
 }
 function cleanerzPrompt() {
-  return withPromptFeatures(`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`);
+  return withPromptFeatures(\`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: \${ACT.cleanerz[1]}\n\n\${contractText()}\`,{repeatPersona:true});
 }
 function stallRecoveryPrompt() {
-  return withPromptFeatures(`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`);
+  return withPromptFeatures(\`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n\${contractText()}\`,{repeatPersona:true});
 }
 
 async function setComposerText(text) {
