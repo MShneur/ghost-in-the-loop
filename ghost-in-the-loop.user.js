@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.0-alpha.2
-// @description  Perpetual Play + truthful Export. External protocol activators. No controller-side reasoning.
+// @version      9.0.1-alpha.1
+// @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
 // @match        https://chat.openai.com/*
@@ -18,6 +18,19 @@
 // @match        https://chat.qwen.ai/*
 // @match        https://poe.com/*
 // @match        https://duck.ai/*
+// @match        https://manus.im/*
+// @match        https://www.manus.im/*
+// @match        https://kimi.moonshot.cn/*
+// @match        https://meta.ai/*
+// @match        https://www.meta.ai/*
+// @match        https://huggingface.co/chat*
+// @match        https://you.com/*
+// @match        https://pi.ai/*
+// @match        https://chat.z.ai/*
+// @match        https://genspark.ai/*
+// @match        https://www.genspark.ai/*
+// @match        https://chat.minimax.io/*
+// @match        https://lmarena.ai/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_setClipboard
@@ -35,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.0-alpha.2';
+const VER = '9.0.1-alpha.1';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
