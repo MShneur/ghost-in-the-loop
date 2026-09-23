@@ -264,6 +264,31 @@ let postureId = String(GM_getValue('v9.posture','standard')||'standard');
 let workshopOpen = false;
 let soundOn = !!GM_getValue('v9.soundOn', GM_getValue('soundOn', false));
 let notifyOn = !!GM_getValue('v9.notifyOn', GM_getValue('notifyOn', false));
+function getJsonValue(key, fallback) {
+  try { const raw=GM_getValue(key,''); if(!raw) return fallback; const v=JSON.parse(raw); return v ?? fallback; } catch(_) { return fallback; }
+}
+let runMode = String(GM_getValue('v9.runMode','loop') || 'loop');
+if(!['loop','plan','roadmap'].includes(runMode)) runMode='loop';
+let queueDraft = getJsonValue('v9.queueDraft',['']);
+if(!Array.isArray(queueDraft) || !queueDraft.length) queueDraft=[''];
+queueDraft = queueDraft.slice(0,30).map(x=>String(x||'').slice(0,4000));
+let queueRun = { active:false, items:[], index:0 };
+let roadmapRun = { capture:false, active:false, steps:[], index:0 };
+let flowRun = { active:false, index:0 };
+let flowPauseBetween = !!GM_getValue('v9.flowPauseBetween', false);
+let personaIds = getJsonValue('v9.personaIds',[personaId]);
+if(!Array.isArray(personaIds)) personaIds=[personaId];
+personaIds = personaIds.filter(id=>allPersonas()[id] && id!=='none').slice(0,8);
+let committeeOn = !!GM_getValue('v9.committeeOn', false);
+let committeePerTask = !!GM_getValue('v9.committeePerTask', true);
+let committeeFinalReview = !!GM_getValue('v9.committeeFinalReview', false);
+let placement = String(GM_getValue('v9.placement', GM_getValue('panelPosition','dock') || 'dock') || 'dock');
+const placementMap = {dock:'dock-right','dock-left':'dock-left','top-right':'float','top-left':'float','bot-right':'float','bot-left':'float','bottom-bar':'composer-row'};
+placement = placementMap[placement] || placement;
+if(!['dock-right','dock-left','float','composer-row','header-row'].includes(placement)) placement='dock-right';
+let floatPos = getJsonValue('v9.floatPos',{x:null,y:58});
+if(!floatPos || typeof floatPos!=='object') floatPos={x:null,y:58};
+let advancedOpen = !!GM_getValue('v9.advancedOpen', false);
 if(!allPersonas()[personaId]) personaId='none';
 if(!allWorkflows()[workflowId]) workflowId='none';
 if(!POSTURES[postureId]) postureId='standard';
