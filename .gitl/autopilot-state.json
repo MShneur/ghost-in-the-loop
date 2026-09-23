@@ -2,7 +2,7 @@
   "schema": "gitl-autopilot-state-v2",
   "project": "ghost-in-the-loop",
   "releaseTarget": "9.0.0-alpha.2",
-  "status": "v9-live-promotion-authorized",
+  "status": "v9-live-on-main",
   "round": 9,
   "roundPhase": "complete",
   "mode": "continuous-local-human-gates",
@@ -33,8 +33,8 @@
   ],
   "productHeadAtRoundStart": "75b0a7c9aedce61f09b953d3f452e832a03d4fa7",
   "headAtLastHandoff": null,
-  "currentStep": "Owner authorized promotion of the completed v9.0.0-alpha.2 candidate to main.",
-  "nextAction": "Fast-forward main to the v9 integration candidate and verify stable raw userscript bytes/version.",
+  "currentStep": "Ghost v9.0.0-alpha.2 is live on main with exact minimized-rail payload verified from the stable raw channel.",
+  "nextAction": "Collect real Firefox Android ChatGPT/Perplexity field reports during use; patch only if evidence shows a live-host defect.",
   "automaticDispatch": {
     "enabled": false,
     "scheduledFor": null,
@@ -261,8 +261,8 @@
   "verificationSummary": {
     "round": "v9",
     "program": "V9-LIVE-PROMOTION",
-    "status": "promotion-authorized",
-    "verdict": "publish-to-main-with-e4-limit-recorded",
-    "evidence": "docs/handoffs/GITL_V9_FINAL_AUTONOMOUS_ASSEMBLY_2026-09-19.md"
+    "status": "live-main",
+    "verdict": "published-main-e3-verified-e4-observation-ongoing",
+    "evidence": "docs/handoffs/GITL_V9_LIVE_PROMOTION_2026-09-23.md"
   }
 }
