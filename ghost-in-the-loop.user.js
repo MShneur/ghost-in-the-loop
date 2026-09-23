@@ -846,11 +846,11 @@ async function advanceFlowRun() {
   if(next>=wf.stages.length){
     flowRun.active=false; complete(wf.label+' complete'); notify('Ghost complete',wf.label+' finished.','complete'); return true;
   }
-  flowRun.index=next;
   if(flowPauseBetween){
-    pause(wf.label+' stage '+next+' complete · press Play to continue to stage '+(next+1)+'.');
+    pause(wf.label+' stage '+(flowRun.index+1)+' complete · press Play to continue to stage '+(next+1)+'.');
     return true;
   }
+  flowRun.index=next;
   return await sendOnce(mechanicalStepPrompt(wf.label,next+1,wf.stages.length,wf.stages[next],next===wf.stages.length-1),'workflow stage '+(next+1));
 }
 
@@ -934,9 +934,13 @@ async function tick() {
 async function play() {
   if (S.mode === 'RUNNING') return;
   if (S.uncertain) { S.detail = 'Prior Send is uncertain. Inspect the chat or use Page Reload before resuming.'; render(); return; }
+  if (activeMechanicalRun() && S.mode === 'PAUSED') { resumeMechanicalRun(); return; }
+  if (runMode === 'roadmap') { await startRoadmapRun(); return; }
   const input = composer();
   if (!input) { fail('PLAY-INPUT', 'Current chat composer was not found.', { host: HOST.id }); return; }
-  S.mode = 'RUNNING'; S.detail = 'Starting...'; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.relay = ''; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); render();
+  if (S.mode === 'IDLE' || S.mode === 'COMPLETE') S.round = 0;
+  clearMechanicalRuns();
+  enterRunning('Starting...');
   const draft = nodeText(input); const latest = assistantText(); const parsed = terminal(latest);
   if (draft.trim()) {
     S.bootstrapped = true; if (!await sendOnce(bootstrapPrompt(draft), 'initial task')) return;
@@ -948,13 +952,12 @@ async function play() {
     S.bootstrapped = true;
     if (!await sendOnce(bootstrapPrompt('Continue the existing task from this conversation without restarting or repeating completed work.'), 'arm existing chat')) return;
   }
-  clearInterval(S.timer);
-  S.timer = setInterval(() => { tick().catch(error => fail('PLAY-TICK', String(error?.message || error))); }, TICK_MS);
+  armTickLoop();
   await tick();
 }
 function pause(detail) { S.mode = 'PAUSED'; S.detail = detail; clearInterval(S.timer); S.timer = null; render(); }
 function stop() {
-  S.mode = 'IDLE'; S.detail = 'Stopped'; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog();
+  S.mode = 'IDLE'; S.detail = 'Stopped'; S.round = 0; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); clearMechanicalRuns();
   clearInterval(S.timer); S.timer = null; log('stop'); render();
 }
 function complete(detail) { S.mode = 'COMPLETE'; S.detail = detail; clearGenerationWatchdog(); clearInterval(S.timer); S.timer = null; render(); }
