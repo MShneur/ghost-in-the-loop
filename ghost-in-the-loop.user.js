@@ -566,11 +566,15 @@ function parseRoadmapBlock(text) {
   }
   return steps.length>=2 ? steps : [];
 }
-function mechanicalStepPrompt(kind, step, total, text, last = false) {
+function mechanicalStepPrompt(kind, step, total, text, last = false, initialContext = '') {
   const terminal = last ? G.halt : G.proceed;
-  const base='[Ghost '+kind+' — step '+step+' of '+total+']\n'+text+
-    '\n\nComplete ONLY this injected step, using the existing conversation as context. Do not invent or advance to a different Ghost step. When this step is complete, the FINAL non-whitespace line must be exactly '+terminal+'.';
-  return withPromptFeatures(base+'\n\n'+contractText(),{includeWorkflow:false,repeatPersona:true});
+  const parts=[];
+  if(initialContext.trim()) parts.push('[Original task / context]\n'+initialContext.trim());
+  parts.push('[Ghost '+kind+' — step '+step+' of '+total+']\n'+text+
+    '\n\nComplete ONLY this injected step, using the existing conversation as context. Do not invent or advance to a different Ghost step. When this step is complete, the FINAL non-whitespace line must be exactly '+terminal+'.');
+  parts.push(contractText());
+  if(initialContext.trim()) { const activators=activatorText(); if(activators) parts.push(activators); }
+  return withPromptFeatures(parts.join('\n\n---\n\n'),{includeWorkflow:false,repeatPersona:!initialContext.trim()});
 }
 function regroundPrompt() {
   return withPromptFeatures(\`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n\${contractText()}\`,{repeatPersona:true});
