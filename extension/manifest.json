@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "9.0.0",
-  "description": "Ghost in the Loop v9 — one-Send Play, stall recovery, truthful export, and progressive prompt/UI controls.",
+  "version": "9.0.1",
+  "description": "Ghost in the Loop v9.0.1 — full rich shell over one-Send mechanical relay; AI owns reasoning and planning.",
   "author": "Michael S (CTRL-AI)",
   "permissions": [
     "storage"
@@ -54,5 +54,5 @@
       "strict_min_version": "109.0"
     }
   },
-  "version_name": "9.0.0-alpha.2"
+  "version_name": "9.0.1-alpha.1"
 }
