@@ -274,7 +274,7 @@ if(!Array.isArray(queueDraft) || !queueDraft.length) queueDraft=[''];
 queueDraft = queueDraft.slice(0,30).map(x=>String(x||'').slice(0,4000));
 let queueRun = { active:false, items:[], index:0 };
 let roadmapRun = { capture:false, active:false, steps:[], index:0 };
-let flowRun = { active:false, index:0 };
+let flowRun = { active:false, index:0, pending:false };
 let flowPauseBetween = !!GM_getValue('v9.flowPauseBetween', false);
 let personaIds = getJsonValue('v9.personaIds',[personaId]);
 if(!Array.isArray(personaIds)) personaIds=[personaId];
@@ -796,17 +796,25 @@ async function startFlowRun() {
   const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
   const context=nodeText(input);
   clearMechanicalRuns();
-  flowRun={active:true,index:0};
+  flowRun={active:true,index:0,pending:false};
   enterRunning('Starting '+wf.label+'…');
   const sent=await sendOnce(mechanicalStepPrompt(wf.label,1,wf.stages.length,wf.stages[0],wf.stages.length===1,context),'workflow stage 1');
   if(!sent) return false;
   armTickLoop(); await tick(); return true;
 }
-function resumeMechanicalRun() {
+async function resumeMechanicalRun() {
   if(!activeMechanicalRun() || S.mode==='RUNNING' || S.sending || S.uncertain) return false;
   S.mode='RUNNING'; S.detail='Resuming…'; S.lastHandled=''; S.stableHash=''; S.stableSince=0; render();
+  if(flowRun.active && flowRun.pending){
+    const wf=allWorkflows()[workflowId];
+    const i=flowRun.index;
+    flowRun.pending=false;
+    const sent=await sendOnce(mechanicalStepPrompt(wf.label,i+1,wf.stages.length,wf.stages[i],i===wf.stages.length-1),'workflow stage '+(i+1));
+    if(!sent) return false;
+    armTickLoop(); await tick(); return true;
+  }
   armTickLoop();
-  tick().catch(error=>fail('PLAY-TICK',String(error?.message||error)));
+  await tick();
   return true;
 }
 async function advanceQueueRun() {
@@ -847,7 +855,8 @@ async function advanceFlowRun() {
     flowRun.active=false; complete(wf.label+' complete'); notify('Ghost complete',wf.label+' finished.','complete'); return true;
   }
   if(flowPauseBetween){
-    pause(wf.label+' stage '+(flowRun.index+1)+' complete · press Play to continue to stage '+(next+1)+'.');
+    flowRun.index=next; flowRun.pending=true;
+    pause(wf.label+' stage '+next+' complete · press Play to continue to stage '+(next+1)+'.');
     return true;
   }
   flowRun.index=next;
@@ -934,7 +943,7 @@ async function tick() {
 async function play() {
   if (S.mode === 'RUNNING') return;
   if (S.uncertain) { S.detail = 'Prior Send is uncertain. Inspect the chat or use Page Reload before resuming.'; render(); return; }
-  if (activeMechanicalRun() && S.mode === 'PAUSED') { resumeMechanicalRun(); return; }
+  if (activeMechanicalRun() && S.mode === 'PAUSED') { await resumeMechanicalRun(); return; }
   if (runMode === 'roadmap') { await startRoadmapRun(); return; }
   const input = composer();
   if (!input) { fail('PLAY-INPUT', 'Current chat composer was not found.', { host: HOST.id }); return; }
