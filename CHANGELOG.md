@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.0.1-alpha.1] — full rich shell restoration
+
+- Restores the accepted rich Ghost product shell: Run / Auto / Flow / Personas / AoA / Export / Setup.
+- Restores 13 skins, accents, side dock/minimize, left/right attachment, draggable float, composer-row/header placement, Quick Start, sound and notifications.
+- Restores mechanical Prompt Queue, AI-authored Roadmap Autopilot, fixed Flow workflows, personas/committees, Locked/Adaptive/Audit postures, and bounded Workshop imports.
+- Keeps intelligence in the AI: Ghost stores/injects exact text, parses exact markers/numbered roadmap blocks, advances stored indices, and never semantically decides what comes next.
+- Preserves the v9 one-Send path: no Enter fallback, no requestSubmit escalation, no automatic resend after uncertainty.
+- Bumps the install version from 9.0.0-alpha.2 so Tampermonkey can actually detect and replace the stripped build.
+
+
 ## [9.0.0-alpha.2] — v9 assembly candidate
 
 - Rebuilt Play around one fail-closed Send authority.
