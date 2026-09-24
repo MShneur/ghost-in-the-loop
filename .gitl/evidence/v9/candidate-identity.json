@@ -1,28 +1,28 @@
 {
   "schema": "gitl-build-identity-v1",
   "repository": "MShneur/ghost-in-the-loop",
-  "releaseTarget": "9.0.0-alpha.2",
+  "releaseTarget": "9.0.1-alpha.1",
   "provenance": {
-    "branch": "feature/v9-integration-candidate",
-    "head": "5698dfb643640516a3fff8340773ae86d83df643"
+    "branch": "feature/v9-0-1-full-shell",
+    "head": "d7f1f098e3c6910800c289d956cd6bd83a6f95de"
   },
   "channels": {
-    "candidate": "feature/v9-integration-candidate",
+    "candidate": "feature/v9-0-1-full-shell",
     "stable": "main",
     "stableUserscriptUpdateUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
     "stableUserscriptDownloadUrl": "https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js",
     "stableVersionObserved": "9.0.0-alpha.2",
-    "publicationState": "published-main",
-    "publishReady": true
+    "publicationState": "candidate-not-published",
+    "publishReady": false
   },
   "versions": {
-    "package": "9.0.0-alpha.2",
-    "packageLock": "9.0.0-alpha.2",
-    "packageLockRoot": "9.0.0-alpha.2",
-    "userscriptHeader": "9.0.0-alpha.2",
-    "runtime": "9.0.0-alpha.2",
-    "manifest": "9.0.0",
-    "manifestDisplay": "9.0.0-alpha.2"
+    "package": "9.0.1-alpha.1",
+    "packageLock": "9.0.1-alpha.1",
+    "packageLockRoot": "9.0.1-alpha.1",
+    "userscriptHeader": "9.0.1-alpha.1",
+    "runtime": "9.0.1-alpha.1",
+    "manifest": "9.0.1",
+    "manifestDisplay": "9.0.1-alpha.1"
   },
   "contracts": {
     "canonicalSource": "ghost-in-the-loop.user.js",
@@ -35,18 +35,18 @@
   "payload": [
     {
       "path": "ghost-in-the-loop.user.js",
-      "bytes": 75335,
-      "sha256": "47b488d7b9632344d6c676806bc2dba694bccee20e08ca9b1380377652e00a52"
+      "bytes": 99497,
+      "sha256": "e9a478ebb1740c60c44df091a98a6989701af7580f68f55f14eb38b7d740adfa"
     },
     {
       "path": "extension/manifest.json",
       "bytes": 1582,
-      "sha256": "2a097e4edf3f1f863abc23695f9b1f0b89102f238d582b825382242279645087"
+      "sha256": "a0d651b977c5fa0567334d227c48013f63c83def4482ba47662a012cfd2854c3"
     },
     {
       "path": "extension/content.js",
-      "bytes": 75226,
-      "sha256": "031259052a0b482cdc0d1cd99aa864d9e080d7b62b4a10ce1f221d7f422ae73d"
+      "bytes": 98839,
+      "sha256": "84e550d76cb9b399d73280e30dffb6f166e8167855c1e10d7915619b4d8f42c8"
     },
     {
       "path": "extension/icon-48.png",
