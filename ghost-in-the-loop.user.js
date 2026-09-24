@@ -552,19 +552,26 @@ function roadmapBootstrapPrompt(existing = '') {
 }
 function parseRoadmapBlock(text) {
   const source=String(text||'');
-  const at=source.lastIndexOf('[[GITL::ROADMAP]]');
+  const marker='[[GITL::ROADMAP]]';
+  const at=source.lastIndexOf(marker);
   if(at<0) return [];
-  const after=source.slice(at+'[[GITL::ROADMAP]]'.length);
+  const after=source.slice(at+marker.length).split(/\[\[(?:GITL|AOA)::/)[0].trim();
   const steps=[];
   for(const line of after.split(/\r?\n/)) {
-    const trimmed=line.trim();
-    if(!trimmed) continue;
-    if(/^\[\[(?:GITL|AOA)::/.test(trimmed)) break;
-    const m=trimmed.match(/^\d{1,2}[.)]\s+(.{3,4000})$/);
-    if(m) steps.push(m[1].trim());
-    if(steps.length>=30) break;
+    const m=line.trim().match(/^(\d{1,2})[.)]\s+(.{3,4000})$/);
+    if(!m) continue;
+    const n=Number(m[1]); if(n!==steps.length+1) return [];
+    steps.push(m[2].trim()); if(steps.length>=30) break;
   }
-  return steps.length>=2 ? steps : [];
+  if(steps.length>=2) return steps;
+  const flat=[]; const re=/(?:^|\s)(\d{1,2})[.)]\s+(.+?)(?=\s+\d{1,2}[.)]\s+|$)/g;
+  let m;
+  while((m=re.exec(after)) && flat.length<30){
+    const n=Number(m[1]); if(n!==flat.length+1) return [];
+    const body=m[2].trim(); if(body.length<3||body.length>4000) return [];
+    flat.push(body);
+  }
+  return flat.length>=2 ? flat : [];
 }
 function mechanicalStepPrompt(kind, step, total, text, last = false, initialContext = '') {
   const terminal = last ? G.halt : G.proceed;
