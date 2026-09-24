@@ -577,13 +577,13 @@ function mechanicalStepPrompt(kind, step, total, text, last = false, initialCont
   return withPromptFeatures(parts.join('\n\n---\n\n'),{includeWorkflow:false,repeatPersona:!initialContext.trim()});
 }
 function regroundPrompt() {
-  return withPromptFeatures(\`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n\${contractText()}\`,{repeatPersona:true});
+  return withPromptFeatures(`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`,{repeatPersona:true});
 }
 function cleanerzPrompt() {
-  return withPromptFeatures(\`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: \${ACT.cleanerz[1]}\n\n\${contractText()}\`,{repeatPersona:true});
+  return withPromptFeatures(`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`,{repeatPersona:true});
 }
 function stallRecoveryPrompt() {
-  return withPromptFeatures(\`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n\${contractText()}\`,{repeatPersona:true});
+  return withPromptFeatures(`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`,{repeatPersona:true});
 }
 
 async function setComposerText(text) {
@@ -868,7 +868,7 @@ async function handleTerminal(text, parsed) {
     S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.', 'human'); return;
   }
   if (parsed.type === 'relay') {
-    S.drift = 0; S.relay = parsed.model; pause(\`Model Relay requested: \${parsed.model}.\`); notify('Model Relay requested', parsed.model, 'human'); return;
+    S.drift = 0; S.relay = parsed.model; pause(`Model Relay requested: ${parsed.model}.`); notify('Model Relay requested', parsed.model, 'human'); return;
   }
   if (parsed.type === 'proceed') {
     S.drift = 0;
