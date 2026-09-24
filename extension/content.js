@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.0-alpha.2';
+const VER = '9.0.1-alpha.1';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -245,6 +245,31 @@ let postureId = String(GM_getValue('v9.posture','standard')||'standard');
 let workshopOpen = false;
 let soundOn = !!GM_getValue('v9.soundOn', GM_getValue('soundOn', false));
 let notifyOn = !!GM_getValue('v9.notifyOn', GM_getValue('notifyOn', false));
+function getJsonValue(key, fallback) {
+  try { const raw=GM_getValue(key,''); if(!raw) return fallback; const v=JSON.parse(raw); return v ?? fallback; } catch(_) { return fallback; }
+}
+let runMode = String(GM_getValue('v9.runMode','loop') || 'loop');
+if(!['loop','plan','roadmap'].includes(runMode)) runMode='loop';
+let queueDraft = getJsonValue('v9.queueDraft',['']);
+if(!Array.isArray(queueDraft) || !queueDraft.length) queueDraft=[''];
+queueDraft = queueDraft.slice(0,30).map(x=>String(x||'').slice(0,4000));
+let queueRun = { active:false, items:[], index:0 };
+let roadmapRun = { capture:false, active:false, steps:[], index:0 };
+let flowRun = { active:false, index:0, pending:false };
+let flowPauseBetween = !!GM_getValue('v9.flowPauseBetween', false);
+let personaIds = getJsonValue('v9.personaIds',[personaId]);
+if(!Array.isArray(personaIds)) personaIds=[personaId];
+personaIds = personaIds.filter(id=>allPersonas()[id] && id!=='none').slice(0,8);
+let committeeOn = !!GM_getValue('v9.committeeOn', false);
+let committeePerTask = !!GM_getValue('v9.committeePerTask', true);
+let committeeFinalReview = !!GM_getValue('v9.committeeFinalReview', false);
+let placement = String(GM_getValue('v9.placement', GM_getValue('panelPosition','dock') || 'dock') || 'dock');
+const placementMap = {dock:'dock-right','dock-left':'dock-left','top-right':'float','top-left':'float','bot-right':'float','bot-left':'float','bottom-bar':'composer-row'};
+placement = placementMap[placement] || placement;
+if(!['dock-right','dock-left','float','composer-row','header-row'].includes(placement)) placement='dock-right';
+let floatPos = getJsonValue('v9.floatPos',{x:null,y:58});
+if(!floatPos || typeof floatPos!=='object') floatPos={x:null,y:58};
+let advancedOpen = !!GM_getValue('v9.advancedOpen', false);
 if(!allPersonas()[personaId]) personaId='none';
 if(!allWorkflows()[workflowId]) workflowId='none';
 if(!POSTURES[postureId]) postureId='standard';
@@ -443,43 +468,110 @@ function activatorText() {
   }
   return out.join('\n\n');
 }
-function promptFeatureText() {
+function activePersonaText(repeat = false) {
+  const all=allPersonas();
+  if (committeeOn) {
+    if (repeat && !committeePerTask) return '';
+    const ids=personaIds.filter(id=>all[id] && id!=='none').slice(0,8);
+    if (!ids.length) return '';
+    const rows=ids.map(id=>'• '+all[id].label+': '+all[id].inject).join('\n');
+    let out='Operate as a committee of '+ids.length+' distinct perspectives. Give each perspective an independent assessment when relevant, preserve real disagreement, then synthesize.\n\n'+rows;
+    if (committeeFinalReview) out+='\n\nBefore the task reaches its final HALT, perform one bounded committee review for material gaps and correct them before finishing.';
+    return out;
+  }
+  const persona=all[personaId];
+  return persona?.inject || '';
+}
+function strategyText() {
+  if (runMode === 'plan') {
+    return '[Strategy: PLAN FIRST]\nYou own the plan. First make or maintain a concise plan for this task, then execute it step by step. Ghost will not interpret that plan; it only relays exact prompts and terminal markers. Keep planning inside your responses and use the normal Ghost terminal marker.';
+  }
+  return '';
+}
+function promptFeatureText(options = {}) {
+  const includePersona = options.includePersona !== false;
+  const repeatPersona = !!options.repeatPersona;
+  const includeWorkflow = options.includeWorkflow !== false;
   const parts=[];
-  const persona=allPersonas()[personaId];
-  if(persona?.inject) parts.push('[Active persona]\n'+persona.inject);
+  const persona=includePersona ? activePersonaText(repeatPersona) : '';
+  if(persona) parts.push('[Active persona'+(committeeOn?' committee':'')+']\n'+persona);
   const workflow=allWorkflows()[workflowId];
-  if(workflow?.stages?.length) parts.push('[Workflow: '+workflow.label+']\nYou own workflow progress. Follow these stages in order when they remain relevant; Ghost will not interpret or auto-advance them:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n')+'\n\nFor display only, when actively working within this workflow, place one line immediately before the final Ghost control line: [[GITL::STAGE:X/Y]] where X is the current workflow stage and Y is '+workflow.stages.length+'. This never controls Send. If stage is unclear, omit it rather than guess.');
+  if(includeWorkflow && workflow?.stages?.length && !flowRun.active) {
+    parts.push('[Workflow reference: '+workflow.label+']\nThe AI owns workflow reasoning. Treat these as optional prompt guidance only; Ghost does not infer stages from prose:\n'+workflow.stages.map((s,i)=>(i+1)+'. '+s).join('\n'));
+  }
   const posture=POSTURES[postureId]||POSTURES.standard;
   if(posture?.clause) parts.push(posture.clause);
+  const strategy=strategyText(); if(strategy) parts.push(strategy);
   return parts.join('\n\n');
 }
-function withPromptFeatures(base) {
-  const features=promptFeatureText();
+function withPromptFeatures(base, options = {}) {
+  const features=promptFeatureText(options);
   return features ? base+'\n\n---\n\n'+features : base;
 }
-
 function bootstrapPrompt(existing = '') {
   const parts = [];
   if (existing.trim()) parts.push(existing.trim());
   parts.push(contractText());
   const activators = activatorText(); if (activators) parts.push(activators);
-  const features = promptFeatureText(); if (features) parts.push(features);
+  const features = promptFeatureText({repeatPersona:false}); if (features) parts.push(features);
   return parts.join('\n\n---\n\n');
 }
 function continuationPrompt() {
   const base = ON.relay
     ? 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Model Relay control line as the final non-whitespace line.'
     : 'Continue the existing task from the current conversation. Do not restart or repeat completed work. Keep all active protocols in force. End with exactly one valid Ghost control line as the final non-whitespace line.';
-  return withPromptFeatures(base);
+  return withPromptFeatures(base,{repeatPersona:true});
+}
+function roadmapBootstrapPrompt(existing = '') {
+  const parts=[];
+  if(existing.trim()) parts.push(existing.trim());
+  parts.push('[GHOST ROADMAP AUTOPILOT]\nDo not execute the task yet. You own all planning intelligence. Produce a concrete roadmap of 3–30 self-contained executable steps using EXACTLY this structure:\n\n[[GITL::ROADMAP]]\n1. first step\n2. second step\n3. third step\n\nAfter the final numbered step, end the response with exactly [[GITL::PROCEED]] as the final non-whitespace line. Do not place any other Ghost control marker in the response.');
+  parts.push(contractText());
+  const activators=activatorText(); if(activators) parts.push(activators);
+  const features=promptFeatureText({includeWorkflow:false,repeatPersona:false}); if(features) parts.push(features);
+  return parts.join('\n\n---\n\n');
+}
+function parseRoadmapBlock(text) {
+  const source=String(text||'');
+  const marker='[[GITL::ROADMAP]]';
+  const at=source.lastIndexOf(marker);
+  if(at<0) return [];
+  const after=source.slice(at+marker.length).split(/\[\[(?:GITL|AOA)::/)[0].trim();
+  const steps=[];
+  for(const line of after.split(/\r?\n/)) {
+    const m=line.trim().match(/^(\d{1,2})[.)]\s+(.{3,4000})$/);
+    if(!m) continue;
+    const n=Number(m[1]); if(n!==steps.length+1) return [];
+    steps.push(m[2].trim()); if(steps.length>=30) break;
+  }
+  if(steps.length>=2) return steps;
+  const flat=[]; const re=/(?:^|\s)(\d{1,2})[.)]\s+(.+?)(?=\s+\d{1,2}[.)]\s+|$)/g;
+  let m;
+  while((m=re.exec(after)) && flat.length<30){
+    const n=Number(m[1]); if(n!==flat.length+1) return [];
+    const body=m[2].trim(); if(body.length<3||body.length>4000) return [];
+    flat.push(body);
+  }
+  return flat.length>=2 ? flat : [];
+}
+function mechanicalStepPrompt(kind, step, total, text, last = false, initialContext = '') {
+  const terminal = last ? G.halt : G.proceed;
+  const parts=[];
+  if(initialContext.trim()) parts.push('[Original task / context]\n'+initialContext.trim());
+  parts.push('[Ghost '+kind+' — step '+step+' of '+total+']\n'+text+
+    '\n\nComplete ONLY this injected step, using the existing conversation as context. Do not invent or advance to a different Ghost step. When this step is complete, the FINAL non-whitespace line must be exactly '+terminal+'.');
+  parts.push(contractText());
+  if(initialContext.trim()) { const activators=activatorText(); if(activators) parts.push(activators); }
+  return withPromptFeatures(parts.join('\n\n---\n\n'),{includeWorkflow:false,repeatPersona:!initialContext.trim()});
 }
 function regroundPrompt() {
-  return withPromptFeatures(`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`);
+  return withPromptFeatures(`You strayed from the active control protocol. Re-read the existing conversation, reground in the current task, and continue without restarting or repeating completed work. Do not explain the protocol error. Your response must end with exactly one valid bare terminal control line as the final non-whitespace line.\n\n${contractText()}`,{repeatPersona:true});
 }
 function cleanerzPrompt() {
-  return withPromptFeatures(`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`);
+  return withPromptFeatures(`Protocol compliance drifted twice. Activate Agents-of-AI Cleanerz from its canonical source, use it to reground the existing task and active protocols, then continue without restarting completed work. Canonical source: ${ACT.cleanerz[1]}\n\n${contractText()}`,{repeatPersona:true});
 }
 function stallRecoveryPrompt() {
-  return withPromptFeatures(`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`);
+  return withPromptFeatures(`You were interrupted because the previous step showed no visible progress for an extended period.\n\nReground from the conversation and the last confirmed completed step. Do not restart the whole task.\n\n1. Identify the exact subtask that was in progress when you stalled.\n2. Preserve all confirmed work already completed.\n3. Reduce only the stalled subtask into the smallest safe next unit(s).\n4. Execute just the first unit now.\n5. If that unit is still too large, split it once more before executing.\n6. Do not repeat completed research, rebuild the whole plan, or expand scope.\n7. End with the normal Ghost terminal marker.\n\n${contractText()}`,{repeatPersona:true});
 }
 
 async function setComposerText(text) {
@@ -638,13 +730,136 @@ async function recoverStall() {
   }
 }
 
+
+function armTickLoop() {
+  clearInterval(S.timer);
+  S.timer = setInterval(() => { tick().catch(error => fail('PLAY-TICK', String(error?.message || error))); }, TICK_MS);
+}
+function enterRunning(detail = 'Starting...') {
+  S.mode = 'RUNNING'; S.detail = detail; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0;
+  S.drift = 0; S.relay = ''; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); render();
+}
+function clearMechanicalRuns() {
+  queueRun.active=false;
+  roadmapRun.capture=false; roadmapRun.active=false;
+  flowRun.active=false;
+}
+function activeMechanicalRun() {
+  if(queueRun.active) return 'queue';
+  if(roadmapRun.capture || roadmapRun.active) return 'roadmap';
+  if(flowRun.active) return 'flow';
+  return '';
+}
+async function startQueueRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const items=queueDraft.map(x=>String(x||'').trim()).filter(Boolean).slice(0,30);
+  if(!items.length){ S.detail='Add at least one queue step first.'; S.tab='auto'; render(); return false; }
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const context=nodeText(input);
+  clearMechanicalRuns();
+  queueRun={active:true,items,index:0};
+  enterRunning('Starting prompt queue…');
+  const sent=await sendOnce(mechanicalStepPrompt('queue',1,items.length,items[0],items.length===1,context),'queue step 1');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+async function startRoadmapRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const draft=nodeText(input);
+  const latest=assistantText();
+  if(!draft.trim() && !latest){ S.detail='Type the task in the chat first, then start Roadmap.'; S.tab='run'; render(); return false; }
+  const context=draft.trim() || 'Continue the existing task from this conversation without restarting or repeating completed work.';
+  clearMechanicalRuns();
+  roadmapRun={capture:true,active:false,steps:[],index:0};
+  enterRunning('Asking the AI to write the roadmap…');
+  const sent=await sendOnce(roadmapBootstrapPrompt(context),'roadmap plan');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+async function startFlowRun() {
+  if (S.mode === 'RUNNING' || S.sending || S.uncertain) return false;
+  const wf=allWorkflows()[workflowId];
+  if(!wf?.stages?.length){ S.detail='Choose a workflow with stages first.'; S.tab='flow'; render(); return false; }
+  const input=composer(); if(!input){ fail('PLAY-INPUT','Current chat composer was not found.',{host:HOST.id}); return false; }
+  const context=nodeText(input);
+  clearMechanicalRuns();
+  flowRun={active:true,index:0,pending:false};
+  enterRunning('Starting '+wf.label+'…');
+  const sent=await sendOnce(mechanicalStepPrompt(wf.label,1,wf.stages.length,wf.stages[0],wf.stages.length===1,context),'workflow stage 1');
+  if(!sent) return false;
+  armTickLoop(); await tick(); return true;
+}
+async function resumeMechanicalRun() {
+  if(!activeMechanicalRun() || S.mode==='RUNNING' || S.sending || S.uncertain) return false;
+  S.mode='RUNNING'; S.detail='Resuming…'; S.lastHandled=''; S.stableHash=''; S.stableSince=0; render();
+  if(flowRun.active && flowRun.pending){
+    const wf=allWorkflows()[workflowId];
+    const i=flowRun.index;
+    flowRun.pending=false;
+    const sent=await sendOnce(mechanicalStepPrompt(wf.label,i+1,wf.stages.length,wf.stages[i],i===wf.stages.length-1),'workflow stage '+(i+1));
+    if(!sent) return false;
+    armTickLoop(); await tick(); return true;
+  }
+  armTickLoop();
+  await tick();
+  return true;
+}
+async function advanceQueueRun() {
+  if(!queueRun.active) return false;
+  const next=queueRun.index+1;
+  if(next>=queueRun.items.length){
+    queueRun.active=false; complete('Prompt queue complete'); notify('Ghost complete','Prompt queue finished.','complete'); return true;
+  }
+  queueRun.index=next;
+  return await sendOnce(mechanicalStepPrompt('queue',next+1,queueRun.items.length,queueRun.items[next],next===queueRun.items.length-1),'queue step '+(next+1));
+}
+async function captureOrAdvanceRoadmap(text) {
+  if(roadmapRun.capture){
+    const steps=parseRoadmapBlock(text);
+    if(!steps.length){
+      roadmapRun.capture=false;
+      pause('Roadmap format was missing or invalid. Nothing was guessed or auto-inferred.');
+      return true;
+    }
+    roadmapRun.capture=false; roadmapRun.active=true; roadmapRun.steps=steps; roadmapRun.index=0;
+    S.detail='Roadmap captured · '+steps.length+' steps'; render();
+    return await sendOnce(mechanicalStepPrompt('roadmap',1,steps.length,steps[0],steps.length===1),'roadmap step 1');
+  }
+  if(!roadmapRun.active) return false;
+  const next=roadmapRun.index+1;
+  if(next>=roadmapRun.steps.length){
+    roadmapRun.active=false; complete('Roadmap complete'); notify('Ghost complete','Roadmap finished.','complete'); return true;
+  }
+  roadmapRun.index=next;
+  return await sendOnce(mechanicalStepPrompt('roadmap',next+1,roadmapRun.steps.length,roadmapRun.steps[next],next===roadmapRun.steps.length-1),'roadmap step '+(next+1));
+}
+async function advanceFlowRun() {
+  if(!flowRun.active) return false;
+  const wf=allWorkflows()[workflowId];
+  if(!wf?.stages?.length){ flowRun.active=false; pause('Workflow is no longer available.'); return true; }
+  const next=flowRun.index+1;
+  if(next>=wf.stages.length){
+    flowRun.active=false; complete(wf.label+' complete'); notify('Ghost complete',wf.label+' finished.','complete'); return true;
+  }
+  if(flowPauseBetween){
+    flowRun.index=next; flowRun.pending=true;
+    pause(wf.label+' stage '+next+' complete · press Play to continue to stage '+(next+1)+'.');
+    return true;
+  }
+  flowRun.index=next;
+  return await sendOnce(mechanicalStepPrompt(wf.label,next+1,wf.stages.length,wf.stages[next],next===wf.stages.length-1),'workflow stage '+(next+1));
+}
+
 async function handleTerminal(text, parsed) {
   const fp = hash(text);
   if (!text || fp === S.lastHandled || S.mode !== 'RUNNING' || S.sending) return;
   S.lastHandled = fp;
   if (parsed.normalized) log('terminal-normalized', { type: parsed.type });
   if (parsed.type === 'halt') {
-    S.drift = 0; S.recoveryCount = 0; complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.', 'complete'); return;
+    S.drift = 0; S.recoveryCount = 0;
+    clearMechanicalRuns();
+    complete('Task complete'); notify('Ghost complete', 'The AI returned HALT.', 'complete'); return;
   }
   if (parsed.type === 'human') {
     S.drift = 0; pause('Human decision requested by the AI.'); notify('Ghost paused', 'The AI requested a human decision.', 'human'); return;
@@ -653,7 +868,11 @@ async function handleTerminal(text, parsed) {
     S.drift = 0; S.relay = parsed.model; pause(`Model Relay requested: ${parsed.model}.`); notify('Model Relay requested', parsed.model, 'human'); return;
   }
   if (parsed.type === 'proceed') {
-    S.drift = 0; if (S.round >= S.max) { pause('Round safety limit reached.'); return; }
+    S.drift = 0;
+    if (S.round >= S.max) { pause('Round safety limit reached. Increase the limit or press Play after review to resume.'); return; }
+    if (queueRun.active) { await advanceQueueRun(); return; }
+    if (roadmapRun.capture || roadmapRun.active) { await captureOrAdvanceRoadmap(text); return; }
+    if (flowRun.active) { await advanceFlowRun(); return; }
     await sendOnce(continuationPrompt(), 'continue');
   }
 }
@@ -712,9 +931,13 @@ async function tick() {
 async function play() {
   if (S.mode === 'RUNNING') return;
   if (S.uncertain) { S.detail = 'Prior Send is uncertain. Inspect the chat or use Page Reload before resuming.'; render(); return; }
+  if (activeMechanicalRun() && S.mode === 'PAUSED') { await resumeMechanicalRun(); return; }
+  if (runMode === 'roadmap') { await startRoadmapRun(); return; }
   const input = composer();
   if (!input) { fail('PLAY-INPUT', 'Current chat composer was not found.', { host: HOST.id }); return; }
-  S.mode = 'RUNNING'; S.detail = 'Starting...'; S.lastHandled = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.relay = ''; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); render();
+  if (S.mode === 'IDLE' || S.mode === 'COMPLETE') S.round = 0;
+  clearMechanicalRuns();
+  enterRunning('Starting...');
   const draft = nodeText(input); const latest = assistantText(); const parsed = terminal(latest);
   if (draft.trim()) {
     S.bootstrapped = true; if (!await sendOnce(bootstrapPrompt(draft), 'initial task')) return;
@@ -726,13 +949,12 @@ async function play() {
     S.bootstrapped = true;
     if (!await sendOnce(bootstrapPrompt('Continue the existing task from this conversation without restarting or repeating completed work.'), 'arm existing chat')) return;
   }
-  clearInterval(S.timer);
-  S.timer = setInterval(() => { tick().catch(error => fail('PLAY-TICK', String(error?.message || error))); }, TICK_MS);
+  armTickLoop();
   await tick();
 }
 function pause(detail) { S.mode = 'PAUSED'; S.detail = detail; clearInterval(S.timer); S.timer = null; render(); }
 function stop() {
-  S.mode = 'IDLE'; S.detail = 'Stopped'; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog();
+  S.mode = 'IDLE'; S.detail = 'Stopped'; S.round = 0; S.sending = false; S.uncertain = false; S.lastHandled = ''; S.awaitingFrom = ''; S.stableHash = ''; S.stableSince = 0; S.drift = 0; S.recoveryCount = 0; S.watchdogBusy = false; clearGenerationWatchdog(); clearMechanicalRuns();
   clearInterval(S.timer); S.timer = null; log('stop'); render();
 }
 function complete(detail) { S.mode = 'COMPLETE'; S.detail = detail; clearGenerationWatchdog(); clearInterval(S.timer); S.timer = null; render(); }
@@ -979,6 +1201,7 @@ function copyReport() {
 
 const style = document.createElement('style');
 style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:var(--g-radius);box-shadow:var(--g-shadow);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:var(--g-surface);color:var(--g-text);border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:var(--g-accent-bg);border-color:var(--g-accent);color:var(--g-text)}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:var(--g-panel);border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:var(--g-surface)}#gitl9 input[type="text"],#gitl9 input[type="number"],#gitl9 select,#gitl9 textarea{width:100%;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;color:var(--g-muted);margin-top:5px}.helpbox{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:7px;margin:5px 0}.helpbox b{color:var(--g-accent)}.swatches{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.swatches button{flex:0 0 28px;height:28px;padding:0}.headtools{display:flex;align-items:center;gap:5px}.helpbtn{padding:3px 6px!important;font-size:10px!important}.rail{display:none}.collapsebtn{padding:3px 7px!important;font-size:12px!important}#gitl9.collapsed{right:0!important;top:34vh!important;width:42px!important;min-width:42px!important;max-width:42px!important;padding:5px!important;border-right:0!important;border-radius:12px 0 0 12px!important}#gitl9.collapsed>*:not(.rail){display:none!important}#gitl9.collapsed .rail{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:92px;cursor:pointer;user-select:none}#gitl9.collapsed .rail .ghost{font-size:20px;line-height:1}#gitl9.collapsed .rail .arrow{font-size:18px;color:var(--g-accent)}#gitl9.collapsed .rail .mini{font-size:9px;color:var(--g-muted);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.5px}.progline{height:4px;background:var(--g-surface);border-radius:99px;overflow:hidden;margin-top:5px}.progline span{display:block;height:100%;background:var(--g-accent);transition:width .15s ease}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9.collapsed{right:0!important;top:32vh!important;width:42px!important;min-width:42px!important;padding:4px!important}#gitl9 .tabs{display:grid;grid-template-columns:repeat(3,1fr)}#gitl9 .tabs button{min-height:38px}#gitl9 .transport{display:grid;grid-template-columns:1fr 1fr}#gitl9 .transport button,#gitl9 .helpbox button{min-height:40px}#gitl9 button{padding:7px 5px}}`;
+style.textContent += '#gitl9 .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}#gitl9 .sectionTitle{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--g-muted);font-weight:750;margin:7px 0 4px}#gitl9 .pillrow{display:flex;gap:4px;flex-wrap:wrap}#gitl9 .pillrow button{flex:1 1 30%;min-width:62px}#gitl9 .qrow{display:grid;grid-template-columns:18px 1fr 30px;gap:4px;align-items:center;margin:4px 0}#gitl9 .qnum{font-size:9px;color:var(--g-muted);text-align:center}#gitl9 .qdel{padding:4px!important}#gitl9 .stage{border:1px solid var(--g-border);border-radius:8px;padding:6px;margin:4px 0;background:var(--g-panel)}#gitl9 .stage.act{border-color:var(--g-accent)}#gitl9 .personGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}#gitl9 .personGrid label{font-size:10px;padding:5px}#gitl9 .posgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}#gitl9 .posgrid button{padding:6px 2px}#gitl9 .drag{cursor:move;touch-action:none}#gitl9.pos-dock-left{left:0!important;right:auto!important;border-radius:0 var(--g-radius) var(--g-radius) 0}#gitl9.pos-dock-right{right:0!important;left:auto!important;border-radius:var(--g-radius) 0 0 var(--g-radius)}#gitl9.pos-header{top:8px!important;left:50%!important;right:auto!important;transform:translateX(-50%)}#gitl9.collapsed.pos-dock-left{left:0!important;right:auto!important;border-left:0!important;border-right:1px solid var(--g-border)!important;border-radius:0 12px 12px 0!important}#gitl9.collapsed.pos-dock-left .rail .arrow{transform:rotate(180deg)}@media(max-width:520px){#gitl9 .tabs{grid-template-columns:repeat(3,1fr)}#gitl9 .personGrid{grid-template-columns:1fr}}';
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -997,23 +1220,83 @@ function applyAppearance() {
 }
 applyAppearance();
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function applyPlacement() {
+  panel.classList.remove('pos-dock-left','pos-dock-right','pos-header');
+  panel.style.transform=''; panel.style.left=''; panel.style.right=''; panel.style.top=''; panel.style.bottom='';
+  if (placement==='dock-left') { panel.classList.add('pos-dock-left'); panel.style.top='30%'; }
+  else if (placement==='dock-right') { panel.classList.add('pos-dock-right'); panel.style.top='30%'; }
+  else if (placement==='header-row') { panel.classList.add('pos-header'); }
+  else if (placement==='composer-row') {
+    const c=composer();
+    if (c) {
+      try {
+        const r=c.getBoundingClientRect();
+        panel.style.top=Math.max(8,Math.min(innerHeight-panel.offsetHeight-8,r.top-panel.offsetHeight-8))+'px';
+        panel.style.right=Math.max(4,innerWidth-r.right)+'px';
+      } catch(_) { panel.style.bottom='90px'; panel.style.right='8px'; }
+    } else { panel.style.bottom='90px'; panel.style.right='8px'; }
+  } else {
+    const x=Number.isFinite(Number(floatPos.x)) ? Number(floatPos.x) : Math.max(6,innerWidth-panel.offsetWidth-10);
+    const y=Number.isFinite(Number(floatPos.y)) ? Number(floatPos.y) : 58;
+    panel.style.left=Math.max(0,Math.min(innerWidth-panel.offsetWidth,x))+'px';
+    panel.style.top=Math.max(0,Math.min(innerHeight-panel.offsetHeight,y))+'px';
+    panel.style.right='auto';
+  }
+}
+function bindFloatDrag() {
+  if (placement!=='float' || panelCollapsed) return;
+  const h=panel.querySelector('[data-drag]'); if(!h) return;
+  let sx=0,sy=0,ox=0,oy=0,drag=false;
+  h.addEventListener('pointerdown',e=>{
+    if(e.target.closest('button,input,select')) return;
+    const r=panel.getBoundingClientRect(); drag=true; sx=e.clientX; sy=e.clientY; ox=r.left; oy=r.top;
+    try{h.setPointerCapture(e.pointerId)}catch(_){}
+    e.preventDefault();
+  });
+  h.addEventListener('pointermove',e=>{
+    if(!drag)return;
+    floatPos={x:Math.max(0,Math.min(innerWidth-panel.offsetWidth,ox+e.clientX-sx)),y:Math.max(0,Math.min(innerHeight-panel.offsetHeight,oy+e.clientY-sy))};
+    panel.style.left=floatPos.x+'px'; panel.style.top=floatPos.y+'px'; panel.style.right='auto';
+  });
+  h.addEventListener('pointerup',e=>{ if(!drag)return; drag=false; GM_setValue('v9.floatPos',JSON.stringify(floatPos)); try{h.releasePointerCapture(e.pointerId)}catch(_){} });
+}
+function saveQueueDraft() { GM_setValue('v9.queueDraft',JSON.stringify(queueDraft)); }
 function render() {
   const prog = progressSummary();
   panel.classList.toggle('collapsed', panelCollapsed);
   panel.innerHTML = trustedHTML(`
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span></div>
-    <div class="head"><span class="brand">👻 GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to the side">▶</button><button class="helpbtn" data-a="help">? Help</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Play</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">Prompt</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Settings</button></div>
+    <div class="head drag" data-drag><span class="brand">👻 GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to the side">▶</button><button class="helpbtn" data-a="help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="flow" class="${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Setup</button></div>
     <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}<div class="progline"><span style="width:${prog.roundPct}%"></span></div><div class="tiny">${prog.stages ? "Workflow: "+esc(prog.workflow)+" · "+(prog.stage ? "stage "+prog.stage.step+"/"+prog.stage.total : prog.stages+" stages · waiting for explicit stage") : "Manual workflow"}</div></div>
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
-      <div class="row transport"><button class="on" data-a="play">▶ Play</button><button class="stop" data-a="stop">■ Stop</button><button data-a="reload">↻ Page</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
+      <div class="sectionTitle">Run mode</div>
+      <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
+      <div class="sectionTitle">Thinking posture</div>
+      <div class="pillrow">${Object.entries(POSTURES).map(([id,p])=>'<button data-posture-btn="'+id+'" class="'+(postureId===id?'on':'')+'">'+esc(p.label)+'</button>').join('')}</div>
+      <div class="row transport" style="margin-top:6px"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
+    <div class="pane ${S.tab==='auto'?'show':''}" data-pane="auto">
+      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div>
+      ${roadmapRun.capture?'<div class="stage act">Waiting for the AI roadmap block…</div>':roadmapRun.steps.map((q,i)=>'<div class="stage '+(roadmapRun.active&&i===roadmapRun.index?'act':'')+'">'+(i<roadmapRun.index?'✓ ':i===roadmapRun.index?'▶ ':'· ')+(i+1)+'. '+esc(q)+'</div>').join('')}
+      <div class="sectionTitle">Prompt queue</div>
+      ${queueDraft.map((q,i)=>'<div class="qrow"><span class="qnum">'+(i+1)+'</span><input type="text" data-q="'+i+'" value="'+esc(q)+'" placeholder="Step '+(i+1)+'"><button class="qdel" data-qdel="'+i+'">×</button></div>').join('')}
+      <div class="row"><button data-a="q-add">＋ Step</button><button data-a="q-run" class="on">▶ Run queue</button></div>
+    </div>
+    <div class="pane ${S.tab==='flow'?'show':''}" data-pane="flow">
+      <label style="display:block"><span class="tiny">Workflow</span><select data-flow-workflow style="width:100%;margin-top:3px">${Object.entries(allWorkflows()).map(([id,w])=>'<option value="'+esc(id)+'" '+(workflowId===id?'selected':'')+'>'+esc(w.label)+(w.custom?' · custom':'')+'</option>').join('')}</select></label>
+      <div class="tiny">${esc(allWorkflows()[workflowId]?.desc||'')}</div>
+      <div class="row" style="margin-top:6px"><button data-a="flow-run" class="on" ${!allWorkflows()[workflowId]?.stages?.length?'disabled':''}>▶ Start workflow</button><label><input type="checkbox" data-flow-pause ${flowPauseBetween?'checked':''}>Pause between</label></div>
+      ${(allWorkflows()[workflowId]?.stages||[]).map((q,i)=>'<div class="stage '+(flowRun.active&&i===flowRun.index?'act':'')+'"><div class="row"><div style="flex:3">'+(i+1)+'. '+esc(q)+'</div><button data-flow-insert="'+i+'">Insert</button></div></div>').join('')}
+      <div class="tiny">Workflow stages are stored prompt text. Ghost advances only the stored index after the exact terminal marker.</div>
+    </div>
     <div class="pane ${S.tab==='prompt'?'show':''}" data-pane="prompt">
-      <label style="display:block"><span class="tiny">Persona</span><select data-persona style="width:100%;margin-top:3px">${Object.entries(allPersonas()).map(([id,p])=>'<option value="'+esc(id)+'" '+(personaId===id?'selected':'')+'>'+esc(p.label)+(p.custom?' · custom':'')+'</option>').join('')}</select></label>
+      <div class="row"><label><input type="checkbox" data-committee ${committeeOn?'checked':''}>Committee</label><label><input type="checkbox" data-committee-each ${committeePerTask?'checked':''}>Every step</label><label><input type="checkbox" data-committee-review ${committeeFinalReview?'checked':''}>Final review</label></div>
+      ${committeeOn?'<div class="personGrid">'+Object.entries(allPersonas()).filter(([id])=>id!=='none').map(([id,p])=>'<label><input type="checkbox" data-persona-check="'+esc(id)+'" '+(personaIds.includes(id)?'checked':'')+'>'+esc(p.label)+(p.custom?' ★':'')+'</label>').join('')+'</div>':'<label style="display:block;margin-top:5px"><span class="tiny">Persona</span><select data-persona style="width:100%;margin-top:3px">'+Object.entries(allPersonas()).map(([id,p])=>'<option value="'+esc(id)+'" '+(personaId===id?'selected':'')+'>'+esc(p.label)+(p.custom?' · custom':'')+'</option>').join('')+'</select></label>'}
       <label style="display:block;margin-top:5px"><span class="tiny">Workflow</span><select data-workflow style="width:100%;margin-top:3px">${Object.entries(allWorkflows()).map(([id,w])=>'<option value="'+esc(id)+'" '+(workflowId===id?'selected':'')+'>'+esc(w.label)+(w.custom?' · custom':'')+'</option>').join('')}</select></label>
       <label style="display:block;margin-top:5px"><span class="tiny">Posture</span><select data-posture style="width:100%;margin-top:3px">${Object.entries(POSTURES).map(([id,p])=>'<option value="'+id+'" '+(postureId===id?'selected':'')+'>'+esc(p.label)+'</option>').join('')}</select></label>
       <div class="tiny">${esc(allWorkflows()[workflowId]?.desc||'')} These settings change prompt guidance only; Play remains the sole Send authority.</div>
@@ -1034,6 +1317,8 @@ function render() {
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
       <div class="tiny">Accent</div>
       <div class="swatches">${Object.entries(ACCENTS).map(([id,color])=>'<button data-accent="'+id+'" class="'+(accentId===id?'on':'')+'" title="'+id+'" style="'+(color?'background:'+color:'')+'">'+(id==='auto'?'A':'')+'</button>').join('')}</div>
+      <div class="sectionTitle">Placement / attachment</div>
+      <div class="posgrid"><button data-place="dock-left" class="${placement==='dock-left'?'on':''}" title="Attach left">◧L</button><button data-place="dock-right" class="${placement==='dock-right'?'on':''}" title="Attach right">R◨</button><button data-place="float" class="${placement==='float'?'on':''}" title="Floating draggable">↔</button><button data-place="composer-row" class="${placement==='composer-row'?'on':''}" title="Attach near composer">⌨</button><button data-place="header-row" class="${placement==='header-row'?'on':''}" title="Attach near header">▔</button></div>
       <div class="row" style="margin-top:6px"><button data-a="show-quick">Show Quick Start</button><button data-a="reset-look">Reset look</button></div>
       <label style="margin-top:6px"><input type="checkbox" data-sound ${soundOn?'checked':''}>Sound cues</label>
       <label style="margin-top:5px"><input type="checkbox" data-notify ${notifyOn?'checked':''}>Notifications</label>
@@ -1044,6 +1329,9 @@ function render() {
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('click', () => { panelCollapsed = false; GM_setValue('v9.panelCollapsed', false); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('pointerdown', e => e.preventDefault());
+  panel.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { if (S.mode==='RUNNING') return; runMode=btn.dataset.mode; GM_setValue('v9.runMode',runMode); render(); }));
+  panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
+  panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
   panel.querySelector('[data-a="reload"]')?.addEventListener('click', () => location.reload());
@@ -1060,6 +1348,18 @@ function render() {
   const topButton = panel.querySelector('[data-a="top"]');
   topButton?.addEventListener('pointerdown', e => e.preventDefault());
   topButton?.addEventListener('click', () => goTop().catch(error => { S.detail = 'Could not reach the top safely.'; log('top-navigation-error', { message: String(error?.message || error) }); render(); }));
+  panel.querySelectorAll('[data-q]').forEach(inp => inp.addEventListener('change', () => { const i=Number(inp.dataset.q); queueDraft[i]=String(inp.value||'').slice(0,4000); saveQueueDraft(); }));
+  panel.querySelectorAll('[data-qdel]').forEach(btn => btn.addEventListener('click', () => { queueDraft.splice(Number(btn.dataset.qdel),1); if(!queueDraft.length) queueDraft=['']; saveQueueDraft(); render(); }));
+  panel.querySelector('[data-a="q-add"]')?.addEventListener('click', () => { if(queueDraft.length<30){ queueDraft.push(''); saveQueueDraft(); render(); } });
+  panel.querySelector('[data-a="q-run"]')?.addEventListener('click', () => startQueueRun().catch(e => fail('QUEUE',String(e?.message||e))));
+  panel.querySelector('[data-flow-workflow]')?.addEventListener('change', e => { workflowId=allWorkflows()[e.target.value]?e.target.value:'none'; GM_setValue('v9.workflow',workflowId); flowRun.active=false; render(); });
+  panel.querySelector('[data-flow-pause]')?.addEventListener('change', e => { flowPauseBetween=!!e.target.checked; GM_setValue('v9.flowPauseBetween',flowPauseBetween); });
+  panel.querySelector('[data-a="flow-run"]')?.addEventListener('click', () => startFlowRun().catch(e => fail('FLOW',String(e?.message||e))));
+  panel.querySelectorAll('[data-flow-insert]').forEach(btn => btn.addEventListener('click', async () => { if(S.mode==='RUNNING'||S.sending) return; const wf=allWorkflows()[workflowId]; const i=Number(btn.dataset.flowInsert); const text=wf?.stages?.[i]; if(!text) return; const staged=await setComposerText(withPromptFeatures(text,{includeWorkflow:false,repeatPersona:true})); S.detail=staged.ok?'Stage inserted into composer.':'Could not insert stage.'; render(); }));
+  panel.querySelector('[data-committee]')?.addEventListener('change', e => { committeeOn=!!e.target.checked; GM_setValue('v9.committeeOn',committeeOn); render(); });
+  panel.querySelector('[data-committee-each]')?.addEventListener('change', e => { committeePerTask=!!e.target.checked; GM_setValue('v9.committeePerTask',committeePerTask); });
+  panel.querySelector('[data-committee-review]')?.addEventListener('change', e => { committeeFinalReview=!!e.target.checked; GM_setValue('v9.committeeFinalReview',committeeFinalReview); });
+  panel.querySelectorAll('[data-persona-check]').forEach(box => box.addEventListener('change', () => { const id=box.dataset.personaCheck; if(box.checked&&!personaIds.includes(id)) personaIds.push(id); if(!box.checked) personaIds=personaIds.filter(x=>x!==id); personaIds=personaIds.slice(0,8); GM_setValue('v9.personaIds',JSON.stringify(personaIds)); render(); }));
   panel.querySelector('[data-a="report"]')?.addEventListener('click', copyReport);
   panel.querySelector('[data-persona]')?.addEventListener('change', e => { personaId = allPersonas()[e.target.value] ? e.target.value : 'none'; GM_setValue('v9.persona', personaId); S.detail = 'Persona saved for future Ghost prompts.'; render(); });
   panel.querySelector('[data-workflow]')?.addEventListener('change', e => { workflowId = allWorkflows()[e.target.value] ? e.target.value : 'none'; GM_setValue('v9.workflow', workflowId); S.detail = 'Workflow guidance saved.'; render(); });
@@ -1083,6 +1383,9 @@ function render() {
   panel.querySelector('[data-max]')?.addEventListener('change', e => { S.max = Math.max(1, Math.min(100, Number(e.target.value) || 25)); GM_setValue('v9.max', S.max); render(); });
   panel.querySelectorAll('[data-act]').forEach(box => box.addEventListener('change', () => { ON[box.dataset.act] = box.checked; GM_setValue(`v9.act.${box.dataset.act}`, box.checked); S.detail = `${ACT[box.dataset.act][0]} ${box.checked?'enabled':'disabled'} for the next injected prompt.`; render(); }));
   panel.querySelector('[data-custom]')?.addEventListener('change', e => { custom = String(e.target.value || '').trim(); GM_setValue('v9.custom', custom); S.detail = custom ? 'Custom AoA path saved.' : 'Custom AoA path cleared.'; render(); });
+  panel.querySelectorAll('[data-place]').forEach(btn => btn.addEventListener('click', () => { placement=btn.dataset.place; GM_setValue('v9.placement',placement); if(!placement.startsWith('dock')) panelCollapsed=false; render(); }));
+  applyPlacement();
+  bindFloatDrag();
 }
 
 render();
