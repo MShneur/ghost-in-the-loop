@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop - Project Vault Beta
 // @namespace    https://github.com/MShneur/ghost-in-the-loop/beta
-// @version      9.0.1-alpha.3
+// @version      9.0.1-alpha.4
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.3';
+const VER = '9.0.1-alpha.4';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1172,6 +1172,25 @@ async function captureCodexExport() {
     visibility:{renderedTurnGroups:collected.size,traversed,reachedBottom,passes,scrollTraversalAvailable:!!scroller},
     turns};
 }
+function captureDotExport() {
+  // Dot uses the messaging UI, not the regular ChatGPT conversation DOM/API.
+  if (HOST.id !== 'chatgpt' || !/^\/dots(?:\/|$)/.test(location.pathname)) return null;
+  const root=document.querySelector('.messaging-root .message-list');
+  if (!root) return null;
+  const turns=[];
+  for (const row of root.querySelectorAll('.message-row[data-message-id]')) {
+    const message=row.querySelector('.message-text');
+    if (!message) continue;
+    const text=displayText(message.innerText || message.textContent || '');
+    if (!text) continue;
+    turns.push({role:row.classList.contains('self')?'user':'assistant',text});
+  }
+  if (!turns.length) return null;
+  return {version:VER,platform:'chatgpt-dot',capturedAt:new Date().toISOString(),
+    source:'Dot rendered conversation',partial:true,
+    note:'Only the Dot messages currently rendered in the browser were saved. Older unloaded messages may be missing.',
+    turns};
+}
 function domTurns() {
   const rows = [];
   if (HOST.id === 'chatgpt') {
@@ -1267,6 +1286,8 @@ async function apiCapture() {
   return null;
 }
 async function captureExport() {
+  const dot=captureDotExport();
+  if(dot) return dot;
   const codex=await captureCodexExport();
   if (codex) return codex;
   const api=await apiCapture();
