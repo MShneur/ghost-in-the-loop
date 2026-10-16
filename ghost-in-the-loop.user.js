@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop - Project Vault Beta
 // @namespace    https://github.com/MShneur/ghost-in-the-loop/beta
-// @version      9.0.1-alpha.2
+// @version      9.0.1-alpha.3
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.1';
+const VER = '9.0.1-alpha.3';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
