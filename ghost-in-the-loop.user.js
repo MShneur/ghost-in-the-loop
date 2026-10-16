@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop - Project Vault Beta
 // @namespace    https://github.com/MShneur/ghost-in-the-loop/beta
-// @version      9.0.1-alpha.5
+// @version      9.0.1-alpha.6
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.5';
+const VER = '9.0.1-alpha.6';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1537,77 +1537,6 @@ function doPageBackup(kind) {
   render();
 }
 
-// Read-only fallback evidence; does not read cookies, storage, response bodies or credentials.
-function pageEvidence() {
-  const scrubUrl=value=>{try {const u=new URL(String(value||''),location.href);return u.origin+u.pathname;} catch(_) {return '[unavailable]';}};
-  const safeClone=doc=>{
-    const copy=doc.documentElement.cloneNode(true);
-    copy.querySelectorAll('script,style,svg,img,picture,canvas,video,audio,source,object,embed,link,#gitl9').forEach(el=>el.remove());
-    for(const el of [copy,...copy.querySelectorAll('*')]) {
-      for(const attr of [...el.attributes]) {
-        const n=attr.name.toLowerCase(),v=attr.value;
-        if(n.startsWith('on')||n==='nonce'||n==='integrity'||n==='srcdoc'||n==='ping'
-           ||n==='value'||n==='placeholder'&&/pass|token|secret/i.test(v)
-           ||n==='srcset'||n==='style'||n==='data-url'
-           ||/token|auth|secret|session|csrf|api.?key|password|cookie/i.test(n)) el.removeAttribute(attr.name);
-        else if(['href','src','action','formaction','poster'].includes(n)) el.setAttribute(attr.name,scrubUrl(v));
-      }
-      if(el.matches('input,textarea,select')) {
-        el.removeAttribute('value');el.removeAttribute('checked');el.removeAttribute('selected');
-        if(el.tagName==='TEXTAREA')el.textContent='';
-      }
-    }
-    return '<!DOCTYPE html>\n'+copy.outerHTML;
-  };
-  const frames=[];
-  for(const [index,f] of [...document.querySelectorAll('iframe')].entries()) {
-    const record={index,src:scrubUrl(f.getAttribute('src')||''),title:f.title||'',accessible:false};
-    try {
-      const fd=f.contentDocument;
-      if(fd?.documentElement) {record.accessible=true;record.html=safeClone(fd);}
-    }catch(_) {}
-    frames.push(record);
-  }
-  const html=safeClone(document);
-  const tables=[...document.querySelectorAll('table')].map((table,index)=>({
-    index,caption:displayText(table.caption?.textContent||''),
-    rows:[...table.rows].map(row=>[...row.cells].map(cell=>displayText(cell.innerText||cell.textContent||'')))
-  }));
-  const resources=performance.getEntriesByType('resource').map(e=>({
-    url:scrubUrl(e.name),initiatorType:e.initiatorType||'',durationMs:Math.round(e.duration||0)
-  })).slice(0,500);
-  const selectors={
-    chatgptMessageNodes:document.querySelectorAll('[data-message-author-role]').length,
-    dotRows:document.querySelectorAll('.messaging-root .message-row').length,
-    codexTurns:document.querySelectorAll('[data-turn-key^="history-content:turn:"]').length,
-    iframes:frames.length,shadowHosts:0
-  };
-  const shadows=[];
-  for(const el of document.querySelectorAll('*'))if(el.shadowRoot) {
-    selectors.shadowHosts++;
-    shadows.push({host:el.tagName.toLowerCase(),id:el.id||'',text:displayText(el.shadowRoot.textContent||'').slice(0,20000)});
-    if(shadows.length>=30)break;
-  }
-  return {schema:'ghost-page-evidence/1',createdAt:new Date().toISOString(),version:VER,
-    url:scrubUrl(location.href),title:document.title||'',userAgent:navigator.userAgent,
-    viewport:{width:innerWidth,height:innerHeight},
-    limitations:['Browser-visible DOM only; not server-side state or historical API responses.',
-      'Cross-origin iframe contents are inaccessible.','Images, SVG and binary resources excluded.',
-      'Scripts, credentials, form values, query strings and sensitive attributes removed.',
-      'Resource URLs are paths only; network bodies and headers are unavailable.'],
-    html,frames,tables,resources,selectors,shadows};
-}
-function doPageBackup(kind) {
-  try {
-    const data=pageEvidence();
-    const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-    if(kind==='html') download('ghost-page-'+stamp+'.html',data.html,'text/html;charset=utf-8');
-    else download('ghost-diagnostics-'+stamp+'.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
-    S.detail=kind==='html'?'Page HTML download started · images/scripts removed':'Diagnostic JSON download started · review before sharing';
-  } catch(e) {S.detail='Page backup failed: '+String(e?.message||e);}
-  render();
-}
-
 function exportStatus(cap,action) { return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history'); }
 async function doExport(kind) {
   S.detail='Reading conversation…'; render(); const cap=await captureExport();
@@ -1750,9 +1679,6 @@ function render() {
       <div class="sectionTitle">Page backup · works without chat detection</div>
       <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
       <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
-      <div class="sectionTitle">Page backup · works without chat detection</div>
-      <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
-      <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
       <div class="sectionTitle">Project Vault · across AI sites</div>
       <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
       <select data-vault-select style="width:100%;margin-top:5px"><option value="">Choose project…</option>${ProjectVault.list().map(p=>'<option value="'+esc(p.id)+'" '+(p.id===vaultProjectId?'selected':'')+'>'+esc(p.name)+' ('+p.count+' chats)</option>').join('')}</select>
@@ -1828,7 +1754,6 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
-  panel.querySelectorAll('[data-page-backup]').forEach(btn=>btn.addEventListener('click',()=>doPageBackup(btn.dataset.pageBackup)));
   panel.querySelectorAll('[data-page-backup]').forEach(btn=>btn.addEventListener('click',()=>doPageBackup(btn.dataset.pageBackup)));
   panel.querySelector('[data-vault-select]')?.addEventListener('change',e=>{vaultProjectId=e.target.value;GM_setValue('v9.vault.active',vaultProjectId);render();});
   panel.querySelectorAll('[data-vault-action]').forEach(btn=>btn.addEventListener('click',()=>{
