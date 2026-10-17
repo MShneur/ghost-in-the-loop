@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.1-alpha.1
+// @version      9.0.1-alpha.6
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.1';
+const VER = '9.0.1-alpha.6';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1080,6 +1080,117 @@ function visibleReasoningText(root) {
   }
   return parts.join('\n\n');
 }
+function codexThreadRoot() {
+  if (HOST.id !== 'chatgpt' || !/^\/local\/[0-9a-z-]+(?:\/|$)/i.test(location.pathname)) return null;
+  return document.querySelector('[data-thread-find-target="conversation"]');
+}
+function codexVisibleGroups(root, collected) {
+  for (const el of root.querySelectorAll('[data-turn-key^="history-content:turn:"]')) {
+    const key = el.getAttribute('data-turn-key');
+    if (!key) continue;
+    const user = el.querySelector('[data-user-message-bubble]');
+    const assistant = [...el.querySelectorAll('[data-markdown-text-style="assistant-message"]')];
+    const userText = user ? displayText(user.innerText || user.textContent || '') : '';
+    const assistantText = assistant.map(node => displayText(node.innerText || node.textContent || '')).filter(Boolean).join('\n\n');
+    const domText = displayText(el.innerText || el.textContent || '');
+    const links = [...el.querySelectorAll('a[href]')].map(a => ({text:displayText(a.innerText || a.textContent || ''),href:a.getAttribute('href') || ''})).filter(x => x.href && !/^javascript:/i.test(x.href)).slice(0,200);
+    const images = [...el.querySelectorAll('img')].map(img => ({alt:img.getAttribute('alt') || '',title:img.getAttribute('title') || ''})).filter(x => x.alt || x.title).slice(0,100);
+    const rawDomHtml = exportRaw ? el.outerHTML.slice(0,1000000) : undefined;
+    const item = {key, userText, assistantText, domText, links, images,
+      ...(exportRaw ? {rawDomHtml, rawDomTruncated:el.outerHTML.length>1000000} : {})};
+    if (!collected.has(key)) collected.set(key,item);
+    else {
+      const old = collected.get(key);
+      // Prefer a later expanded/rendered version; never discard previously seen content.
+      if (item.userText.length >= old.userText.length) old.userText = item.userText;
+      if (item.assistantText.length >= old.assistantText.length) old.assistantText = item.assistantText;
+      if (item.domText.length >= old.domText.length) old.domText = item.domText;
+      if (item.links.length > old.links.length) old.links = item.links;
+      if (item.images.length > old.images.length) old.images = item.images;
+      if (exportRaw && (item.rawDomHtml?.length || 0) > (old.rawDomHtml?.length || 0)) {
+        old.rawDomHtml=item.rawDomHtml;
+        old.rawDomTruncated=item.rawDomTruncated;
+      }
+    }
+  }
+}
+function codexScrollable(root) {
+  for (let el=root.parentElement, n=0; el && n<15; el=el.parentElement,n++) {
+    try {
+      const style = getComputedStyle(el);
+      if (/(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 8) return el;
+    } catch (_) {}
+  }
+  return null;
+}
+async function captureCodexExport() {
+  const root=codexThreadRoot();
+  if (!root) return null;
+  const collected=new Map();
+  const scroller=codexScrollable(root);
+  const canTraverse=!!scroller && S.mode !== 'RUNNING' && !S.sending && !S.watchdogBusy;
+  let traversed=false, reachedBottom=false, passes=0;
+  if (!canTraverse) codexVisibleGroups(root,collected);
+  else {
+    const savedTop=scroller.scrollTop, savedLeft=scroller.scrollLeft;
+    try {
+      scroller.scrollTop=0;
+      await sleep(120);
+      for (let n=0;n<120;n++) {
+        passes=n+1;
+        codexVisibleGroups(root,collected);
+        const max=Math.max(0,scroller.scrollHeight-scroller.clientHeight);
+        const current=scroller.scrollTop;
+        if (current >= max-4) { reachedBottom=true; break; }
+        const next=Math.min(max,current+Math.max(160,scroller.clientHeight*0.7));
+        if (next <= current+1) break;
+        scroller.scrollTop=next;
+        traversed=true;
+        await sleep(100);
+      }
+      codexVisibleGroups(root,collected);
+    } finally {
+      try { scroller.scrollTop=savedTop; scroller.scrollLeft=savedLeft; } catch (_) {}
+    }
+  }
+  const turns=[];
+  for (const entry of collected.values()) {
+    const meta={turnKey:entry.key,groupHasUser:!!entry.userText,visibleDomText:entry.domText,links:entry.links,images:entry.images,
+      ...(exportRaw?{rawDomHtml:entry.rawDomHtml,rawDomTruncated:entry.rawDomTruncated}:{})};
+    if (entry.userText) turns.push({role:'user',text:entry.userText,metadata:meta});
+    if (entry.assistantText) turns.push({role:'assistant',text:entry.assistantText,metadata:meta});
+    if (!entry.userText && !entry.assistantText && entry.domText) turns.push({role:'activity',text:entry.domText,metadata:meta});
+  }
+  if (!turns.length) {
+    const fallback=displayText(root.innerText || root.textContent || '');
+    if (fallback) turns.push({role:'activity',text:fallback,metadata:{note:'Unrecognized Codex turn markup; raw rendered transcript text only.'}});
+  }
+  return {version:VER,platform:'codex',capturedAt:new Date().toISOString(),
+    source:'Codex rendered conversation',partial:true,
+    conversationId:location.pathname.split('/')[2] || '', title:document.title || '',
+    note:'Codex DOM capture; virtualized, collapsed, or unloaded history may still be incomplete. Only data exposed to this page is available. Private memories and hidden reasoning are not accessible.',
+    visibility:{renderedTurnGroups:collected.size,traversed,reachedBottom,passes,scrollTraversalAvailable:!!scroller},
+    turns};
+}
+function captureDotExport() {
+  // Dot uses the messaging UI, not the regular ChatGPT conversation DOM/API.
+  if (HOST.id !== 'chatgpt' || !/^\/dots(?:\/|$)/.test(location.pathname)) return null;
+  const root=document.querySelector('.messaging-root .message-list');
+  if (!root) return null;
+  const turns=[];
+  for (const row of root.querySelectorAll('.message-row[data-message-id]')) {
+    const message=row.querySelector('.message-text');
+    if (!message) continue;
+    const text=displayText(message.innerText || message.textContent || '');
+    if (!text) continue;
+    turns.push({role:row.classList.contains('self')?'user':'assistant',text});
+  }
+  if (!turns.length) return null;
+  return {version:VER,platform:'chatgpt-dot',capturedAt:new Date().toISOString(),
+    source:'Dot rendered conversation',partial:true,
+    note:'Only the Dot messages currently rendered in the browser were saved. Older unloaded messages may be missing.',
+    turns};
+}
 function domTurns() {
   const rows = [];
   if (HOST.id === 'chatgpt') {
@@ -1175,6 +1286,10 @@ async function apiCapture() {
   return null;
 }
 async function captureExport() {
+  const dot=captureDotExport();
+  if(dot) return dot;
+  const codex=await captureCodexExport();
+  if (codex) return codex;
   const api=await apiCapture();
   if (api?.turns?.length) return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,...(exportRaw?{raw:api.raw}:{})};
   const dom=domTurns();
@@ -1184,13 +1299,244 @@ async function captureExport() {
 function markdown(cap) {
   const lines=['# Ghost conversation export','', '- Platform: '+cap.platform, '- Captured: '+cap.capturedAt, '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''), ''];
   if (cap.note) lines.push('> '+cap.note,'');
-  cap.turns.forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':'Assistant'),'',turn.text||''); if(turn.thinking) lines.push('','### Platform-visible reasoning','',turn.thinking); lines.push(''); });
+  cap.turns.forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',turn.text||''); if(turn.thinking) lines.push('','### Platform-visible reasoning','',turn.thinking); if (cap.platform==='codex' && turn.metadata?.visibleDomText && (!turn.metadata.groupHasUser || turn.role==='user')) {
+      lines.push('','### Rendered turn context (includes visible activity)','',turn.metadata.visibleDomText);
+      if (turn.metadata.links?.length) lines.push('','### Captured links','',...turn.metadata.links.map(link=>'- '+(link.text||'Link')+': '+link.href));
+    }
+    lines.push(''); });
   return lines.join('\n');
 }
 function download(name,text,type) {
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
   document.documentElement.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
 }
+// PROJECT VAULT: manual-only local transcript collection, isolated from Play/Send.
+const ProjectVault = (() => {
+  const KEY='v9.projectVault.1', LIMIT=16_000_000, CHAT_LIMIT=4_000_000, SOFT=10_000_000;
+  const bytes=value=>typeof TextEncoder==='function'?new TextEncoder().encode(value).length:unescape(encodeURIComponent(value)).length;
+  let busy=false;
+  function read() {
+    const raw=GM_getValue(KEY,'');
+    if (!raw) return {schema:'gitl-project-vault/1',projects:[]};
+    let data;
+    try { data=JSON.parse(raw); } catch (_) { throw Error('Project storage could not be read. No data was changed.'); }
+    if (data?.schema!=='gitl-project-vault/1' || !Array.isArray(data.projects)) throw Error('Unsupported Project Vault data; no data was changed.');
+    return data;
+  }
+  async function commit(data) {
+    const raw=JSON.stringify(data);
+    if(raw.length>LIMIT) throw Error('Storage limit reached. Download a project backup before saving more.');
+    const written=typeof GM_setValueAsync==='function' ? GM_setValueAsync(KEY,raw) : GM_setValue(KEY,raw);
+    if(written && typeof written.then==='function' && await written===false) throw Error('Browser storage rejected this save.');
+    if(GM_getValue(KEY,'')!==raw) throw Error('Could not verify saved project. Try exporting a backup.');
+  }
+  function list() { try {return read().projects.map(p=>({id:p.id,name:p.name,count:p.chats.length,batch:p.batch||1,bytes:bytes(JSON.stringify(p.chats)),pending:!!p.pending}));}catch(_){return [];} }
+  function get(projectId) { return read().projects.find(p=>p.id===projectId)||null; }
+  function pendingBundle(projectId) {
+    const p=get(projectId);
+    if(!p?.pending) throw Error('No batch awaiting confirmation.');
+    if(p.pending.keys.join('|')!==p.chats.map(c=>c.sourceKey).join('|')) throw Error('Batch changed; nothing was cleared.');
+    return {schema:'gitl-project/1',project:{id:p.id,name:p.name,createdAt:p.createdAt},
+      batch:p.pending.batch,exportedAt:p.pending.createdAt,partial:p.chats.some(c=>c.capture.partial),
+      note:'Saved browser-visible chat records, not hidden account memory.',chats:p.chats};
+  }
+  async function confirm(projectId) {
+    if(busy) throw Error('Vault is busy.');busy=true;
+    try { const d=read(),p=d.projects.find(p=>p.id===projectId);
+      if(!p?.pending) throw Error('No pending batch.');
+      if(p.pending.keys.join('|')!==p.chats.map(c=>c.sourceKey).join('|')) throw Error('Batch changed; nothing was cleared.');
+      const next=p.pending.batch+1;
+      const incoming=p.pending.incoming||null;
+      p.chats=incoming?[incoming]:[];p.batch=next;p.pending=null;await commit(d);return next;
+    } finally {busy=false;}
+  }
+  function usage(projectId) {const p=get(projectId);return p?{bytes:bytes(JSON.stringify(p.chats)),limit:SOFT,batch:p.batch||1,pending:!!p.pending}:null;}
+
+  function sourceKey(cap,url) {
+    const path=String(url||'').split(/[?#]/)[0];
+    const first=(cap.turns||[]).find(t=>t.role==='user')?.text||'';
+    // Home pages have no stable conversation identity. Distinguish by first prompt.
+    return /\/(?:c|local|chat|conversation|search|thread)\/[^/]+/i.test(path)
+      ? path : path+'#first='+hash(first.slice(0,1024));
+  }
+  async function create(name) {
+    const clean=String(name||'').trim().slice(0,80);
+    if(!clean) throw Error('Type a project name first.');
+    if(busy) throw Error('Vault is busy.'); busy=true;
+    try {
+      const data=read();
+      const old=data.projects.find(p=>p.name.toLowerCase()===clean.toLowerCase());
+      if(old) return old.id;
+      if(data.projects.length>=12) throw Error('Project limit reached. Save a backup first.');
+      const id='p-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10);
+      data.projects.push({id,name:clean,createdAt:new Date().toISOString(),batch:1,pending:null,chats:[]});
+      await commit(data); return id;
+    } finally {busy=false;}
+  }
+  async function save(projectId,cap,url,title) {
+    if(busy) throw Error('Vault is busy.');
+    if(!Array.isArray(cap?.turns)||!cap.turns.length) throw Error('No conversation was captured.');
+    busy=true;
+    try {
+      const data=read(), project=data.projects.find(p=>p.id===projectId);
+      if(!project) throw Error('Choose a project first.');
+      if(project.pending) return {rollover:true,batch:project.pending.batch};
+      const key=sourceKey(cap,url), index=project.chats.findIndex(c=>c.sourceKey===key);
+      const old=index>=0?project.chats[index]:null;
+      if(old && (old.capture.turns.length>cap.turns.length || (!old.capture.partial && cap.partial)))
+        throw Error('A more complete copy is already saved; no content was overwritten.');
+      if(index<0 && project.chats.length>=100) throw Error('Project reached 100 chats. Download a backup.');
+      const item={sourceKey:key,siteUrl:String(url||'').split(/[?#]/)[0],
+        title:String(title||'Untitled chat').slice(0,200),savedAt:new Date().toISOString(),
+        platform:cap.platform,capture:cap};
+      const incomingBytes=bytes(JSON.stringify(item));
+      if(incomingBytes>CHAT_LIMIT) return {oversized:true,item,batch:project.batch||1,name:project.name};
+      const next=project.chats.slice();
+      if(index>=0) next[index]=item; else next.push(item);
+      if(bytes(JSON.stringify(next))>SOFT) {
+        if(!project.chats.length) return {oversized:true,item,batch:project.batch||1,name:project.name};
+        project.pending={batch:project.batch||1,keys:project.chats.map(c=>c.sourceKey),incoming:item,createdAt:new Date().toISOString()};
+        await commit(data);
+        return {rollover:true,batch:project.pending.batch};
+      }
+
+      if(index>=0) project.chats[index]=item; else project.chats.push(item);
+      await commit(data);
+      return {name:project.name,count:project.chats.length,replaced:index>=0,partial:!!cap.partial};
+    } finally {busy=false;}
+  }
+  function assemble(projectId) {
+    const project=read().projects.find(p=>p.id===projectId);
+    if(!project) throw Error('Choose a saved project first.');
+    return {schema:'gitl-project/1',project:{id:project.id,name:project.name,createdAt:project.createdAt},
+      exportedAt:new Date().toISOString(),partial:project.chats.some(c=>c.capture.partial),
+      note:'Only content accessible to the signed-in browser at save time is included. Hidden memories and unloaded turns cannot be assumed present.',
+      chats:project.chats};
+  }
+  function asMarkdown(bundle) {
+    const lines=['# '+bundle.project.name,'','Ghost Project Vault · '+bundle.chats.length+' conversations',
+      'Conversation completeness is reported for each source.',''];
+    bundle.chats.forEach((chat,i)=>{
+      lines.push('---','','# Chat '+(i+1)+': '+chat.title,'',
+        '- Platform: '+chat.platform,'- Page: '+chat.siteUrl,'- Saved: '+chat.savedAt,
+        '- Completeness: '+(chat.capture.partial?'partial / may omit messages':'platform archive'),'',markdown(chat.capture),'');
+    });
+    return lines.join('\n');
+  }
+  return {list,create,save,assemble,asMarkdown,sourceKey,usage,get,pendingBundle,confirm};
+})();
+let vaultProjectId=String(GM_getValue('v9.vault.active','')||'');
+let vaultActionBusy=false;
+async function runVaultAction(kind,name) {
+  if(vaultActionBusy) return;
+  vaultActionBusy=true;
+  try {
+    if(kind==='create'){
+      vaultProjectId=await ProjectVault.create(name);
+      GM_setValue('v9.vault.active',vaultProjectId);
+      S.detail='Project ready. Visit another AI chat to add more.';
+    } else if(kind==='save') {
+      const cap=await captureExport();
+      const r=await ProjectVault.save(vaultProjectId,cap,location.href,document.title);
+      if(r.rollover) {
+        const b=ProjectVault.pendingBundle(vaultProjectId);
+        download('ghost-'+vaultProjectId+'-batch-'+String(b.batch).padStart(3,'0')+'.json',JSON.stringify(b,null,2),'application/json;charset=utf-8');
+        S.detail='Batch '+b.batch+' download started. Verify file, then tap Confirm saved. Old chats retained.';
+      } else if(r.oversized) {
+        const bundle={schema:'gitl-project/1',project:{id:vaultProjectId,name:r.name},batch:r.batch,oversized:true,partial:!!r.item.capture.partial,chats:[r.item]};
+        download('ghost-'+vaultProjectId+'-oversized-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify(bundle,null,2),'application/json;charset=utf-8');
+        S.detail='Oversized chat downloaded separately. Verify Downloads; previous chats retained.';
+      } else S.detail=(r.replaced?'Updated ':'Added chat to ')+r.name+' · '+r.count+' chats'+(r.partial?' · may be incomplete':'');
+    } else if(kind==='confirm') {
+      const next=await ProjectVault.confirm(vaultProjectId);
+      S.detail='Archived batch confirmed. Collecting batch '+next+'.';
+    } else if(kind==='retry') {
+      const b=ProjectVault.pendingBundle(vaultProjectId);
+      download('ghost-'+vaultProjectId+'-batch-'+String(b.batch).padStart(3,'0')+'.json',JSON.stringify(b,null,2),'application/json;charset=utf-8');
+      S.detail='Download started again. Previous chats still retained.';
+    } else {
+      const bundle=ProjectVault.assemble(vaultProjectId);
+      if(!bundle.chats.length) throw Error('Add a chat to this project first.');
+      const filename='ghost-project-'+bundle.project.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,45)+'-'+new Date().toISOString().slice(0,10);
+      if(kind==='json') download(filename+'.json',JSON.stringify(bundle,null,2),'application/json;charset=utf-8');
+      else download(filename+'.md',ProjectVault.asMarkdown(bundle),'text/markdown;charset=utf-8');
+      S.detail='Project saved · '+bundle.chats.length+' chats'+(bundle.partial?' · some may be incomplete':'');
+    }
+  } catch(e) {S.detail=String(e?.message||e);}
+  finally {vaultActionBusy=false;render();}
+}
+
+// Read-only fallback evidence; does not read cookies, storage, response bodies or credentials.
+function pageEvidence() {
+  const scrubUrl=value=>{try {const u=new URL(String(value||''),location.href);return u.origin+u.pathname;} catch(_) {return '[unavailable]';}};
+  const safeClone=doc=>{
+    const copy=doc.documentElement.cloneNode(true);
+    copy.querySelectorAll('script,style,svg,img,picture,canvas,video,audio,source,object,embed,link,#gitl9').forEach(el=>el.remove());
+    for(const el of [copy,...copy.querySelectorAll('*')]) {
+      for(const attr of [...el.attributes]) {
+        const n=attr.name.toLowerCase(),v=attr.value;
+        if(n.startsWith('on')||n==='nonce'||n==='integrity'||n==='srcdoc'||n==='ping'
+           ||n==='value'||n==='placeholder'&&/pass|token|secret/i.test(v)
+           ||n==='srcset'||n==='style'||n==='data-url'
+           ||/token|auth|secret|session|csrf|api.?key|password|cookie/i.test(n)) el.removeAttribute(attr.name);
+        else if(['href','src','action','formaction','poster'].includes(n)) el.setAttribute(attr.name,scrubUrl(v));
+      }
+      if(el.matches('input,textarea,select')) {
+        el.removeAttribute('value');el.removeAttribute('checked');el.removeAttribute('selected');
+        if(el.tagName==='TEXTAREA')el.textContent='';
+      }
+    }
+    return '<!DOCTYPE html>\n'+copy.outerHTML;
+  };
+  const frames=[];
+  for(const [index,f] of [...document.querySelectorAll('iframe')].entries()) {
+    const record={index,src:scrubUrl(f.getAttribute('src')||''),title:f.title||'',accessible:false};
+    try {
+      const fd=f.contentDocument;
+      if(fd?.documentElement) {record.accessible=true;record.html=safeClone(fd);}
+    }catch(_) {}
+    frames.push(record);
+  }
+  const html=safeClone(document);
+  const tables=[...document.querySelectorAll('table')].map((table,index)=>({
+    index,caption:displayText(table.caption?.textContent||''),
+    rows:[...table.rows].map(row=>[...row.cells].map(cell=>displayText(cell.innerText||cell.textContent||'')))
+  }));
+  const resources=performance.getEntriesByType('resource').map(e=>({
+    url:scrubUrl(e.name),initiatorType:e.initiatorType||'',durationMs:Math.round(e.duration||0)
+  })).slice(0,500);
+  const selectors={
+    chatgptMessageNodes:document.querySelectorAll('[data-message-author-role]').length,
+    dotRows:document.querySelectorAll('.messaging-root .message-row').length,
+    codexTurns:document.querySelectorAll('[data-turn-key^="history-content:turn:"]').length,
+    iframes:frames.length,shadowHosts:0
+  };
+  const shadows=[];
+  for(const el of document.querySelectorAll('*'))if(el.shadowRoot) {
+    selectors.shadowHosts++;
+    shadows.push({host:el.tagName.toLowerCase(),id:el.id||'',text:displayText(el.shadowRoot.textContent||'').slice(0,20000)});
+    if(shadows.length>=30)break;
+  }
+  return {schema:'ghost-page-evidence/1',createdAt:new Date().toISOString(),version:VER,
+    url:scrubUrl(location.href),title:document.title||'',userAgent:navigator.userAgent,
+    viewport:{width:innerWidth,height:innerHeight},
+    limitations:['Browser-visible DOM only; not server-side state or historical API responses.',
+      'Cross-origin iframe contents are inaccessible.','Images, SVG and binary resources excluded.',
+      'Scripts, credentials, form values, query strings and sensitive attributes removed.',
+      'Resource URLs are paths only; network bodies and headers are unavailable.'],
+    html,frames,tables,resources,selectors,shadows};
+}
+function doPageBackup(kind) {
+  try {
+    const data=pageEvidence();
+    const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+    if(kind==='html') download('ghost-page-'+stamp+'.html',data.html,'text/html;charset=utf-8');
+    else download('ghost-diagnostics-'+stamp+'.json',JSON.stringify(data,null,2),'application/json;charset=utf-8');
+    S.detail=kind==='html'?'Page HTML download started · images/scripts removed':'Diagnostic JSON download started · review before sharing';
+  } catch(e) {S.detail='Page backup failed: '+String(e?.message||e);}
+  render();
+}
+
 function exportStatus(cap,action) { return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history'); }
 async function doExport(kind) {
   S.detail='Reading conversation…'; render(); const cap=await captureExport();
@@ -1329,7 +1675,17 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
-      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON in saved JSON</label>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label>
+      <div class="sectionTitle">Page backup · works without chat detection</div>
+      <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
+      <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
+      <div class="sectionTitle">Project Vault · across AI sites</div>
+      <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
+      <select data-vault-select style="width:100%;margin-top:5px"><option value="">Choose project…</option>${ProjectVault.list().map(p=>'<option value="'+esc(p.id)+'" '+(p.id===vaultProjectId?'selected':'')+'>'+esc(p.name)+' ('+p.count+' chats)</option>').join('')}</select>
+      <div class="row" style="margin-top:5px"><button data-vault-action="save" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Add chat</button><button data-vault-action="md" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project MD</button><button data-vault-action="json" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project JSON</button></div>
+      ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
+      ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
+      <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div>
       <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
@@ -1398,7 +1754,12 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
-  panel.querySelector('[data-export-raw]')?.addEventListener('change', e => { exportRaw = !!e.target.checked; GM_setValue('v9.exportRaw', exportRaw); S.detail = exportRaw ? 'Raw platform JSON will be included in saved JSON.' : 'Raw platform JSON is off.'; render(); });
+  panel.querySelectorAll('[data-page-backup]').forEach(btn=>btn.addEventListener('click',()=>doPageBackup(btn.dataset.pageBackup)));
+  panel.querySelector('[data-vault-select]')?.addEventListener('change',e=>{vaultProjectId=e.target.value;GM_setValue('v9.vault.active',vaultProjectId);render();});
+  panel.querySelectorAll('[data-vault-action]').forEach(btn=>btn.addEventListener('click',()=>{
+    runVaultAction(btn.dataset.vaultAction,panel.querySelector('[data-vault-name]')?.value||'');
+  }));
+  panel.querySelector('[data-export-raw]')?.addEventListener('change', e => { exportRaw = !!e.target.checked; GM_setValue('v9.exportRaw', exportRaw); S.detail = exportRaw ? 'Raw source data enabled for saved JSON (may contain private data).' : 'Raw source data is off.'; render(); });
   panel.querySelector('[data-max]')?.addEventListener('change', e => { S.max = Math.max(1, Math.min(100, Number(e.target.value) || 25)); GM_setValue('v9.max', S.max); render(); });
   panel.querySelectorAll('[data-act]').forEach(box => box.addEventListener('change', () => { ON[box.dataset.act] = box.checked; GM_setValue(`v9.act.${box.dataset.act}`, box.checked); S.detail = `${ACT[box.dataset.act][0]} ${box.checked?'enabled':'disabled'} for the next injected prompt.`; render(); }));
   panel.querySelector('[data-custom]')?.addEventListener('change', e => { custom = String(e.target.value || '').trim(); GM_setValue('v9.custom', custom); S.detail = custom ? 'Custom AoA path saved.' : 'Custom AoA path cleared.'; render(); });
