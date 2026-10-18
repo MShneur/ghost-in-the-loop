@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.1-alpha.9] — compact mobile shell and low-cost live status
+
+- Inspired by the historical Ghost v8 compact scroll-body and dock; all 13 skins and existing functionality preserved.
+- Pinned Play/Pause/End/Top controls; four visible mobile tabs and More for advanced areas; viewport-bounded scrolling.
+- Native lightweight accordions for advanced export options, Project Vault, setup groups and help.
+- Replace unnecessary full panel redraws with in-place status and progress updates, preserving focus, scroll and accordion state.
+- Respect narrow viewport, visualViewport height, safe-area inset and reduced-motion preference.
+- No alteration to one-Send authority, host API, userscript URL or site-level permissions.
+- Firefox Android field proof pending; tested with jsdom and fixture-dependent integration checks.
+
+
 ## [9.0.1-alpha.8] — modern ChatGPT paginated history compatibility
 
 - Fetch authenticated, paginated ChatGPT history directly without rendering older turns.

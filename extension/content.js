@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.8';
+const VER = '9.0.1-alpha.9';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -239,6 +239,11 @@ if (!(accentId in ACCENTS)) accentId = 'auto';
 let quickStartOpen = !GM_getValue('v9.quickStartSeen', false);
 let helpOpen = false;
 let panelCollapsed = !!GM_getValue('v9.panelCollapsed', false);
+let mobileMoreOpen=false;
+let statusExpanded=false;
+const uiAccordionStates=new Map();
+let lastPanelMarkup=null;
+let liveStatusNodes=null;
 let personaId = String(GM_getValue('v9.persona','none')||'none');
 let workflowId = String(GM_getValue('v9.workflow','none')||'none');
 let postureId = String(GM_getValue('v9.posture','standard')||'standard');
@@ -1222,7 +1227,7 @@ function visibleThinkingFrom(value) {
   }
   return out.join('\n\n');
 }
-// Ghost Export Integrity v9.0.1-alpha.8: keep export read-only and fail closed.
+// Ghost Export Integrity v9.0.1-alpha.9: keep export read-only and fail closed.
 function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
@@ -1798,6 +1803,55 @@ function copyReport() {
 const style = document.createElement('style');
 style.textContent = `#gitl9{position:fixed;z-index:2147483646;top:70px;right:8px;width:min(270px,calc(100vw - 16px));background:var(--g-bg);color:var(--g-text);border:1px solid var(--g-border);border-radius:var(--g-radius);box-shadow:var(--g-shadow);font:12px/1.35 system-ui,sans-serif;padding:8px}#gitl9 *{box-sizing:border-box}#gitl9 .head{display:flex;align-items:center;justify-content:space-between;gap:6px}#gitl9 .brand{font-weight:750}#gitl9 .meta{font-size:10px;opacity:.65}#gitl9 .tabs{display:flex;gap:4px;margin:7px 0}#gitl9 button{border:1px solid #494550;background:var(--g-surface);color:var(--g-text);border-radius:8px;padding:7px 6px;font:inherit}#gitl9 button.on{background:var(--g-accent-bg);border-color:var(--g-accent);color:var(--g-text)}#gitl9 button.stop{background:#46191d;border-color:#85333a}#gitl9 button:disabled{opacity:.45;cursor:not-allowed}#gitl9 .tabs button{flex:1;padding:5px 3px}#gitl9 .status{background:var(--g-panel);border-radius:8px;padding:7px;min-height:42px;margin:5px 0 7px;word-break:break-word}#gitl9 .row{display:flex;gap:5px}#gitl9 .row>*{flex:1;min-width:0}#gitl9 .grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}#gitl9 label{display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #35323a;border-radius:7px;background:var(--g-surface)}#gitl9 input[type="text"],#gitl9 input[type="number"],#gitl9 select,#gitl9 textarea{width:100%;background:var(--g-panel);color:var(--g-text);border:1px solid var(--g-border);border-radius:7px;padding:6px}#gitl9 .pane{display:none}#gitl9 .pane.show{display:block}#gitl9 .tiny{font-size:10px;color:var(--g-muted);margin-top:5px}.helpbox{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:7px;margin:5px 0}.helpbox b{color:var(--g-accent)}.swatches{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}.swatches button{flex:0 0 28px;height:28px;padding:0}.headtools{display:flex;align-items:center;gap:5px}.helpbtn{padding:3px 6px!important;font-size:10px!important}.rail{display:none}.collapsebtn{padding:3px 7px!important;font-size:12px!important}#gitl9.collapsed{right:0!important;top:34vh!important;width:42px!important;min-width:42px!important;max-width:42px!important;padding:5px!important;border-right:0!important;border-radius:12px 0 0 12px!important}#gitl9.collapsed>*:not(.rail){display:none!important}#gitl9.collapsed .rail{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:92px;cursor:pointer;user-select:none}#gitl9.collapsed .rail .ghost{font-size:20px;line-height:1}#gitl9.collapsed .rail .arrow{font-size:18px;color:var(--g-accent)}#gitl9.collapsed .rail .mini{font-size:9px;color:var(--g-muted);writing-mode:vertical-rl;transform:rotate(180deg);letter-spacing:.5px}.progline{height:4px;background:var(--g-surface);border-radius:99px;overflow:hidden;margin-top:5px}.progline span{display:block;height:100%;background:var(--g-accent);transition:width .15s ease}@media(max-width:520px){#gitl9{top:58px;width:min(238px,calc(100vw - 12px));right:6px;padding:7px}#gitl9.collapsed{right:0!important;top:32vh!important;width:42px!important;min-width:42px!important;padding:4px!important}#gitl9 .tabs{display:grid;grid-template-columns:repeat(3,1fr)}#gitl9 .tabs button{min-height:38px}#gitl9 .transport{display:grid;grid-template-columns:1fr 1fr}#gitl9 .transport button,#gitl9 .helpbox button{min-height:40px}#gitl9 button{padding:7px 5px}}`;
 style.textContent += '#gitl9 .tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}#gitl9 .sectionTitle{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--g-muted);font-weight:750;margin:7px 0 4px}#gitl9 .pillrow{display:flex;gap:4px;flex-wrap:wrap}#gitl9 .pillrow button{flex:1 1 30%;min-width:62px}#gitl9 .qrow{display:grid;grid-template-columns:18px 1fr 30px;gap:4px;align-items:center;margin:4px 0}#gitl9 .qnum{font-size:9px;color:var(--g-muted);text-align:center}#gitl9 .qdel{padding:4px!important}#gitl9 .stage{border:1px solid var(--g-border);border-radius:8px;padding:6px;margin:4px 0;background:var(--g-panel)}#gitl9 .stage.act{border-color:var(--g-accent)}#gitl9 .personGrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}#gitl9 .personGrid label{font-size:10px;padding:5px}#gitl9 .posgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}#gitl9 .posgrid button{padding:6px 2px}#gitl9 .drag{cursor:move;touch-action:none}#gitl9.pos-dock-left{left:0!important;right:auto!important;border-radius:0 var(--g-radius) var(--g-radius) 0}#gitl9.pos-dock-right{right:0!important;left:auto!important;border-radius:var(--g-radius) 0 0 var(--g-radius)}#gitl9.pos-header{top:8px!important;left:50%!important;right:auto!important;transform:translateX(-50%)}#gitl9.collapsed.pos-dock-left{left:0!important;right:auto!important;border-left:0!important;border-right:1px solid var(--g-border)!important;border-radius:0 12px 12px 0!important}#gitl9.collapsed.pos-dock-left .rail .arrow{transform:rotate(180deg)}@media(max-width:520px){#gitl9 .tabs{grid-template-columns:repeat(3,1fr)}#gitl9 .personGrid{grid-template-columns:1fr}}';
+
+// Mobile-safe shell (v8 scroll-body concept, no new images or animation loops).
+style.textContent += `
+#gitl9{display:flex;flex-direction:column;max-height:min(76vh,calc(100vh - 80px));max-height:min(76dvh,calc(100dvh - 80px - env(safe-area-inset-bottom,0px)));overflow:hidden}
+#gitl9 .head{flex:none;min-height:30px;padding:1px 1px 5px;border-bottom:1px solid var(--g-border)}
+#gitl9 .brand{display:flex;align-items:center;gap:5px;letter-spacing:.04em}
+#gitl9 .g-orbit{width:16px;height:16px;flex:none;display:inline-block;position:relative;border-radius:50%;background:conic-gradient(var(--g-accent) var(--g-pct,0%),var(--g-border) 0)}
+#gitl9 .g-orbit:after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--g-bg)}
+#gitl9 .g-status{flex:none;min-height:0;margin:5px 0;padding:6px 7px;border-left:2px solid var(--g-accent);box-shadow:inset 0 0 0 1px var(--g-border)}
+#gitl9 .status-top{display:flex;align-items:center;gap:5px;font-size:10px;line-height:1.2}
+#gitl9 .status-top button{margin-left:auto;font-size:12px;line-height:1;padding:2px 7px;min-height:22px}
+#gitl9 .status-text{font-size:11px;line-height:1.35;margin-top:3px;word-break:break-word;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+#gitl9.status-open .status-text{-webkit-line-clamp:unset;display:block}
+#gitl9 .g-status .tiny{margin-top:3px}
+#gitl9 .g-controls{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:1px 0 5px!important}
+#gitl9 .g-controls button{font-weight:700;font-size:11px;min-height:35px;padding:5px 2px}
+#gitl9 .g-controls button[data-a="play"]{border-color:var(--g-accent);background:var(--g-accent-bg)}
+#gitl9 .tabs{flex:0 0 auto;margin:2px 0 4px;gap:4px}
+#gitl9 .tabs button{font-weight:650;font-size:11px;min-height:32px}
+#gitl9 .tabs .mobile-more{display:none}
+#gitl9 .g-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;scrollbar-width:thin;scrollbar-color:var(--g-border) transparent;padding:2px 2px 3px 0}
+#gitl9 .g-scroll::-webkit-scrollbar{width:4px}
+#gitl9 .g-scroll::-webkit-scrollbar-thumb{background:var(--g-border);border-radius:8px}
+#gitl9 .pane{padding-bottom:3px}
+#gitl9 .g-accordion{display:block;border:1px solid var(--g-border);border-radius:9px;background:var(--g-panel);margin:5px 0;padding:0 7px 7px}
+#gitl9 .g-accordion>summary{cursor:pointer;list-style:none;font-size:11px;font-weight:750;color:var(--g-text);min-height:34px;display:flex;align-items:center;gap:5px;user-select:none}
+#gitl9 .g-accordion>summary::-webkit-details-marker{display:none}
+#gitl9 .g-accordion>summary:after{content:'▾';margin-left:auto;color:var(--g-accent);font-size:14px}
+#gitl9 .g-accordion[open]>summary:after{content:'▴'}
+#gitl9 .g-accordion[open]>summary{border-bottom:1px solid var(--g-border);margin-bottom:6px}
+#gitl9 .g-accordion button{min-height:30px}
+#gitl9 .tiny{line-height:1.35}
+#gitl9.collapsed{max-height:none!important;overflow:visible}
+#gitl9.collapsed .rail{min-height:72px}
+@media(max-width:520px){
+#gitl9{width:min(268px,calc(100vw - 12px));padding:7px;max-height:min(72dvh,calc(100dvh - 66px - env(safe-area-inset-bottom,0px)))}
+#gitl9 .head .meta{display:none}
+#gitl9 .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
+#gitl9 .tabs button{min-width:0;font-size:10px;min-height:36px;padding:3px 2px}
+#gitl9 .tabs .mobile-more{display:block}
+#gitl9 .tabs .tab-advanced{display:none}
+#gitl9.more-open .tabs .tab-advanced{display:block}
+#gitl9 .g-scroll button,#gitl9 .g-scroll select{min-height:34px}
+#gitl9 .g-scroll textarea{max-width:100%}
+#gitl9 .personGrid{grid-template-columns:1fr}
+}
+@media(max-height:430px){#gitl9 .head{min-height:25px}#gitl9 .g-controls button{min-height:28px}#gitl9 .tabs button{min-height:28px}#gitl9 .status-text{-webkit-line-clamp:1}}
+@media(prefers-reduced-motion:reduce){#gitl9 .progline span{transition:none}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -1854,30 +1908,73 @@ function bindFloatDrag() {
     floatPos={x:Math.max(0,Math.min(innerWidth-panel.offsetWidth,ox+e.clientX-sx)),y:Math.max(0,Math.min(innerHeight-panel.offsetHeight,oy+e.clientY-sy))};
     panel.style.left=floatPos.x+'px'; panel.style.top=floatPos.y+'px'; panel.style.right='auto';
   });
-  h.addEventListener('pointerup',e=>{ if(!drag)return; drag=false; GM_setValue('v9.floatPos',JSON.stringify(floatPos)); try{h.releasePointerCapture(e.pointerId)}catch(_){} });
+  h.addEventListener('pointerup',e=>{ if(!drag)return; drag=false; GM_setValue('v9.floatPos',JSON.stringify(floatPos)); queueViewportFit(); try{h.releasePointerCapture(e.pointerId)}catch(_){} });
 }
 function saveQueueDraft() { GM_setValue('v9.queueDraft',JSON.stringify(queueDraft)); }
+function fitPanelViewport() {
+  if(panelCollapsed){panel.style.maxHeight='';return;}
+  const vv=window.visualViewport;
+  const bottom=Math.min(innerHeight,vv?vv.height+vv.offsetTop:innerHeight);
+  let rect=panel.getBoundingClientRect();
+  if(rect.top>bottom-142){panel.style.top=Math.max(6,Math.floor(bottom-148))+'px';rect=panel.getBoundingClientRect();}
+  panel.style.maxHeight=Math.min(Math.max(130,Math.floor(bottom-rect.top-9)),Math.floor(bottom*.76))+'px';
+}
+let fitPending=false;
+function queueViewportFit() {
+  if(fitPending)return;fitPending=true;
+  const run=()=>{fitPending=false;fitPanelViewport();};
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(run);else run();
+}
+window.addEventListener('resize',queueViewportFit,{passive:true});
+window.visualViewport?.addEventListener('resize',queueViewportFit,{passive:true});
+function updateLiveStatus() {
+  if(!liveStatusNodes)return;
+  const prog=progressSummary();
+  const workflow=prog.stages ?
+    'Workflow: '+prog.workflow+' · '+(prog.stage ? 'stage '+prog.stage.step+'/'+prog.stage.total : prog.stages+' stages · waiting for stage')
+    : 'Manual workflow';
+  const set=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
+  set(liveStatusNodes.mode,S.mode);
+  set(liveStatusNodes.round,'round '+S.round+'/'+S.max);
+  set(liveStatusNodes.detail,S.detail);
+  set(liveStatusNodes.workflow,workflow);
+  const pct=prog.roundPct+'%';
+  if(liveStatusNodes.bar&&liveStatusNodes.bar.style.width!==pct)liveStatusNodes.bar.style.width=pct;
+  if(liveStatusNodes.orbit&&liveStatusNodes.orbit.style.getPropertyValue('--g-pct')!==pct)liveStatusNodes.orbit.style.setProperty('--g-pct',pct);
+}
 function render() {
-  const prog = progressSummary();
-  panel.classList.toggle('collapsed', panelCollapsed);
-  panel.innerHTML = trustedHTML(`
+  const wasCollapsed=panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed',panelCollapsed);
+  panel.classList.toggle('more-open',mobileMoreOpen);
+  panel.classList.toggle('status-open',statusExpanded);
+  const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
+  const moreActive=!!moreLabels[S.tab];
+  const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span></div>
-    <div class="head drag" data-drag><span class="brand">👻 GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to the side">▶</button><button class="helpbtn" data-a="help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="flow" class="${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Setup</button></div>
-    <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}<div class="progline"><span style="width:${prog.roundPct}%"></span></div><div class="tiny">${prog.stages ? "Workflow: "+esc(prog.workflow)+" · "+(prog.stage ? "stage "+prog.stage.step+"/"+prog.stage.total : prog.stages+" stages · waiting for explicit stage") : "Manual workflow"}</div></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="status g-status" data-live-status>
+      <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
+      <div class="status-text" data-live-detail></div>
+      <div class="progline"><span data-live-bar></span></div>
+      <div class="tiny" data-live-workflow></div>
+    </div>
+    <div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
+    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-a="more-toggle" class="mobile-more ${moreActive?'on':''}" aria-expanded="${mobileMoreOpen?'true':'false'}">${moreActive?moreLabels[S.tab]:'More'} ▾</button><button data-tab="flow" class="tab-advanced ${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="tab-advanced ${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="tab-advanced ${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="settings" class="tab-advanced ${S.tab==='settings'?'on':''}">Setup</button></div>
+    <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
+      <details class="g-accordion" data-g-acc="run-options"><summary>Modes &amp; posture</summary>
       <div class="sectionTitle">Run mode</div>
       <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
       <div class="sectionTitle">Thinking posture</div>
       <div class="pillrow">${Object.entries(POSTURES).map(([id,p])=>'<button data-posture-btn="'+id+'" class="'+(postureId===id?'on':'')+'">'+esc(p.label)+'</button>').join('')}</div>
-      <div class="row transport" style="margin-top:6px"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
+      </details>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
     <div class="pane ${S.tab==='auto'?'show':''}" data-pane="auto">
-      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div>
+      <details class="g-accordion" data-g-acc="auto-help"><summary>How Auto works</summary>      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div></details>
       ${roadmapRun.capture?'<div class="stage act">Waiting for the AI roadmap block…</div>':roadmapRun.steps.map((q,i)=>'<div class="stage '+(roadmapRun.active&&i===roadmapRun.index?'act':'')+'">'+(i<roadmapRun.index?'✓ ':i===roadmapRun.index?'▶ ':'· ')+(i+1)+'. '+esc(q)+'</div>').join('')}
       <div class="sectionTitle">Prompt queue</div>
       ${queueDraft.map((q,i)=>'<div class="qrow"><span class="qnum">'+(i+1)+'</span><input type="text" data-q="'+i+'" value="'+esc(q)+'" placeholder="Step '+(i+1)+'"><button class="qdel" data-qdel="'+i+'">×</button></div>').join('')}
@@ -1906,32 +2003,61 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
-      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label>
-      <div class="sectionTitle">Page backup · works without chat detection</div>
+      <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
+      <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
       <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
       <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
-      <div class="sectionTitle">Project Vault · across AI sites</div>
+      </details>
+      <details class="g-accordion" data-g-acc="export-vault"><summary>Project Vault · across AI sites</summary>
       <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
       <select data-vault-select style="width:100%;margin-top:5px"><option value="">Choose project…</option>${ProjectVault.list().map(p=>'<option value="'+esc(p.id)+'" '+(p.id===vaultProjectId?'selected':'')+'>'+esc(p.name)+' ('+p.count+' chats)</option>').join('')}</select>
       <div class="row" style="margin-top:5px"><button data-vault-action="save" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Add chat</button><button data-vault-action="md" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project MD</button><button data-vault-action="json" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project JSON</button></div>
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
-      <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div>
+      <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
       <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
+      <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
       <div class="tiny">Accent</div>
       <div class="swatches">${Object.entries(ACCENTS).map(([id,color])=>'<button data-accent="'+id+'" class="'+(accentId===id?'on':'')+'" title="'+id+'" style="'+(color?'background:'+color:'')+'">'+(id==='auto'?'A':'')+'</button>').join('')}</div>
-      <div class="sectionTitle">Placement / attachment</div>
+      </details><details class="g-accordion" data-g-acc="settings-position"><summary>Position &amp; attachment</summary>
       <div class="posgrid"><button data-place="dock-left" class="${placement==='dock-left'?'on':''}" title="Attach left">◧L</button><button data-place="dock-right" class="${placement==='dock-right'?'on':''}" title="Attach right">R◨</button><button data-place="float" class="${placement==='float'?'on':''}" title="Floating draggable">↔</button><button data-place="composer-row" class="${placement==='composer-row'?'on':''}" title="Attach near composer">⌨</button><button data-place="header-row" class="${placement==='header-row'?'on':''}" title="Attach near header">▔</button></div>
+      </details><details class="g-accordion" data-g-acc="settings-extra"><summary>Extras &amp; help</summary>
       <div class="row" style="margin-top:6px"><button data-a="show-quick">Show Quick Start</button><button data-a="reset-look">Reset look</button></div>
       <label style="margin-top:6px"><input type="checkbox" data-sound ${soundOn?'checked':''}>Sound cues</label>
       <label style="margin-top:5px"><input type="checkbox" data-notify ${notifyOn?'checked':''}>Notifications</label>
       <div class="row" style="margin-top:5px"><button data-a="test-sound">Test sound</button><button data-a="test-notify">Test notification</button></div>
-      <div class="tiny">Feedback is optional and status-only. It never sends a prompt or changes the Ghost loop.</div>
-    </div>`);
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; GM_setValue('v9.tab', S.tab); render(); }));
+      <div class="tiny">Feedback is optional and status-only. It never sends a prompt or changes the Ghost loop.</div></details>
+    </div>
+    </div>`;
+  const oldScroll=panel.querySelector('.g-scroll')?.scrollTop||0;
+  const previousTab=panel.dataset.renderedTab;
+  if(lastPanelMarkup===markup&&panel.isConnected){
+    updateLiveStatus();
+    if(wasCollapsed!==panelCollapsed)fitPanelViewport();
+    return;
+  }
+  for(const detail of panel.querySelectorAll('details[data-g-acc]'))uiAccordionStates.set(detail.dataset.gAcc,detail.open);
+  panel.innerHTML=trustedHTML(markup);
+  lastPanelMarkup=markup;
+  liveStatusNodes={
+    mode:panel.querySelector('[data-live-mode]'),round:panel.querySelector('[data-live-round]'),
+    detail:panel.querySelector('[data-live-detail]'),workflow:panel.querySelector('[data-live-workflow]'),
+    bar:panel.querySelector('[data-live-bar]'),orbit:panel.querySelector('[data-live-orbit]')
+  };
+  updateLiveStatus();
+  for(const detail of panel.querySelectorAll('details[data-g-acc]')){
+    if(uiAccordionStates.has(detail.dataset.gAcc))detail.open=uiAccordionStates.get(detail.dataset.gAcc);
+    detail.addEventListener('toggle',()=>uiAccordionStates.set(detail.dataset.gAcc,detail.open));
+  }
+  panel.dataset.renderedTab=S.tab;
+  if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; mobileMoreOpen=false; GM_setValue('v9.tab', S.tab); render(); }));
+  panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
+  panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('click', () => { panelCollapsed = false; GM_setValue('v9.panelCollapsed', false); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('pointerdown', e => e.preventDefault());
@@ -1997,6 +2123,7 @@ function render() {
   panel.querySelectorAll('[data-place]').forEach(btn => btn.addEventListener('click', () => { placement=btn.dataset.place; GM_setValue('v9.placement',placement); if(!placement.startsWith('dock')) panelCollapsed=false; render(); }));
   applyPlacement();
   bindFloatDrag();
+  queueViewportFit();
 }
 
 render();
