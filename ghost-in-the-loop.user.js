@@ -1372,8 +1372,9 @@ async function captureChatGPTPages(conversationId){
       }
     }
     if(!pages.length){
-      if(lastFailure?.status===404||lastFailure?.status===405||lastFailure?.kind==='shape')continue;
-      return {failure:lastFailure||{kind:'unavailable',reason:'History was unavailable'}};
+      lastFailure=failed||lastFailure||{kind:'unavailable',reason:'History was unavailable'};
+      if(lastFailure.status===404||lastFailure.status===405||lastFailure.kind==='shape')continue;
+      return {failure:lastFailure};
     }
     const all=[],seenMessage=new Set();let unreadable=0,assets=0;
     for(const page of pages)for(const item of page.messages){
