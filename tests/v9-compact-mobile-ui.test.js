@@ -1,3 +1,4 @@
+const {TextEncoder,TextDecoder}=require('util');global.TextEncoder=TextEncoder;global.TextDecoder=TextDecoder;
 const fs=require('fs'),path=require('path'),{JSDOM}=require('jsdom');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
 function boot(){
