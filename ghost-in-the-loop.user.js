@@ -2036,11 +2036,13 @@ function render() {
       <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
+      <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
       <div class="tiny">Accent</div>
       <div class="swatches">${Object.entries(ACCENTS).map(([id,color])=>'<button data-accent="'+id+'" class="'+(accentId===id?'on':'')+'" title="'+id+'" style="'+(color?'background:'+color:'')+'">'+(id==='auto'?'A':'')+'</button>').join('')}</div>
-      <div class="sectionTitle">Placement / attachment</div>
+      </details><details class="g-accordion" data-g-acc="settings-position"><summary>Position &amp; attachment</summary>
       <div class="posgrid"><button data-place="dock-left" class="${placement==='dock-left'?'on':''}" title="Attach left">◧L</button><button data-place="dock-right" class="${placement==='dock-right'?'on':''}" title="Attach right">R◨</button><button data-place="float" class="${placement==='float'?'on':''}" title="Floating draggable">↔</button><button data-place="composer-row" class="${placement==='composer-row'?'on':''}" title="Attach near composer">⌨</button><button data-place="header-row" class="${placement==='header-row'?'on':''}" title="Attach near header">▔</button></div>
+      </details><details class="g-accordion" data-g-acc="settings-extra"><summary>Extras &amp; help</summary>
       <div class="row" style="margin-top:6px"><button data-a="show-quick">Show Quick Start</button><button data-a="reset-look">Reset look</button></div>
       <label style="margin-top:6px"><input type="checkbox" data-sound ${soundOn?'checked':''}>Sound cues</label>
       <label style="margin-top:5px"><input type="checkbox" data-notify ${notifyOn?'checked':''}>Notifications</label>
