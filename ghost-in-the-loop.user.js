@@ -2022,17 +2022,19 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
-      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label>
-      <div class="sectionTitle">Page backup · works without chat detection</div>
+      <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
+      <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
       <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
       <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
-      <div class="sectionTitle">Project Vault · across AI sites</div>
+      </details>
+      <details class="g-accordion" data-g-acc="export-vault"><summary>Project Vault · across AI sites</summary>
       <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
       <select data-vault-select style="width:100%;margin-top:5px"><option value="">Choose project…</option>${ProjectVault.list().map(p=>'<option value="'+esc(p.id)+'" '+(p.id===vaultProjectId?'selected':'')+'>'+esc(p.name)+' ('+p.count+' chats)</option>').join('')}</select>
       <div class="row" style="margin-top:5px"><button data-vault-action="save" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Add chat</button><button data-vault-action="md" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project MD</button><button data-vault-action="json" ${!vaultProjectId||vaultActionBusy?'disabled':''}>Project JSON</button></div>
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
-      <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div>
+      <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
       <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
