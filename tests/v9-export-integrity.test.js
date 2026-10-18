@@ -12,7 +12,7 @@ describe('Ghost export behavioral integrity',()=>{
   test('mark rich assets unverified',()=>{const c=env(),d=archive(8);d.mapping.n3.message.metadata={attachments:[{id:'f1'}]};expect(c.chatgptArchiveProof(d,8).reason).toBe('files or media not captured')});
   test('interactive reply uses fallback Markdown',()=>{const c=env(),d=archive(8);d.mapping.n3.message.content={parts:[]};d.mapping.n3.message.metadata={model_dil_v2:{fallbackMarkdown:'usable Markdown'}};expect(c.parseChatGPTApi(d)[3].text).toBe('usable Markdown')});
   test('HTTP 403 does not retry and does not claim full export',async()=>{
-    let calls=0;const c={HOST:{id:'chatgpt'},chatgptId:()=> 'abc',fetch:async()=>{calls++;return {ok:false,status:403}},log:()=>{},sleep:async()=>{},parseChatGPTApi:()=>[],chatgptArchiveProof:()=>({})};vm.createContext(c);
+    let calls=0;const c={HOST:{id:'chatgpt'},chatgptId:()=> 'abc',fetch:async()=>{calls++;return {ok:false,status:403}},log:()=>{},sleep:async()=>{},parseChatGPTApi:()=>[],chatgptArchiveProof:()=>({}),exportReason:(status,kind)=>'HTTP '+status};vm.createContext(c);
     vm.runInContext(section('async function apiCapture','function chatgptVisibleRows'),c);const result=await c.apiCapture();expect(calls).toBe(1);expect(result.failure.status).toBe(403)
   });
   test('HTTP 429 retries then succeeds',async()=>{
