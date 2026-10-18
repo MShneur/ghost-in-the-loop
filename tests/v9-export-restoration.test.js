@@ -2,7 +2,7 @@ const fs=require('fs'), path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
 function between(a,b){const i=src.indexOf(a),j=src.indexOf(b,i+a.length);if(i<0)throw new Error('missing '+a);return src.slice(i,j<0?undefined:j);}
 describe('v9 API-first export',()=>{
-  test('ChatGPT follows current_node parent chain',()=>{const b=between('function parseChatGPTApi','function parsePerplexityApi');expect(b).toContain('data.current_node');expect(b).toContain('chain.unshift(node)');expect(b).toContain('node.parent ? data.mapping[node.parent] : null');});
+  test('ChatGPT follows current_node parent chain',()=>{const b=between('function parseChatGPTApi','function parsePerplexityApi');expect(b).toContain('data.current_node');expect(b).toContain('chain.unshift(node)');expect(b).toContain('id=node.parent||null');});
   test('Perplexity parses entries and exposed steps',()=>{const b=between('function parsePerplexityApi','async function apiCapture');expect(b).toContain('data.entries');expect(b).toContain('entry?.steps');expect(b).toContain('entry?.reasoning_steps');});
   test('reasoning is labeled platform-visible, never hidden-chain claims',()=>{const b=between('function visibleReasoningText','function report');expect(b).toContain('Platform-visible reasoning');expect(b).not.toMatch(/hidden chain|chain.of.thought|internal reasoning/i);});
   test('API is first and DOM fallback is truthfully partial',()=>{const b=between('async function captureExport','function markdown');expect(b).toContain('const api=await apiCapture()');expect(b).toContain("partial:false");expect(b).toContain("source:'visible page fallback'");expect(b).toContain("partial:true");expect(b).toContain('may omit older unloaded turns');});
