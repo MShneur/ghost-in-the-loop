@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.1-alpha.8] — modern ChatGPT paginated history compatibility
+
+- Fetch authenticated, paginated ChatGPT history directly without rendering older turns.
+- Preserve the legacy API fallback for accounts where the older endpoint still works.
+- Detect and label missing pages, repeated cursors, missing messages, and unsupported media.
+- Support current virtualized ChatGPT `data-turn` messages and `[data-scroll-root]` in bounded fallback.
+- Avoid mobile scrolling when structured history was retrieved but rich content remains partial.
+- Do not modify Play/Send authority, panel skins, prompts or cross-platform adapters.
+- Source tests are not a replacement for authenticated Firefox Android field verification.
+
+
 ## [9.0.1-alpha.7] — export integrity and long-thread recovery
 
 - Validate connected ChatGPT history before marking an archive complete.
