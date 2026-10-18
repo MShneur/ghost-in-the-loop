@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.1-alpha.6
+// @version      9.0.1-alpha.7
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.6';
+const VER = '9.0.1-alpha.7';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1235,66 +1235,198 @@ function visibleThinkingFrom(value) {
   }
   return out.join('\n\n');
 }
-function parseChatGPTApi(data) {
-  if (!data?.mapping || typeof data.mapping !== 'object') return [];
-  const chain = [];
-  if (data.current_node && data.mapping[data.current_node]) {
-    let node=data.mapping[data.current_node]; const seen=new Set();
-    while (node && !seen.has(node.id)) { seen.add(node.id); chain.unshift(node); node=node.parent ? data.mapping[node.parent] : null; }
-  } else chain.push(...Object.values(data.mapping).sort((a,b)=>Number(a?.message?.create_time||0)-Number(b?.message?.create_time||0)));
+// Ghost Export Integrity v9.0.1-alpha.7: keep export read-only and fail closed.
+function chatgptArchiveProof(data,count) {
+  const map=data?.mapping, key=data?.current_node;
+  if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
+  if(!key || !map[key])return {verified:false,reason:'missing current message'};
+  let id=key, seen=new Set(), supported=0, unknown=0, assets=0;
+  while(id){
+    if(seen.has(id))return {verified:false,reason:'conversation branch cycle',nodes:seen.size};
+    if(seen.size>=50000)return {verified:false,reason:'conversation history too large',nodes:seen.size};
+    const node=map[id];if(!node)return {verified:false,reason:'missing parent message',nodes:seen.size};
+    seen.add(id);
+    const m=node.message, role=m?.author?.role;
+    if(role==='user'||role==='assistant'){
+      const value=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
+      const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
+      if(value||thinking)supported++;else if(m?.content)unknown++;
+      if(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
+    }
+    id=node.parent||null;
+  }
+  if(!supported||supported!==count)return {verified:false,reason:'message count mismatch',nodes:seen.size};
+  if(unknown)return {verified:false,reason:'unreadable messages',nodes:seen.size,unreadable:unknown};
+  if(assets)return {verified:false,reason:'files or media not captured',nodes:seen.size,assets};
+  return {verified:true,reason:'connected conversation history',nodes:seen.size};
+}
+function parseChatGPTApi(data){
+  if(!data?.mapping||typeof data.mapping!=='object')return [];
+  const chain=[];
+  if(data.current_node&&data.mapping[data.current_node]){
+    let id=data.current_node,seen=new Set();
+    while(id&&!seen.has(id)&&data.mapping[id]){
+      seen.add(id);const node=data.mapping[id];chain.unshift(node);id=node.parent||null;
+    }
+  }else chain.push(...Object.values(data.mapping).sort((a,b)=>Number(a?.message?.create_time||0)-Number(b?.message?.create_time||0)));
   const out=[];
-  for (const node of chain) {
-    const msg=node?.message, role=msg?.author?.role; if (!['user','assistant'].includes(role)) continue;
-    const text=asText(msg?.content?.parts?.length ? msg.content.parts : msg?.content);
-    const thinking=role==='assistant' ? visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata) : '';
-    if (text||thinking) out.push(thinking ? {role,text,thinking}:{role,text});
+  for(const node of chain){
+    const m=node?.message,role=m?.author?.role;if(!['user','assistant'].includes(role))continue;
+    const text=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
+    const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
+    if(text||thinking)out.push(thinking?{role,text,thinking}:{role,text});
   }
   return out;
 }
-function parsePerplexityApi(data) {
-  if (!data || typeof data !== 'object') return [];
+function parsePerplexityApi(data){
+  if(!data||typeof data!=='object')return [];
   const entries=Array.isArray(data.entries)?data.entries:Array.isArray(data.thread?.entries)?data.thread.entries:Array.isArray(data.messages)?data.messages:[];
   const out=[];
-  for (const entry of entries) {
+  for(const entry of entries){
     const rawRole=String(entry?.role||entry?.author||entry?.sender||entry?.type||'').toLowerCase();
     const role=/user|human|query|question/.test(rawRole)?'user':/assistant|ai|answer|response/.test(rawRole)?'assistant':(entry?.query&&!entry?.answer?'user':'assistant');
     const text=asText(entry?.text||entry?.content||entry?.answer||entry?.query||entry?.message);
     const steps=Array.isArray(entry?.steps)?entry.steps:Array.isArray(entry?.reasoning_steps)?entry.reasoning_steps:[];
     const stepText=steps.map(s=>asText(s?.summary||s?.text||s?.content||s)).filter(Boolean).join('\n\n');
     const thinking=role==='assistant'?[visibleThinkingFrom(entry),stepText].filter(Boolean).join('\n\n'):'';
-    if (text||thinking) out.push(thinking?{role,text,thinking}:{role,text});
+    if(text||thinking)out.push(thinking?{role,text,thinking}:{role,text});
   }
-  if (!out.length && Array.isArray(data.steps)) {
-    const text=asText(data.answer||data.response||data.text||''), thinking=data.steps.map(s=>asText(s?.summary||s?.text||s?.content||s)).filter(Boolean).join('\n\n');
-    if (text||thinking) out.push(thinking?{role:'assistant',text,thinking}:{role:'assistant',text});
+  if(!out.length&&Array.isArray(data.steps)){
+    const text=asText(data.answer||data.response||data.text||''),thinking=data.steps.map(s=>asText(s?.summary||s?.text||s?.content||s)).filter(Boolean).join('\n\n');
+    if(text||thinking)out.push(thinking?{role:'assistant',text,thinking}:{role:'assistant',text});
   }
   return out;
 }
-async function apiCapture() {
-  try {
-    if (HOST.id === 'chatgpt') {
-      const id=chatgptId(); if (!id) return null;
-      const r=await fetch('/backend-api/conversation/'+encodeURIComponent(id),{credentials:'include'}); if (!r.ok) return null;
-      const raw=await r.json(), turns=parseChatGPTApi(raw); return {source:turns.length?'platform archive':'platform archive (unparsed)',turns,raw};
+function exportReason(status,kind){
+  if(kind==='missing-id')return 'Conversation ID unavailable';
+  if(kind==='timeout')return 'History request timed out';
+  if(kind==='request-error')return 'History request failed';
+  if(status===401||status===403)return 'History access denied (HTTP '+status+')';
+  if(status===429)return 'History request rate-limited (HTTP 429)';
+  return status?'History request returned HTTP '+status:'Full history was unavailable';
+}
+async function apiCapture(){
+  try{
+    if(HOST.id==='chatgpt'){
+      const id=chatgptId();if(!id)return {failure:{kind:'missing-id',reason:exportReason(0,'missing-id')}};
+      const url='/backend-api/conversation/'+encodeURIComponent(id);
+      for(let attempt=0;attempt<3;attempt++){
+        let response,timer=null;
+        try{
+          const ctrl=typeof AbortController==='function'?new AbortController():null;
+          if(ctrl)timer=setTimeout(()=>ctrl.abort(),12000);
+          response=await fetch(url,{credentials:'include',...(ctrl?{signal:ctrl.signal}:{})});
+        }catch(e){
+          const kind=e?.name==='AbortError'?'timeout':'request-error';
+          log('export-history-error',{host:HOST.id,kind,attempt:attempt+1});
+          if(kind==='timeout'&&attempt<2){await sleep(500*(attempt+1));continue;}
+          return {failure:{kind,reason:exportReason(0,kind),attempts:attempt+1}};
+        }finally{if(timer)clearTimeout(timer);}
+        if(!response.ok){
+          const status=response.status;
+          log('export-history-http',{host:HOST.id,status,attempt:attempt+1});
+          if(attempt<2&&[429,502,503,504].includes(status)){
+            const after=Number(response.headers?.get?.('Retry-After'));
+            await sleep(Number.isFinite(after)&&after>0?Math.min(after*1000,5000):500*(attempt+1));continue;
+          }
+          return {failure:{kind:'http',status,reason:exportReason(status,'http'),attempts:attempt+1}};
+        }
+        try{
+          const raw=await response.json(),turns=parseChatGPTApi(raw),proof=chatgptArchiveProof(raw,turns.length);
+          log('export-history-shape',{verified:proof.verified,reason:proof.reason,nodes:proof.nodes,turns:turns.length});
+          return {source:'platform archive',turns,raw,verified:proof.verified,proof,
+            ...(proof.verified?{}:{failure:{kind:'shape',reason:'History structure: '+proof.reason}})};
+        }catch(e){return {failure:{kind:'parse',reason:'History response could not be read'}};}
+      }
     }
-    if (HOST.id === 'perplexity') {
-      const slug=perplexitySlug(); if (!slug) return null;
-      const r=await fetch('/rest/thread/'+encodeURIComponent(slug),{credentials:'include'}); if (!r.ok) return null;
-      const raw=await r.json(), turns=parsePerplexityApi(raw); return {source:turns.length?'platform archive':'platform archive (unparsed)',turns,raw};
+    if(HOST.id==='perplexity'){
+      const slug=perplexitySlug();if(!slug)return null;
+      const r=await fetch('/rest/thread/'+encodeURIComponent(slug),{credentials:'include'});if(!r.ok)return null;
+      const raw=await r.json(),turns=parsePerplexityApi(raw);
+      return {source:turns.length?'platform archive':'platform archive (unparsed)',turns,raw,verified:!!turns.length};
     }
-  } catch (error) { log('export-api-failed',{host:HOST.id,message:String(error?.message||error)}); }
+  }catch(e){log('export-api-failed',{host:HOST.id,kind:'unexpected'});}
   return null;
 }
-async function captureExport() {
-  const dot=captureDotExport();
-  if(dot) return dot;
-  const codex=await captureCodexExport();
-  if (codex) return codex;
+function chatgptVisibleRows(){
+  const rows=[],occurrences=new Map();
+  for(const el of document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]')){
+    if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
+    if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
+    const role=el.getAttribute('data-message-author-role'),text=displayText(el.innerText||el.textContent||'');
+    if(!role||!text)continue;
+    const id=el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
+      el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
+      el.closest?.('[data-testid^="conversation-turn-"]')?.getAttribute('data-testid');
+    const fingerprint=role+':'+text,n=(occurrences.get(fingerprint)||0)+1;occurrences.set(fingerprint,n);
+    const key=id?'id:'+id+':'+role:'text:'+fingerprint+':'+n;
+    const thinking=role==='assistant'?visibleReasoningText(el):'';
+    rows.push({key,turn:thinking?{role,text,thinking}:{role,text}});
+  }
+  return rows;
+}
+async function collectChatGPTDomHistory(){
+  const scroller=conversationScrollContainer(),page=!scroller||scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body;
+  const pos=()=>page?(window.scrollY||document.documentElement.scrollTop||0):scroller.scrollTop||0;
+  const move=y=>{if(page)window.scrollTo(0,y);else scroller.scrollTop=y;};
+  const initial=pos(),pathname=location.pathname,stored=new Map(),order=[];
+  let passes=0,stall=0,top=false;
+  function observe(){
+    const batch=chatgptVisibleRows(),keys=batch.map(row=>row.key);
+    for(const row of batch)if(!stored.has(row.key))stored.set(row.key,row.turn);
+    if(!order.length)order.push(...keys);
+    else{
+      const overlap=keys.findIndex(key=>order.includes(key));
+      if(overlap<0)order.unshift(...keys.filter(key=>!order.includes(key)));
+      else{
+        const anchor=order.indexOf(keys[overlap]);
+        order.splice(anchor,0,...keys.slice(0,overlap).filter(key=>!order.includes(key)));
+        for(let i=overlap+1;i<keys.length;i++){
+          if(order.includes(keys[i]))continue;
+          const before=order.indexOf(keys[i-1]);
+          order.splice(before>=0?before+1:order.length,0,keys[i]);
+        }
+      }
+    }
+  }
+  if(S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy)
+    return {turns:domTurns(),reason:'Pause Play before collecting older messages',passes:0};
+  S.topBusy=true;
+  try{
+    observe();
+    for(passes=0;passes<1200;passes++){
+      if(location.pathname!==pathname)break;
+      const old=pos(),count=stored.size;
+      const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.75));
+      move(Math.max(0,old-step));await sleep(180);observe();
+      const current=pos();
+      stall=current<=2&&old<=2&&stored.size===count?stall+1:0;
+      S.detail='Collecting older messages: '+stored.size+' captured';
+      if(passes%4===0)render();
+      if(stall>=4){top=true;break;}
+      if(current===old&&current>2&&stored.size===count&&passes>6)break;
+    }
+  }finally{try{if(location.pathname===pathname)move(initial);}catch(e){}S.topBusy=false;}
+  return {turns:order.map(key=>stored.get(key)),reason:top?'Page start reached, but complete history is unverified':'History loading stopped or was interrupted',passes};
+}
+async function captureExport(){
+  const dot=captureDotExport();if(dot)return dot;
+  const codex=await captureCodexExport();if(codex)return codex;
   const api=await apiCapture();
-  if (api?.turns?.length) return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,...(exportRaw?{raw:api.raw}:{})};
+  if(api?.turns?.length&&api.verified)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
+  const failure=api?.failure?.reason||(api?.turns?.length?'Archive completeness could not be verified':'Platform history unavailable');
+  if(HOST.id==='chatgpt'){
+    S.detail=failure+'. Checking older messages...';render();
+    const dom=await collectChatGPTDomHistory();
+    const archive=(api?.turns?.length||0)>dom.turns.length;
+    return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:archive?'platform archive (unverified)':'visible page fallback',partial:true,
+      note:'Full history could not be verified ('+failure+'). '+dom.reason+'. Some older messages or rich media may be missing.',
+      turns:archive?api.turns:dom.turns,diagnostic:{code:api?.failure?.kind||'unverified',httpStatus:api?.failure?.status||null,passes:dom.passes},
+      ...(exportRaw&&api?.raw?{raw:api.raw}:{})};
+  }
   const dom=domTurns();
-  if (api) return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,note:'Ghost could read the platform archive but could not safely map its current shape. Visible chat was exported instead.',turns:dom,...(exportRaw?{raw:api.raw}:{})};
-  return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,note:'This export uses what is currently visible on the page and may omit older unloaded turns.',turns:dom};
+  return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,
+    note:'This export uses currently visible content and may be incomplete. '+failure,turns:dom,...(exportRaw&&api?.raw?{raw:api.raw}:{})};
 }
 function markdown(cap) {
   const lines=['# Ghost conversation export','', '- Platform: '+cap.platform, '- Captured: '+cap.capturedAt, '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''), ''];
@@ -1437,6 +1569,7 @@ async function runVaultAction(kind,name) {
       S.detail='Project ready. Visit another AI chat to add more.';
     } else if(kind==='save') {
       const cap=await captureExport();
+      if(!confirmPartialExport(cap))return;
       const r=await ProjectVault.save(vaultProjectId,cap,location.href,document.title);
       if(r.rollover) {
         const b=ProjectVault.pendingBundle(vaultProjectId);
@@ -1537,17 +1670,26 @@ function doPageBackup(kind) {
   render();
 }
 
-function exportStatus(cap,action) { return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history'); }
-async function doExport(kind) {
-  S.detail='Reading conversation…'; render(); const cap=await captureExport();
-  if (!cap.turns.length && !cap.raw) { S.detail='No conversation data was available to export.'; render(); return; }
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
-  if (kind==='copy') { const text=markdown(cap); try { GM_setClipboard(text,'text'); } catch (_) { await navigator.clipboard?.writeText(text); } S.detail=exportStatus(cap,'Copied Markdown'); }
-  else if (kind==='md') { download('ghost-'+HOST.id+'-'+stamp+'.md',markdown(cap),'text/markdown;charset=utf-8'); S.detail=exportStatus(cap,'Markdown saved'); }
-  else { download('ghost-'+HOST.id+'-'+stamp+'.json',JSON.stringify(cap,null,2),'application/json;charset=utf-8'); S.detail=exportStatus(cap,'JSON saved'); }
-  render();
+function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
+function confirmPartialExport(cap){
+  if(!cap.partial)return true;
+  S.detail='Incomplete export: '+cap.turns.length+' messages. '+(cap.note||'Full history unverified.');render();
+  let yes=false;try{yes=window.confirm('Ghost could not verify the full conversation. Only '+cap.turns.length+' messages were recovered. Save explicitly labeled PARTIAL data anyway?');}catch(e){}
+  if(!yes){S.detail='Partial export cancelled. No file saved. '+(cap.note||'');render();}
+  return yes;
 }
-
+async function doExport(kind){
+  S.detail='Checking full conversation history...';render();let cap;
+  try{cap=await captureExport();}catch(e){S.detail='Export failed. No file saved.';log('export-failed',{kind:'unexpected'});render();return;}
+  if(!cap.turns.length&&!cap.raw){S.detail='No conversation data was available. '+(cap.note||'');render();return;}
+  if(!confirmPartialExport(cap))return;
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-'),prefix=cap.partial?'ghost-PARTIAL-':'ghost-';
+  if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
+  else if(kind==='md'){download(prefix+HOST.id+'-'+stamp+'.md',markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
+  else{download(prefix+HOST.id+'-'+stamp+'.json',JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
+  S.lastExport={partial:!!cap.partial,turns:cap.turns.length,source:cap.source,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
+  if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
+}
 function report() {
   return {
     product: 'Ghost in the Loop', version: VER, platform: HOST.id, state: S.mode, round: S.round, maxRounds: S.max,
@@ -1555,6 +1697,7 @@ function report() {
     watchdog: { state: S.stallState, stopAttempts: S.stopAttempts, recoveryCount: S.recoveryCount, lastProgressAt: S.lastProgressAt || null },
     progress: { round: S.round, maxRounds: S.max, workflow: allWorkflows()[workflowId]?.label || 'Manual', stage: S.stageProgress, soundOn, notifyOn },
     capabilities: { input: !!composer(), send: !!localSendButton(), stop: generating(), assistant: !!assistantText(), top: S.mode !== 'RUNNING' && !S.topBusy },
+    lastExport: S.lastExport || null,
     lastError: S.lastError, relayRequested: S.relay || null, events: S.events.slice(-20), when: new Date().toISOString()
   };
 }
