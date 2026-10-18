@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.0.1-alpha.7] — export integrity and long-thread recovery
+
+- Validate connected ChatGPT history before marking an archive complete.
+- Classify history access errors and apply bounded transient retries.
+- Collect lazy-loaded page turns incrementally when structured history fails.
+- Require consent and explicit partial labels before incomplete saves, including Project Vault.
+- Preserve existing Play/Send authority, configuration, UI and host permissions.
+- Same Tampermonkey stable main-channel URL; authenticated Firefox Android verification remains outstanding.
+
+
 ## [9.0.1-alpha.1] — full rich shell restoration
 
 - Restores the accepted rich Ghost product shell: Run / Auto / Flow / Personas / AoA / Export / Setup.

@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop 9.0.1-alpha.1
+# 👻 Ghost in the Loop 9.0.1-alpha.7
 
 Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning, planning, committees, and decisions.
 
@@ -43,9 +43,9 @@ Model Relay uses the corresponding `[[AOA::...]]` controls.
 
 ## Version identity
 
-- Userscript/npm: **9.0.1-alpha.1**
+- Userscript/npm: **9.0.1-alpha.7**
 - WebExtension numeric version: **9.0.1**
-- WebExtension display version: **9.0.1-alpha.1**
+- WebExtension display version: **9.0.1-alpha.7**
 - Stable update/download channel: `main`
 
 The extension runtime is generated from `ghost-in-the-loop.user.js`.
