@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.7';
+const VER = '9.0.1-alpha.8';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -977,6 +977,10 @@ function scrollableConversationAncestor() {
   return null;
 }
 function conversationScrollContainer() {
+  if(HOST.id==='chatgpt'){
+    const root=document.querySelector('[data-scroll-root]');
+    if(root)return root;
+  }
   const ancestor = scrollableConversationAncestor();
   if (ancestor) return ancestor;
   const preferred = HOST.id === 'chatgpt'
@@ -1175,8 +1179,10 @@ function captureDotExport() {
 function domTurns() {
   const rows = [];
   if (HOST.id === 'chatgpt') {
-    for (const el of document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]')) {
-      const role = el.getAttribute('data-message-author-role'), text = displayText(el.innerText || el.textContent || '');
+    const oldRows=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
+    const elements=oldRows.length?oldRows:document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
+    for (const el of elements) {
+      const role = el.getAttribute('data-message-author-role') || el.getAttribute('data-turn'), text = displayText(el.innerText || el.textContent || '');
       if (!role || !text) continue;
       const thinking = role === 'assistant' ? visibleReasoningText(el) : '';
       rows.push(thinking ? { role, text, thinking } : { role, text });
@@ -1216,7 +1222,7 @@ function visibleThinkingFrom(value) {
   }
   return out.join('\n\n');
 }
-// Ghost Export Integrity v9.0.1-alpha.7: keep export read-only and fail closed.
+// Ghost Export Integrity v9.0.1-alpha.8: keep export read-only and fail closed.
 function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
@@ -1286,9 +1292,106 @@ function exportReason(status,kind){
   if(status===429)return 'History request rate-limited (HTTP 429)';
   return status?'History request returned HTTP '+status:'Full history was unavailable';
 }
+// ChatGPT's October 2026 history interface is paginated. All requests remain same-origin;
+// the short-lived session bearer token is never persisted, exported or logged.
+async function captureChatGPTPages(conversationId){
+  let token='',lastFailure=null;
+  try{
+    const session=await fetch('/api/auth/session',{credentials:'include'});
+    if(session.ok){const j=await session.json();if(typeof j?.accessToken==='string')token=j.accessToken;}
+  }catch(_){}
+  const auth=token?{Authorization:'Bearer '+token}:{};
+  const roots=['/backend-api/conversations/'+encodeURIComponent(conversationId),
+    '/backend-api/conversations/'+encodeURIComponent(conversationId)+'/messages'];
+  for(const root of roots){
+    const pages=[],seenCursor=new Set();
+    let before='',previous=true,failed=null;
+    for(let pageNumber=0;previous&&pageNumber<100;pageNumber++){
+      const q='?include_has_versions=true&num_turns=100'+(before?'&before='+encodeURIComponent(before):'');
+      let response;
+      for(let attempt=0;attempt<3;attempt++){
+        const ctl=typeof AbortController==='function'?new AbortController():null;
+        let timer=null;
+        try{
+          if(ctl)timer=setTimeout(()=>ctl.abort(),12000);
+          response=await fetch(root+q,{credentials:'include',headers:auth,...(ctl?{signal:ctl.signal}:{})});
+        }catch(err){
+          failed={kind:err?.name==='AbortError'?'timeout':'request-error',
+            reason:err?.name==='AbortError'?'History request timed out':'History request failed'};
+          if(attempt<2&&err?.name==='AbortError'){await sleep(300*(attempt+1));continue;}
+          break;
+        }finally{if(timer)clearTimeout(timer);}
+        if(response?.ok)break;
+        const status=response?.status||0;
+        failed={kind:'http',status,reason:exportReason(status,'http')};
+        if(attempt<2&&[429,502,503,504].includes(status)){await sleep(400*(attempt+1));continue;}
+        break;
+      }
+      if(!response?.ok){
+        if(pages.length)break;
+        lastFailure=failed||{kind:'request-error',reason:'History request failed'};
+        break;
+      }
+      let body;try{body=await response.json();}catch(_){failed={kind:'parse',reason:'History page was not valid JSON'};break;}
+      const payload=body?.conversation||body?.data?.conversation||body?.data||body;
+      if(payload?.conversation_id&&payload.conversation_id!==conversationId){
+        failed={kind:'identity',reason:'History returned a different conversation'};break;
+      }
+      const messages=payload?.messages||payload?.items,info=payload?.page_info||payload?.pagination;
+      if(!Array.isArray(messages)||!info){
+        failed={kind:'shape',reason:'History response has an unsupported format'};break;
+      }
+      if(!messages.length&&info.has_previous_page===true){
+        failed={kind:'empty-page',reason:'An older history page was empty'};break;
+      }
+      pages.unshift({messages,info});
+      previous=info.has_previous_page===true;
+      if(previous){
+        const cursor=info.start_cursor||info.previous_cursor;
+        if(!cursor||seenCursor.has(String(cursor))){failed={kind:'cursor',reason:'History pagination did not advance'};break;}
+        seenCursor.add(String(cursor));before=String(cursor);
+      }
+    }
+    if(!pages.length){
+      lastFailure=failed||lastFailure||{kind:'unavailable',reason:'History was unavailable'};
+      if(lastFailure.status===404||lastFailure.status===405||lastFailure.kind==='shape')continue;
+      return {failure:lastFailure};
+    }
+    const all=[],seenMessage=new Set();let unreadable=0,assets=0;
+    for(const page of pages)for(const item of page.messages){
+      const msg=item?.message||item,id=String(item?.id||msg?.id||'');
+      if(!id){unreadable++;continue;}
+      if(seenMessage.has(id))continue;seenMessage.add(id);
+      const role=msg?.author?.role;if(role!=='user'&&role!=='assistant')continue;
+      const text=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content)||
+        asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
+      const thinking=role==='assistant'?(visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata)):'';
+      if(!text&&!thinking&&msg?.content&&
+        !msg?.metadata?.is_visually_hidden_from_conversation)unreadable++;
+      if(msg?.metadata?.attachments?.length||
+        msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
+      if(text||thinking)all.push(thinking?{role,text,thinking}:{role,text});
+    }
+    const oldest=pages[0].info,newest=pages[pages.length-1].info;
+    const finished=oldest.has_previous_page===false&&newest.has_next_page===false&&!failed;
+    const verified=finished&&!!all.length&&!unreadable&&!assets;
+    const reason=failed?.reason||(!finished?'Some history pages could not be retrieved':
+      unreadable?'Some messages could not be converted':assets?'Some files or media could not be converted':
+      all.length?'Complete paginated history':'No readable messages');
+    const proof={verified,reason,pages:pages.length,nodes:seenMessage.size,unreadable,assets};
+    log('export-history-pages',{host:HOST.id,pages:proof.pages,messages:proof.nodes,verified:proof.verified,reason:proof.reason});
+    return {source:'platform archive (paged)',turns:all,verified,proof,
+      ...(verified?{}:{failure:{kind:failed?.kind||'partial',reason}}),
+      ...(exportRaw?{raw:{messages:pages.flatMap(p=>p.messages),page_info:{has_previous_page:oldest.has_previous_page,has_next_page:newest.has_next_page}}}:{})};
+  }
+  return {failure:lastFailure||{kind:'unavailable',reason:'Modern history endpoints unavailable'}};
+}
 async function apiCapture(){
   try{
     if(HOST.id==='chatgpt'){
+      const modern=await captureChatGPTPages(chatgptId());
+      if(modern?.turns?.length)return modern;
+      if(modern?.failure && modern.failure.status!==404 && modern.failure.status!==405)return modern;
       const id=chatgptId();if(!id)return {failure:{kind:'missing-id',reason:exportReason(0,'missing-id')}};
       const url='/backend-api/conversation/'+encodeURIComponent(id);
       for(let attempt=0;attempt<3;attempt++){
@@ -1331,10 +1434,12 @@ async function apiCapture(){
 }
 function chatgptVisibleRows(){
   const rows=[],occurrences=new Map();
-  for(const el of document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]')){
+  const legacy=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
+  const elements=legacy.length?legacy:document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
+  for(const el of elements){
     if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
     if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
-    const role=el.getAttribute('data-message-author-role'),text=displayText(el.innerText||el.textContent||'');
+    const role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn'),text=displayText(el.innerText||el.textContent||'');
     if(!role||!text)continue;
     const id=el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
       el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
@@ -1375,7 +1480,7 @@ async function collectChatGPTDomHistory(){
   S.topBusy=true;
   try{
     observe();
-    for(passes=0;passes<1200;passes++){
+    for(passes=0;passes<96;passes++){
       if(location.pathname!==pathname)break;
       const old=pos(),count=stored.size;
       const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.75));
@@ -1395,6 +1500,8 @@ async function captureExport(){
   const codex=await captureCodexExport();if(codex)return codex;
   const api=await apiCapture();
   if(api?.turns?.length&&api.verified)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
+  // A paginated archive with unsupported rich content is still preferable to scrolling on mobile.
+  if(api?.turns?.length&&api.proof?.pages)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:true,note:'History pages were retrieved, but '+api.proof.reason+'. No mobile scrolling was required.',turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
   const failure=api?.failure?.reason||(api?.turns?.length?'Archive completeness could not be verified':'Platform history unavailable');
   if(HOST.id==='chatgpt'){
     S.detail=failure+'. Checking older messages...';render();
