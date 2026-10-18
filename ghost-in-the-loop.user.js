@@ -1993,7 +1993,7 @@ function render() {
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
     <div class="pane ${S.tab==='auto'?'show':''}" data-pane="auto">
-      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div>
+      <details class="g-accordion" data-g-acc="auto-help"><summary>How Auto works</summary>      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div></details>
       ${roadmapRun.capture?'<div class="stage act">Waiting for the AI roadmap block…</div>':roadmapRun.steps.map((q,i)=>'<div class="stage '+(roadmapRun.active&&i===roadmapRun.index?'act':'')+'">'+(i<roadmapRun.index?'✓ ':i===roadmapRun.index?'▶ ':'· ')+(i+1)+'. '+esc(q)+'</div>').join('')}
       <div class="sectionTitle">Prompt queue</div>
       ${queueDraft.map((q,i)=>'<div class="qrow"><span class="qnum">'+(i+1)+'</span><input type="text" data-q="'+i+'" value="'+esc(q)+'" placeholder="Step '+(i+1)+'"><button class="qdel" data-qdel="'+i+'">×</button></div>').join('')}
