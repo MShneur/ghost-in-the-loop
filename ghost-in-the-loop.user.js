@@ -1927,25 +1927,68 @@ function bindFloatDrag() {
     floatPos={x:Math.max(0,Math.min(innerWidth-panel.offsetWidth,ox+e.clientX-sx)),y:Math.max(0,Math.min(innerHeight-panel.offsetHeight,oy+e.clientY-sy))};
     panel.style.left=floatPos.x+'px'; panel.style.top=floatPos.y+'px'; panel.style.right='auto';
   });
-  h.addEventListener('pointerup',e=>{ if(!drag)return; drag=false; GM_setValue('v9.floatPos',JSON.stringify(floatPos)); try{h.releasePointerCapture(e.pointerId)}catch(_){} });
+  h.addEventListener('pointerup',e=>{ if(!drag)return; drag=false; GM_setValue('v9.floatPos',JSON.stringify(floatPos)); queueViewportFit(); try{h.releasePointerCapture(e.pointerId)}catch(_){} });
 }
 function saveQueueDraft() { GM_setValue('v9.queueDraft',JSON.stringify(queueDraft)); }
+function fitPanelViewport() {
+  if(panelCollapsed){panel.style.maxHeight='';return;}
+  const vv=window.visualViewport;
+  const bottom=Math.min(innerHeight,vv?vv.height+vv.offsetTop:innerHeight);
+  let rect=panel.getBoundingClientRect();
+  if(rect.top>bottom-142){panel.style.top=Math.max(6,Math.floor(bottom-148))+'px';rect=panel.getBoundingClientRect();}
+  panel.style.maxHeight=Math.min(Math.max(130,Math.floor(bottom-rect.top-9)),Math.floor(bottom*.76))+'px';
+}
+let fitPending=false;
+function queueViewportFit() {
+  if(fitPending)return;fitPending=true;
+  const run=()=>{fitPending=false;fitPanelViewport();};
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(run);else run();
+}
+window.addEventListener('resize',queueViewportFit,{passive:true});
+window.visualViewport?.addEventListener('resize',queueViewportFit,{passive:true});
+function updateLiveStatus() {
+  if(!liveStatusNodes)return;
+  const prog=progressSummary();
+  const workflow=prog.stages ?
+    'Workflow: '+prog.workflow+' · '+(prog.stage ? 'stage '+prog.stage.step+'/'+prog.stage.total : prog.stages+' stages · waiting for stage')
+    : 'Manual workflow';
+  const set=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
+  set(liveStatusNodes.mode,S.mode);
+  set(liveStatusNodes.round,'round '+S.round+'/'+S.max);
+  set(liveStatusNodes.detail,S.detail);
+  set(liveStatusNodes.workflow,workflow);
+  const pct=prog.roundPct+'%';
+  if(liveStatusNodes.bar&&liveStatusNodes.bar.style.width!==pct)liveStatusNodes.bar.style.width=pct;
+  if(liveStatusNodes.orbit&&liveStatusNodes.orbit.style.getPropertyValue('--g-pct')!==pct)liveStatusNodes.orbit.style.setProperty('--g-pct',pct);
+}
 function render() {
-  const prog = progressSummary();
-  panel.classList.toggle('collapsed', panelCollapsed);
-  panel.innerHTML = trustedHTML(`
+  const wasCollapsed=panel.classList.contains('collapsed');
+  panel.classList.toggle('collapsed',panelCollapsed);
+  panel.classList.toggle('more-open',mobileMoreOpen);
+  panel.classList.toggle('status-open',statusExpanded);
+  const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
+  const moreActive=!!moreLabels[S.tab];
+  const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span></div>
-    <div class="head drag" data-drag><span class="brand">👻 GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to the side">▶</button><button class="helpbtn" data-a="help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="flow" class="${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">Setup</button></div>
-    <div class="status"><b>${esc(S.mode)}</b> · round ${S.round}/${S.max}<br>${esc(S.detail)}<div class="progline"><span style="width:${prog.roundPct}%"></span></div><div class="tiny">${prog.stages ? "Workflow: "+esc(prog.workflow)+" · "+(prog.stage ? "stage "+prog.stage.step+"/"+prog.stage.total : prog.stages+" stages · waiting for explicit stage") : "Manual workflow"}</div></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="status g-status" data-live-status>
+      <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
+      <div class="status-text" data-live-detail></div>
+      <div class="progline"><span data-live-bar></span></div>
+      <div class="tiny" data-live-workflow></div>
+    </div>
+    <div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
+    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-a="more-toggle" class="mobile-more ${moreActive?'on':''}" aria-expanded="${mobileMoreOpen?'true':'false'}">${moreActive?moreLabels[S.tab]:'More'} ▾</button><button data-tab="flow" class="tab-advanced ${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="tab-advanced ${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="tab-advanced ${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="settings" class="tab-advanced ${S.tab==='settings'?'on':''}">Setup</button></div>
+    <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
+      <details class="g-accordion" data-g-acc="run-options"><summary>Modes &amp; posture</summary>
       <div class="sectionTitle">Run mode</div>
       <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
       <div class="sectionTitle">Thinking posture</div>
       <div class="pillrow">${Object.entries(POSTURES).map(([id,p])=>'<button data-posture-btn="'+id+'" class="'+(postureId===id?'on':'')+'">'+esc(p.label)+'</button>').join('')}</div>
-      <div class="row transport" style="margin-top:6px"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
+      </details>
       <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
@@ -2002,9 +2045,34 @@ function render() {
       <label style="margin-top:6px"><input type="checkbox" data-sound ${soundOn?'checked':''}>Sound cues</label>
       <label style="margin-top:5px"><input type="checkbox" data-notify ${notifyOn?'checked':''}>Notifications</label>
       <div class="row" style="margin-top:5px"><button data-a="test-sound">Test sound</button><button data-a="test-notify">Test notification</button></div>
-      <div class="tiny">Feedback is optional and status-only. It never sends a prompt or changes the Ghost loop.</div>
-    </div>`);
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; GM_setValue('v9.tab', S.tab); render(); }));
+      <div class="tiny">Feedback is optional and status-only. It never sends a prompt or changes the Ghost loop.</div></details>
+    </div>
+    </div>`;
+  const oldScroll=panel.querySelector('.g-scroll')?.scrollTop||0;
+  const previousTab=panel.dataset.renderedTab;
+  if(lastPanelMarkup===markup&&panel.isConnected){
+    updateLiveStatus();
+    if(wasCollapsed!==panelCollapsed)fitPanelViewport();
+    return;
+  }
+  for(const detail of panel.querySelectorAll('details[data-g-acc]'))uiAccordionStates.set(detail.dataset.gAcc,detail.open);
+  panel.innerHTML=trustedHTML(markup);
+  lastPanelMarkup=markup;
+  liveStatusNodes={
+    mode:panel.querySelector('[data-live-mode]'),round:panel.querySelector('[data-live-round]'),
+    detail:panel.querySelector('[data-live-detail]'),workflow:panel.querySelector('[data-live-workflow]'),
+    bar:panel.querySelector('[data-live-bar]'),orbit:panel.querySelector('[data-live-orbit]')
+  };
+  updateLiveStatus();
+  for(const detail of panel.querySelectorAll('details[data-g-acc]')){
+    if(uiAccordionStates.has(detail.dataset.gAcc))detail.open=uiAccordionStates.get(detail.dataset.gAcc);
+    detail.addEventListener('toggle',()=>uiAccordionStates.set(detail.dataset.gAcc,detail.open));
+  }
+  panel.dataset.renderedTab=S.tab;
+  if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; mobileMoreOpen=false; GM_setValue('v9.tab', S.tab); render(); }));
+  panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
+  panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('click', () => { panelCollapsed = false; GM_setValue('v9.panelCollapsed', false); render(); });
   panel.querySelector('[data-a="expand"]')?.addEventListener('pointerdown', e => e.preventDefault());
@@ -2070,6 +2138,7 @@ function render() {
   panel.querySelectorAll('[data-place]').forEach(btn => btn.addEventListener('click', () => { placement=btn.dataset.place; GM_setValue('v9.placement',placement); if(!placement.startsWith('dock')) panelCollapsed=false; render(); }));
   applyPlacement();
   bindFloatDrag();
+  queueViewportFit();
 }
 
 render();
