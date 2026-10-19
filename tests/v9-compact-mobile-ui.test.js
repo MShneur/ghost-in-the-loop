@@ -71,3 +71,41 @@ describe('compact Ghost mobile UI',()=>{
     expect(src).toContain('prefers-reduced-motion:reduce');
   });
 });
+
+
+describe('editorial UX hierarchy (v8-inspired)',()=>{
+  test('navigation is distinct from actions; controls are local to Run',()=>{
+    const {p,close}=boot();try{
+      expect(p.querySelector('nav.tabs[aria-label="Ghost main menu"]')).toBeTruthy();
+      expect(p.querySelectorAll('nav.tabs [data-tab]')).toHaveLength(3);
+      expect(p.querySelectorAll('.g-subnav [data-tab]')).toHaveLength(4);
+      expect(p.querySelector('[data-pane="play"] .g-controls [data-a="play"]')).toBeTruthy();
+      expect(p.querySelector('[data-pane="export"] .g-action-well [data-a="md"]')).toBeTruthy();
+      expect(p.querySelectorAll('.g-scroll .g-controls')).toHaveLength(1);
+    }finally{close()}
+  });
+  test('More advanced category remains open when selecting an advanced page',()=>{
+    const {p,close}=boot();try{
+      p.querySelector('[data-a="more-toggle"]').click();
+      p.querySelector('.g-subnav [data-tab="prompt"]').click();
+      expect(p.classList.contains('more-open')).toBe(true);
+      expect(p.querySelector('[data-pane="prompt"].show')).toBeTruthy();
+      p.querySelector('nav.tabs [data-tab="export"]').click();
+      expect(p.classList.contains('more-open')).toBe(false);
+    }finally{close()}
+  });
+  test('animation only while running and respects reduced motion',()=>{
+    expect(src).toContain('#gitl9[data-running="1"] .head::before');
+    expect(src).toContain('prefers-reduced-motion:reduce');
+    expect(src).toContain('animation:none!important');
+    expect(src).toContain('ghostGlyph');
+    expect(src).not.toContain('setInterval(ghostGlyph');
+  });
+  test('blue-tinted classic remains one option, other skins stay intact',()=>{
+    const {p,close}=boot();try{
+      p.querySelector('.g-subnav [data-tab="settings"]').click();
+      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(13);
+      expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
+    }finally{close()}
+  });
+});
