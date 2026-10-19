@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.1-alpha.10
+// @version      9.0.1-alpha.11
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.10';
+const VER = '9.0.1-alpha.11';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1246,7 +1246,7 @@ function visibleThinkingFrom(value) {
   }
   return out.join('\n\n');
 }
-// Ghost Export Integrity v9.0.1-alpha.10: keep export read-only and fail closed.
+// Ghost Export Integrity v9.0.1-alpha.11: keep export read-only and fail closed.
 function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
@@ -1782,6 +1782,67 @@ function doPageBackup(kind) {
   render();
 }
 
+
+let exportRecovery = null;
+function recoveryCancelled(){return !!exportRecovery?.cancelled;}
+async function recoveryCheckpoint(){
+  const op=exportRecovery;
+  if(!op)return;
+  while(op.paused&&!op.cancelled){await sleep(200);}
+  if(op.cancelled)throw new Error('GITL_EXPORT_CANCELLED');
+}
+function recoveryNotice(text,found){
+  const op=exportRecovery;if(!op)return;
+  if(Number.isFinite(found))op.found=Math.max(op.found,found);
+  const el=op.root?.querySelector('[data-export-recovery-state]');
+  const count=op.root?.querySelector('[data-export-recovery-count]');
+  if(el&&el.textContent!==text)el.textContent=text;
+  if(count)count.textContent=op.found+' messages recovered';
+}
+function recoveryOpen(){
+  const parent=document.body||document.documentElement;
+  const backdrop=document.createElement('div');
+  backdrop.id='gitl-export-recovery';
+  backdrop.setAttribute('role','dialog');
+  backdrop.setAttribute('aria-label','Ghost conversation export progress');
+  backdrop.setAttribute('aria-modal','true');
+  backdrop.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(3,7,18,.69);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box';
+  backdrop.innerHTML=trustedHTML('<section style="width:min(390px,100%);padding:15px;color:#e8f2ff;background:#121a27;border:1px solid #45617e;border-radius:14px;box-shadow:0 20px 55px #000a;font:13px/1.5 system-ui,sans-serif"><div aria-hidden="true" style="text-align:center;font-size:25px;color:#8ab4ff">◈ 👻 ◈</div><h2 style="text-align:center;font-size:16px;margin:3px 0">GITL · Recovering conversation</h2><div data-export-recovery-state role="status" aria-live="polite">Requesting conversation history…</div><p data-export-recovery-count style="color:#a9c7e5;margin:6px 0 14px">0 messages recovered</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:7px"><button type="button" data-recovery-pause style="padding:10px;background:#223c56;color:white;border:1px solid #547291;border-radius:7px">Pause</button><button type="button" data-recovery-save style="padding:10px;background:#1b4550;color:white;border:1px solid #58a9a9;border-radius:7px">Save Partial</button><button type="button" data-recovery-cancel style="grid-column:span 2;padding:9px;background:#2b1b28;color:white;border:1px solid #784353;border-radius:7px">Cancel (no save)</button></div><p style="font-size:11px;color:#9fb0c5;margin:9px 0 0">Ghost tries authenticated history first. Scrolling may affect this page. Pause or cancel at any time.</p></section>');
+  const op={root:backdrop,cancelled:false,savePartial:false,paused:false,found:0,controller:null};
+  exportRecovery=op;
+  backdrop.querySelector('[data-recovery-pause]').addEventListener('click',e=>{
+    op.paused=!op.paused;
+    e.currentTarget.textContent=op.paused?'Resume':'Pause';
+    recoveryNotice(op.paused?'Paused · history already recovered is preserved':'Resuming recovery…');
+  });
+  backdrop.querySelector('[data-recovery-cancel]').addEventListener('click',()=>{
+    op.cancelled=true;op.paused=false;op.controller?.abort();
+    recoveryNotice('Cancelling…');
+  });
+  backdrop.querySelector('[data-recovery-save]').addEventListener('click',()=>{
+    op.savePartial=true;op.cancelled=true;op.paused=false;op.controller?.abort();
+    recoveryNotice('Preparing explicitly labeled partial file…');
+  });
+  parent.appendChild(backdrop);
+  return op;
+}
+function recoveryClose(op){if(op?.root?.isConnected)op.root.remove();if(exportRecovery===op)exportRecovery=null;}
+function exportFileContext(){
+  const raw=String(document.title||'Conversation')
+    .replace(/\s*[-|–—]\s*ChatGPT\s*$/i,'')
+    .replace(/\s*[-|–—]\s*Perplexity\s*$/i,'').trim();
+  const title=raw&&raw.toLowerCase()!=='chatgpt'?raw:'Conversation';
+  const project=ProjectVault.get(vaultProjectId)?.name||'';
+  const id=HOST.id==='chatgpt'?chatgptId():(HOST.id==='perplexity'?perplexitySlug():'');
+  const clean=v=>String(v||'').normalize('NFKC').replace(/[\/\\:*?"<>|\x00-\x1f]/g,'_')
+    .replace(/\s+/g,' ').replace(/[. ]+$/,'').trim().slice(0,65);
+  return {title:clean(title),project:clean(project),id:clean(id).slice(-12),platform:HOST.id==='chatgpt'?'ChatGPT':HOST.id==='perplexity'?'Perplexity':HOST.id};
+}
+function exportFileName(cap,kind){
+  const ctx=exportFileContext(),dt=new Date(cap.capturedAt||Date.now());
+  const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
+  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':'md');
+}
 function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
 function confirmPartialExport(cap){
   if(!cap.partial)return true;
@@ -1792,13 +1853,20 @@ function confirmPartialExport(cap){
 }
 async function doExport(kind){
   S.detail='Checking full conversation history...';render();let cap;
-  try{cap=await captureExport();}catch(e){S.detail='Export failed. No file saved.';log('export-failed',{kind:'unexpected'});render();return;}
-  if(!cap.turns.length&&!cap.raw){S.detail='No conversation data was available. '+(cap.note||'');render();return;}
-  if(!confirmPartialExport(cap))return;
-  const stamp=new Date().toISOString().replace(/[:.]/g,'-'),prefix=cap.partial?'ghost-PARTIAL-':'ghost-';
+  const progress=recoveryOpen();
+  try{
+    cap=await captureExport();
+    if(progress.cancelled&&!progress.savePartial){S.detail='Export cancelled. No file saved.';render();return;}
+    if(progress.savePartial&&cap){cap.partial=true;cap.note=(cap.note||'')+' User requested partial save during recovery.';}
+  }catch(e){
+    S.detail=progress.cancelled?'Export cancelled. No file saved.':'Export failed. No file saved.';
+    log('export-failed',{kind:progress.cancelled?'cancelled':'unexpected'});render();return;
+  }finally{recoveryClose(progress);}
+  if(!cap?.turns?.length&&!cap?.raw){S.detail='No conversation data was available. '+(cap?.note||'');render();return;}
+  if(!(progress.savePartial&&cap.partial)&&!confirmPartialExport(cap))return;
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
-  else if(kind==='md'){download(prefix+HOST.id+'-'+stamp+'.md',markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
-  else{download(prefix+HOST.id+'-'+stamp+'.json',JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
+  else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
+  else{download(exportFileName(cap,'json'),JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,source:cap.source,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
 }
