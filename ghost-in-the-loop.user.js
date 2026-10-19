@@ -2124,7 +2124,7 @@ function render() {
   }
   panel.dataset.renderedTab=S.tab;
   if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; mobileMoreOpen=false; GM_setValue('v9.tab', S.tab); render(); }));
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); }));
   panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
   panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
