@@ -1874,6 +1874,7 @@ style.textContent += `
 
 style.textContent += `
 /* v8-inspired restrained midnight/blue architecture; old skins remain switchable. */
+#gitl9{box-sizing:border-box!important}
 #gitl9 .head{position:relative;isolation:isolate;overflow:hidden;min-height:42px;background:linear-gradient(110deg,var(--g-bg),var(--g-surface));padding:7px 9px 6px;border:1px solid var(--g-border);border-radius:8px;margin:0 0 6px}
 #gitl9 .head::before{content:"⌁   ◇   ·   ⟡   ✧   ·   ◇   ⌁   ·   ✧";position:absolute;right:-4px;top:3px;color:var(--g-accent);opacity:.12;white-space:nowrap;font:12px/2 monospace;letter-spacing:5px;pointer-events:none;z-index:-1}
 #gitl9[data-running="1"] .head::before{animation:ghostGlyph 16s steps(4,end) infinite}
