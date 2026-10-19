@@ -51,7 +51,7 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
   test('mobile DOM adaptation and bounded fallback exist without changing Send',()=>{
     expect(src).toContain("document.querySelector('[data-scroll-root]')");
     expect(src).toContain("section[data-turn=\"user\"],section[data-turn=\"assistant\"]");
-    expect(src).toContain('for(passes=0;passes<96;passes++)');
+    expect(src).toContain('for(passes=0;passes<900&&Date.now()-started<240000;passes++)');
     const exportSection=src.slice(src.indexOf('async function captureExport(){'),src.indexOf('function markdown(cap)'));
     expect(exportSection).toContain('if(api?.turns?.length&&api.proof?.pages)');
     expect(exportSection).not.toContain('sendOnce(');
