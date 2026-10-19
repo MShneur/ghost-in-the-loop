@@ -1331,20 +1331,24 @@ async function captureChatGPTPages(conversationId){
     const pages=[],seenCursor=new Set();
     let before='',previous=true,failed=null;
     for(let pageNumber=0;previous&&pageNumber<100;pageNumber++){
+      if(recoveryCancelled()) {failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}
+      if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled()){failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}}
+      recoveryNotice('Retrieving history page '+(pageNumber+1)+'…',pages.reduce((total,p)=>total+p.messages.length,0));
       const q='?include_has_versions=true&num_turns=100'+(before?'&before='+encodeURIComponent(before):'');
       let response;
       for(let attempt=0;attempt<3;attempt++){
         const ctl=typeof AbortController==='function'?new AbortController():null;
         let timer=null;
         try{
-          if(ctl)timer=setTimeout(()=>ctl.abort(),12000);
+          if(ctl){timer=setTimeout(()=>ctl.abort(),12000);if(exportRecovery)exportRecovery.controller=ctl;}
           response=await fetch(root+q,{credentials:'include',headers:auth,...(ctl?{signal:ctl.signal}:{})});
         }catch(err){
           failed={kind:err?.name==='AbortError'?'timeout':'request-error',
             reason:err?.name==='AbortError'?'History request timed out':'History request failed'};
           if(attempt<2&&err?.name==='AbortError'){await sleep(300*(attempt+1));continue;}
           break;
-        }finally{if(timer)clearTimeout(timer);}
+        }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
+        if(recoveryCancelled())break;
         if(response?.ok)break;
         const status=response?.status||0;
         failed={kind:'http',status,reason:exportReason(status,'http')};
@@ -1369,6 +1373,7 @@ async function captureChatGPTPages(conversationId){
         failed={kind:'empty-page',reason:'An older history page was empty'};break;
       }
       pages.unshift({messages,info});
+      recoveryNotice('History pages recovered: '+pages.length,pages.reduce((total,p)=>total+p.messages.length,0));
       previous=info.has_previous_page===true;
       if(previous){
         const cursor=info.start_cursor||info.previous_cursor;
@@ -1481,6 +1486,7 @@ async function collectChatGPTDomHistory(){
   const move=y=>{if(page)window.scrollTo(0,y);else scroller.scrollTop=y;};
   const initial=pos(),pathname=location.pathname,stored=new Map(),order=[];
   let passes=0,stall=0,top=false;
+  const started=Date.now();
   function observe(){
     const batch=chatgptVisibleRows(),keys=batch.map(row=>row.key);
     for(const row of batch)if(!stored.has(row.key))stored.set(row.key,row.turn);
@@ -1504,15 +1510,17 @@ async function collectChatGPTDomHistory(){
   S.topBusy=true;
   try{
     observe();
-    for(passes=0;passes<96;passes++){
-      if(location.pathname!==pathname)break;
+    for(passes=0;passes<900&&Date.now()-started<240000;passes++){
+      if(location.pathname!==pathname||recoveryCancelled())break;
+      if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled())break;}
       const old=pos(),count=stored.size;
       const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.75));
       move(Math.max(0,old-step));await sleep(180);observe();
       const current=pos();
       stall=current<=2&&old<=2&&stored.size===count?stall+1:0;
       S.detail='Collecting older messages: '+stored.size+' captured';
-      if(passes%4===0)render();
+      recoveryNotice('Loading earlier messages · pass '+(passes+1),stored.size);
+      if(passes%12===0)render();
       if(stall>=4){top=true;break;}
       if(current===old&&current>2&&stored.size===count&&passes>6)break;
     }
@@ -1523,6 +1531,7 @@ async function captureExport(){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
   const api=await apiCapture();
+  if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
   if(api?.turns?.length&&api.verified)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
   // A paginated archive with unsupported rich content is still preferable to scrolling on mobile.
   if(api?.turns?.length&&api.proof?.pages)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:true,note:'History pages were retrieved, but '+api.proof.reason+'. No mobile scrolling was required.',turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
@@ -1530,6 +1539,7 @@ async function captureExport(){
   if(HOST.id==='chatgpt'){
     S.detail=failure+'. Checking older messages...';render();
     const dom=await collectChatGPTDomHistory();
+    if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
     const archive=(api?.turns?.length||0)>dom.turns.length;
     return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:archive?'platform archive (unverified)':'visible page fallback',partial:true,
       note:'Full history could not be verified ('+failure+'). '+dom.reason+'. Some older messages or rich media may be missing.',
