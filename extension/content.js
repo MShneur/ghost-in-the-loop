@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.9';
+const VER = '9.0.1-alpha.10';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -68,7 +68,7 @@ const ACT = Object.freeze({
 });
 
 const SKINS = Object.freeze({
-  classic:{ name:'Classic', bg:'#17161a', surface:'#201e24', panel:'#0f0e11', border:'#45414b', text:'#eeeeee', muted:'#9a96a0', accent:'#34d399', accentBg:'#0c4434', radius:'12px', shadow:'0 8px 30px rgba(0,0,0,.4)' },
+  classic:{ name:'Classic', bg:'#121922', surface:'#1d2937', panel:'#0c131d', border:'#33465c', text:'#ecf4ff', muted:'#9aacc2', accent:'#8ab4ff', accentBg:'#193756', radius:'12px', shadow:'0 12px 34px rgba(3,9,20,.60)' },
   aurora:{ name:'Aurora', bg:'#12132b', surface:'#1a1c3a', panel:'#0b0c1f', border:'#3a3d78', text:'#eef0ff', muted:'#a3a7d1', accent:'#8b9dff', accentBg:'#2a2d62', radius:'12px', shadow:'0 12px 40px rgba(40,30,120,.45)' },
   glass:{ name:'Glass', bg:'rgba(23,26,31,.92)', surface:'rgba(32,36,43,.9)', panel:'rgba(12,15,20,.92)', border:'#46505f', text:'#eef2f7', muted:'#9ca8b8', accent:'#7dd3fc', accentBg:'#17384a', radius:'14px', shadow:'0 10px 36px rgba(0,0,0,.5)' },
   metal:{ name:'Metal', bg:'#16171a', surface:'#24262c', panel:'#101114', border:'#454956', text:'#dfe3ea', muted:'#9aa2ad', accent:'#93a6c4', accentBg:'#273244', radius:'10px', shadow:'0 8px 28px rgba(0,0,0,.7)' },
@@ -236,7 +236,7 @@ let skinId = String(GM_getValue('v9.skin', 'classic') || 'classic');
 if (!SKINS[skinId]) skinId = 'classic';
 let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
 if (!(accentId in ACCENTS)) accentId = 'auto';
-let quickStartOpen = !GM_getValue('v9.quickStartSeen', false);
+let quickStartOpen = false; // Discoverable through Setup > Extras; not a persistent first-run obstruction.
 let helpOpen = false;
 let panelCollapsed = !!GM_getValue('v9.panelCollapsed', false);
 let mobileMoreOpen=false;
@@ -1227,7 +1227,7 @@ function visibleThinkingFrom(value) {
   }
   return out.join('\n\n');
 }
-// Ghost Export Integrity v9.0.1-alpha.9: keep export read-only and fail closed.
+// Ghost Export Integrity v9.0.1-alpha.10: keep export read-only and fail closed.
 function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
@@ -1852,6 +1852,44 @@ style.textContent += `
 @media(max-height:430px){#gitl9 .head{min-height:25px}#gitl9 .g-controls button{min-height:28px}#gitl9 .tabs button{min-height:28px}#gitl9 .status-text{-webkit-line-clamp:1}}
 @media(prefers-reduced-motion:reduce){#gitl9 .progline span{transition:none}}
 `;
+
+style.textContent += `
+/* v8-inspired restrained midnight/blue architecture; old skins remain switchable. */
+#gitl9{box-sizing:border-box!important}
+#gitl9 .head{position:relative;isolation:isolate;overflow:hidden;min-height:42px;background:linear-gradient(110deg,var(--g-bg),var(--g-surface));padding:7px 9px 6px;border:1px solid var(--g-border);border-radius:8px;margin:0 0 6px}
+#gitl9 .head::before{content:"⌁   ◇   ·   ⟡   ✧   ·   ◇   ⌁   ·   ✧";position:absolute;right:-4px;top:3px;color:var(--g-accent);opacity:.12;white-space:nowrap;font:12px/2 monospace;letter-spacing:5px;pointer-events:none;z-index:-1}
+#gitl9[data-running="1"] .head::before{animation:ghostGlyph 16s steps(4,end) infinite}
+@keyframes ghostGlyph{0%,100%{opacity:.09;transform:translateX(0)}50%{opacity:.22;transform:translateX(7px)}}
+#gitl9 .brand{font-size:12px;letter-spacing:.08em;white-space:nowrap}
+#gitl9 .g-nav-label,#gitl9 .g-section-label{font:700 9px/1.4 system-ui,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--g-muted);margin:6px 0 5px}
+#gitl9 .g-nav-label{padding-top:7px;border-top:1px solid var(--g-border)}
+#gitl9 .tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:3px;background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;margin:0 0 6px}
+#gitl9 .tabs button{min-height:38px;padding:4px 1px!important;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--g-muted);font-size:11px;font-weight:700;box-shadow:none}
+#gitl9 .tabs button.on{background:var(--g-surface);border-color:var(--g-border);color:var(--g-text);box-shadow:inset 0 -2px 0 var(--g-accent)}
+#gitl9 .tabs .mobile-more{display:block}
+#gitl9 .g-subnav{display:none;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:0 0 7px;padding:7px;border:1px solid var(--g-border);border-radius:8px;background:var(--g-panel)}
+#gitl9.more-open .g-subnav{display:grid}
+#gitl9 .g-subnav button{font-size:11px;min-height:36px;text-align:left;padding:4px 6px;border:1px solid var(--g-border);background:var(--g-surface)}
+#gitl9 .g-subnav button.on{border-color:var(--g-accent);background:var(--g-accent-bg);color:var(--g-text)}
+#gitl9 .g-scroll{border-top:1px solid var(--g-border);padding-top:6px}
+#gitl9 .g-pane-intro{display:flex;align-items:center;gap:8px;padding:2px 2px 8px;border-bottom:1px solid var(--g-border);margin-bottom:8px}
+#gitl9 .g-pane-symbol{flex:none;width:28px;height:28px;display:grid;place-items:center;background:var(--g-accent-bg);color:var(--g-accent);border:1px solid var(--g-border);border-radius:7px;font-size:16px}
+#gitl9 .g-pane-intro b{font-size:13px}
+#gitl9 .g-pane-intro .tiny{display:block;margin:0;font-size:10px}
+#gitl9 .g-action-well{background:var(--g-panel);border:1px solid var(--g-border);border-radius:9px;padding:8px;margin:0 0 8px}
+#gitl9 .g-action-well .g-section-label{margin:0 0 6px}
+#gitl9 .g-controls{margin:0!important}
+#gitl9 .g-controls button{min-height:38px}
+#gitl9 .g-controls [data-a="play"]{border:1px solid var(--g-accent);background:var(--g-accent-bg);font-size:12px}
+#gitl9 .g-controls [data-a="top"]{color:var(--g-muted)}
+#gitl9 .g-accordion{border-color:var(--g-border);background:var(--g-panel)}
+#gitl9 .g-accordion[open]{border-color:var(--g-accent);background:var(--g-bg)}
+#gitl9 .g-accordion>summary{min-height:38px}
+#gitl9 .g-status{border-left:3px solid var(--g-accent);box-shadow:none}
+#gitl9 button:focus-visible,#gitl9 summary:focus-visible{outline:2px solid var(--g-accent);outline-offset:1px}
+@media(max-width:520px){#gitl9{width:min(280px,calc(100vw - 12px))}#gitl9 .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}#gitl9 .tabs button{font-size:11px}#gitl9 .head{min-height:38px}}
+@media(prefers-reduced-motion:reduce){#gitl9 .head::before{animation:none!important;transform:none!important}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -1929,6 +1967,8 @@ window.addEventListener('resize',queueViewportFit,{passive:true});
 window.visualViewport?.addEventListener('resize',queueViewportFit,{passive:true});
 function updateLiveStatus() {
   if(!liveStatusNodes)return;
+  const running=S.mode==='RUNNING'?'1':'0';
+  if(panel.dataset.running!==running)panel.dataset.running=running;
   const prog=progressSummary();
   const workflow=prog.stages ?
     'Workflow: '+prog.workflow+' · '+(prog.stage ? 'stage '+prog.stage.step+'/'+prog.stage.total : prog.stages+' stages · waiting for stage')
@@ -1947,6 +1987,7 @@ function render() {
   panel.classList.toggle('collapsed',panelCollapsed);
   panel.classList.toggle('more-open',mobileMoreOpen);
   panel.classList.toggle('status-open',statusExpanded);
+  panel.dataset.running=S.mode==='RUNNING'?'1':'0';
   const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
   const moreActive=!!moreLabels[S.tab];
   const markup = `
@@ -1958,22 +1999,27 @@ function render() {
       <div class="progline"><span data-live-bar></span></div>
       <div class="tiny" data-live-workflow></div>
     </div>
-    <div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div>
-    <div class="tabs"><button data-tab="play" class="${S.tab==='play'?'on':''}">Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}">Auto</button><button data-tab="export" class="${S.tab==='export'?'on':''}">Export</button><button data-a="more-toggle" class="mobile-more ${moreActive?'on':''}" aria-expanded="${mobileMoreOpen?'true':'false'}">${moreActive?moreLabels[S.tab]:'More'} ▾</button><button data-tab="flow" class="tab-advanced ${S.tab==='flow'?'on':''}">Flow</button><button data-tab="prompt" class="tab-advanced ${S.tab==='prompt'?'on':''}">Personas</button><button data-tab="aoa" class="tab-advanced ${S.tab==='aoa'?'on':''}">AoA</button><button data-tab="settings" class="tab-advanced ${S.tab==='settings'?'on':''}">Setup</button></div>
+
+    <div class="g-nav-label">NAVIGATION</div>
+    <nav class="tabs" aria-label="Ghost main menu"><button data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button data-a="more-toggle" class="mobile-more ${moreActive||mobileMoreOpen?'on':''}" aria-expanded="${mobileMoreOpen?'true':'false'}">⋯ More</button></nav>
+    <div class="g-subnav" role="group" aria-label="Advanced pages"><button data-tab="flow" class="${S.tab==='flow'?'on':''}">⇢ Flow</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">◈ Personas</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">✧ AoA</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">⚙ Setup</button></div>
     <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▶</span><div><b>Run</b><span class="tiny">Your conversation controls</span></div></div>
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
+      <div class="g-action-well"><div class="g-section-label">RUN CONTROLS</div><div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div></div>
       <details class="g-accordion" data-g-acc="run-options"><summary>Modes &amp; posture</summary>
       <div class="sectionTitle">Run mode</div>
       <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
       <div class="sectionTitle">Thinking posture</div>
       <div class="pillrow">${Object.entries(POSTURES).map(([id,p])=>'<button data-posture-btn="'+id+'" class="'+(postureId===id?'on':'')+'">'+esc(p.label)+'</button>').join('')}</div>
       </details>
-      <div class="row" style="margin-top:5px"><input data-max type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div>
+      <details class="g-accordion" data-g-acc="run-advanced"><summary>Limits &amp; diagnostics</summary><div class="row" style="margin-top:5px"><input data-max aria-label="Max rounds" type="number" min="1" max="100" value="${S.max}"><button data-a="report">Copy report</button></div></details>
       <div class="tiny">Core only: final control line → one Send → repeat. Stall watchdog interrupts only after 5 min quiet + 2 min grace.</div>
     </div>
     <div class="pane ${S.tab==='auto'?'show':''}" data-pane="auto">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▤</span><div><b>Auto</b><span class="tiny">Prompt queues and roadmap</span></div></div>
       <details class="g-accordion" data-g-acc="auto-help"><summary>How Auto works</summary>      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div></details>
       ${roadmapRun.capture?'<div class="stage act">Waiting for the AI roadmap block…</div>':roadmapRun.steps.map((q,i)=>'<div class="stage '+(roadmapRun.active&&i===roadmapRun.index?'act':'')+'">'+(i<roadmapRun.index?'✓ ':i===roadmapRun.index?'▶ ':'· ')+(i+1)+'. '+esc(q)+'</div>').join('')}
       <div class="sectionTitle">Prompt queue</div>
@@ -1981,6 +2027,7 @@ function render() {
       <div class="row"><button data-a="q-add">＋ Step</button><button data-a="q-run" class="on">▶ Run queue</button></div>
     </div>
     <div class="pane ${S.tab==='flow'?'show':''}" data-pane="flow">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇢</span><div><b>Flow</b><span class="tiny">Guided workflows</span></div></div>
       <label style="display:block"><span class="tiny">Workflow</span><select data-flow-workflow style="width:100%;margin-top:3px">${Object.entries(allWorkflows()).map(([id,w])=>'<option value="'+esc(id)+'" '+(workflowId===id?'selected':'')+'>'+esc(w.label)+(w.custom?' · custom':'')+'</option>').join('')}</select></label>
       <div class="tiny">${esc(allWorkflows()[workflowId]?.desc||'')}</div>
       <div class="row" style="margin-top:6px"><button data-a="flow-run" class="on" ${!allWorkflows()[workflowId]?.stages?.length?'disabled':''}>▶ Start workflow</button><label><input type="checkbox" data-flow-pause ${flowPauseBetween?'checked':''}>Pause between</label></div>
@@ -1988,6 +2035,7 @@ function render() {
       <div class="tiny">Workflow stages are stored prompt text. Ghost advances only the stored index after the exact terminal marker.</div>
     </div>
     <div class="pane ${S.tab==='prompt'?'show':''}" data-pane="prompt">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">◈</span><div><b>Personas</b><span class="tiny">AI behavior and committee</span></div></div>
       <div class="row"><label><input type="checkbox" data-committee ${committeeOn?'checked':''}>Committee</label><label><input type="checkbox" data-committee-each ${committeePerTask?'checked':''}>Every step</label><label><input type="checkbox" data-committee-review ${committeeFinalReview?'checked':''}>Final review</label></div>
       ${committeeOn?'<div class="personGrid">'+Object.entries(allPersonas()).filter(([id])=>id!=='none').map(([id,p])=>'<label><input type="checkbox" data-persona-check="'+esc(id)+'" '+(personaIds.includes(id)?'checked':'')+'>'+esc(p.label)+(p.custom?' ★':'')+'</label>').join('')+'</div>':'<label style="display:block;margin-top:5px"><span class="tiny">Persona</span><select data-persona style="width:100%;margin-top:3px">'+Object.entries(allPersonas()).map(([id,p])=>'<option value="'+esc(id)+'" '+(personaId===id?'selected':'')+'>'+esc(p.label)+(p.custom?' · custom':'')+'</option>').join('')+'</select></label>'}
       <label style="display:block;margin-top:5px"><span class="tiny">Workflow</span><select data-workflow style="width:100%;margin-top:3px">${Object.entries(allWorkflows()).map(([id,w])=>'<option value="'+esc(id)+'" '+(workflowId===id?'selected':'')+'>'+esc(w.label)+(w.custom?' · custom':'')+'</option>').join('')}</select></label>
@@ -1997,12 +2045,14 @@ function render() {
       ${workshopOpen?'<div class="helpbox"><b>Custom personas/workflows</b><br>Paste a Ghost Workshop JSON bundle. Imports are additive; built-ins cannot be replaced.<textarea data-workshop-text rows="5" placeholder="{ &quot;schema&quot;: &quot;gitl-workshop/1&quot;, ... }" style="width:100%;margin-top:6px"></textarea><div class="row" style="margin-top:5px"><button data-a="workshop-import">Import</button><button data-a="workshop-copy">Copy custom JSON</button></div></div>':''}
     </div>
     <div class="pane ${S.tab==='aoa'?'show':''}" data-pane="aoa">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">✧</span><div><b>Agents of AI</b><span class="tiny">Protocol options</span></div></div>
       <div class="grid">${Object.entries(ACT).map(([k,v])=>`<label><input type="checkbox" data-act="${k}" ${ON[k]?'checked':''}>${esc(v[0])}</label>`).join('')}</div>
       <div class="tiny">Optional protocols stay external. Ghost points the AI to their canonical source; Play transport does not change.</div>
       <input data-custom type="text" placeholder="AoA path, e.g. personas/compass.md" value="${esc(custom)}" style="margin-top:6px">
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
-      <div class="row"><button data-a="copy">Copy MD</button><button data-a="md">Save MD</button><button data-a="json">Save JSON</button></div>
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇩</span><div><b>Export</b><span class="tiny">Save conversation and projects</span></div></div>
+      <div class="g-action-well"><div class="g-section-label">SAVE CONVERSATION</div><div class="row"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD</button><button data-a="json">Save JSON</button></div></div>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
@@ -2016,9 +2066,10 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
+      <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
       <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
       <div class="tiny">Accent</div>
@@ -2055,7 +2106,7 @@ function render() {
   }
   panel.dataset.renderedTab=S.tab;
   if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab = btn.dataset.tab; mobileMoreOpen=false; GM_setValue('v9.tab', S.tab); render(); }));
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); }));
   panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
   panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });

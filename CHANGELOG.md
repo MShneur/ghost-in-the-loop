@@ -1,5 +1,17 @@
 # Changelog
 
+## [9.0.1-alpha.10] — v8-inspired UX hierarchy and navigation clarity
+
+- Restored restrained midnight-blue Classic skin, layered header and subtle active-state glyphs from older v8 skin principles (pure CSS; reduced-motion safe).
+- The primary menu now contains Run, Auto, Export and More. More reveals distinct Flow, Personas, AoA and Setup destinations, not competing actions.
+- Each page has a clear title, semantic symbol and context; Run controls live within Run and export actions within Export.
+- Subtle separators, accented active navigation and native advanced accordions improve scanning and discoverability.
+- Corrected root panel box-sizing, fixing previously reproduced 6–9 px offscreen overflow in browser tests.
+- Preserve all existing feature handlers, thirteen skins, server-history export and one-Send authority. No new dependencies or network permissions.
+- UX method lenses: GitHub Primer (tabs + emphasis), Radix Primitives (accessible progressive disclosure), WXT extension surface separation; public implementations only, no claim of private code access or external participation.
+- Chromium mobile-size smoke checks 320x568, 360x640, 390x844 and 1000x800 pass; authenticated Firefox Android field proof remains pending.
+
+
 ## [9.0.1-alpha.9] — compact mobile shell and low-cost live status
 
 - Inspired by the historical Ghost v8 compact scroll-body and dock; all 13 skins and existing functionality preserved.
