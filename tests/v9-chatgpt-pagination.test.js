@@ -8,7 +8,8 @@ const response=(body,status=200)=>({ok:status>=200&&status<300,status,json:async
 function loader(fetch){
   const ctx={fetch,AbortController,setTimeout,clearTimeout,encodeURIComponent,HOST:{id:'chatgpt'},exportRaw:false,
     asText:v=>typeof v==='string'?v:Array.isArray(v)?v.filter(x=>typeof x==='string').join('\n'):'',
-    visibleThinkingFrom:()=>'',exportReason:(n)=>'HTTP '+n,log:()=>{},sleep:async()=>{}};
+    visibleThinkingFrom:()=>'',exportReason:(n)=>'HTTP '+n,log:()=>{},sleep:async()=>{},
+    recoveryCancelled:()=>false,recoveryNotice:()=>{},exportRecovery:null,recoveryCheckpoint:async()=>{}};
   vm.createContext(ctx);vm.runInContext(code,ctx);return ctx.captureChatGPTPages;
 }
 describe('ChatGPT modern paginated history (isolated read-only)',()=>{
