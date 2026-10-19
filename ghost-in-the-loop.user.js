@@ -255,7 +255,7 @@ let skinId = String(GM_getValue('v9.skin', 'classic') || 'classic');
 if (!SKINS[skinId]) skinId = 'classic';
 let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
 if (!(accentId in ACCENTS)) accentId = 'auto';
-let quickStartOpen = !GM_getValue('v9.quickStartSeen', false);
+let quickStartOpen = false; // Discoverable through Setup > Extras; not a persistent first-run obstruction.
 let helpOpen = false;
 let panelCollapsed = !!GM_getValue('v9.panelCollapsed', false);
 let mobileMoreOpen=false;
@@ -2085,7 +2085,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
