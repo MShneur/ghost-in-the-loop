@@ -1,0 +1,709 @@
+{
+  "surveyDate": "2026-10-18",
+  "query": "chatgpt exporter in:name,description",
+  "sort": "relevance (GitHub connector; results not necessarily ranked by stars)",
+  "sampleSize": 100,
+  "method": "Metadata landscape only. Not 100 source audits. Includes false positives and non-ChatGPT exporters.",
+  "entries": [
+    {
+      "rank": 1,
+      "repository": "pionxzh/chatgpt-exporter",
+      "url": "https://github.com/pionxzh/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 2,
+      "repository": "rashidazarang/chatgpt-chat-exporter",
+      "url": "https://github.com/rashidazarang/chatgpt-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 3,
+      "repository": "huhusmang/ChatGPT-Exporter",
+      "url": "https://github.com/huhusmang/ChatGPT-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 4,
+      "repository": "starmiaoa/chatgpt-register-k12",
+      "url": "https://github.com/starmiaoa/chatgpt-register-k12",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 5,
+      "repository": "EpochTX/ChatGPT_Exporter",
+      "url": "https://github.com/EpochTX/ChatGPT_Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 6,
+      "repository": "maowuzz/chatgpt-session-forge",
+      "url": "https://github.com/maowuzz/chatgpt-session-forge",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 7,
+      "repository": "Hugo-COLLIN/SaveMyPhind-conversation-exporter",
+      "url": "https://github.com/Hugo-COLLIN/SaveMyPhind-conversation-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 8,
+      "repository": "revivalstack/ai-chat-exporter",
+      "url": "https://github.com/revivalstack/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 9,
+      "repository": "ha0xin/chatgpt-multimodal-exporter",
+      "url": "https://github.com/ha0xin/chatgpt-multimodal-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 10,
+      "repository": "FdezRomero/chatgpt-exporter",
+      "url": "https://github.com/FdezRomero/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 11,
+      "repository": "yyy-OPS/Universal-AI-Chat-Exporter-ChatGPT-Gemini-Grok-",
+      "url": "https://github.com/yyy-OPS/Universal-AI-Chat-Exporter-ChatGPT-Gemini-Grok-",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 12,
+      "repository": "jwenwen233/ChatGPTTokenBatchExporter",
+      "url": "https://github.com/jwenwen233/ChatGPTTokenBatchExporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 13,
+      "repository": "ezwep/chatgpt-exporter",
+      "url": "https://github.com/ezwep/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 14,
+      "repository": "maks-bond/chatgpt-conversation-exporter",
+      "url": "https://github.com/maks-bond/chatgpt-conversation-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 15,
+      "repository": "OwlCt/ChatGPT-Export",
+      "url": "https://github.com/OwlCt/ChatGPT-Export",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 16,
+      "repository": "VMSTE/chatgpt-exporter",
+      "url": "https://github.com/VMSTE/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 17,
+      "repository": "TheLatestNow/chatgpt-exporter",
+      "url": "https://github.com/TheLatestNow/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 18,
+      "repository": "TheBluCoder/AI-chat-exporter",
+      "url": "https://github.com/TheBluCoder/AI-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 19,
+      "repository": "thiscantbeserious/chatgpt-exporter",
+      "url": "https://github.com/thiscantbeserious/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 20,
+      "repository": "ganyuke/copilot-exporter",
+      "url": "https://github.com/ganyuke/copilot-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 21,
+      "repository": "Covai-Labs/ace",
+      "url": "https://github.com/Covai-Labs/ace",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 22,
+      "repository": "PerceptivePenguin/GPT-exporter",
+      "url": "https://github.com/PerceptivePenguin/GPT-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 23,
+      "repository": "pinguarmy/ai-chat-exporter",
+      "url": "https://github.com/pinguarmy/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 24,
+      "repository": "0-V-linuxdo/ChatGPT-Universal-Exporter-Plus",
+      "url": "https://github.com/0-V-linuxdo/ChatGPT-Universal-Exporter-Plus",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 25,
+      "repository": "Abzaek/chat-exporter",
+      "url": "https://github.com/Abzaek/chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 26,
+      "repository": "ingo/m365-copilot-chat-exporter",
+      "url": "https://github.com/ingo/m365-copilot-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 27,
+      "repository": "Kin-Zhang/anychat-exporter",
+      "url": "https://github.com/Kin-Zhang/anychat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 28,
+      "repository": "Kirito-Elucidator/ChatGPT-Exporter",
+      "url": "https://github.com/Kirito-Elucidator/ChatGPT-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 29,
+      "repository": "nathanspear/ChatVault-Exporter-Chrome-Extension",
+      "url": "https://github.com/nathanspear/ChatVault-Exporter-Chrome-Extension",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 30,
+      "repository": "Via-wan/chatgpt-trail-exporter",
+      "url": "https://github.com/Via-wan/chatgpt-trail-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 31,
+      "repository": "Agelakz/universal-ai-chat-exporter",
+      "url": "https://github.com/Agelakz/universal-ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 32,
+      "repository": "loucdg/chatgpt-forensic-exporter",
+      "url": "https://github.com/loucdg/chatgpt-forensic-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 33,
+      "repository": "nextclaw/chat-exporter-extension",
+      "url": "https://github.com/nextclaw/chat-exporter-extension",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 34,
+      "repository": "kirisawa-subaru/chatgpt-local-exporter",
+      "url": "https://github.com/kirisawa-subaru/chatgpt-local-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 35,
+      "repository": "withLinda/Chatgpt-conversations-exporter",
+      "url": "https://github.com/withLinda/Chatgpt-conversations-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 36,
+      "repository": "vrizo/chatgpt-bulk-exporter",
+      "url": "https://github.com/vrizo/chatgpt-bulk-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 37,
+      "repository": "piEsposito/chatgpt-conversation-exporter",
+      "url": "https://github.com/piEsposito/chatgpt-conversation-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 38,
+      "repository": "vincze-tamas/chatgpt-exporter",
+      "url": "https://github.com/vincze-tamas/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 39,
+      "repository": "AlexJJ009/ChatGPT-Universal-Exporter",
+      "url": "https://github.com/AlexJJ009/ChatGPT-Universal-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 40,
+      "repository": "webwizarts/chatgpt-exporter",
+      "url": "https://github.com/webwizarts/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 41,
+      "repository": "TideKnight/voxcat-chatgpt-prompt-eagle-exporter",
+      "url": "https://github.com/TideKnight/voxcat-chatgpt-prompt-eagle-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 42,
+      "repository": "DREwX-code/omnichat-exporter",
+      "url": "https://github.com/DREwX-code/omnichat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 43,
+      "repository": "Tor-Production/session-exporter",
+      "url": "https://github.com/Tor-Production/session-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 44,
+      "repository": "doobidoo/ChatExporter",
+      "url": "https://github.com/doobidoo/ChatExporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 45,
+      "repository": "lrq3000/chatgpt-thread-exporter",
+      "url": "https://github.com/lrq3000/chatgpt-thread-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 46,
+      "repository": "devcxl/chatgpt-markdown-exporter",
+      "url": "https://github.com/devcxl/chatgpt-markdown-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 47,
+      "repository": "parklabo/chatgpt-pdf-exporter",
+      "url": "https://github.com/parklabo/chatgpt-pdf-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 48,
+      "repository": "otaliptus/chatgpt-markdown-exporter",
+      "url": "https://github.com/otaliptus/chatgpt-markdown-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 49,
+      "repository": "tiiiiiimmy/chatgpt-easyuse-exporter",
+      "url": "https://github.com/tiiiiiimmy/chatgpt-easyuse-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 50,
+      "repository": "jcorcione/chat-conversation-exporter",
+      "url": "https://github.com/jcorcione/chat-conversation-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 51,
+      "repository": "nuncaeslupus/ai-chat-exporter",
+      "url": "https://github.com/nuncaeslupus/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 52,
+      "repository": "laananed/ChatGPT_Images_Exporter",
+      "url": "https://github.com/laananed/ChatGPT_Images_Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 53,
+      "repository": "stack2030/chatgpt-web-chat-conversation-exporter-chrome-extension",
+      "url": "https://github.com/stack2030/chatgpt-web-chat-conversation-exporter-chrome-extension",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 54,
+      "repository": "therajatjain/ai-chat-exporter",
+      "url": "https://github.com/therajatjain/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 55,
+      "repository": "WebDevBooster/gpt-exporter",
+      "url": "https://github.com/WebDevBooster/gpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 56,
+      "repository": "stack2030/chatgpt-web-chat-conversation-exporter",
+      "url": "https://github.com/stack2030/chatgpt-web-chat-conversation-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 57,
+      "repository": "qpwm06/chatgpt-deep-research-md-exporter",
+      "url": "https://github.com/qpwm06/chatgpt-deep-research-md-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 58,
+      "repository": "24kchengYe/chatgpt-exporter",
+      "url": "https://github.com/24kchengYe/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 59,
+      "repository": "jonesr23/chatgpt-exporter",
+      "url": "https://github.com/jonesr23/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 60,
+      "repository": "TomSchmidtDev/browser-ai-chat-exporter",
+      "url": "https://github.com/TomSchmidtDev/browser-ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 61,
+      "repository": "14790897/chatgpt-exporter",
+      "url": "https://github.com/14790897/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 62,
+      "repository": "H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter",
+      "url": "https://github.com/H0llyW00dzZ/ChatGPT-Next-Web-Session-Exporter",
+      "archived": true,
+      "visibility": "public"
+    },
+    {
+      "rank": 63,
+      "repository": "camillanapoles/lyra-exporter",
+      "url": "https://github.com/camillanapoles/lyra-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 64,
+      "repository": "stack2030/claude-and-chatgpt-web-chat-conversation-exporter-chrome-extension",
+      "url": "https://github.com/stack2030/claude-and-chatgpt-web-chat-conversation-exporter-chrome-extension",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 65,
+      "repository": "Romandredan/1c-metadata-json-exporter",
+      "url": "https://github.com/Romandredan/1c-metadata-json-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 66,
+      "repository": "akivacp/chatgpt-multiverse-exporter",
+      "url": "https://github.com/akivacp/chatgpt-multiverse-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 67,
+      "repository": "XiaoWeiKIN/chatgpt-md-exporter",
+      "url": "https://github.com/XiaoWeiKIN/chatgpt-md-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 68,
+      "repository": "Nishu2000-hub/Chatgpt_Chat_Exporter",
+      "url": "https://github.com/Nishu2000-hub/Chatgpt_Chat_Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 69,
+      "repository": "fallingduck/chatGPT-exporter",
+      "url": "https://github.com/fallingduck/chatGPT-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 70,
+      "repository": "OfflineKitty/OfflineKitty",
+      "url": "https://github.com/OfflineKitty/OfflineKitty",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 71,
+      "repository": "alejandrofonsecacuza/chat2pdf-exporter",
+      "url": "https://github.com/alejandrofonsecacuza/chat2pdf-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 72,
+      "repository": "xvfeiran/ChatExporter",
+      "url": "https://github.com/xvfeiran/ChatExporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 73,
+      "repository": "mubaiblake/chatgpt-exporter-auto-sync",
+      "url": "https://github.com/mubaiblake/chatgpt-exporter-auto-sync",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 74,
+      "repository": "praphulln19/Ai-Chat-Exporter",
+      "url": "https://github.com/praphulln19/Ai-Chat-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 75,
+      "repository": "richizo/ai-chat-exporter",
+      "url": "https://github.com/richizo/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 76,
+      "repository": "FreightTrain20/ChatGPT-Chat-LM-Studio-Exporter",
+      "url": "https://github.com/FreightTrain20/ChatGPT-Chat-LM-Studio-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 77,
+      "repository": "jaybird1291/anki-llm-review-stats-exporter",
+      "url": "https://github.com/jaybird1291/anki-llm-review-stats-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 78,
+      "repository": "kitomisaitichi-design/chatgpt-exporter",
+      "url": "https://github.com/kitomisaitichi-design/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 79,
+      "repository": "RobertDaleSmith/twitter-comment-exporter",
+      "url": "https://github.com/RobertDaleSmith/twitter-comment-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 80,
+      "repository": "0xenzyme/ai-chat-exporter",
+      "url": "https://github.com/0xenzyme/ai-chat-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 81,
+      "repository": "MatrixRanger98/robust-chatgpt-exporter-by-chatgpt",
+      "url": "https://github.com/MatrixRanger98/robust-chatgpt-exporter-by-chatgpt",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 82,
+      "repository": "aryanbk/chat_md",
+      "url": "https://github.com/aryanbk/chat_md",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 83,
+      "repository": "lij3785/unused_chatgpt-exporter",
+      "url": "https://github.com/lij3785/unused_chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 84,
+      "repository": "patrikwm/app-chatgpt-exporter",
+      "url": "https://github.com/patrikwm/app-chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 85,
+      "repository": "asimihsan/chatgpt-exporter",
+      "url": "https://github.com/asimihsan/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 86,
+      "repository": "evgenykochetkov/chatgpt-exporter",
+      "url": "https://github.com/evgenykochetkov/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 87,
+      "repository": "peterparker1718/chatgpt-exporter",
+      "url": "https://github.com/peterparker1718/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 88,
+      "repository": "gogothegogo/Simple-exporter-for-LLM",
+      "url": "https://github.com/gogothegogo/Simple-exporter-for-LLM",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 89,
+      "repository": "tyhallcsu/chatgpt-exporter-fix",
+      "url": "https://github.com/tyhallcsu/chatgpt-exporter-fix",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 90,
+      "repository": "youngcoder45/Discord-Server-Exporter-Bot",
+      "url": "https://github.com/youngcoder45/Discord-Server-Exporter-Bot",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 91,
+      "repository": "Awa01ok/ChatVault-Exporter",
+      "url": "https://github.com/Awa01ok/ChatVault-Exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 92,
+      "repository": "Liksu/llm-chat-exporter-extension",
+      "url": "https://github.com/Liksu/llm-chat-exporter-extension",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 93,
+      "repository": "andrevdmerwe/conCEde",
+      "url": "https://github.com/andrevdmerwe/conCEde",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 94,
+      "repository": "wubq511/chatgpt-exporter",
+      "url": "https://github.com/wubq511/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 95,
+      "repository": "christian3107/chatgpt-exporter",
+      "url": "https://github.com/christian3107/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 96,
+      "repository": "letheli710/chatgpt-exporter",
+      "url": "https://github.com/letheli710/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 97,
+      "repository": "bogdan00/chatgpt_exporter",
+      "url": "https://github.com/bogdan00/chatgpt_exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 98,
+      "repository": "osaki-io/chatgpt-exporter",
+      "url": "https://github.com/osaki-io/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 99,
+      "repository": "Slight-Cloud/chatgpt-exporter",
+      "url": "https://github.com/Slight-Cloud/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    },
+    {
+      "rank": 100,
+      "repository": "Craigmoore/chatgpt-exporter",
+      "url": "https://github.com/Craigmoore/chatgpt-exporter",
+      "archived": false,
+      "visibility": "public"
+    }
+  ]
+}
