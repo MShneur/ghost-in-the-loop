@@ -8,7 +8,8 @@ const response=(body,status=200)=>({ok:status>=200&&status<300,status,json:async
 function loader(fetch){
   const ctx={fetch,AbortController,setTimeout,clearTimeout,encodeURIComponent,HOST:{id:'chatgpt'},exportRaw:false,
     asText:v=>typeof v==='string'?v:Array.isArray(v)?v.filter(x=>typeof x==='string').join('\n'):'',
-    visibleThinkingFrom:()=>'',exportReason:(n)=>'HTTP '+n,log:()=>{},sleep:async()=>{}};
+    visibleThinkingFrom:()=>'',exportReason:(n)=>'HTTP '+n,log:()=>{},sleep:async()=>{},
+    recoveryCancelled:()=>false,recoveryNotice:()=>{},exportRecovery:null,recoveryCheckpoint:async()=>{}};
   vm.createContext(ctx);vm.runInContext(code,ctx);return ctx.captureChatGPTPages;
 }
 describe('ChatGPT modern paginated history (isolated read-only)',()=>{
@@ -50,7 +51,7 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
   test('mobile DOM adaptation and bounded fallback exist without changing Send',()=>{
     expect(src).toContain("document.querySelector('[data-scroll-root]')");
     expect(src).toContain("section[data-turn=\"user\"],section[data-turn=\"assistant\"]");
-    expect(src).toContain('for(passes=0;passes<96;passes++)');
+    expect(src).toContain('for(passes=0;passes<900&&Date.now()-started<240000;passes++)');
     const exportSection=src.slice(src.indexOf('async function captureExport(){'),src.indexOf('function markdown(cap)'));
     expect(exportSection).toContain('if(api?.turns?.length&&api.proof?.pages)');
     expect(exportSection).not.toContain('sendOnce(');

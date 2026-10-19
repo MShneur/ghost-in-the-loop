@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.1-alpha.11] — observable long-chat recovery and named exports
+
+- Ghost recovers history with an accessible dimmed progress overlay: Pause/Resume, Cancel without saving and explicitly labeled Save Partial.
+- Authenticated paged history exposes page/message progress. DOM fallback can continue for up to 900 passes / four minutes, stopping on no progress or cancellation.
+- The fallback restores the original scroll position. No background hidden desktop tab or browser user-agent spoofing is claimed.
+- New export filenames include GITL, platform, selected Project Vault name when available, sanitized readable title, conversation ID suffix, UTC timestamp, and FULL/PARTIAL.
+- Markdown headers include the export provenance; minimal CSS-only ghost motion respects reduced-motion preference.
+- Registry includes 100 GitHub repository search-result metadata records (not 100 code audits); a read-only Oracle-capable radar watches seven directly relevant upstream implementations for possible updates.
+- Browser simulation does not verify complete authenticated Firefox Android conversations. This release does not claim that 951 recovered turns are the complete conversation.
+
+
 ## [9.0.1-alpha.10] — v8-inspired UX hierarchy and navigation clarity
 
 - Restored restrained midnight-blue Classic skin, layered header and subtle active-state glyphs from older v8 skin principles (pure CSS; reduced-motion safe).
