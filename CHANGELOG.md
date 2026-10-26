@@ -1,5 +1,14 @@
 # Changelog
 
+## [9.0.17] — AA state visibility and closed-shadow diagnosis
+
+- Ghost header and minimized rail now show a pulsing AA marker when Auto-Approve is enabled; amber **AA!** warns that opaque ChatGPT widgets may conceal permission controls.
+- Auto tab now differentiates scanning from limited/inaccessible. The checkbox alone no longer claims successful automatic approval.
+- Fixed misleading ACTIVE status in session controls. A click-attempt count is not an accepted permission grant.
+- A real field capture exposed tool-approval controls inside a closed Shadow DOM component. The previous page-level detector could not access them, so the closed-shadow limitation remains UNSOLVED in Tampermonkey; no bypass or automatic grant is claimed.
+- Preserve all seven tabs, one-Send chat transport, export, loop counter and DOM-remount recovery. Native Firefox Android approval behavior still needs operator verification.
+
+
 ## [9.0.16] — Auto-Approve toggle (opt-in, field-test release)
 
 - Auto tab now includes a prominent **Auto-Approve · ON/OFF** checkbox; OFF on every page load. This does not depend on Ghost Play/Proceed.

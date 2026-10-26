@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop 9.0.16
+# 👻 Ghost in the Loop 9.0.17
 
 Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning, planning, committees, and decisions.
 
@@ -43,9 +43,9 @@ Model Relay uses the corresponding `[[AOA::...]]` controls.
 
 ## Version identity
 
-- Userscript/npm: **9.0.16**
+- Userscript/npm: **9.0.17**
 - WebExtension numeric version: **9.0.1**
-- WebExtension display version: **9.0.16**
+- WebExtension display version: **9.0.17**
 - Stable update/download channel: `main`
 
 The extension runtime is generated from `ghost-in-the-loop.user.js`.
@@ -53,3 +53,5 @@ The extension runtime is generated from `ghost-in-the-loop.user.js`.
 ## Evidence boundary
 
 Synthetic/browser E3 covers the restored shell and mechanical Queue/Roadmap/Flow behavior. Real Firefox Android + authenticated ChatGPT/Perplexity use remains the field-evidence layer; a host-specific failure should be reported through **Copy report** and repaired without adding a second Send architecture.
+
+**Auto-Approve limitation (9.0.17):** The header AA indicator pulses while enabled and shows AA! when inaccessible ChatGPT components are detected. Current ChatGPT permission cards can be rendered inside closed Shadow DOM; a Tampermonkey userscript cannot reliably access/click these controls. The auto-click mode is not certified for these cards; the toggle alone is not evidence of success.

@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.16';
+const VER = '9.0.17';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -2015,6 +2015,14 @@ style.textContent += `
 #gitl9 .g-approval-toggle b{font-size:14px!important;color:var(--g-accent)}
 #gitl9 .g-approval-warning{opacity:.76;line-height:1.45;margin-top:5px}
 `;
+style.textContent += `
+/* AA state is not proof of a permission grant. */
+#gitl9 .g-aa-badge{display:none;align-items:center;justify-content:center;margin-left:6px;padding:2px 5px;border-radius:6px;font:800 10px/1.4 system-ui,sans-serif;letter-spacing:.03em;color:#10231a;background:#66d492}
+#gitl9 .g-aa-badge.is-on{display:inline-flex;animation:gitl-aa-pulse 1.5s ease-in-out infinite}
+#gitl9 .g-aa-badge.is-limited{background:#fbbf24;color:#302100}
+@keyframes gitl-aa-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.65;transform:scale(1.06)}}
+@media(prefers-reduced-motion:reduce){#gitl9 .g-aa-badge.is-on{animation:none}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2121,6 +2129,11 @@ const approvalClickedButtons = new WeakSet();
 let approvalScanScheduled = false;
 let approvalObserver = null;
 let approvalLastClickAt = 0;
+let approvalOpacityWarned = false;
+function inaccessibleChatWidgets() {
+  // An opaque component is a warning, not proof of a pending approval.
+  return Array.from(document.querySelectorAll('dil-renderer')).some(host => !host.shadowRoot);
+}
 function approvalCardCandidates() {
   const found = [];
   for (const heading of document.querySelectorAll('h3')) {
@@ -2142,6 +2155,11 @@ function approvalCardCandidates() {
 }
 function approvalScan() {
   if (!approvalWatchOn) return;
+  if (autoApproveOn && inaccessibleChatWidgets() && !approvalOpacityWarned) {
+    approvalOpacityWarned = true;
+    S.detail = 'AA LIMITED: ChatGPT components are opaque. Closed Shadow DOM approval buttons cannot be accessed here.';
+    render();
+  }
   for (const card of approvalCardCandidates()) {
     if (!approvalSeenCards.has(card)) {
       approvalSeenCards.add(card);
@@ -2197,14 +2215,19 @@ function setAutoApprove(enabled) {
   const chatgpt = location.hostname === 'chatgpt.com' || location.hostname === 'chat.openai.com';
   autoApproveOn = Boolean(enabled) && chatgpt;
   if (autoApproveOn && !approvalWatchOn) setApprovalWatch(true);
+  if (!autoApproveOn) approvalOpacityWarned = false;
   S.detail = autoApproveOn
-    ? 'Auto-Approve ACTIVE. Ghost will click matching tool-permission Approve buttons.'
+    ? 'AA ON: monitoring accessible approval cards. Closed Shadow DOM is inaccessible.'
     : enabled ? 'Auto-Approve is available on ChatGPT only.' : 'Auto-Approve OFF.';
   render();
   if (autoApproveOn) scheduleApprovalScan();
 }
 
 function render() {
+  const aaLimited = autoApproveOn && inaccessibleChatWidgets();
+  const aaTitle = aaLimited
+    ? 'AA ON but limited: some ChatGPT components conceal their approval buttons.'
+    : 'AA ON: monitoring accessible approval cards; click attempts are not confirmed grants.';
   const wasCollapsed=panel.classList.contains('collapsed');
   panel.classList.toggle('collapsed',panelCollapsed);
   panel.classList.toggle('more-open',mobileMoreOpen);
@@ -2213,8 +2236,8 @@ function render() {
   const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
   const moreActive=!!moreLabels[S.tab];
   const markup = `
-    <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
-    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
@@ -2243,7 +2266,7 @@ function render() {
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▤</span><div><b>Auto</b><span class="tiny">Prompt queues and roadmap</span></div></div>
       <div class="g-approval-mode" aria-label="Ghost Auto-Approve controls">
         <label class="g-approval-toggle"><input type="checkbox" data-auto-approve ${autoApproveOn?'checked':''}><span><b>Auto-Approve · ${autoApproveOn?'ON':'OFF'}</b><span class="tiny">Automatically press Approve when a ChatGPT tool-permission popup appears.</span></span></label>
-        <div class="tiny">Clicks attempted this session: ${approvalClickCount} · Prompts detected: ${approvalSeenCount}</div>
+        <div class="tiny">AA status: ${autoApproveOn?(aaLimited?'LIMITED · ChatGPT may hide approval controls.':'SCANNING · Awaiting an accessible permission card.'):'OFF'} · Click attempts: ${approvalClickCount} · Prompts detected: ${approvalSeenCount}</div>
         <div class="tiny g-approval-warning">OFF by default. When ON, actions may access private data or modify connected services. Enable only for a task and tools you trust. Ghost cannot guarantee a click is accepted by ChatGPT.</div>
       </div>
       <details class="g-accordion" data-g-acc="auto-help"><summary>How Auto works</summary>      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div></details>

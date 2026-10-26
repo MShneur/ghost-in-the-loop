@@ -36,7 +36,7 @@ describe('Ghost 9.0.16 opt-in Auto-Approve',()=>{
      p.querySelector('[data-auto-approve]').click();
      await sleep(w,250);
      expect(clicks).toBe(1);
-     expect(p.textContent).toContain('Clicks attempted this session: 1');
+     expect(p.textContent).toContain('Click attempts: 1');
      expect(p.querySelector('[data-auto-approve]').checked).toBe(true);
    }finally{close();}
  });

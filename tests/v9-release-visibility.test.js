@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-describe('Ghost 9.0.16 live-visibility contract',()=>{
+describe('Ghost 9.0.17 live-visibility contract',()=>{
   test('loop status is explicit in full panel and collapsed rail',()=>{
     expect(src).toContain('data-live-step');
     expect(src).toContain('data-rail-round');
@@ -26,11 +26,19 @@ describe('Ghost 9.0.16 live-visibility contract',()=>{
     expect(src).toContain("approve.click();");
     expect(src).toContain("approvalClickedButtons.add(approve)");
     expect(src).toContain("panel.querySelector('[data-auto-approve]')");
-    expect(src).toContain('Ghost will click matching tool-permission Approve buttons');
+    expect(src).toContain('AA ON: monitoring accessible approval cards');
+  });
+  test('AA badge is visible in header and mobile rail and warns about opaque ChatGPT widgets',()=>{
+    expect(src).toContain('function inaccessibleChatWidgets()');
+    expect(src).toContain("querySelectorAll('dil-renderer')");
+    expect(src).toContain('g-aa-badge');
+    expect(src).toContain("aaLimited?'AA!':'AA'");
+    expect(src).toContain('Closed Shadow DOM approval buttons cannot be accessed here.');
+    expect(src).toContain('AA status:');
   });
   test('stable three-component Tampermonkey version and main update channel',()=>{
-    expect(src).toContain('// @version      9.0.16');
-    expect(src).toContain("const VER = '9.0.16'");
+    expect(src).toContain('// @version      9.0.17');
+    expect(src).toContain("const VER = '9.0.17'");
     expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js');
   });
 });
