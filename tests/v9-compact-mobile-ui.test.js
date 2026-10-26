@@ -122,7 +122,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
       expect(p.style.getPropertyValue('--g-bg')).toBe('#0c1024');
       expect(p.style.getPropertyValue('--g-accent')).toBe('#baa5ff');
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
-      expect(p.querySelectorAll('#gitl9 [data-a="play"]')).toHaveLength(1);
+      expect(p.querySelectorAll('[data-a="play"]')).toHaveLength(1);
       picker=p.querySelector('[data-skin]');
       picker.value='classic';
       picker.dispatchEvent(new w.Event('change',{bubbles:true}));
