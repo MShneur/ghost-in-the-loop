@@ -2217,13 +2217,33 @@ let approvalScanScheduled = false;
 let approvalObserver = null;
 let approvalLastClickAt = 0;
 let approvalOpacityWarned = false;
+function approvalAccessibleRoot(host) {
+  // Firefox extension contexts expose even a closed root using a read-only
+  // browser DOM accessor; normal webpage JavaScript still cannot see it.
+  try {
+    return host.shadowRoot || host.openOrClosedShadowRoot ||
+      (typeof browser !== 'undefined' && browser.dom?.openOrClosedShadowRoot?.(host)) ||
+      (typeof chrome !== 'undefined' && chrome.dom?.openOrClosedShadowRoot?.(host)) || null;
+  } catch (_) {
+    return host.shadowRoot || null;
+  }
+}
+function approvalRoots() {
+  const roots = [document], seen = new Set(roots);
+  for (let i = 0; i < roots.length && i < 32; i++) {
+    for (const host of roots[i].querySelectorAll('dil-renderer')) {
+      const root = approvalAccessibleRoot(host);
+      if (root && !seen.has(root)) { seen.add(root); roots.push(root); }
+    }
+  }
+  return roots;
+}
 function inaccessibleChatWidgets() {
-  // An opaque component is a warning, not proof of a pending approval.
-  return Array.from(document.querySelectorAll('dil-renderer')).some(host => !host.shadowRoot);
+  return Array.from(document.querySelectorAll('dil-renderer')).some(host => !approvalAccessibleRoot(host));
 }
 function approvalCardCandidates() {
   const found = [];
-  for (const heading of document.querySelectorAll('h3')) {
+  for (const root of approvalRoots()) for (const heading of root.querySelectorAll('h3')) {
     const title = (heading.textContent || '').trim();
     if (!/\bwants to use\b.{1,180}\bto run\b/i.test(title)) continue;
     let card = heading.parentElement;

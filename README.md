@@ -61,3 +61,8 @@ Synthetic/browser E3 covers the restored shell and mechanical Queue/Roadmap/Flow
 **Auto-Approve limitation (9.0.18):** The header AA indicator pulses while enabled and shows AA! when inaccessible ChatGPT components are detected. Current ChatGPT permission cards can be rendered inside closed Shadow DOM; a Tampermonkey userscript cannot reliably access/click these controls. The auto-click mode is not certified for these cards; the toggle alone is not evidence of success.
 
 **9.0.18:** Auto-Approve delay under Setup (0–30 seconds; 5 seconds default). Per-chat session scope, cancel on OFF or chat change. A closed Shadow DOM approval remains inaccessible to the browser userscript; an attempted click is not proof of permission grant.
+
+## Firefox closed-shadow permission controls
+
+Ghost now attempts Firefox's read-only `openOrClosedShadowRoot` extension accessor when scanning ChatGPT approval cards, in addition to the normal document search. This does **not** change account or site permissions. It requires an extension/userscript execution context that actually exposes the Firefox API; Firefox Android/Tampermonkey availability is not yet field-proven. Enabling Auto-Approve remains session-only, uses the configured 0-30 second delay, and records click **attempts**, not confirmed grants. An unavailable accessor is shown as a limited state. Until field-tested, do not rely on unattended permission acceptance.
+
