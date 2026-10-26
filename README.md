@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop 9.0.17
+# 👻 Ghost in the Loop 9.0.18
 
 Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning, planning, committees, and decisions.
 
@@ -18,7 +18,7 @@ Placement supports right dock, left dock, draggable float, composer-row, and hea
 
 ## Compact mobile UX design gate (proposal, not implemented)
 
-Before creating Ghost mobile reskins or 2×2 agency concepts, read [Compact Embedded Mobile Shell UX PRD](docs/ux/GITL_COMPACT_MOBILE_SHELL_PRD.md). It fixes the v9.0.17 button/tab inventory, host-chat mounting constraints, 334px panel ceiling, named AoA/practitioner method sources, four bounded compact design lanes, and the owner-approval gate. **No UI changes are authorized by this document.**
+Before creating Ghost mobile reskins or 2×2 agency concepts, read [Compact Embedded Mobile Shell UX PRD](docs/ux/GITL_COMPACT_MOBILE_SHELL_PRD.md). It fixes the v9.0.18 button/tab inventory, host-chat mounting constraints, 334px panel ceiling, named AoA/practitioner method sources, four bounded compact design lanes, and the owner-approval gate. **No UI changes are authorized by this document.**
 
 ## Dumb-relay architecture
 
@@ -47,9 +47,9 @@ Model Relay uses the corresponding `[[AOA::...]]` controls.
 
 ## Version identity
 
-- Userscript/npm: **9.0.17**
+- Userscript/npm: **9.0.18**
 - WebExtension numeric version: **9.0.1**
-- WebExtension display version: **9.0.17**
+- WebExtension display version: **9.0.18**
 - Stable update/download channel: `main`
 
 The extension runtime is generated from `ghost-in-the-loop.user.js`.
@@ -58,4 +58,6 @@ The extension runtime is generated from `ghost-in-the-loop.user.js`.
 
 Synthetic/browser E3 covers the restored shell and mechanical Queue/Roadmap/Flow behavior. Real Firefox Android + authenticated ChatGPT/Perplexity use remains the field-evidence layer; a host-specific failure should be reported through **Copy report** and repaired without adding a second Send architecture.
 
-**Auto-Approve limitation (9.0.17):** The header AA indicator pulses while enabled and shows AA! when inaccessible ChatGPT components are detected. Current ChatGPT permission cards can be rendered inside closed Shadow DOM; a Tampermonkey userscript cannot reliably access/click these controls. The auto-click mode is not certified for these cards; the toggle alone is not evidence of success.
+**Auto-Approve limitation (9.0.18):** The header AA indicator pulses while enabled and shows AA! when inaccessible ChatGPT components are detected. Current ChatGPT permission cards can be rendered inside closed Shadow DOM; a Tampermonkey userscript cannot reliably access/click these controls. The auto-click mode is not certified for these cards; the toggle alone is not evidence of success.
+
+**9.0.18:** Auto-Approve delay under Setup (0–30 seconds; 5 seconds default). Per-chat session scope, cancel on OFF or chat change. A closed Shadow DOM approval remains inaccessible to the browser userscript; an attempted click is not proof of permission grant.

@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.17';
+const VER = '9.0.18';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -2122,6 +2122,18 @@ function updateLiveStatus() {
 /* Session-only tool-permission click automation: explicit operator opt-in. */
 let approvalWatchOn = false;
 let autoApproveOn = false;
+let approvalDelaySeconds = Math.max(0,Math.min(30,Number(GM_getValue('v9.approvalDelaySeconds',5))||0));
+let approvalActiveChat = '';
+let approvalPendingTimer = null;
+function clearApprovalTimer(){if(approvalPendingTimer!==null){clearTimeout(approvalPendingTimer);approvalPendingTimer=null;}}
+function setApprovalDelay(value){
+  const parsed=Number(value);
+  approvalDelaySeconds=Number.isFinite(parsed)?Math.max(0,Math.min(30,Math.round(parsed))):5;
+  GM_setValue('v9.approvalDelaySeconds',approvalDelaySeconds);
+  clearApprovalTimer();
+  S.detail='AA delay set to '+approvalDelaySeconds+' seconds';
+  render();if(autoApproveOn)scheduleApprovalScan();
+}
 let approvalSeenCount = 0;
 let approvalClickCount = 0;
 const approvalSeenCards = new WeakSet();
@@ -2155,6 +2167,9 @@ function approvalCardCandidates() {
 }
 function approvalScan() {
   if (!approvalWatchOn) return;
+  if (autoApproveOn && approvalActiveChat !== location.pathname) {
+    clearApprovalTimer();autoApproveOn=false;S.detail='AA OFF: chat changed';render();return;
+  }
   if (autoApproveOn && inaccessibleChatWidgets() && !approvalOpacityWarned) {
     approvalOpacityWarned = true;
     S.detail = 'AA LIMITED: ChatGPT components are opaque. Closed Shadow DOM approval buttons cannot be accessed here.';
@@ -2170,7 +2185,7 @@ function approvalScan() {
         render();
       }
     }
-    if (!autoApproveOn || !card.isConnected) continue;
+    if (!autoApproveOn || !card.isConnected || approvalPendingTimer!==null) continue;
     const buttons = Array.from(card.querySelectorAll('button'));
     const approve = buttons.find(b => (b.textContent || '').trim() === 'Approve');
     if (!approve || approve.disabled || approvalClickedButtons.has(approve)) continue;
@@ -2178,19 +2193,24 @@ function approvalScan() {
       setTimeout(scheduleApprovalScan, 380);
       break;
     }
-    approvalClickedButtons.add(approve);  // Never click the same button twice.
-    approvalLastClickAt = Date.now();
-    try {
-      approve.click(); // Operator-enabled browser UI action, never Ghost Play/Send.
-      approvalClickCount++;
-      S.detail = 'Auto-Approve clicked a permission prompt ('+approvalClickCount+' attempt'+(approvalClickCount===1?'':'s')+').';
-      render();
-    } catch (error) {
-      autoApproveOn = false;
-      S.detail = 'Auto-Approve stopped: click failed. Review the permission prompt.';
-      render();
-    }
-    setTimeout(scheduleApprovalScan, 400);
+    const chatAtDetection=approvalActiveChat;
+    S.detail='AA waiting '+approvalDelaySeconds+' seconds before click';
+    approvalPendingTimer=setTimeout(()=>{
+      approvalPendingTimer=null;
+      if(!autoApproveOn || !approvalWatchOn || location.pathname!==chatAtDetection || !card.isConnected || !approve.isConnected || approve.disabled)return;
+      approvalClickedButtons.add(approve);
+      approvalLastClickAt=Date.now();
+      try{
+        approve.click();
+        approvalClickCount++;
+        S.detail='AA click attempted '+approvalClickCount+' (grant not confirmed)';
+      }catch(error){
+        autoApproveOn=false;
+        S.detail='AA stopped: click failed. Review prompt.';
+      }
+      render();scheduleApprovalScan();
+    },approvalDelaySeconds*1000);
+    render();
     break;
   }
 }
@@ -2201,7 +2221,7 @@ function scheduleApprovalScan() {
 }
 function setApprovalWatch(enabled) {
   approvalWatchOn = Boolean(enabled);
-  if (!approvalWatchOn) autoApproveOn = false;
+  if (!approvalWatchOn) { autoApproveOn = false; clearApprovalTimer(); }
   if (approvalObserver) { approvalObserver.disconnect(); approvalObserver = null; }
   if (approvalWatchOn) {
     approvalObserver = new MutationObserver(scheduleApprovalScan);
@@ -2214,6 +2234,8 @@ function setApprovalWatch(enabled) {
 function setAutoApprove(enabled) {
   const chatgpt = location.hostname === 'chatgpt.com' || location.hostname === 'chat.openai.com';
   autoApproveOn = Boolean(enabled) && chatgpt;
+  clearApprovalTimer();
+  approvalActiveChat = autoApproveOn ? location.pathname : '';
   if (autoApproveOn && !approvalWatchOn) setApprovalWatch(true);
   if (!autoApproveOn) approvalOpacityWarned = false;
   S.detail = autoApproveOn
@@ -2222,6 +2244,8 @@ function setAutoApprove(enabled) {
   render();
   if (autoApproveOn) scheduleApprovalScan();
 }
+// A periodic check complements DOM-change observation for accessible cards and route changes.
+setInterval(() => { if (autoApproveOn) scheduleApprovalScan(); }, 1000);
 
 function render() {
   const aaLimited = autoApproveOn && inaccessibleChatWidgets();
@@ -2321,6 +2345,8 @@ function render() {
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
       <details class="g-accordion" data-g-acc="settings-approval"><summary>Approval controls · ${autoApproveOn?'AUTO ON':approvalWatchOn?'WATCH ON':'OFF'}</summary>
       <label><input type="checkbox" data-approval-watch ${approvalWatchOn?'checked':''}>Detect tool permission requests</label>
+      <label class="row">Auto-Approve delay (seconds) <input type="number" data-approval-delay min="0" max="30" step="1" value="${approvalDelaySeconds}" style="width:70px" aria-label="Auto-Approve delay seconds"></label>
+      <div class="tiny">5 seconds by default. Set 0 for no delay or up to 30.</div>
       <div class="tiny">Auto-Approve ON/OFF is in the Auto tab. Detected: ${approvalSeenCount} · Clicks attempted: ${approvalClickCount}.</div>
       </details>
       <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
@@ -2378,6 +2404,7 @@ function render() {
   panel.querySelector('[data-a="reset-look"]')?.addEventListener('click', () => { skinId = 'classic'; accentId = 'auto'; GM_setValue('v9.skin', skinId); GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Appearance reset.'; render(); });
   panel.querySelector('[data-approval-watch]')?.addEventListener('change', e => setApprovalWatch(!!e.target.checked));
   panel.querySelector('[data-auto-approve]')?.addEventListener('change', e => setAutoApprove(!!e.target.checked));
+  panel.querySelector('[data-approval-delay]')?.addEventListener('change', e => setApprovalDelay(e.target.value));
   panel.querySelector('[data-sound]')?.addEventListener('change', e => { soundOn = !!e.target.checked; GM_setValue('v9.soundOn', soundOn); S.detail = soundOn ? 'Sound cues enabled.' : 'Sound cues off.'; render(); });
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });

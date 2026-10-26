@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.18] — adjustable approval delay (browser-only)
+
+- Auto tab retains its explicit session-only Auto-Approve switch, OFF by default, with separate Ghost Play/Proceed behavior.
+- Setup → Approval controls now offers a 0–30-second delay, default 5 seconds; saved across reloads while auto-approval itself remains OFF on reload.
+- A pending approval timer cancels when switched OFF, detection is disabled, the chat changes, or the delay is changed. A button is marked attempted only after the timer fires, avoiding false duplicate suppression on cancellation.
+- Existing accessible approval cards can be clicked once after the selected delay. Click attempts are not confirmed permission grants.
+- The actual closed Shadow DOM approval prompts in recent Firefox Android captures remain inaccessible to this userscript. No claim that these prompts auto-approve; no APK or companion.
+- Preserves all seven visible tabs, existing skins, reports, loop counter, UI remount recovery, and at-most-once chat Send transport.
+- Android Firefox permission-flow acceptance: NOT VERIFIED.
+
+
 ## [9.0.17] — AA state visibility and closed-shadow diagnosis
 
 - Ghost header and minimized rail now show a pulsing AA marker when Auto-Approve is enabled; amber **AA!** warns that opaque ChatGPT widgets may conceal permission controls.
