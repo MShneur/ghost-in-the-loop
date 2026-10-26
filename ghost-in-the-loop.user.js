@@ -2058,6 +2058,7 @@ style.textContent += `
 #gitl9.skin-edge-rail .g-action-well,#gitl9.skin-command-selector .g-action-well{padding:2px 0 5px!important;margin:0!important;background:transparent;border:0}
 #gitl9.skin-edge-rail .g-status,#gitl9.skin-command-selector .g-status{margin:0 0 4px!important;padding:4px 6px!important;min-height:0;border-radius:6px;border:1px solid var(--g-border);background:var(--g-panel)}
 #gitl9.skin-edge-rail .g-steps,#gitl9.skin-command-selector .g-steps,#gitl9.skin-edge-rail .status-text,#gitl9.skin-command-selector .status-text,#gitl9.skin-edge-rail [data-live-workflow],#gitl9.skin-command-selector [data-live-workflow]{display:none}
+#gitl9.skin-edge-rail.status-open .status-text,#gitl9.skin-command-selector.status-open .status-text{display:block!important}
 #gitl9.skin-edge-rail .status-top,#gitl9.skin-command-selector .status-top{font-size:10px;min-height:20px}
 #gitl9.skin-edge-rail .progline,#gitl9.skin-command-selector .progline{height:4px;margin-top:3px}
 #gitl9.skin-edge-rail .pane[data-pane="play"]>.tiny,#gitl9.skin-command-selector .pane[data-pane="play"]>.tiny{display:none}
