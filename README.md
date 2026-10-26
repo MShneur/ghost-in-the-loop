@@ -16,6 +16,10 @@ Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning
 
 Placement supports right dock, left dock, draggable float, composer-row, and header-row. Docked panels collapse to a side rail.
 
+## Compact mobile UX design gate (proposal, not implemented)
+
+Before creating Ghost mobile reskins or 2×2 agency concepts, read [Compact Embedded Mobile Shell UX PRD](docs/ux/GITL_COMPACT_MOBILE_SHELL_PRD.md). It fixes the v9.0.17 button/tab inventory, host-chat mounting constraints, 334px panel ceiling, named AoA/practitioner method sources, four bounded compact design lanes, and the owner-approval gate. **No UI changes are authorized by this document.**
+
 ## Dumb-relay architecture
 
 Ghost does not decide what the task means or infer which step is next.
