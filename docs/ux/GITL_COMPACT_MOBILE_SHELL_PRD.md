@@ -9,7 +9,7 @@
 
 Ghost is a **userscript shell attached to the host AI chat**, not a browser replacement, separate dashboard, home page, command center, or generic AI assistant. Show the real ChatGPT mobile chat *behind/alongside* the Ghost control panel. The chat's composer, messages, attachment, microphone and native Send controls remain usable. Type the task in the **host chat**; do **not** invent a second Ghost task composer.
 
-**This design task is restricted to the existing panel, its rail, CSS hierarchy, navigation presentation, and genuine UI states.** Do not change core prompts, features, algorithms, approvals, storage, permissions, integrations, Send engine, or mounting semantics without a separate authorized implementation task. **Do not merge or deploy on this brief alone.**
+**This design task is restricted to the existing panel, its rail, CSS hierarchy, navigation presentation, and genuine UI states.** Do not change core prompts, features, algorithms, approvals, storage, permissions, integrations, Send engine, or mounting semantics without a separate authorized implementation task. **Do not merge or deploy UI implementation on this brief alone.**
 
 ## 1. Source-of-truth mobile geometry
 
