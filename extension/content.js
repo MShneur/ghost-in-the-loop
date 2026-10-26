@@ -80,7 +80,8 @@ const SKINS = Object.freeze({
   hud:{ name:'HUD', bg:'#050708', surface:'#0d1415', panel:'#000000', border:'#1a464b', text:'#bdf5f7', muted:'#5f9498', accent:'#22e0e6', accentBg:'#07383b', radius:'8px', shadow:'0 0 0 1px #123033,0 10px 30px rgba(0,0,0,.8)' },
   nova:{ name:'Nova', bg:'#14101f', surface:'#241d3a', panel:'#0c0a17', border:'#4b3e72', text:'#f1eaff', muted:'#ab9bbb', accent:'#c084fc', accentBg:'#42245d', radius:'14px', shadow:'0 14px 40px rgba(44,20,70,.5)' },
   ion:{ name:'Ion', bg:'#0d1520', surface:'#172536', panel:'#091019', border:'#35536b', text:'#e5f2ff', muted:'#8ca7bc', accent:'#60a5fa', accentBg:'#17395e', radius:'12px', shadow:'0 12px 36px rgba(5,20,35,.55)' },
-  flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' }
+  flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' },
+  ghostwave:{ name:'Ghostwave', bg:'#0c1024', surface:'#19233b', panel:'#0b142b', border:'#46568a', text:'#f0f4ff', muted:'#a7b7d8', accent:'#baa5ff', accentBg:'#34265d', radius:'13px', shadow:'0 0 0 1px rgba(82,125,219,.24),0 14px 36px rgba(4,8,27,.76),0 0 22px rgba(133,84,255,.18)' }
 });
 const ACCENTS = Object.freeze({
   auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
@@ -2023,9 +2024,23 @@ style.textContent += `
 @keyframes gitl-aa-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.65;transform:scale(1.06)}}
 @media(prefers-reduced-motion:reduce){#gitl9 .g-aa-badge.is-on{animation:none}}
 `;
+style.textContent += `
+/* Ghostwave: appearance only; all native Ghost controls and panel geometry stay intact. */
+#gitl9[data-skin="ghostwave"]{border-color:#53669b;box-shadow:var(--g-shadow)}
+#gitl9[data-skin="ghostwave"] .head{background:linear-gradient(115deg,#111932 0%,#211638 62%,#102945 100%);border-color:#52649e;box-shadow:inset 0 -1px 0 rgba(108,203,255,.15)}
+#gitl9[data-skin="ghostwave"] .g-orbit{box-shadow:0 0 9px rgba(109,213,255,.46)}
+#gitl9[data-skin="ghostwave"] .rail .ghost{text-shadow:0 0 9px rgba(102,203,255,.55),0 0 14px rgba(175,104,255,.34)}
+#gitl9[data-skin="ghostwave"] nav.g-site-nav{background:#0e1831;border-color:#405382}
+#gitl9[data-skin="ghostwave"] nav.g-site-nav button.on{background:linear-gradient(135deg,#452477,#392665)!important;border-color:#baa5ff!important;box-shadow:inset 0 -3px 0 #65cfff,0 0 9px rgba(151,103,255,.28)!important}
+#gitl9[data-skin="ghostwave"] .g-controls [data-a="play"]{background:linear-gradient(125deg,#096c50,#0da870)!important;color:#f7fffa!important;border-color:#65efb9!important;box-shadow:0 0 10px rgba(31,211,149,.22)!important}
+#gitl9[data-skin="ghostwave"] .g-status{border-left-color:#74d7fe}
+#gitl9[data-skin="ghostwave"] .g-accordion[open]{box-shadow:inset 0 0 0 1px rgba(166,135,255,.1)}
+@media(prefers-reduced-motion:reduce){#gitl9[data-skin="ghostwave"] .g-orbit,#gitl9[data-skin="ghostwave"] nav.g-site-nav button.on,#gitl9[data-skin="ghostwave"] .g-controls [data-a="play"]{transition:none!important;animation:none!important}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
+  panel.dataset.skin = skinId;
   const skin = SKINS[skinId] || SKINS.classic;
   const accent = ACCENTS[accentId] || skin.accent;
   panel.style.setProperty('--g-bg', skin.bg);
