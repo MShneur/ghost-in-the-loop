@@ -1,6 +1,6 @@
 # GITL Skins — Authoring Guide
 
-> **Version distinction (9.0.17):** The live v9 userscript has a built-in Setup → Skin selector (now 15 choices including **Ghostwave** and **Ghostwave Compact**). It does **not** support importing the legacy `.gitl.json` skin files described below. See [Ghostwave v9 skin](skins/GHOSTWAVE_V9.md) for the working current approach.
+> **Current v9.0.20 skin selector:** Setup → Appearance → Skin offers **17** built-ins: the original 13, Ghostwave, Ghostwave Compact, **A · Edge Rail (original)** and **D · Command Selector (original)**. A/D are *opt-in integrated layout skins* with distinct navigation structures, not generic JSON color tokens. See [selected A/D source-locked themes](ux/GITL_SELECTED_A_D_SKINS_20261026.md) and [Ghostwave](skins/GHOSTWAVE_V9.md). Legacy `.gitl.json` import remains separate and is not supported by the live v9 skin dropdown.
 
 Skins are **data, not code**. A skin is a small JSON file that sets a whitelisted
 set of CSS custom properties (plus two enumerated effects) on the panel root.
