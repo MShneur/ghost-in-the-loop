@@ -20,14 +20,16 @@ describe('compact Ghost mobile UI',()=>{
       expect(p.querySelector('.g-scroll')).toBeTruthy();
     }finally{close()}
   });
-  test('More button opens and switches to advanced tab without deleting others',()=>{
+  test('all seven main pages are visible and switch without More',()=>{
     const {p,close}=boot();try{
-      p.querySelector('[data-a="more-toggle"]').click();
-      expect(p.classList.contains('more-open')).toBe(true);
-      p.querySelector('[data-tab="settings"]').click();
-      expect(p.querySelector('[data-pane="settings"].show')).toBeTruthy();
-      expect(p.querySelector('[data-pane="export"]')).toBeTruthy();
-      expect(p.querySelector('[data-pane="aoa"]')).toBeTruthy();
+      const nav=p.querySelector('nav.g-site-nav[aria-label="Ghost sections"]');
+      expect(nav).toBeTruthy();
+      expect(nav.querySelectorAll('[data-tab]')).toHaveLength(7);
+      expect(p.querySelector('[data-a="more-toggle"]')).toBeNull();
+      for(const t of ['play','auto','flow','prompt','aoa','export','settings']){
+        nav.querySelector('[data-tab="'+t+'"]').click();
+        expect(p.querySelector('[data-pane="'+t+'"].show')).toBeTruthy();
+      }
     }finally{close()}
   });
   test('native accordions retain state across tab switches',()=>{
@@ -76,22 +78,23 @@ describe('compact Ghost mobile UI',()=>{
 describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('navigation is distinct from actions; controls are local to Run',()=>{
     const {p,close}=boot();try{
-      expect(p.querySelector('nav.tabs[aria-label="Ghost main menu"]')).toBeTruthy();
-      expect(p.querySelectorAll('nav.tabs [data-tab]')).toHaveLength(3);
-      expect(p.querySelectorAll('.g-subnav [data-tab]')).toHaveLength(4);
+      expect(p.querySelector('nav.g-site-nav[aria-label="Ghost sections"]')).toBeTruthy();
+      expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      expect(p.querySelectorAll('.g-subnav [data-tab]')).toHaveLength(0);
       expect(p.querySelector('[data-pane="play"] .g-controls [data-a="play"]')).toBeTruthy();
       expect(p.querySelector('[data-pane="export"] .g-action-well [data-a="md"]')).toBeTruthy();
       expect(p.querySelectorAll('.g-scroll .g-controls')).toHaveLength(1);
     }finally{close()}
   });
-  test('More advanced category remains open when selecting an advanced page',()=>{
+  test('direct advanced-page navigation does not depend on hidden menus',()=>{
     const {p,close}=boot();try{
-      p.querySelector('[data-a="more-toggle"]').click();
-      p.querySelector('.g-subnav [data-tab="prompt"]').click();
-      expect(p.classList.contains('more-open')).toBe(true);
+      const nav=p.querySelector('nav.g-site-nav');
+      nav.querySelector('[data-tab="prompt"]').click();
       expect(p.querySelector('[data-pane="prompt"].show')).toBeTruthy();
-      p.querySelector('nav.tabs [data-tab="export"]').click();
-      expect(p.classList.contains('more-open')).toBe(false);
+      nav.querySelector('[data-tab="export"]').click();
+      expect(p.querySelector('[data-pane="export"].show')).toBeTruthy();
+      nav.querySelector('[data-tab="settings"]').click();
+      expect(p.querySelector('[data-pane="settings"].show')).toBeTruthy();
     }finally{close()}
   });
   test('animation only while running and respects reduced motion',()=>{
@@ -103,7 +106,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   });
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
-      p.querySelector('.g-subnav [data-tab="settings"]').click();
+      p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
       expect(p.querySelectorAll('[data-skin] option')).toHaveLength(13);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
     }finally{close()}

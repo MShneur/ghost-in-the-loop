@@ -1,5 +1,16 @@
 # Changelog
 
+## [9.0.15] — mobile preview release (owner-requested)
+
+- Tampermonkey stable `main` channel; numeric three-part version matches the requested `9.xx.yy` scheme without alpha/beta labels.
+- Restore seven always-visible top navigation sections, native expandable groups, on/off indicator styling, and touch-sized mobile controls.
+- Reattach the existing panel after host DOM replacement; preserve styling and the minimized rail.
+- Show live loop progress prominently as completed / configured total, including minimized rail count and state.
+- Add optional session-only approval-window detection and notification; it does NOT silently click platform authorization prompts.
+- Preserve original one-Send mechanical relay; no Enter/requestSubmit fallback or ambiguous auto-resend added.
+- Browser-specific Firefox Android field verification is still required; published as a user test build, not a certified production fix.
+
+
 ## [9.0.1-alpha.11] — observable long-chat recovery and named exports
 
 - Ghost recovers history with an accessible dimmed progress overlay: Pause/Resume, Cancel without saving and explicitly labeled Save Partial.

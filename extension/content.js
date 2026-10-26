@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.11';
+const VER = '9.0.15';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1974,6 +1974,39 @@ style.textContent += `
 @media(max-width:520px){#gitl9{width:min(280px,calc(100vw - 12px))}#gitl9 .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}#gitl9 .tabs button{font-size:11px}#gitl9 .head{min-height:38px}}
 @media(prefers-reduced-motion:reduce){#gitl9 .head::before{animation:none!important;transform:none!important}}
 `;
+style.textContent += `
+/* GITL_VISUAL_RESTORE_V2: UI-only; no additional Send path */
+#gitl9{width:min(334px,calc(100vw - 12px));max-height:min(84dvh,calc(100dvh - 32px - env(safe-area-inset-bottom,0px)))}
+#gitl9 .g-nav-label,#gitl9 .g-subnav{display:none!important}
+#gitl9 nav.g-site-nav{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important;margin:0 0 8px!important;padding:5px!important;background:var(--g-panel);border:1px solid var(--g-border);border-radius:10px}
+#gitl9 nav.g-site-nav button{display:block!important;min-width:0!important;min-height:43px!important;padding:4px 1px!important;font-size:10px!important;font-weight:750!important;white-space:nowrap}
+#gitl9 nav.g-site-nav button.on{background:var(--g-accent-bg)!important;border:1px solid var(--g-accent)!important;box-shadow:inset 0 -3px var(--g-accent)!important;color:var(--g-text)!important}
+#gitl9 .g-status{border-radius:9px;margin:2px 0 7px;padding:8px;background:var(--g-panel)}
+#gitl9 .g-accordion{margin:7px 0;padding:0 9px 8px;border-radius:10px}
+#gitl9 .g-accordion>summary{min-height:44px;font-size:12px}
+#gitl9 .g-accordion[open]>summary{color:var(--g-accent)}
+#gitl9 label:has(>input[type="checkbox"]){display:flex!important;align-items:center!important;gap:8px!important;min-height:42px!important;padding:6px!important;flex-wrap:nowrap!important}
+#gitl9 label:has(>input[type="checkbox"])::after{content:"OFF";margin-left:auto;font-size:9px;font-weight:800;color:var(--g-muted)}
+#gitl9 label:has(>input[type="checkbox"]:checked)::after{content:"ON";color:var(--g-accent)}
+#gitl9 input[type="checkbox"]{appearance:none;-webkit-appearance:none;flex:0 0 34px!important;width:34px!important;min-width:34px;height:20px;margin:0!important;padding:0!important;position:relative;border-radius:12px!important;border:1px solid var(--g-border)!important;background:var(--g-border)!important;cursor:pointer}
+#gitl9 input[type="checkbox"]::before{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--g-text);transition:transform .13s ease}
+#gitl9 input[type="checkbox"]:checked{background:var(--g-accent)!important;border-color:var(--g-accent)!important}
+#gitl9 input[type="checkbox"]:checked::before{transform:translateX(14px);background:var(--g-bg)}
+#gitl9 input[type="checkbox"]:focus-visible{outline:2px solid var(--g-accent)!important;outline-offset:2px}
+#gitl9 .g-controls button{min-height:43px!important;font-weight:750}
+#gitl9 .g-scroll{overscroll-behavior:contain}
+@media(max-width:520px){#gitl9:not(.collapsed){width:min(280px,calc(100vw - 12px))!important;max-height:min(76dvh,calc(100dvh - 38px - env(safe-area-inset-bottom,0px)))}#gitl9 nav.g-site-nav button{min-height:42px!important;font-size:9px!important}}
+@media(prefers-reduced-motion:reduce){#gitl9 input[type="checkbox"]::before{transition:none}}`;
+style.textContent += `
+/* Persistent loop status for mobile; visible in expanded panel and rail */
+#gitl9 .g-steps{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 9px;margin:6px 0 5px;border-radius:9px;background:var(--g-panel);border:1px solid var(--g-accent);color:var(--g-text)}
+#gitl9 .g-steps b{font-size:10px;letter-spacing:.1em}
+#gitl9 .g-steps strong{font-size:17px;font-variant-numeric:tabular-nums;color:var(--g-accent);line-height:1.1}
+#gitl9 .g-steps [data-live-state]{font-size:10px;font-weight:700}
+#gitl9 .g-rail-progress{display:block;font-variant-numeric:tabular-nums;font-size:10px;font-weight:800;color:var(--g-text)}
+#gitl9[data-running="1"] .g-steps{box-shadow:inset 3px 0 0 var(--g-accent)}
+#gitl9 .g-status{display:block!important}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2060,12 +2093,71 @@ function updateLiveStatus() {
   const set=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
   set(liveStatusNodes.mode,S.mode);
   set(liveStatusNodes.round,'round '+S.round+'/'+S.max);
+  set(liveStatusNodes.step,S.round+' / '+S.max);
+  set(liveStatusNodes.state,S.mode==='RUNNING'?'Active':S.mode==='PAUSED'?'Paused':S.mode==='IDLE'?'Not started':S.mode);
+  set(liveStatusNodes.rail,S.round+'/'+S.max);
   set(liveStatusNodes.detail,S.detail);
   set(liveStatusNodes.workflow,workflow);
   const pct=prog.roundPct+'%';
   if(liveStatusNodes.bar&&liveStatusNodes.bar.style.width!==pct)liveStatusNodes.bar.style.width=pct;
   if(liveStatusNodes.orbit&&liveStatusNodes.orbit.style.getPropertyValue('--g-pct')!==pct)liveStatusNodes.orbit.style.setProperty('--g-pct',pct);
 }
+
+/* Approval watch: read-only dialog detection, deliberately never grants permission. */
+let approvalWatchOn = false; // Per-page session only; never stored or auto-enabled.
+let approvalSeenCount = 0;
+let approvalSeenCards = new WeakSet();
+let approvalScanScheduled = false;
+let approvalObserver = null;
+function approvalCardCandidates() {
+  const found = [];
+  for (const heading of document.querySelectorAll('h3')) {
+    const title = (heading.textContent || '').trim();
+    if (!/\bwants to use\b.{1,180}\bto run\b/i.test(title)) continue;
+    let card = heading.parentElement;
+    for (let depth = 0; card && depth < 6; depth++, card = card.parentElement) {
+      if (card === panel || panel.contains(card)) break;
+      const buttons = Array.from(card.querySelectorAll('button'));
+      const names = buttons.map(b => (b.textContent || '').trim());
+      if (names.filter(n => n === 'Approve').length === 1 &&
+          names.filter(n => n === 'Cancel').length === 1) {
+        found.push(card);
+        break;
+      }
+    }
+  }
+  return [...new Set(found)];
+}
+function approvalScan() {
+  if (!approvalWatchOn) return;
+  for (const card of approvalCardCandidates()) {
+    if (approvalSeenCards.has(card)) continue;
+    approvalSeenCards.add(card);
+    approvalSeenCount++;
+    S.detail = 'Tool approval needed — review the ChatGPT permission card.';
+    notify('Ghost: approval needed', 'ChatGPT is waiting for your tool permission decision.', 'notice');
+    render();
+  }
+}
+function scheduleApprovalScan() {
+  if (!approvalWatchOn || approvalScanScheduled) return;
+  approvalScanScheduled = true;
+  setTimeout(() => { approvalScanScheduled = false; approvalScan(); }, 50);
+}
+function setApprovalWatch(enabled) {
+  approvalWatchOn = Boolean(enabled);
+  if (approvalObserver) { approvalObserver.disconnect(); approvalObserver = null; }
+  if (approvalWatchOn) {
+    approvalObserver = new MutationObserver(scheduleApprovalScan);
+    approvalObserver.observe(document, { childList:true, subtree:true });
+    scheduleApprovalScan();
+  }
+  S.detail = approvalWatchOn
+    ? 'Approval watch ON — Ghost detects prompts; you still choose Approve.'
+    : 'Approval watch OFF.';
+  render();
+}
+
 function render() {
   const wasCollapsed=panel.classList.contains('collapsed');
   panel.classList.toggle('collapsed',panelCollapsed);
@@ -2075,18 +2167,17 @@ function render() {
   const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
   const moreActive=!!moreLabels[S.tab];
   const markup = `
-    <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span></div>
+    <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
     <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST</span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
-      <div class="progline"><span data-live-bar></span></div>
+      <div class="g-steps" aria-label="Ghost loop progress"><b>LOOPS</b><strong data-live-step>0 / 25</strong><span data-live-state>Not started</span></div><div class="progline"><span data-live-bar></span></div>
       <div class="tiny" data-live-workflow></div>
     </div>
 
     <div class="g-nav-label">NAVIGATION</div>
-    <nav class="tabs" aria-label="Ghost main menu"><button data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button data-a="more-toggle" class="mobile-more ${moreActive||mobileMoreOpen?'on':''}" aria-expanded="${mobileMoreOpen?'true':'false'}">⋯ More</button></nav>
-    <div class="g-subnav" role="group" aria-label="Advanced pages"><button data-tab="flow" class="${S.tab==='flow'?'on':''}">⇢ Flow</button><button data-tab="prompt" class="${S.tab==='prompt'?'on':''}">◈ Personas</button><button data-tab="aoa" class="${S.tab==='aoa'?'on':''}">✧ AoA</button><button data-tab="settings" class="${S.tab==='settings'?'on':''}">⚙ Setup</button></div>
+    <nav class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav>
     <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▶</span><div><b>Run</b><span class="tiny">Your conversation controls</span></div></div>
@@ -2154,6 +2245,10 @@ function render() {
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
+      <details class="g-accordion" data-g-acc="settings-approval"><summary>Approval watch · ${approvalWatchOn?'ON':'OFF'}</summary>
+      <label><input type="checkbox" data-approval-watch ${approvalWatchOn?'checked':''}>Detect tool permission requests</label>
+      <div class="tiny">Detected this session: ${approvalSeenCount}. Ghost alerts you but does not click Approve or bypass platform permissions.</div>
+      </details>
       <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
       <div class="tiny">Accent</div>
@@ -2181,7 +2276,8 @@ function render() {
   liveStatusNodes={
     mode:panel.querySelector('[data-live-mode]'),round:panel.querySelector('[data-live-round]'),
     detail:panel.querySelector('[data-live-detail]'),workflow:panel.querySelector('[data-live-workflow]'),
-    bar:panel.querySelector('[data-live-bar]'),orbit:panel.querySelector('[data-live-orbit]')
+    bar:panel.querySelector('[data-live-bar]'),orbit:panel.querySelector('[data-live-orbit]'),
+    step:panel.querySelector('[data-live-step]'),state:panel.querySelector('[data-live-state]'),rail:panel.querySelector('[data-rail-round]')
   };
   updateLiveStatus();
   for(const detail of panel.querySelectorAll('details[data-g-acc]')){
@@ -2206,6 +2302,7 @@ function render() {
   panel.querySelector('[data-a="quick-done"]')?.addEventListener('click', () => { quickStartOpen = false; GM_setValue('v9.quickStartSeen', true); S.detail = 'Quick Start hidden. You can reopen it in Settings.'; render(); });
   panel.querySelector('[data-a="show-quick"]')?.addEventListener('click', () => { quickStartOpen = true; helpOpen = false; S.tab = 'play'; render(); });
   panel.querySelector('[data-a="reset-look"]')?.addEventListener('click', () => { skinId = 'classic'; accentId = 'auto'; GM_setValue('v9.skin', skinId); GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Appearance reset.'; render(); });
+  panel.querySelector('[data-approval-watch]')?.addEventListener('change', e => setApprovalWatch(!!e.target.checked));
   panel.querySelector('[data-sound]')?.addEventListener('change', e => { soundOn = !!e.target.checked; GM_setValue('v9.soundOn', soundOn); S.detail = soundOn ? 'Sound cues enabled.' : 'Sound cues off.'; render(); });
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });
@@ -2260,6 +2357,48 @@ function render() {
   bindFloatDrag();
   queueViewportFit();
 }
+
+// Recover the EXISTING panel when a host SPA replaces its body after hydration.
+// Never boot a second Ghost instance, rerender, or touch the one-Send transport.
+let ghostMountPending = false;
+function ensureGhostMounted(reason = 'lifecycle') {
+  const host = document.body || document.documentElement;
+  if (!host) return;
+  let repaired = false;
+  if (!style.isConnected) {
+    document.documentElement.appendChild(style);
+    repaired = true;
+  }
+  if (!panel.isConnected || panel.parentNode !== host) {
+    host.appendChild(panel);
+    repaired = true;
+  }
+  if (repaired) log('ui-remount', { reason });
+}
+function scheduleGhostRemount(reason = 'lifecycle') {
+  const host = document.body || document.documentElement;
+  if (!host || (style.isConnected && panel.isConnected && panel.parentNode === host) || ghostMountPending) return;
+  ghostMountPending = true;
+  setTimeout(() => {
+    ghostMountPending = false;
+    try { ensureGhostMounted(reason); }
+    catch (error) { log('ui-remount-error', { reason, message: String(error?.message || error) }); }
+  }, 40);
+}
+const ghostMountObserver = new MutationObserver(() => {
+  if (!panel.isConnected || !style.isConnected || panel.parentNode !== (document.body || document.documentElement)) {
+    scheduleGhostRemount('host-dom-replaced');
+  }
+});
+ghostMountObserver.observe(document, { childList: true, subtree: true });
+window.addEventListener('pageshow', () => scheduleGhostRemount('pageshow'));
+window.addEventListener('popstate', () => scheduleGhostRemount('route'));
+window.addEventListener('hashchange', () => scheduleGhostRemount('hash'));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) scheduleGhostRemount('visible');
+});
+// Cheap fallback for hosts that move or detach the panel without observable DOM mutation.
+setInterval(() => scheduleGhostRemount('pulse'), 8000);
 
 render();
 window.__GITL_V9__ = true;

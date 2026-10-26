@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-describe('v9.0.1 full mechanical shell',()=>{
+describe('v9 full mechanical shell',()=>{
   test('restores the accepted seven product tabs',()=>{
     for(const label of ['Run','Auto','Flow','Personas','AoA','Export','Setup']) expect(src).toContain('>'+label+'</button>');
   });
@@ -25,8 +25,9 @@ describe('v9.0.1 full mechanical shell',()=>{
     expect(src).not.toContain('requestSubmit(');
     expect(src).not.toMatch(/key\s*:\s*['"]Enter['"]/);
   });
-  test('install version is new enough to replace stripped alpha.2',()=>{
-    expect(src).toContain('// @version      9.0.1-alpha.1');
-    expect(src).toContain("const VER = '9.0.1-alpha.1'");
+  test('installed build follows three-part stable versioning',()=>{
+    expect(src).toContain('// @version      9.0.15');
+    expect(src).toContain("const VER = '9.0.15'");
+    expect(src).not.toContain('9.0.1-alpha.15');
   });
 });
