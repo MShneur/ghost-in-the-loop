@@ -2,7 +2,11 @@ const fs=require('fs'),path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
 describe('v9 full mechanical shell',()=>{
   test('restores the accepted seven product tabs',()=>{
-    for(const label of ['Run','Auto','Flow','Personas','AoA','Export','Setup']) expect(src).toContain('>'+label+'</button>');
+    for(const id of ['play','auto','flow','prompt','aoa','export','settings']){
+      expect(src).toContain('data-tab="'+id+'"');
+    }
+    expect((src.match(/type="button" data-tab="/g)||[]).length).toBe(7);
+    expect(src).toContain('aria-label="Ghost sections"');
   });
   test('restores appearance and placement without transport authority',()=>{
     expect((src.match(/name:'/g)||[]).length).toBeGreaterThanOrEqual(13);
