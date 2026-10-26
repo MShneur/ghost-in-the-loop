@@ -156,6 +156,6 @@ describe('original A Edge Rail and D Command Selector as selectable GitL skins',
     expect(src).toContain('#gitl9.skin-edge-rail:not(.collapsed)');
     expect(src).toContain('#gitl9.skin-command-selector.menu-open nav.g-site-nav');
     expect(src).toContain('prefers-reduced-motion:reduce');
-    expect(src).toContain('One Send');
+    expect(src).toContain('one-Send');
   });
 });
