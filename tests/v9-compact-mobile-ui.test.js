@@ -59,7 +59,7 @@ describe('compact Ghost mobile UI',()=>{
   test('all thirteen existing skins and exporting still available',()=>{
     const {p,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
-      expect(p.querySelectorAll('[data-skin] option').length).toBeGreaterThanOrEqual(13);
+      expect(p.querySelectorAll('select[data-skin] option').length).toBeGreaterThanOrEqual(13);
       p.querySelector('[data-tab="export"]').click();
       for(const action of ['copy','md','json'])expect(p.querySelector('[data-a="'+action+'"]')).toBeTruthy();
       expect(p.querySelector('[data-vault-action="save"]')).toBeTruthy();
@@ -107,8 +107,49 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(13);
+      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(15);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
+    }finally{close()}
+  });
+  test('Ghostwave Compact preserves real buttons, tabs, modes and mounting choices',()=>{
+    const {p,w,close}=boot();try{
+      p.querySelector('[data-tab="settings"]').click();
+      let picker=p.querySelector('[data-skin]');
+      expect([...picker.options].map(x=>x.value)).toContain('ghostdock');
+      picker.value='ghostdock';picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('ghostdock');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#090f22');
+      expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      expect(p.querySelectorAll('[data-place]')).toHaveLength(5);
+      p.querySelector('[data-place="dock-left"]').click();
+      expect(p.dataset.placement).toBe('dock-left');
+      p.querySelector('[data-tab="play"]').click();
+      expect(['play','pause','stop','top'].every(a=>p.querySelector('[data-a="'+a+'"]'))).toBe(true);
+      expect(['loop','plan','roadmap'].every(m=>p.querySelector('[data-mode="'+m+'"]'))).toBe(true);
+      expect(p.querySelectorAll('[data-g-acc="run-options"], [data-g-acc="run-advanced"]')).toHaveLength(2);
+      expect(p.querySelector('[data-pane="play"] [data-a="q-run"]')).toBeNull();
+      expect(p.querySelector('[data-pane="play"] [data-auto-approve]')).toBeNull();
+      expect(src).toContain('[data-skin="ghostdock"][data-placement="composer-row"]');
+      expect(src).toContain('[data-skin="ghostdock"][data-placement="header-row"]');
+    }finally{close()}
+  });
+  test('Ghostwave skin applies to this panel and resets without changing controls',()=>{
+    const {p,w,close}=boot();try{
+      p.querySelector('[data-tab="settings"]').click();
+      let picker=p.querySelector('[data-skin]');
+      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Ghostwave')).toBe(true);
+      picker.value='ghostwave';
+      picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('ghostwave');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#0c1024');
+      expect(p.style.getPropertyValue('--g-accent')).toBe('#baa5ff');
+      expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      expect(p.querySelectorAll('[data-a="play"]')).toHaveLength(1);
+      picker=p.querySelector('[data-skin]');
+      picker.value='classic';
+      picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('classic');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#121922');
     }finally{close()}
   });
 });

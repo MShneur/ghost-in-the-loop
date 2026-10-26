@@ -1,12 +1,14 @@
 # GITL Skins — Authoring Guide
 
+> **Version distinction (9.0.17):** The live v9 userscript has a built-in Setup → Skin selector (now 15 choices including **Ghostwave** and **Ghostwave Compact**). It does **not** support importing the legacy `.gitl.json` skin files described below. See [Ghostwave v9 skin](skins/GHOSTWAVE_V9.md) for the working current approach.
+
 Skins are **data, not code**. A skin is a small JSON file that sets a whitelisted
 set of CSS custom properties (plus two enumerated effects) on the panel root.
 A skin can never add, remove, hide, or rewire a control — structure and behavior
 belong to GITL core. Unknown tokens are silently ignored, which is what makes
 skins **forward- and backward-compatible** across GITL versions.
 
-## Built-in presets (all 13 are written in this same format)
+## Legacy v8.1 presets (13 JSON-engine presets; not the v9 theme loader)
 `Classic` · `Aurora` · `Glass` · `Metal` · `Neon` · `Clay` · `Liquid` · `OLED` · `Paper` · `HUD` · `Nova` · `Ion` · `Flow`
 
 The presets are not special — they use the exact same tokens and `fx` values

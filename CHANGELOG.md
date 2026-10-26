@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.0.19] — Ghostwave and Ghostwave Compact selectable skins
+
+- Adds two functional **Setup → Skin** options with real menu/button placement and existing handlers: **Ghostwave** (296px neon palette, 4+3 menu), and **Ghostwave Compact** (276px placement-aware panel, 3+4 menu).
+- Keeps seven real tabs; **Play / Pause / End / Top**; **Loop / Plan First / Roadmap** and posture options; two real Run accordions; all five placements, minimized rail and existing single-Send flow. Auto-Approve stays in Auto and OFF by default.
+- CSS-scoped visual layout only, no permission or Send changes. Both skins revert through **Setup → Skin → Classic** or **Reset look**.
+- Verification: focused Jest 19/19 on 9.0.18 and Chromium simulated mobile geometry 20/20 across 320px and 390px, five placements, two skins; physical Firefox Android remains NOT_TESTED. Broader Jest suite has the same nine inherited failing suites on base 9.0.18 and this branch, with no new failing suites.
+
 ## [9.0.18] — adjustable approval delay (browser-only)
 
 - Auto tab retains its explicit session-only Auto-Approve switch, OFF by default, with separate Ghost Play/Proceed behavior.
