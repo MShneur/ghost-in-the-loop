@@ -1,5 +1,14 @@
 # Changelog
 
+## [9.0.19] — selected original A & D concept skins
+
+- **A · Edge Rail (original):** preserves the chosen dark navy/cyan concept with a left-side seven-section vertical rail inside the small Ghost panel. All existing Run controls and section handlers remain intact.
+- **D · Command Selector (original):** preserves the chosen slate-blue compact panel with a closed Run selector that expands to all seven real sections. Selecting a section or pressing Escape closes the menu.
+- Both are opt-in under **Setup → Appearance → Skin**, saved to the existing skin preference; Classic and the previous 12 skins remain available.
+- These are actual CSS/markup layouts of the existing userscript, not a separate app or a new image mockup. Both expose Play/Pause/End/Top and the existing Loop/Plan First/Roadmap and posture controls, with existing accordion settings.
+- Theme code changes no Send, approval, export, queue, or permission logic. Extension content is regenerated from the userscript; no GitHub Actions used.
+- Source-matched browser fixture tested at mobile viewport; authenticated Firefox Android, all mounted positions, and host approval flow remain NOT TESTED in the physical field.
+
 ## [9.0.18] — adjustable approval delay (browser-only)
 
 - Auto tab retains its explicit session-only Auto-Approve switch, OFF by default, with separate Ghost Play/Proceed behavior.
