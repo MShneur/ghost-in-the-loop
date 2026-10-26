@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Ghost in the Loop",
-  "version": "9.0.15",
-  "description": "Ghost in the Loop v9.0.15 — full rich shell over one-Send mechanical relay; AI owns reasoning and planning.",
+  "version": "9.0.16",
+  "description": "Ghost in the Loop v9.0.16 — full rich shell over one-Send mechanical relay; AI owns reasoning and planning.",
   "author": "Michael S (CTRL-AI)",
   "permissions": [
     "storage"
@@ -54,5 +54,5 @@
       "strict_min_version": "109.0"
     }
   },
-  "version_name": "9.0.15"
+  "version_name": "9.0.16"
 }

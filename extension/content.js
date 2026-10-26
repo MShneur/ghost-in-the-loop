@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.15';
+const VER = '9.0.16';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -2007,6 +2007,14 @@ style.textContent += `
 #gitl9[data-running="1"] .g-steps{box-shadow:inset 3px 0 0 var(--g-accent)}
 #gitl9 .g-status{display:block!important}
 `;
+style.textContent += `
+#gitl9 .g-approval-mode{border:1px solid var(--g-accent);border-radius:12px;padding:10px;margin:8px 0 12px;background:var(--g-panel)}
+#gitl9 .g-approval-toggle{display:flex!important;align-items:center;gap:10px;min-height:52px!important;cursor:pointer}
+#gitl9 .g-approval-toggle input{flex:none;width:24px!important;height:24px!important}
+#gitl9 .g-approval-toggle>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+#gitl9 .g-approval-toggle b{font-size:14px!important;color:var(--g-accent)}
+#gitl9 .g-approval-warning{opacity:.76;line-height:1.45;margin-top:5px}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2103,12 +2111,16 @@ function updateLiveStatus() {
   if(liveStatusNodes.orbit&&liveStatusNodes.orbit.style.getPropertyValue('--g-pct')!==pct)liveStatusNodes.orbit.style.setProperty('--g-pct',pct);
 }
 
-/* Approval watch: read-only dialog detection, deliberately never grants permission. */
-let approvalWatchOn = false; // Per-page session only; never stored or auto-enabled.
+/* Session-only tool-permission click automation: explicit operator opt-in. */
+let approvalWatchOn = false;
+let autoApproveOn = false;
 let approvalSeenCount = 0;
-let approvalSeenCards = new WeakSet();
+let approvalClickCount = 0;
+const approvalSeenCards = new WeakSet();
+const approvalClickedButtons = new WeakSet();
 let approvalScanScheduled = false;
 let approvalObserver = null;
+let approvalLastClickAt = 0;
 function approvalCardCandidates() {
   const found = [];
   for (const heading of document.querySelectorAll('h3')) {
@@ -2131,12 +2143,37 @@ function approvalCardCandidates() {
 function approvalScan() {
   if (!approvalWatchOn) return;
   for (const card of approvalCardCandidates()) {
-    if (approvalSeenCards.has(card)) continue;
-    approvalSeenCards.add(card);
-    approvalSeenCount++;
-    S.detail = 'Tool approval needed — review the ChatGPT permission card.';
-    notify('Ghost: approval needed', 'ChatGPT is waiting for your tool permission decision.', 'notice');
-    render();
+    if (!approvalSeenCards.has(card)) {
+      approvalSeenCards.add(card);
+      approvalSeenCount++;
+      if (!autoApproveOn) {
+        S.detail = 'Tool approval needed — review the ChatGPT permission card.';
+        notify('Ghost: approval needed', 'ChatGPT is waiting for your permission decision.', 'notice');
+        render();
+      }
+    }
+    if (!autoApproveOn || !card.isConnected) continue;
+    const buttons = Array.from(card.querySelectorAll('button'));
+    const approve = buttons.find(b => (b.textContent || '').trim() === 'Approve');
+    if (!approve || approve.disabled || approvalClickedButtons.has(approve)) continue;
+    if (Date.now() - approvalLastClickAt < 350) {
+      setTimeout(scheduleApprovalScan, 380);
+      break;
+    }
+    approvalClickedButtons.add(approve);  // Never click the same button twice.
+    approvalLastClickAt = Date.now();
+    try {
+      approve.click(); // Operator-enabled browser UI action, never Ghost Play/Send.
+      approvalClickCount++;
+      S.detail = 'Auto-Approve clicked a permission prompt ('+approvalClickCount+' attempt'+(approvalClickCount===1?'':'s')+').';
+      render();
+    } catch (error) {
+      autoApproveOn = false;
+      S.detail = 'Auto-Approve stopped: click failed. Review the permission prompt.';
+      render();
+    }
+    setTimeout(scheduleApprovalScan, 400);
+    break;
   }
 }
 function scheduleApprovalScan() {
@@ -2146,16 +2183,25 @@ function scheduleApprovalScan() {
 }
 function setApprovalWatch(enabled) {
   approvalWatchOn = Boolean(enabled);
+  if (!approvalWatchOn) autoApproveOn = false;
   if (approvalObserver) { approvalObserver.disconnect(); approvalObserver = null; }
   if (approvalWatchOn) {
     approvalObserver = new MutationObserver(scheduleApprovalScan);
-    approvalObserver.observe(document, { childList:true, subtree:true });
+    approvalObserver.observe(document, { childList:true, subtree:true, characterData:true });
     scheduleApprovalScan();
   }
-  S.detail = approvalWatchOn
-    ? 'Approval watch ON — Ghost detects prompts; you still choose Approve.'
-    : 'Approval watch OFF.';
+  S.detail = approvalWatchOn ? 'Approval detection ON.' : 'Approval detection OFF.';
   render();
+}
+function setAutoApprove(enabled) {
+  const chatgpt = location.hostname === 'chatgpt.com' || location.hostname === 'chat.openai.com';
+  autoApproveOn = Boolean(enabled) && chatgpt;
+  if (autoApproveOn && !approvalWatchOn) setApprovalWatch(true);
+  S.detail = autoApproveOn
+    ? 'Auto-Approve ACTIVE. Ghost will click matching tool-permission Approve buttons.'
+    : enabled ? 'Auto-Approve is available on ChatGPT only.' : 'Auto-Approve OFF.';
+  render();
+  if (autoApproveOn) scheduleApprovalScan();
 }
 
 function render() {
@@ -2195,6 +2241,11 @@ function render() {
     </div>
     <div class="pane ${S.tab==='auto'?'show':''}" data-pane="auto">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▤</span><div><b>Auto</b><span class="tiny">Prompt queues and roadmap</span></div></div>
+      <div class="g-approval-mode" aria-label="Ghost Auto-Approve controls">
+        <label class="g-approval-toggle"><input type="checkbox" data-auto-approve ${autoApproveOn?'checked':''}><span><b>Auto-Approve · ${autoApproveOn?'ON':'OFF'}</b><span class="tiny">Automatically press Approve when a ChatGPT tool-permission popup appears.</span></span></label>
+        <div class="tiny">Clicks attempted this session: ${approvalClickCount} · Prompts detected: ${approvalSeenCount}</div>
+        <div class="tiny g-approval-warning">OFF by default. When ON, actions may access private data or modify connected services. Enable only for a task and tools you trust. Ghost cannot guarantee a click is accepted by ChatGPT.</div>
+      </div>
       <details class="g-accordion" data-g-acc="auto-help"><summary>How Auto works</summary>      <div class="helpbox"><b>Auto / walk-away</b><br><b>Your queue:</b> preset exact steps. <b>AI Roadmap:</b> choose Roadmap on Run; the AI writes the plan and Ghost captures only the exact numbered block, then injects one stored step at a time.</div></details>
       ${roadmapRun.capture?'<div class="stage act">Waiting for the AI roadmap block…</div>':roadmapRun.steps.map((q,i)=>'<div class="stage '+(roadmapRun.active&&i===roadmapRun.index?'act':'')+'">'+(i<roadmapRun.index?'✓ ':i===roadmapRun.index?'▶ ':'· ')+(i+1)+'. '+esc(q)+'</div>').join('')}
       <div class="sectionTitle">Prompt queue</div>
@@ -2245,9 +2296,9 @@ function render() {
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
-      <details class="g-accordion" data-g-acc="settings-approval"><summary>Approval watch · ${approvalWatchOn?'ON':'OFF'}</summary>
+      <details class="g-accordion" data-g-acc="settings-approval"><summary>Approval controls · ${autoApproveOn?'AUTO ON':approvalWatchOn?'WATCH ON':'OFF'}</summary>
       <label><input type="checkbox" data-approval-watch ${approvalWatchOn?'checked':''}>Detect tool permission requests</label>
-      <div class="tiny">Detected this session: ${approvalSeenCount}. Ghost alerts you but does not click Approve or bypass platform permissions.</div>
+      <div class="tiny">Auto-Approve ON/OFF is in the Auto tab. Detected: ${approvalSeenCount} · Clicks attempted: ${approvalClickCount}.</div>
       </details>
       <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
       <div class="row"><label style="display:block"><span class="tiny">Skin</span><select data-skin style="width:100%;margin-top:3px">${Object.entries(SKINS).map(([id,s])=>'<option value="'+id+'" '+(skinId===id?'selected':'')+'>'+esc(s.name)+'</option>').join('')}</select></label></div>
@@ -2303,6 +2354,7 @@ function render() {
   panel.querySelector('[data-a="show-quick"]')?.addEventListener('click', () => { quickStartOpen = true; helpOpen = false; S.tab = 'play'; render(); });
   panel.querySelector('[data-a="reset-look"]')?.addEventListener('click', () => { skinId = 'classic'; accentId = 'auto'; GM_setValue('v9.skin', skinId); GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Appearance reset.'; render(); });
   panel.querySelector('[data-approval-watch]')?.addEventListener('change', e => setApprovalWatch(!!e.target.checked));
+  panel.querySelector('[data-auto-approve]')?.addEventListener('change', e => setAutoApprove(!!e.target.checked));
   panel.querySelector('[data-sound]')?.addEventListener('change', e => { soundOn = !!e.target.checked; GM_setValue('v9.soundOn', soundOn); S.detail = soundOn ? 'Sound cues enabled.' : 'Sound cues off.'; render(); });
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });

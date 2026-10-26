@@ -1,4 +1,4 @@
-# 👻 Ghost in the Loop 9.0.15
+# 👻 Ghost in the Loop 9.0.16
 
 Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning, planning, committees, and decisions.
 
@@ -7,7 +7,7 @@ Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning
 ## Product shell
 
 - **Run** — Loop, Plan First, AI Roadmap; Locked / Adaptive / Audit postures.
-- **Auto** — user-authored Prompt Queue plus AI-authored Roadmap Autopilot.
+- **Auto** — user-authored Prompt Queue plus AI-authored Roadmap Autopilot; session-only Auto-Approve ON/OFF for matching ChatGPT tool-permission prompts. OFF by default; may authorize connected-service actions.
 - **Flow** — fixed prompt workflows with optional pause-between stages.
 - **Personas** — single personas, multi-persona committees, custom Workshop packs.
 - **AoA** — canonical Agents-of-AI / CTRL-AI / R-Duck prompt activators.
@@ -43,9 +43,9 @@ Model Relay uses the corresponding `[[AOA::...]]` controls.
 
 ## Version identity
 
-- Userscript/npm: **9.0.15**
+- Userscript/npm: **9.0.16**
 - WebExtension numeric version: **9.0.1**
-- WebExtension display version: **9.0.15**
+- WebExtension display version: **9.0.16**
 - Stable update/download channel: `main`
 
 The extension runtime is generated from `ghost-in-the-loop.user.js`.

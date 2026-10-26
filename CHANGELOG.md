@@ -1,5 +1,14 @@
 # Changelog
 
+## [9.0.16] — Auto-Approve toggle (opt-in, field-test release)
+
+- Auto tab now includes a prominent **Auto-Approve · ON/OFF** checkbox; OFF on every page load. This does not depend on Ghost Play/Proceed.
+- When the operator explicitly enables it on ChatGPT, Ghost watches for tool permission cards matching the supplied HTML samples and clicks their unique **Approve** button once per element; the button may authorize connected-service changes. The action counter counts click attempts, not confirmed platform permission grants.
+- Detection remains available in Setup. Turning off Approval watch also turns off Auto-Approve. Non-ChatGPT hosts cannot enable it. Each reload resets the mode to OFF.
+- Preserve the seven-tab mobile UI, loop progress indicator, export, remount recovery and at-most-once chat Send route.
+- Real authenticated Firefox Android + ChatGPT permission-flow acceptance remains pending; the owner requested public testing on the stable main channel.
+
+
 ## [9.0.15] — mobile preview release (owner-requested)
 
 - Tampermonkey stable `main` channel; numeric three-part version matches the requested `9.xx.yy` scheme without alpha/beta labels.

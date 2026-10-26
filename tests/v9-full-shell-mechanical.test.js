@@ -26,8 +26,8 @@ describe('v9 full mechanical shell',()=>{
     expect(src).not.toMatch(/key\s*:\s*['"]Enter['"]/);
   });
   test('installed build follows three-part stable versioning',()=>{
-    expect(src).toContain('// @version      9.0.15');
-    expect(src).toContain("const VER = '9.0.15'");
+    expect(src).toContain('// @version      9.0.16');
+    expect(src).toContain("const VER = '9.0.16'");
     expect(src).not.toContain('9.0.1-alpha.15');
   });
 });
