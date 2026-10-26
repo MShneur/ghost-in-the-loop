@@ -1,5 +1,10 @@
 # Changelog
 
+## [9.0.1-alpha.12] - 2026-10-25
+- Recover the existing Ghost control panel when ChatGPT or another single-page app replaces its document body after initial load. Preserve tabs, settings, panel state, and at-most-once Send. Restore detached stylesheet, add lifecycle events and a low-frequency fallback; no new permissions or network requests.
+- Record current AI browser and page-reading upstream candidates for source-reviewed scouting; no new runtime dependency or paid AI route.
+- E4 authenticated Firefox Android field validation is pending; saved-page evidence supports a remount defect but does not certify the exact host removal event.
+
 ## [9.0.1-alpha.11] — observable long-chat recovery and named exports
 
 - Ghost recovers history with an accessible dimmed progress overlay: Pause/Resume, Cancel without saving and explicitly labeled Save Partial.
