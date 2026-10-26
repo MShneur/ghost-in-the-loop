@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.19';
+const VER = '9.0.20';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -81,6 +81,8 @@ const SKINS = Object.freeze({
   nova:{ name:'Nova', bg:'#14101f', surface:'#241d3a', panel:'#0c0a17', border:'#4b3e72', text:'#f1eaff', muted:'#ab9bbb', accent:'#c084fc', accentBg:'#42245d', radius:'14px', shadow:'0 14px 40px rgba(44,20,70,.5)' },
   ion:{ name:'Ion', bg:'#0d1520', surface:'#172536', panel:'#091019', border:'#35536b', text:'#e5f2ff', muted:'#8ca7bc', accent:'#60a5fa', accentBg:'#17395e', radius:'12px', shadow:'0 12px 36px rgba(5,20,35,.55)' },
   flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' },
+  'edge-rail':{ name:'A · Edge Rail (original)', bg:'#07182a', surface:'#0c2439', panel:'#06101e', border:'#42bfdd', text:'#e3f7ff', muted:'#b9d4e8', accent:'#37d4e8', accentBg:'#0e5263', radius:'12px', shadow:'0 12px 30px rgba(0,10,20,.64)' },
+  'command-selector':{ name:'D · Command Selector (original)', bg:'#111b2a', surface:'#243345', panel:'#172438', border:'#547086', text:'#e9eef5', muted:'#a5bacf', accent:'#9fbeea', accentBg:'#304c6c', radius:'12px', shadow:'0 12px 28px rgba(0,9,22,.54)' },
   ghostwave:{ name:'Ghostwave', bg:'#0c1024', surface:'#19233b', panel:'#0b142b', border:'#46568a', text:'#f0f4ff', muted:'#a7b7d8', accent:'#baa5ff', accentBg:'#34265d', radius:'13px', shadow:'0 0 0 1px rgba(82,125,219,.24),0 14px 36px rgba(4,8,27,.76),0 0 22px rgba(133,84,255,.18)' },
   ghostdock:{ name:'Ghostwave Compact', bg:'#090f22', surface:'#16213b', panel:'#101b31', border:'#355684', text:'#f3f7ff', muted:'#afc1de', accent:'#9f8cff', accentBg:'#362361', radius:'11px', shadow:'0 0 0 1px rgba(82,135,235,.35),0 10px 26px rgba(2,7,19,.72)' }
 });
@@ -242,6 +244,7 @@ let quickStartOpen = false; // Discoverable through Setup > Extras; not a persis
 let helpOpen = false;
 let panelCollapsed = !!GM_getValue('v9.panelCollapsed', false);
 let mobileMoreOpen=false;
+let commandMenuOpen=false; // Original D: on-demand section menu.
 let statusExpanded=false;
 const uiAccordionStates=new Map();
 let lastPanelMarkup=null;
@@ -2026,6 +2029,53 @@ style.textContent += `
 @media(prefers-reduced-motion:reduce){#gitl9 .g-aa-badge.is-on{animation:none}}
 `;
 style.textContent += `
+
+/* GitL original A/D layout study: source = gitl_four_independent_concepts.html;
+   change only existing panel presentation, never chat send or permission logic. */
+#gitl9 .g-skin-nav{position:relative;flex:0 0 auto;min-width:0}
+#gitl9 .g-command-trigger,#gitl9 .g-command-count,#gitl9 .g-skin-quick{display:none}
+#gitl9.skin-edge-rail:not(.collapsed),#gitl9.skin-command-selector:not(.collapsed){width:min(294px,calc(100vw - 12px))!important;padding:5px!important}
+#gitl9.skin-edge-rail .head,#gitl9.skin-command-selector .head{min-height:36px!important;padding:5px 7px!important;margin:0 0 4px!important;background:var(--g-bg);border-color:var(--g-border)}
+#gitl9.skin-edge-rail .head::before,#gitl9.skin-command-selector .head::before{display:none}
+#gitl9.skin-edge-rail .g-pane-intro,#gitl9.skin-command-selector .g-pane-intro,#gitl9.skin-edge-rail .g-section-label,#gitl9.skin-command-selector .g-section-label{display:none}
+#gitl9.skin-edge-rail .g-action-well,#gitl9.skin-command-selector .g-action-well{padding:2px 0 5px!important;margin:0!important;background:transparent;border:0}
+#gitl9.skin-edge-rail .g-status,#gitl9.skin-command-selector .g-status{margin:0 0 4px!important;padding:4px 6px!important;min-height:0;border-radius:6px;border:1px solid var(--g-border);background:var(--g-panel)}
+#gitl9.skin-edge-rail .g-steps,#gitl9.skin-command-selector .g-steps,#gitl9.skin-edge-rail .status-text,#gitl9.skin-command-selector .status-text,#gitl9.skin-edge-rail [data-live-workflow],#gitl9.skin-command-selector [data-live-workflow]{display:none}
+#gitl9.skin-edge-rail.status-open .status-text,#gitl9.skin-command-selector.status-open .status-text{display:block!important}
+#gitl9.skin-edge-rail .status-top,#gitl9.skin-command-selector .status-top{font-size:10px;min-height:20px}
+#gitl9.skin-edge-rail .progline,#gitl9.skin-command-selector .progline{height:4px;margin-top:3px}
+#gitl9.skin-edge-rail .pane[data-pane="play"]>.tiny,#gitl9.skin-command-selector .pane[data-pane="play"]>.tiny{display:none}
+#gitl9.skin-edge-rail .g-controls,#gitl9.skin-command-selector .g-controls{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0!important}
+#gitl9.skin-edge-rail .g-controls button,#gitl9.skin-command-selector .g-controls button{min-height:40px!important;font-size:10px!important;padding:3px 1px!important}
+#gitl9.skin-edge-rail .g-controls [data-a="play"]{background:#0bcbd0!important;color:#031b28!important;border-color:#1ff4ef!important}
+#gitl9.skin-command-selector .g-controls [data-a="play"]{background:#89c7f2!important;color:#09233d!important;border-color:#a1d3ff!important}
+#gitl9.skin-edge-rail .g-skin-quick,#gitl9.skin-command-selector .g-skin-quick{display:block;margin:4px 0}
+#gitl9.skin-edge-rail .g-skin-modes,#gitl9.skin-command-selector .g-skin-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:2px;border:1px solid var(--g-border);border-radius:7px;background:var(--g-panel)}
+#gitl9.skin-edge-rail .g-skin-modes button,#gitl9.skin-command-selector .g-skin-modes button{min-height:30px!important;font-size:10px!important;padding:3px 1px!important;border:0!important;background:transparent}
+#gitl9.skin-edge-rail .g-skin-modes button.on{background:#22bdd3!important;color:#042332!important}
+#gitl9.skin-command-selector .g-skin-modes button.on{background:#6a91c7!important;color:#fff!important}
+#gitl9.skin-edge-rail .g-skin-posture,#gitl9.skin-command-selector .g-skin-posture{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:4px 0!important;padding:0!important;background:transparent!important;border:0!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-skin-posture select,#gitl9.skin-command-selector .g-skin-posture select{width:63%;min-height:30px!important;padding:3px 4px!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-accordion,#gitl9.skin-command-selector .g-accordion{margin:3px 0!important;padding:0 5px 3px!important;border-radius:6px}
+#gitl9.skin-edge-rail .g-accordion>summary,#gitl9.skin-command-selector .g-accordion>summary{min-height:32px!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-scroll,#gitl9.skin-command-selector .g-scroll{border-top:0;min-width:0;padding:1px!important}
+#gitl9.skin-edge-rail:not(.collapsed){display:grid;grid-template-columns:61px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);column-gap:3px;min-height:min(340px,65dvh)}
+#gitl9.skin-edge-rail:not(.collapsed)>.head{grid-column:1/-1;grid-row:1}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-skin-nav{grid-column:1;grid-row:2/4;min-height:0;overflow-y:auto;scrollbar-width:none;background:var(--g-panel);border-right:1px solid var(--g-border);border-radius:7px 0 0 7px}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-status{grid-column:2;grid-row:2}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-scroll{grid-column:2;grid-row:3}
+#gitl9.skin-edge-rail nav.g-site-nav{display:flex!important;flex-direction:column!important;gap:2px!important;padding:3px!important;margin:0!important;background:transparent!important;border:0!important}
+#gitl9.skin-edge-rail nav.g-site-nav button{display:flex!important;justify-content:flex-start;text-align:left;align-items:center;min-height:36px!important;font-size:9px!important;white-space:normal!important;padding:3px!important;background:transparent!important;border:1px solid transparent!important;box-shadow:none!important}
+#gitl9.skin-edge-rail nav.g-site-nav button.on{background:#37d4e8!important;color:#032331!important;font-weight:800!important;border-color:#37d4e8!important}
+#gitl9.skin-command-selector .g-skin-nav{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#243345;border:1px solid var(--g-border);border-radius:7px;margin:0 0 4px;padding:4px 6px}
+#gitl9.skin-command-selector .g-command-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:34px!important;width:65%;font-size:12px;font-weight:700;text-align:left;border:1px solid #778ea5!important;border-radius:14px!important;background:#192538!important;color:#f6faff!important}
+#gitl9.skin-command-selector .g-command-count{display:inline;font-size:10px;color:var(--g-muted)}
+#gitl9.skin-command-selector nav.g-site-nav{display:none!important}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;position:absolute;top:100%;left:4px;right:4px;z-index:15;gap:3px!important;padding:6px!important;margin:0!important;border:1px solid var(--g-accent)!important;border-radius:10px!important;background:#1b3042!important;box-shadow:0 14px 25px rgba(0,0,0,.65)!important;max-height:min(75dvh,320px);overflow-y:auto}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav button{min-height:40px!important;font-size:11px!important;text-align:left;padding:5px 7px!important}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav button.on{background:var(--g-accent-bg)!important}
+@media(max-width:340px){#gitl9.skin-edge-rail:not(.collapsed){grid-template-columns:56px minmax(0,1fr)}#gitl9.skin-edge-rail nav.g-site-nav button{font-size:8px!important}#gitl9.skin-command-selector .g-command-trigger{width:60%}}
+@media(prefers-reduced-motion:reduce){#gitl9.skin-edge-rail *,#gitl9.skin-command-selector *{animation:none!important;transition:none!important}}
 /* Ghostwave: appearance only; all native Ghost controls and panel geometry stay intact. */
 #gitl9[data-skin="ghostwave"]{border-color:#53669b;box-shadow:var(--g-shadow)}
 #gitl9[data-skin="ghostwave"] .head{background:linear-gradient(115deg,#111932 0%,#211638 62%,#102945 100%);border-color:#52649e;box-shadow:inset 0 -1px 0 rgba(108,203,255,.15)}
@@ -2101,6 +2151,9 @@ const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body 
 function applyAppearance() {
   panel.dataset.skin = skinId;
   const skin = SKINS[skinId] || SKINS.classic;
+  panel.classList.toggle('skin-edge-rail',skinId==='edge-rail');
+  panel.classList.toggle('skin-command-selector',skinId==='command-selector');
+  panel.classList.toggle('menu-open',skinId==='command-selector'&&commandMenuOpen);
   const accent = ACCENTS[accentId] || skin.accent;
   panel.style.setProperty('--g-bg', skin.bg);
   panel.style.setProperty('--g-surface', skin.surface);
@@ -2344,6 +2397,9 @@ setInterval(() => { if (autoApproveOn) scheduleApprovalScan(); }, 1000);
 
 function render() {
   const aaLimited = autoApproveOn && inaccessibleChatWidgets();
+  panel.classList.toggle('menu-open',skinId==='command-selector'&&commandMenuOpen);
+  const isOriginalCompactSkin=skinId==='edge-rail'||skinId==='command-selector';
+  const skinTabNames={play:'Run',auto:'Auto',flow:'Flow',prompt:'Personas',aoa:'AoA',export:'Export',settings:'Setup'};
   const aaTitle = aaLimited
     ? 'AA ON but limited: some ChatGPT components conceal their approval buttons.'
     : 'AA ON: monitoring accessible approval cards; click attempts are not confirmed grants.';
@@ -2365,13 +2421,15 @@ function render() {
     </div>
 
     <div class="g-nav-label">NAVIGATION</div>
-    <nav class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav>
+    <div class="g-skin-nav"><button type="button" class="g-command-trigger" data-a="skin-nav-trigger" aria-expanded="${commandMenuOpen?'true':'false'}" aria-controls="gitl-skin-nav" aria-label="Choose Ghost section">◉ <b>${skinTabNames[S.tab]||'Run'}</b><span>▾</span></button><span class="g-command-count">7 sections</span>
+    <nav id="gitl-skin-nav" class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav></div>
     <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▶</span><div><b>Run</b><span class="tiny">Your conversation controls</span></div></div>
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
       <div class="g-action-well"><div class="g-section-label">RUN CONTROLS</div><div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div></div>
+      ${isOriginalCompactSkin?`<div class="g-skin-quick"><div class="g-skin-modes" role="group" aria-label="Run modes"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div><label class="g-skin-posture">Posture <select data-skin-posture aria-label="Thinking posture">${Object.entries(POSTURES).map(([id,p])=>'<option value="'+id+'" '+(id===postureId?'selected':'')+'>'+esc(p.label)+'</option>').join('')}</select></label></div>`:''}
       <details class="g-accordion" data-g-acc="run-options"><summary>Modes &amp; posture</summary>
       <div class="sectionTitle">Run mode</div>
       <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
@@ -2481,7 +2539,9 @@ function render() {
   }
   panel.dataset.renderedTab=S.tab;
   if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); }));
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; commandMenuOpen=false; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); if(skinId==='command-selector')panel.querySelector('[data-a="skin-nav-trigger"]')?.focus(); }));
+  panel.querySelector('[data-a="skin-nav-trigger"]')?.addEventListener('click',()=>{commandMenuOpen=!commandMenuOpen;render();panel.querySelector('[data-a="skin-nav-trigger"]')?.focus();});
+  panel.querySelector('.g-skin-nav')?.addEventListener('keydown',e=>{if(e.key==='Escape'&&commandMenuOpen){commandMenuOpen=false;render();panel.querySelector('[data-a="skin-nav-trigger"]')?.focus();}});
   panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
   panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
@@ -2489,6 +2549,7 @@ function render() {
   panel.querySelector('[data-a="expand"]')?.addEventListener('pointerdown', e => e.preventDefault());
   panel.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { if (S.mode==='RUNNING') return; runMode=btn.dataset.mode; GM_setValue('v9.runMode',runMode); render(); }));
   panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
+  panel.querySelector('[data-skin-posture]')?.addEventListener('change',e=>{postureId=POSTURES[e.target.value]?e.target.value:'standard';GM_setValue('v9.posture',postureId);render();});
   panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
@@ -2504,7 +2565,7 @@ function render() {
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });
   panel.querySelector('[data-a="test-notify"]')?.addEventListener('click', () => { if (!notifyOn) { S.detail='Turn Notifications on first.'; render(); return; } const ok=notify('Ghost notification test','Notifications are working.','notice'); S.detail = ok ? 'Notification sent.' : 'Notification unavailable in this runtime.'; render(); });
-  panel.querySelector('[data-skin]')?.addEventListener('change', e => { skinId = SKINS[e.target.value] ? e.target.value : 'classic'; GM_setValue('v9.skin', skinId); applyAppearance(); S.detail = SKINS[skinId].name + ' skin applied.'; render(); });
+  panel.querySelector('[data-skin]')?.addEventListener('change', e => { skinId = SKINS[e.target.value] ? e.target.value : 'classic'; commandMenuOpen=false; GM_setValue('v9.skin', skinId); applyAppearance(); S.detail = SKINS[skinId].name + ' skin applied.'; render(); });
   panel.querySelectorAll('[data-accent]').forEach(btn => btn.addEventListener('click', () => { accentId = btn.dataset.accent in ACCENTS ? btn.dataset.accent : 'auto'; GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Accent updated.'; render(); }));
   const topButton = panel.querySelector('[data-a="top"]');
   topButton?.addEventListener('pointerdown', e => e.preventDefault());
