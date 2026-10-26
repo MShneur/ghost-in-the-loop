@@ -12,7 +12,7 @@ Ghost is a **mechanical relay with a rich control shell**. The AI owns reasoning
 - **Personas** — single personas, multi-persona committees, custom Workshop packs.
 - **AoA** — canonical Agents-of-AI / CTRL-AI / R-Duck prompt activators.
 - **Export** — API/archive-first Markdown/JSON with truthful partial fallback.
-- **Setup** — 13 skins, accents, sound, notifications, Quick Start and placement.
+- **Setup** — 14 built-in skins (including [Ghostwave](docs/skins/GHOSTWAVE_V9.md)), accents, sound, notifications, Quick Start and placement.
 
 Placement supports right dock, left dock, draggable float, composer-row, and header-row. Docked panels collapse to a side rail.
 
