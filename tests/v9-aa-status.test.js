@@ -3,7 +3,7 @@ global.TextEncoder=TextEncoder;global.TextDecoder=TextDecoder;
 const fs=require('fs'),path=require('path'),{JSDOM}=require('jsdom');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
 const sleep=(w,ms=160)=>new Promise(resolve=>w.setTimeout(resolve,ms));
-describe('Ghost 9.0.17 AA state truthfulness',()=>{
+describe('Ghost 9.0.18 AA state truthfulness',()=>{
   test('a closed-shadow permission is not falsely counted as detected or clicked',async()=>{
     const dom=new JSDOM('<html><body><main><textarea id="prompt-textarea"></textarea></main><dil-renderer></dil-renderer></body></html>',{url:'https://chatgpt.com/c/test',runScripts:'outside-only',pretendToBeVisual:true});
     const w=dom.window,host=w.document.querySelector('dil-renderer');

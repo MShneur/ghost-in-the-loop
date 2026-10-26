@@ -1,6 +1,6 @@
 # GITL Skins — Authoring Guide
 
-> **Version distinction (9.0.17):** The live v9 userscript has a built-in Setup → Skin selector (now 14 choices including **Ghostwave**). It does **not** support importing the legacy `.gitl.json` skin files described below. See [Ghostwave v9 skin](skins/GHOSTWAVE_V9.md) for the working current approach.
+> **Version distinction (9.0.17):** The live v9 userscript has a built-in Setup → Skin selector (now 15 choices including **Ghostwave** and **Ghostwave Compact**). It does **not** support importing the legacy `.gitl.json` skin files described below. See [Ghostwave v9 skin](skins/GHOSTWAVE_V9.md) for the working current approach.
 
 Skins are **data, not code**. A skin is a small JSON file that sets a whitelisted
 set of CSS custom properties (plus two enumerated effects) on the panel root.

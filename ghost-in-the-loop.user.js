@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.17
+// @version      9.0.19
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.17';
+const VER = '9.0.19';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -100,7 +100,8 @@ const SKINS = Object.freeze({
   nova:{ name:'Nova', bg:'#14101f', surface:'#241d3a', panel:'#0c0a17', border:'#4b3e72', text:'#f1eaff', muted:'#ab9bbb', accent:'#c084fc', accentBg:'#42245d', radius:'14px', shadow:'0 14px 40px rgba(44,20,70,.5)' },
   ion:{ name:'Ion', bg:'#0d1520', surface:'#172536', panel:'#091019', border:'#35536b', text:'#e5f2ff', muted:'#8ca7bc', accent:'#60a5fa', accentBg:'#17395e', radius:'12px', shadow:'0 12px 36px rgba(5,20,35,.55)' },
   flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' },
-  ghostwave:{ name:'Ghostwave', bg:'#0c1024', surface:'#19233b', panel:'#0b142b', border:'#46568a', text:'#f0f4ff', muted:'#a7b7d8', accent:'#baa5ff', accentBg:'#34265d', radius:'13px', shadow:'0 0 0 1px rgba(82,125,219,.24),0 14px 36px rgba(4,8,27,.76),0 0 22px rgba(133,84,255,.18)' }
+  ghostwave:{ name:'Ghostwave', bg:'#0c1024', surface:'#19233b', panel:'#0b142b', border:'#46568a', text:'#f0f4ff', muted:'#a7b7d8', accent:'#baa5ff', accentBg:'#34265d', radius:'13px', shadow:'0 0 0 1px rgba(82,125,219,.24),0 14px 36px rgba(4,8,27,.76),0 0 22px rgba(133,84,255,.18)' },
+  ghostdock:{ name:'Ghostwave Compact', bg:'#090f22', surface:'#16213b', panel:'#101b31', border:'#355684', text:'#f3f7ff', muted:'#afc1de', accent:'#9f8cff', accentBg:'#362361', radius:'11px', shadow:'0 0 0 1px rgba(82,135,235,.35),0 10px 26px rgba(2,7,19,.72)' }
 });
 const ACCENTS = Object.freeze({
   auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
@@ -2056,6 +2057,64 @@ style.textContent += `
 #gitl9[data-skin="ghostwave"] .g-accordion[open]{box-shadow:inset 0 0 0 1px rgba(166,135,255,.1)}
 @media(prefers-reduced-motion:reduce){#gitl9[data-skin="ghostwave"] .g-orbit,#gitl9[data-skin="ghostwave"] nav.g-site-nav button.on,#gitl9[data-skin="ghostwave"] .g-controls [data-a="play"]{transition:none!important;animation:none!important}}
 `;
+style.textContent += `/* Shared compact layout for two real, selectable Ghost skins. */
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) [data-pane="play"]>.tiny:last-child{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status [data-live-round]{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status .g-steps b{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]):not(.collapsed){display:flex!important;flex-direction:column!important;gap:0!important;max-height:min(74dvh,calc(100dvh - 42px - env(safe-area-inset-bottom,0px)))!important;padding:6px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .head{order:0;flex:none;min-height:36px!important;margin:0 0 3px!important;padding:5px 7px!important;border-radius:9px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .head .brand{font-size:11px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) nav.g-site-nav{order:1;flex:none;gap:3px!important;margin:0 0 4px!important;padding:3px!important;border-radius:9px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) nav.g-site-nav button{min-height:40px!important;border-radius:7px!important;padding:4px 1px!important;font-size:10px!important;line-height:1.15;white-space:nowrap}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status{order:2;flex:none;margin:0 0 4px!important;padding:4px 6px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status .g-steps{padding:3px 5px;margin:2px 0!important;border-radius:6px;gap:4px;min-height:20px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status .g-steps strong{font-size:12px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status .progline{height:3px;margin:2px 0 0}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status [data-live-detail],#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-status [data-live-workflow]{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]).status-open .g-status [data-live-detail],#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]).status-open .g-status [data-live-workflow]{display:block}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-scroll{order:3;flex:0 1 auto;min-height:0;overflow-y:auto!important;padding:1px 1px 2px!important;border-top:0}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-pane-intro{padding:0 1px 3px;margin-bottom:4px;gap:5px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-pane-intro .g-pane-symbol{width:19px;height:19px;font-size:11px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-pane-intro .tiny{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-action-well{padding:3px!important;margin:0 0 4px!important;border-radius:9px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-section-label{display:none}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-controls{display:grid!important;grid-template-columns:1.25fr 1fr 1fr 1fr!important;gap:4px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-controls button{min-height:42px!important;padding:5px 1px!important;font-size:11px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-accordion{margin:3px 0!important;padding:0 6px 3px!important;border-radius:8px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-accordion>summary{min-height:38px!important;font-size:11px!important}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-accordion[open]>summary{margin-bottom:4px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) .g-accordion .sectionTitle{margin:4px 0 3px}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) button:focus-visible,#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) summary:focus-visible{outline:2px solid #6dcfff;outline-offset:1px}
+/* Neon original: 4+3 menu, violet tabs, cyan glow, green Play. */
+#gitl9[data-skin="ghostwave"]:not(.collapsed){width:min(296px,calc(100vw - 12px))!important}
+#gitl9[data-skin="ghostwave"] .head{background:linear-gradient(110deg,#0e1834,#24153f 62%,#102b48)!important}
+#gitl9[data-skin="ghostwave"] nav.g-site-nav{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+#gitl9[data-skin="ghostwave"] .g-action-well{border:1px solid #42527e}
+#gitl9[data-skin="ghostwave"] .g-controls [data-a="play"]{background:linear-gradient(130deg,#075e4b,#06ab72)!important;border-color:#48e6b2!important;color:#fff!important}
+#gitl9[data-skin="ghostwave"] .g-controls [data-a="stop"]{border-color:#9f4d72!important}
+#gitl9[data-skin="ghostwave"] .g-accordion>summary{background:linear-gradient(90deg,rgba(91,65,156,.15),transparent)}
+/* Compact companion: all seven tab buttons remain direct and visible in a 3+4 stack. */
+#gitl9[data-skin="ghostdock"]:not(.collapsed){width:min(276px,calc(100vw - 12px))!important;padding:5px!important;border-color:#4d73b9;box-shadow:0 10px 22px rgba(0,5,24,.78)}
+#gitl9[data-skin="ghostdock"] .head{min-height:32px!important;background:linear-gradient(95deg,#0d1430,#0f2841)!important}
+#gitl9[data-skin="ghostdock"] nav.g-site-nav{grid-template-columns:repeat(12,minmax(0,1fr))!important;gap:2px!important;background:#0c1630!important}
+#gitl9[data-skin="ghostdock"] nav.g-site-nav button:nth-child(-n+3){grid-column:span 4}
+#gitl9[data-skin="ghostdock"] nav.g-site-nav button:nth-child(n+4){grid-column:span 3}
+#gitl9[data-skin="ghostdock"] nav.g-site-nav button{min-height:40px!important;font-size:10px!important}
+#gitl9[data-skin="ghostdock"] nav.g-site-nav button.on{background:#362064!important;border-color:#aa9cff!important;box-shadow:inset 0 -2px 0 #50dcff!important}
+#gitl9[data-skin="ghostdock"] .g-status{border-left:2px solid #61dcff!important}
+#gitl9[data-skin="ghostdock"] .g-controls [data-a="play"]{background:linear-gradient(115deg,#07674d,#0aa66c)!important;color:white!important;border-color:#44efaa!important}
+#gitl9[data-skin="ghostdock"] .g-controls [data-a="stop"]{border-color:#8d526a!important}
+#gitl9[data-skin="ghostdock"] .g-accordion{background:#111d36!important;border-color:#304a79!important}
+#gitl9[data-skin="ghostdock"][data-placement="dock-right"]{border-right:2px solid #6d91ff}
+#gitl9[data-skin="ghostdock"][data-placement="dock-left"]{border-left:2px solid #6d91ff}
+#gitl9[data-skin="ghostdock"][data-placement="float"]{border-color:#8168ed;box-shadow:0 0 0 1px #4b69ae,0 15px 40px #01081fe6}
+#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"])[data-placement="composer-row"]{transform:translateY(-12px)!important}
+#gitl9[data-skin="ghostdock"][data-placement="composer-row"]{max-height:min(60dvh,calc(100dvh - 68px - env(safe-area-inset-bottom,0px)))!important;border-radius:10px}
+#gitl9[data-skin="ghostdock"][data-placement="composer-row"] .head{min-height:29px!important}
+#gitl9[data-skin="ghostdock"][data-placement="header-row"]{border-top:2px solid #61d7ff}
+#gitl9[data-skin="ghostdock"].collapsed .rail{min-height:64px;box-shadow:inset 0 0 0 1px #5554be;background:linear-gradient(180deg,#101a34,#24113e)}
+@media(prefers-reduced-motion:reduce){#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) *,#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) *::before{animation:none!important;transition:none!important}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2076,6 +2135,7 @@ function applyAppearance() {
 applyAppearance();
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function applyPlacement() {
+  panel.dataset.placement = placement;
   panel.classList.remove('pos-dock-left','pos-dock-right','pos-header');
   panel.style.transform=''; panel.style.left=''; panel.style.right=''; panel.style.top=''; panel.style.bottom='';
   if (placement==='dock-left') { panel.classList.add('pos-dock-left'); panel.style.top='30%'; }
@@ -2156,6 +2216,18 @@ function updateLiveStatus() {
 /* Session-only tool-permission click automation: explicit operator opt-in. */
 let approvalWatchOn = false;
 let autoApproveOn = false;
+let approvalDelaySeconds = Math.max(0,Math.min(30,Number(GM_getValue('v9.approvalDelaySeconds',5))||0));
+let approvalActiveChat = '';
+let approvalPendingTimer = null;
+function clearApprovalTimer(){if(approvalPendingTimer!==null){clearTimeout(approvalPendingTimer);approvalPendingTimer=null;}}
+function setApprovalDelay(value){
+  const parsed=Number(value);
+  approvalDelaySeconds=Number.isFinite(parsed)?Math.max(0,Math.min(30,Math.round(parsed))):5;
+  GM_setValue('v9.approvalDelaySeconds',approvalDelaySeconds);
+  clearApprovalTimer();
+  S.detail='AA delay set to '+approvalDelaySeconds+' seconds';
+  render();if(autoApproveOn)scheduleApprovalScan();
+}
 let approvalSeenCount = 0;
 let approvalClickCount = 0;
 const approvalSeenCards = new WeakSet();
@@ -2189,6 +2261,9 @@ function approvalCardCandidates() {
 }
 function approvalScan() {
   if (!approvalWatchOn) return;
+  if (autoApproveOn && approvalActiveChat !== location.pathname) {
+    clearApprovalTimer();autoApproveOn=false;S.detail='AA OFF: chat changed';render();return;
+  }
   if (autoApproveOn && inaccessibleChatWidgets() && !approvalOpacityWarned) {
     approvalOpacityWarned = true;
     S.detail = 'AA LIMITED: ChatGPT components are opaque. Closed Shadow DOM approval buttons cannot be accessed here.';
@@ -2204,7 +2279,7 @@ function approvalScan() {
         render();
       }
     }
-    if (!autoApproveOn || !card.isConnected) continue;
+    if (!autoApproveOn || !card.isConnected || approvalPendingTimer!==null) continue;
     const buttons = Array.from(card.querySelectorAll('button'));
     const approve = buttons.find(b => (b.textContent || '').trim() === 'Approve');
     if (!approve || approve.disabled || approvalClickedButtons.has(approve)) continue;
@@ -2212,19 +2287,24 @@ function approvalScan() {
       setTimeout(scheduleApprovalScan, 380);
       break;
     }
-    approvalClickedButtons.add(approve);  // Never click the same button twice.
-    approvalLastClickAt = Date.now();
-    try {
-      approve.click(); // Operator-enabled browser UI action, never Ghost Play/Send.
-      approvalClickCount++;
-      S.detail = 'Auto-Approve clicked a permission prompt ('+approvalClickCount+' attempt'+(approvalClickCount===1?'':'s')+').';
-      render();
-    } catch (error) {
-      autoApproveOn = false;
-      S.detail = 'Auto-Approve stopped: click failed. Review the permission prompt.';
-      render();
-    }
-    setTimeout(scheduleApprovalScan, 400);
+    const chatAtDetection=approvalActiveChat;
+    S.detail='AA waiting '+approvalDelaySeconds+' seconds before click';
+    approvalPendingTimer=setTimeout(()=>{
+      approvalPendingTimer=null;
+      if(!autoApproveOn || !approvalWatchOn || location.pathname!==chatAtDetection || !card.isConnected || !approve.isConnected || approve.disabled)return;
+      approvalClickedButtons.add(approve);
+      approvalLastClickAt=Date.now();
+      try{
+        approve.click();
+        approvalClickCount++;
+        S.detail='AA click attempted '+approvalClickCount+' (grant not confirmed)';
+      }catch(error){
+        autoApproveOn=false;
+        S.detail='AA stopped: click failed. Review prompt.';
+      }
+      render();scheduleApprovalScan();
+    },approvalDelaySeconds*1000);
+    render();
     break;
   }
 }
@@ -2235,7 +2315,7 @@ function scheduleApprovalScan() {
 }
 function setApprovalWatch(enabled) {
   approvalWatchOn = Boolean(enabled);
-  if (!approvalWatchOn) autoApproveOn = false;
+  if (!approvalWatchOn) { autoApproveOn = false; clearApprovalTimer(); }
   if (approvalObserver) { approvalObserver.disconnect(); approvalObserver = null; }
   if (approvalWatchOn) {
     approvalObserver = new MutationObserver(scheduleApprovalScan);
@@ -2248,6 +2328,8 @@ function setApprovalWatch(enabled) {
 function setAutoApprove(enabled) {
   const chatgpt = location.hostname === 'chatgpt.com' || location.hostname === 'chat.openai.com';
   autoApproveOn = Boolean(enabled) && chatgpt;
+  clearApprovalTimer();
+  approvalActiveChat = autoApproveOn ? location.pathname : '';
   if (autoApproveOn && !approvalWatchOn) setApprovalWatch(true);
   if (!autoApproveOn) approvalOpacityWarned = false;
   S.detail = autoApproveOn
@@ -2256,6 +2338,8 @@ function setAutoApprove(enabled) {
   render();
   if (autoApproveOn) scheduleApprovalScan();
 }
+// A periodic check complements DOM-change observation for accessible cards and route changes.
+setInterval(() => { if (autoApproveOn) scheduleApprovalScan(); }, 1000);
 
 function render() {
   const aaLimited = autoApproveOn && inaccessibleChatWidgets();
@@ -2355,6 +2439,8 @@ function render() {
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
       <details class="g-accordion" data-g-acc="settings-approval"><summary>Approval controls · ${autoApproveOn?'AUTO ON':approvalWatchOn?'WATCH ON':'OFF'}</summary>
       <label><input type="checkbox" data-approval-watch ${approvalWatchOn?'checked':''}>Detect tool permission requests</label>
+      <label class="row">Auto-Approve delay (seconds) <input type="number" data-approval-delay min="0" max="30" step="1" value="${approvalDelaySeconds}" style="width:70px" aria-label="Auto-Approve delay seconds"></label>
+      <div class="tiny">5 seconds by default. Set 0 for no delay or up to 30.</div>
       <div class="tiny">Auto-Approve ON/OFF is in the Auto tab. Detected: ${approvalSeenCount} · Clicks attempted: ${approvalClickCount}.</div>
       </details>
       <details class="g-accordion" data-g-acc="settings-look" open><summary>Appearance</summary>
@@ -2412,6 +2498,7 @@ function render() {
   panel.querySelector('[data-a="reset-look"]')?.addEventListener('click', () => { skinId = 'classic'; accentId = 'auto'; GM_setValue('v9.skin', skinId); GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Appearance reset.'; render(); });
   panel.querySelector('[data-approval-watch]')?.addEventListener('change', e => setApprovalWatch(!!e.target.checked));
   panel.querySelector('[data-auto-approve]')?.addEventListener('change', e => setAutoApprove(!!e.target.checked));
+  panel.querySelector('[data-approval-delay]')?.addEventListener('change', e => setApprovalDelay(e.target.value));
   panel.querySelector('[data-sound]')?.addEventListener('change', e => { soundOn = !!e.target.checked; GM_setValue('v9.soundOn', soundOn); S.detail = soundOn ? 'Sound cues enabled.' : 'Sound cues off.'; render(); });
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });

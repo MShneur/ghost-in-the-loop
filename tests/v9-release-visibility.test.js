@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-describe('Ghost 9.0.17 live-visibility contract',()=>{
+describe('Ghost 9.0.18 live-visibility contract',()=>{
   test('loop status is explicit in full panel and collapsed rail',()=>{
     expect(src).toContain('data-live-step');
     expect(src).toContain('data-rail-round');
@@ -36,9 +36,15 @@ describe('Ghost 9.0.17 live-visibility contract',()=>{
     expect(src).toContain('Closed Shadow DOM approval buttons cannot be accessed here.');
     expect(src).toContain('AA status:');
   });
+  test('AA timer is configurable in Setup and bounded to current chat',()=>{
+    expect(src).toContain('data-approval-delay');
+    expect(src).toContain("GM_getValue('v9.approvalDelaySeconds',5)");
+    expect(src).toContain('approvalActiveChat');
+    expect(src).toContain('clearApprovalTimer()');
+  });
   test('stable three-component Tampermonkey version and main update channel',()=>{
-    expect(src).toContain('// @version      9.0.17');
-    expect(src).toContain("const VER = '9.0.17'");
+    expect(src).toContain('// @version      9.0.18');
+    expect(src).toContain("const VER = '9.0.18'");
     expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js');
   });
 });
