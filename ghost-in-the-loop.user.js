@@ -2323,6 +2323,9 @@ setInterval(() => { if (autoApproveOn) scheduleApprovalScan(); }, 1000);
 
 function render() {
   const aaLimited = autoApproveOn && inaccessibleChatWidgets();
+  panel.classList.toggle('menu-open',skinId==='command-selector'&&commandMenuOpen);
+  const isOriginalCompactSkin=skinId==='edge-rail'||skinId==='command-selector';
+  const skinTabNames={play:'Run',auto:'Auto',flow:'Flow',prompt:'Personas',aoa:'AoA',export:'Export',settings:'Setup'};
   const aaTitle = aaLimited
     ? 'AA ON but limited: some ChatGPT components conceal their approval buttons.'
     : 'AA ON: monitoring accessible approval cards; click attempts are not confirmed grants.';
@@ -2344,13 +2347,15 @@ function render() {
     </div>
 
     <div class="g-nav-label">NAVIGATION</div>
-    <nav class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav>
+    <div class="g-skin-nav"><button type="button" class="g-command-trigger" data-a="skin-nav-trigger" aria-expanded="${commandMenuOpen?'true':'false'}" aria-controls="gitl-skin-nav" aria-label="Choose Ghost section">◉ <b>${skinTabNames[S.tab]||'Run'}</b><span>▾</span></button><span class="g-command-count">7 sections</span>
+    <nav id="gitl-skin-nav" class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav></div>
     <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▶</span><div><b>Run</b><span class="tiny">Your conversation controls</span></div></div>
       ${quickStartOpen ? '<div class="helpbox"><b>Quick Start</b><br>1. Type your task in the chat.<br>2. Press ▶ Play.<br>3. Ghost continues only through the one-Send Play pathway.<br><button data-a="quick-done" style="margin-top:6px">Got it</button></div>' : ''}
       ${helpOpen ? '<div class="helpbox"><b>What the controls do</b><br><b>Play</b> starts/resumes Ghost. <b>Stop</b> stops Ghost automation. <b>Page</b> reloads the host page. <b>Top</b> finds the first loaded prompt and loads older history when possible. <b>AoA</b> chooses external protocols. <b>Export</b> saves the conversation. <b>Settings</b> changes appearance only.</div>' : ''}
       <div class="g-action-well"><div class="g-section-label">RUN CONTROLS</div><div class="row transport g-controls" role="group" aria-label="Ghost run controls"><button class="on" data-a="play">▶ Play</button><button data-a="pause">Ⅱ Pause</button><button class="stop" data-a="stop">■ End</button><button data-a="top" ${S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy?'disabled':''}>↑ Top</button></div></div>
+      ${isOriginalCompactSkin?`<div class="g-skin-quick"><div class="g-skin-modes" role="group" aria-label="Run modes"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div><label class="g-skin-posture">Posture <select data-skin-posture aria-label="Thinking posture">${Object.entries(POSTURES).map(([id,p])=>'<option value="'+id+'" '+(id===postureId?'selected':'')+'>'+esc(p.label)+'</option>').join('')}</select></label></div>`:''}
       <details class="g-accordion" data-g-acc="run-options"><summary>Modes &amp; posture</summary>
       <div class="sectionTitle">Run mode</div>
       <div class="pillrow"><button data-mode="loop" class="${runMode==='loop'?'on':''}">Loop</button><button data-mode="plan" class="${runMode==='plan'?'on':''}">Plan First</button><button data-mode="roadmap" class="${runMode==='roadmap'?'on':''}">Roadmap</button></div>
@@ -2460,7 +2465,9 @@ function render() {
   }
   panel.dataset.renderedTab=S.tab;
   if(previousTab===S.tab){const scroller=panel.querySelector('.g-scroll');if(scroller)scroller.scrollTop=oldScroll;}
-  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); }));
+  panel.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => { S.tab=btn.dataset.tab; commandMenuOpen=false; mobileMoreOpen=!!({flow:1,prompt:1,aoa:1,settings:1})[S.tab]; GM_setValue('v9.tab',S.tab); render(); if(skinId==='command-selector')panel.querySelector('[data-a="skin-nav-trigger"]')?.focus(); }));
+  panel.querySelector('[data-a="skin-nav-trigger"]')?.addEventListener('click',()=>{commandMenuOpen=!commandMenuOpen;render();panel.querySelector('[data-a="skin-nav-trigger"]')?.focus();});
+  panel.querySelector('.g-skin-nav')?.addEventListener('keydown',e=>{if(e.key==='Escape'&&commandMenuOpen){commandMenuOpen=false;render();panel.querySelector('[data-a="skin-nav-trigger"]')?.focus();}});
   panel.querySelector('[data-a="more-toggle"]')?.addEventListener('click',()=>{mobileMoreOpen=!mobileMoreOpen;render();});
   panel.querySelector('[data-a="status-toggle"]')?.addEventListener('click',()=>{statusExpanded=!statusExpanded;panel.classList.toggle('status-open',statusExpanded);});
   panel.querySelector('[data-a="collapse"]')?.addEventListener('click', () => { panelCollapsed = true; GM_setValue('v9.panelCollapsed', true); render(); });
@@ -2468,6 +2475,7 @@ function render() {
   panel.querySelector('[data-a="expand"]')?.addEventListener('pointerdown', e => e.preventDefault());
   panel.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { if (S.mode==='RUNNING') return; runMode=btn.dataset.mode; GM_setValue('v9.runMode',runMode); render(); }));
   panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
+  panel.querySelector('[data-skin-posture]')?.addEventListener('change',e=>{postureId=POSTURES[e.target.value]?e.target.value:'standard';GM_setValue('v9.posture',postureId);render();});
   panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
@@ -2483,7 +2491,7 @@ function render() {
   panel.querySelector('[data-notify]')?.addEventListener('change', e => { notifyOn = !!e.target.checked; GM_setValue('v9.notifyOn', notifyOn); S.detail = notifyOn ? 'Notifications enabled.' : 'Notifications off.'; render(); });
   panel.querySelector('[data-a="test-sound"]')?.addEventListener('click', () => { const prior=soundOn; soundOn=true; const ok=playCue('complete'); soundOn=prior; S.detail = ok ? 'Sound test played.' : 'Sound test was blocked by this browser.'; render(); });
   panel.querySelector('[data-a="test-notify"]')?.addEventListener('click', () => { if (!notifyOn) { S.detail='Turn Notifications on first.'; render(); return; } const ok=notify('Ghost notification test','Notifications are working.','notice'); S.detail = ok ? 'Notification sent.' : 'Notification unavailable in this runtime.'; render(); });
-  panel.querySelector('[data-skin]')?.addEventListener('change', e => { skinId = SKINS[e.target.value] ? e.target.value : 'classic'; GM_setValue('v9.skin', skinId); applyAppearance(); S.detail = SKINS[skinId].name + ' skin applied.'; render(); });
+  panel.querySelector('[data-skin]')?.addEventListener('change', e => { skinId = SKINS[e.target.value] ? e.target.value : 'classic'; commandMenuOpen=false; GM_setValue('v9.skin', skinId); applyAppearance(); S.detail = SKINS[skinId].name + ' skin applied.'; render(); });
   panel.querySelectorAll('[data-accent]').forEach(btn => btn.addEventListener('click', () => { accentId = btn.dataset.accent in ACCENTS ? btn.dataset.accent : 'auto'; GM_setValue('v9.accent', accentId); applyAppearance(); S.detail = 'Accent updated.'; render(); }));
   const topButton = panel.querySelector('[data-a="top"]');
   topButton?.addEventListener('pointerdown', e => e.preventDefault());
