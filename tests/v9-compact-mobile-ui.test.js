@@ -1,10 +1,10 @@
 const {TextEncoder,TextDecoder}=require('util');global.TextEncoder=TextEncoder;global.TextDecoder=TextDecoder;
 const fs=require('fs'),path=require('path'),{JSDOM}=require('jsdom');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-function boot(){
+function boot(preferences={}){
   const dom=new JSDOM('<html><body><main><textarea id="prompt-textarea"></textarea></main></body></html>',{
     url:'https://chatgpt.com/c/00000000-0000-0000-0000-000000000001',runScripts:'outside-only',pretendToBeVisual:true});
-  const w=dom.window,stored={};w.GM_getValue=(k,d)=>k in stored?stored[k]:d;w.GM_setValue=(k,v)=>stored[k]=v;
+  const w=dom.window,stored={...preferences};w.GM_getValue=(k,d)=>k in stored?stored[k]:d;w.GM_setValue=(k,v)=>stored[k]=v;
   w.GM_setClipboard=()=>{};w.GM_notification=()=>{};w.scrollTo=()=>{};
   w.eval(src);
   return {w,p:w.document.querySelector('#gitl9'),stored,close:()=>w.close()};
@@ -107,8 +107,55 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(13);
+      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(15);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
     }finally{close()}
+  });
+});
+
+
+describe('original A Edge Rail and D Command Selector as selectable GitL skins',()=>{
+  test('A reproduces the original seven-label vertical rail without new execution paths',()=>{
+    const {p,stored,close}=boot({'v9.skin':'edge-rail'});try{
+      expect(p.classList.contains('skin-edge-rail')).toBe(true);
+      const nav=p.querySelector('nav.g-site-nav');expect(nav.querySelectorAll('[data-tab]')).toHaveLength(7);
+      expect(p.querySelectorAll('[data-a="play"]')).toHaveLength(1);
+      expect(p.querySelectorAll('[data-a="pause"]')).toHaveLength(1);
+      expect(p.querySelectorAll('[data-a="stop"]')).toHaveLength(1);
+      expect(p.querySelectorAll('[data-a="top"]')).toHaveLength(1);
+      expect(p.querySelector('[data-skin-posture]')).toBeTruthy();
+      p.querySelector('.g-skin-modes [data-mode="plan"]').click();expect(stored['v9.runMode']).toBe('plan');
+      nav.querySelector('[data-tab="export"]').click();expect(p.querySelector('[data-pane="export"].show')).toBeTruthy();
+    }finally{close()}
+  });
+  test('D exposes seven real sections on demand and closes after selection',()=>{
+    const {p,stored,close}=boot({'v9.skin':'command-selector'});try{
+      expect(p.classList.contains('skin-command-selector')).toBe(true);
+      let trigger=p.querySelector('[data-a="skin-nav-trigger"]');expect(trigger.getAttribute('aria-expanded')).toBe('false');
+      trigger.click();expect(p.classList.contains('menu-open')).toBe(true);
+      expect(p.querySelector('[data-a="skin-nav-trigger"]').getAttribute('aria-expanded')).toBe('true');
+      expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      p.querySelector('nav.g-site-nav [data-tab="aoa"]').click();
+      expect(p.querySelector('[data-pane="aoa"].show')).toBeTruthy();expect(p.classList.contains('menu-open')).toBe(false);
+      expect(stored['v9.tab']).toBe('aoa');
+    }finally{close()}
+  });
+  test('Setup permits switching A to D and to Classic without leakage',()=>{
+    const {p,stored,close}=boot();try{
+      p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
+      for(const id of ['edge-rail','command-selector','classic']){
+        const el=p.querySelector('[data-skin]');el.value=id;el.dispatchEvent(new p.ownerDocument.defaultView.Event('change'));
+        expect(stored['v9.skin']).toBe(id);
+        expect(p.classList.contains('skin-edge-rail')).toBe(id==='edge-rail');
+        expect(p.classList.contains('skin-command-selector')).toBe(id==='command-selector');
+        expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      }
+    }finally{close()}
+  });
+  test('layout CSS is scoped to A and D and does not alter base send mechanics',()=>{
+    expect(src).toContain('#gitl9.skin-edge-rail:not(.collapsed)');
+    expect(src).toContain('#gitl9.skin-command-selector.menu-open nav.g-site-nav');
+    expect(src).toContain('prefers-reduced-motion:reduce');
+    expect(src).toContain('One Send');
   });
 });
