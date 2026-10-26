@@ -107,8 +107,27 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(13);
+      expect(p.querySelectorAll('[data-skin] option')).toHaveLength(14);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
+    }finally{close()}
+  });
+  test('Ghostwave skin applies to this panel and resets without changing controls',()=>{
+    const {p,w,close}=boot();try{
+      p.querySelector('[data-tab="settings"]').click();
+      let picker=p.querySelector('[data-skin]');
+      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Ghostwave')).toBe(true);
+      picker.value='ghostwave';
+      picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('ghostwave');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#0c1024');
+      expect(p.style.getPropertyValue('--g-accent')).toBe('#baa5ff');
+      expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
+      expect(p.querySelectorAll('#gitl9 [data-a="play"]')).toHaveLength(1);
+      picker=p.querySelector('[data-skin]');
+      picker.value='classic';
+      picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('classic');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#121922');
     }finally{close()}
   });
 });
