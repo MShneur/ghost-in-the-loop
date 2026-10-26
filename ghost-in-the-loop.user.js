@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.1-alpha.11
+// @version      9.0.1-alpha.12
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.1-alpha.11';
+const VER = '9.0.1-alpha.12';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -2279,6 +2279,48 @@ function render() {
   bindFloatDrag();
   queueViewportFit();
 }
+
+// Recover the EXISTING panel when a host SPA replaces its body after hydration.
+// Never boot a second Ghost instance, rerender, or touch the one-Send transport.
+let ghostMountPending = false;
+function ensureGhostMounted(reason = 'lifecycle') {
+  const host = document.body || document.documentElement;
+  if (!host) return;
+  let repaired = false;
+  if (!style.isConnected) {
+    document.documentElement.appendChild(style);
+    repaired = true;
+  }
+  if (!panel.isConnected || panel.parentNode !== host) {
+    host.appendChild(panel);
+    repaired = true;
+  }
+  if (repaired) log('ui-remount', { reason });
+}
+function scheduleGhostRemount(reason = 'lifecycle') {
+  const host = document.body || document.documentElement;
+  if (!host || (style.isConnected && panel.isConnected && panel.parentNode === host) || ghostMountPending) return;
+  ghostMountPending = true;
+  setTimeout(() => {
+    ghostMountPending = false;
+    try { ensureGhostMounted(reason); }
+    catch (error) { log('ui-remount-error', { reason, message: String(error?.message || error) }); }
+  }, 40);
+}
+const ghostMountObserver = new MutationObserver(() => {
+  if (!panel.isConnected || !style.isConnected || panel.parentNode !== (document.body || document.documentElement)) {
+    scheduleGhostRemount('host-dom-replaced');
+  }
+});
+ghostMountObserver.observe(document, { childList: true, subtree: true });
+window.addEventListener('pageshow', () => scheduleGhostRemount('pageshow'));
+window.addEventListener('popstate', () => scheduleGhostRemount('route'));
+window.addEventListener('hashchange', () => scheduleGhostRemount('hash'));
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) scheduleGhostRemount('visible');
+});
+// Cheap fallback for hosts that move or detach the panel without observable DOM mutation.
+setInterval(() => scheduleGhostRemount('pulse'), 8000);
 
 render();
 window.__GITL_V9__ = true;
