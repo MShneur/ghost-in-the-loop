@@ -99,7 +99,9 @@ const SKINS = Object.freeze({
   hud:{ name:'HUD', bg:'#050708', surface:'#0d1415', panel:'#000000', border:'#1a464b', text:'#bdf5f7', muted:'#5f9498', accent:'#22e0e6', accentBg:'#07383b', radius:'8px', shadow:'0 0 0 1px #123033,0 10px 30px rgba(0,0,0,.8)' },
   nova:{ name:'Nova', bg:'#14101f', surface:'#241d3a', panel:'#0c0a17', border:'#4b3e72', text:'#f1eaff', muted:'#ab9bbb', accent:'#c084fc', accentBg:'#42245d', radius:'14px', shadow:'0 14px 40px rgba(44,20,70,.5)' },
   ion:{ name:'Ion', bg:'#0d1520', surface:'#172536', panel:'#091019', border:'#35536b', text:'#e5f2ff', muted:'#8ca7bc', accent:'#60a5fa', accentBg:'#17395e', radius:'12px', shadow:'0 12px 36px rgba(5,20,35,.55)' },
-  flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' }
+  flow:{ name:'Flow', bg:'#101a18', surface:'#192a26', panel:'#09110f', border:'#31564c', text:'#e6fff7', muted:'#8fb4a9', accent:'#5eead4', accentBg:'#194a42', radius:'14px', shadow:'0 12px 36px rgba(5,30,25,.48)' },
+  'edge-rail':{ name:'A · Edge Rail (original)', bg:'#07182a', surface:'#0c2439', panel:'#06101e', border:'#42bfdd', text:'#e3f7ff', muted:'#b9d4e8', accent:'#37d4e8', accentBg:'#0e5263', radius:'12px', shadow:'0 12px 30px rgba(0,10,20,.64)' },
+  'command-selector':{ name:'D · Command Selector (original)', bg:'#111b2a', surface:'#243345', panel:'#172438', border:'#547086', text:'#e9eef5', muted:'#a5bacf', accent:'#9fbeea', accentBg:'#304c6c', radius:'12px', shadow:'0 12px 28px rgba(0,9,22,.54)' }
 });
 const ACCENTS = Object.freeze({
   auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
@@ -259,6 +261,7 @@ let quickStartOpen = false; // Discoverable through Setup > Extras; not a persis
 let helpOpen = false;
 let panelCollapsed = !!GM_getValue('v9.panelCollapsed', false);
 let mobileMoreOpen=false;
+let commandMenuOpen=false; // Original D: on-demand section menu.
 let statusExpanded=false;
 const uiAccordionStates=new Map();
 let lastPanelMarkup=null;
@@ -2042,10 +2045,62 @@ style.textContent += `
 @keyframes gitl-aa-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.65;transform:scale(1.06)}}
 @media(prefers-reduced-motion:reduce){#gitl9 .g-aa-badge.is-on{animation:none}}
 `;
+style.textContent += `
+
+/* GitL original A/D layout study: source = gitl_four_independent_concepts.html;
+   change only existing panel presentation, never chat send or permission logic. */
+#gitl9 .g-skin-nav{position:relative;flex:0 0 auto;min-width:0}
+#gitl9 .g-command-trigger,#gitl9 .g-command-count,#gitl9 .g-skin-quick{display:none}
+#gitl9.skin-edge-rail:not(.collapsed),#gitl9.skin-command-selector:not(.collapsed){width:min(294px,calc(100vw - 12px))!important;padding:5px!important}
+#gitl9.skin-edge-rail .head,#gitl9.skin-command-selector .head{min-height:36px!important;padding:5px 7px!important;margin:0 0 4px!important;background:var(--g-bg);border-color:var(--g-border)}
+#gitl9.skin-edge-rail .head::before,#gitl9.skin-command-selector .head::before{display:none}
+#gitl9.skin-edge-rail .g-pane-intro,#gitl9.skin-command-selector .g-pane-intro,#gitl9.skin-edge-rail .g-section-label,#gitl9.skin-command-selector .g-section-label{display:none}
+#gitl9.skin-edge-rail .g-action-well,#gitl9.skin-command-selector .g-action-well{padding:2px 0 5px!important;margin:0!important;background:transparent;border:0}
+#gitl9.skin-edge-rail .g-status,#gitl9.skin-command-selector .g-status{margin:0 0 4px!important;padding:4px 6px!important;min-height:0;border-radius:6px;border:1px solid var(--g-border);background:var(--g-panel)}
+#gitl9.skin-edge-rail .g-steps,#gitl9.skin-command-selector .g-steps,#gitl9.skin-edge-rail .status-text,#gitl9.skin-command-selector .status-text,#gitl9.skin-edge-rail [data-live-workflow],#gitl9.skin-command-selector [data-live-workflow]{display:none}
+#gitl9.skin-edge-rail .status-top,#gitl9.skin-command-selector .status-top{font-size:10px;min-height:20px}
+#gitl9.skin-edge-rail .progline,#gitl9.skin-command-selector .progline{height:4px;margin-top:3px}
+#gitl9.skin-edge-rail .pane[data-pane="play"]>.tiny,#gitl9.skin-command-selector .pane[data-pane="play"]>.tiny{display:none}
+#gitl9.skin-edge-rail .g-controls,#gitl9.skin-command-selector .g-controls{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;margin:0!important}
+#gitl9.skin-edge-rail .g-controls button,#gitl9.skin-command-selector .g-controls button{min-height:40px!important;font-size:10px!important;padding:3px 1px!important}
+#gitl9.skin-edge-rail .g-controls [data-a="play"]{background:#0bcbd0!important;color:#031b28!important;border-color:#1ff4ef!important}
+#gitl9.skin-command-selector .g-controls [data-a="play"]{background:#89c7f2!important;color:#09233d!important;border-color:#a1d3ff!important}
+#gitl9.skin-edge-rail .g-skin-quick,#gitl9.skin-command-selector .g-skin-quick{display:block;margin:4px 0}
+#gitl9.skin-edge-rail .g-skin-modes,#gitl9.skin-command-selector .g-skin-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;padding:2px;border:1px solid var(--g-border);border-radius:7px;background:var(--g-panel)}
+#gitl9.skin-edge-rail .g-skin-modes button,#gitl9.skin-command-selector .g-skin-modes button{min-height:30px!important;font-size:10px!important;padding:3px 1px!important;border:0!important;background:transparent}
+#gitl9.skin-edge-rail .g-skin-modes button.on{background:#22bdd3!important;color:#042332!important}
+#gitl9.skin-command-selector .g-skin-modes button.on{background:#6a91c7!important;color:#fff!important}
+#gitl9.skin-edge-rail .g-skin-posture,#gitl9.skin-command-selector .g-skin-posture{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:4px 0!important;padding:0!important;background:transparent!important;border:0!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-skin-posture select,#gitl9.skin-command-selector .g-skin-posture select{width:63%;min-height:30px!important;padding:3px 4px!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-accordion,#gitl9.skin-command-selector .g-accordion{margin:3px 0!important;padding:0 5px 3px!important;border-radius:6px}
+#gitl9.skin-edge-rail .g-accordion>summary,#gitl9.skin-command-selector .g-accordion>summary{min-height:32px!important;font-size:10px!important}
+#gitl9.skin-edge-rail .g-scroll,#gitl9.skin-command-selector .g-scroll{border-top:0;min-width:0;padding:1px!important}
+#gitl9.skin-edge-rail:not(.collapsed){display:grid;grid-template-columns:61px minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);column-gap:3px;min-height:min(340px,65dvh)}
+#gitl9.skin-edge-rail:not(.collapsed)>.head{grid-column:1/-1;grid-row:1}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-skin-nav{grid-column:1;grid-row:2/4;min-height:0;overflow-y:auto;scrollbar-width:none;background:var(--g-panel);border-right:1px solid var(--g-border);border-radius:7px 0 0 7px}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-status{grid-column:2;grid-row:2}
+#gitl9.skin-edge-rail:not(.collapsed)>.g-scroll{grid-column:2;grid-row:3}
+#gitl9.skin-edge-rail nav.g-site-nav{display:flex!important;flex-direction:column!important;gap:2px!important;padding:3px!important;margin:0!important;background:transparent!important;border:0!important}
+#gitl9.skin-edge-rail nav.g-site-nav button{display:flex!important;justify-content:flex-start;text-align:left;align-items:center;min-height:36px!important;font-size:9px!important;white-space:normal!important;padding:3px!important;background:transparent!important;border:1px solid transparent!important;box-shadow:none!important}
+#gitl9.skin-edge-rail nav.g-site-nav button.on{background:#37d4e8!important;color:#032331!important;font-weight:800!important;border-color:#37d4e8!important}
+#gitl9.skin-command-selector .g-skin-nav{display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#243345;border:1px solid var(--g-border);border-radius:7px;margin:0 0 4px;padding:4px 6px}
+#gitl9.skin-command-selector .g-command-trigger{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:34px!important;width:65%;font-size:12px;font-weight:700;text-align:left;border:1px solid #778ea5!important;border-radius:14px!important;background:#192538!important;color:#f6faff!important}
+#gitl9.skin-command-selector .g-command-count{display:inline;font-size:10px;color:var(--g-muted)}
+#gitl9.skin-command-selector nav.g-site-nav{display:none!important}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;position:absolute;top:100%;left:4px;right:4px;z-index:15;gap:3px!important;padding:6px!important;margin:0!important;border:1px solid var(--g-accent)!important;border-radius:10px!important;background:#1b3042!important;box-shadow:0 14px 25px rgba(0,0,0,.65)!important;max-height:min(75dvh,320px);overflow-y:auto}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav button{min-height:40px!important;font-size:11px!important;text-align:left;padding:5px 7px!important}
+#gitl9.skin-command-selector.menu-open nav.g-site-nav button.on{background:var(--g-accent-bg)!important}
+@media(max-width:340px){#gitl9.skin-edge-rail:not(.collapsed){grid-template-columns:56px minmax(0,1fr)}#gitl9.skin-edge-rail nav.g-site-nav button{font-size:8px!important}#gitl9.skin-command-selector .g-command-trigger{width:60%}}
+@media(prefers-reduced-motion:reduce){#gitl9.skin-edge-rail *,#gitl9.skin-command-selector *{animation:none!important;transition:none!important}}
+
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
   const skin = SKINS[skinId] || SKINS.classic;
+  panel.classList.toggle('skin-edge-rail',skinId==='edge-rail');
+  panel.classList.toggle('skin-command-selector',skinId==='command-selector');
+  panel.classList.toggle('menu-open',skinId==='command-selector'&&commandMenuOpen);
   const accent = ACCENTS[accentId] || skin.accent;
   panel.style.setProperty('--g-bg', skin.bg);
   panel.style.setProperty('--g-surface', skin.surface);
