@@ -20,3 +20,10 @@
 - Simulated mobile Chromium at 360 px: all three distinct button clicks generated an HTML file. E1 made only paged history request, E2 only legacy history request, E3 made no history requests. E1/E2 sample fixtures verified FULL, E3 showed PARTIAL.
 - These are Ghost isolated tests, not a claim that the current authenticated Firefox Android/ChatGPT field path is proven. Upstream verified 301-message results do not automatically transfer to Ghost.
 - Generated extension parity, lint, and tests must be rerun after final code changes. No network upload, paid model calls, GitHub-hosted Actions or main-branch release. Keep the PR draft until owner field acceptance.
+
+## Preview installation channel
+
+- Candidate userscript: https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/feature/9.0.21-mobile-export-fallback/ghost-in-the-loop.user.js
+- Its Tampermonkey update/download URLs intentionally track this review branch rather than stable main, so a preview install is not silently replaced by stable 9.0.20.
+- The preview is NOT automatically installed into Firefox Android; install via the browser userscript manager when ready and check that only one Ghost script is enabled for ChatGPT.
+- No merge, automatic publication or production stable update is authorized.
