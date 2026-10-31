@@ -1,5 +1,14 @@
 # Changelog
 
+## [9.0.21] - candidate: compact on-page mobile layouts and recovery export
+
+- Added three opt-in mobile layout skins: Micro Edge Tab, Top Tab Popover, Peek Sheet. All 17 existing skins retained, including original A/D. Seven real tabs and one-Send flow preserved.
+- Added local standalone conversation HTML (escaped text, no external scripts) alongside MD/JSON. Existing Page Snapshot HTML stays separate and clearly named.
+- Partial ChatGPT archive now continues to legacy archive and bounded scrolling; overlapping entries reconcile without claiming full coverage. October 2026 fallback-turn containers supported.
+- Added conservative Claude/Gemini/Grok/DeepSeek/Qwen rendered-message fallback selectors. Other AI sites stay PARTIAL unless source completeness is verified.
+- Private candidate only. Authenticated Firefox Android, media fidelity, and other AI host compatibility still require real field evidence.
+
+
 ## [9.0.20] — selected original A & D concept skins
 
 - **A · Edge Rail (original):** preserves the chosen dark navy/cyan concept with a left-side seven-section vertical rail inside the small Ghost panel. All existing Run controls and section handlers remain intact.
