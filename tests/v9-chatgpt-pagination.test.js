@@ -53,7 +53,8 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     expect(src).toContain("section[data-turn=\"user\"],section[data-turn=\"assistant\"]");
     expect(src).toContain('for(passes=0;passes<900&&Date.now()-started<240000;passes++)');
     const exportSection=src.slice(src.indexOf('async function captureExport(){'),src.indexOf('function markdown(cap)'));
-    expect(exportSection).toContain('if(api?.turns?.length&&api.proof?.pages)');
+    expect(exportSection).not.toContain('if(api?.turns?.length&&api.proof?.pages)return');
+    expect(exportSection).toContain('reconcileExportTurns(');
     expect(exportSection).not.toContain('sendOnce(');
   });
 });

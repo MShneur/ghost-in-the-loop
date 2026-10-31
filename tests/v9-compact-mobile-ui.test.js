@@ -107,7 +107,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(17);
+      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(20);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
     }finally{close()}
   });

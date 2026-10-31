@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.20';
+const VER = '9.0.21';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -84,7 +84,10 @@ const SKINS = Object.freeze({
   'edge-rail':{ name:'A · Edge Rail (original)', bg:'#07182a', surface:'#0c2439', panel:'#06101e', border:'#42bfdd', text:'#e3f7ff', muted:'#b9d4e8', accent:'#37d4e8', accentBg:'#0e5263', radius:'12px', shadow:'0 12px 30px rgba(0,10,20,.64)' },
   'command-selector':{ name:'D · Command Selector (original)', bg:'#111b2a', surface:'#243345', panel:'#172438', border:'#547086', text:'#e9eef5', muted:'#a5bacf', accent:'#9fbeea', accentBg:'#304c6c', radius:'12px', shadow:'0 12px 28px rgba(0,9,22,.54)' },
   ghostwave:{ name:'Ghostwave', bg:'#0c1024', surface:'#19233b', panel:'#0b142b', border:'#46568a', text:'#f0f4ff', muted:'#a7b7d8', accent:'#baa5ff', accentBg:'#34265d', radius:'13px', shadow:'0 0 0 1px rgba(82,125,219,.24),0 14px 36px rgba(4,8,27,.76),0 0 22px rgba(133,84,255,.18)' },
-  ghostdock:{ name:'Ghostwave Compact', bg:'#090f22', surface:'#16213b', panel:'#101b31', border:'#355684', text:'#f3f7ff', muted:'#afc1de', accent:'#9f8cff', accentBg:'#362361', radius:'11px', shadow:'0 0 0 1px rgba(82,135,235,.35),0 10px 26px rgba(2,7,19,.72)' }
+  ghostdock:{ name:'Ghostwave Compact', bg:'#090f22', surface:'#16213b', panel:'#101b31', border:'#355684', text:'#f3f7ff', muted:'#afc1de', accent:'#9f8cff', accentBg:'#362361', radius:'11px', shadow:'0 0 0 1px rgba(82,135,235,.35),0 10px 26px rgba(2,7,19,.72)' },
+  'micro-edge':{ name:'New 1 - Micro Edge Tab', bg:'#111827', surface:'#1d2939', panel:'#0b1220', border:'#3e556f', text:'#f0f7ff', muted:'#a9bad1', accent:'#6ee7b7', accentBg:'#134e41', radius:'10px', shadow:'0 8px 22px #0009' },
+  'tab-popover':{ name:'New 2 - Top Tab Popover', bg:'#111a25', surface:'#1c2b3c', panel:'#0a121d', border:'#48607a', text:'#f0f6ff', muted:'#a9bacb', accent:'#a5b4fc', accentBg:'#343c71', radius:'11px', shadow:'0 8px 22px #0009' },
+  'peek-sheet':{ name:'New 3 - Peek Sheet', bg:'#141c27', surface:'#202b39', panel:'#0d141f', border:'#506276', text:'#f3f6fc', muted:'#b2bece', accent:'#67e8f9', accentBg:'#164e63', radius:'14px', shadow:'0 8px 22px #0009' }
 });
 const ACCENTS = Object.freeze({
   auto:null, mint:'#34d399', blue:'#60a5fa', violet:'#a78bfa', cyan:'#22d3ee', coral:'#fb7185', gold:'#fbbf24'
@@ -1208,7 +1211,23 @@ function domTurns() {
     }
     return rows;
   }
-  const users = queryAll(HOST.user).map(el => ({ el, role: 'user' })), assistants = queryAll(HOST.assistant).map(el => ({ el, role: 'assistant' }));
+  // Multi-site DOM fallback. Only read displayed messages; never claim a full archive.
+  // Selector failures remain PARTIAL rather than promoting an empty page to success.
+  const hostname=location.hostname.toLowerCase();
+  const sitePatterns=[
+    [/claude\.ai$/,['[data-testid="user-message"]','.font-user-message'],['[data-testid="assistant-message"]','.font-claude-message']],
+    [/gemini\.google\.com$/,['user-query','[data-test-id="user-query"]'],['model-response','[data-test-id="model-response"]']],
+    [/grok\.com$/,['[data-testid="message-user"]'],['[data-testid="message-assistant"]']],
+    [/chat\.deepseek\.com$/,['.ds-message--user'],['.ds-message--assistant']],
+    [/chat\.qwen\.ai$/,['[data-role="user"]'],['[data-role="assistant"]']]
+  ];
+  const match=sitePatterns.find(item=>item[0].test(hostname));
+  const users = queryAll(HOST.user).map(el => ({ el, role: 'user' }));
+  const assistants = queryAll(HOST.assistant).map(el => ({ el, role: 'assistant' }));
+  if(!users.length&&!assistants.length&&match){
+    users.push(...queryAll(match[1]).map(el=>({el,role:'user'})));
+    assistants.push(...queryAll(match[2]).map(el=>({el,role:'assistant'})));
+  }
   for (const item of [...users, ...assistants].sort((a,b)=>(a.el.compareDocumentPosition(b.el)&Node.DOCUMENT_POSITION_FOLLOWING)?-1:1)) {
     const text = displayText(item.el.innerText || item.el.textContent || ''); if (!text) continue;
     const thinking = item.role === 'assistant' ? visibleReasoningText(item.el) : '';
@@ -1405,8 +1424,8 @@ async function apiCapture(){
   try{
     if(HOST.id==='chatgpt'){
       const modern=await captureChatGPTPages(chatgptId());
-      if(modern?.turns?.length)return modern;
-      if(modern?.failure && modern.failure.status!==404 && modern.failure.status!==405)return modern;
+      if(modern?.turns?.length&&modern.verified)return modern;
+      if(modern?.failure && !modern?.turns?.length && modern.failure.status!==404 && modern.failure.status!==405)return modern;
       const id=chatgptId();if(!id)return {failure:{kind:'missing-id',reason:exportReason(0,'missing-id')}};
       const url='/backend-api/conversation/'+encodeURIComponent(id);
       for(let attempt=0;attempt<3;attempt++){
@@ -1419,7 +1438,7 @@ async function apiCapture(){
           const kind=e?.name==='AbortError'?'timeout':'request-error';
           log('export-history-error',{host:HOST.id,kind,attempt:attempt+1});
           if(kind==='timeout'&&attempt<2){await sleep(500*(attempt+1));continue;}
-          return {failure:{kind,reason:exportReason(0,kind),attempts:attempt+1}};
+          return modern?.turns?.length?modern:{failure:{kind,reason:exportReason(0,kind),attempts:attempt+1}};
         }finally{if(timer)clearTimeout(timer);}
         if(!response.ok){
           const status=response.status;
@@ -1428,14 +1447,15 @@ async function apiCapture(){
             const after=Number(response.headers?.get?.('Retry-After'));
             await sleep(Number.isFinite(after)&&after>0?Math.min(after*1000,5000):500*(attempt+1));continue;
           }
-          return {failure:{kind:'http',status,reason:exportReason(status,'http'),attempts:attempt+1}};
+          return modern?.turns?.length?modern:{failure:{kind:'http',status,reason:exportReason(status,'http'),attempts:attempt+1}};
         }
         try{
           const raw=await response.json(),turns=parseChatGPTApi(raw),proof=chatgptArchiveProof(raw,turns.length);
           log('export-history-shape',{verified:proof.verified,reason:proof.reason,nodes:proof.nodes,turns:turns.length});
-          return {source:'platform archive',turns,raw,verified:proof.verified,proof,
+          const legacy={source:'platform archive',turns,raw,verified:proof.verified,proof,
             ...(proof.verified?{}:{failure:{kind:'shape',reason:'History structure: '+proof.reason}})};
-        }catch(e){return {failure:{kind:'parse',reason:'History response could not be read'}};}
+          return legacy.verified?legacy:(modern?.turns?.length?modern:legacy);
+        }catch(e){return modern?.turns?.length?modern:{failure:{kind:'parse',reason:'History response could not be read'}};}
       }
     }
     if(HOST.id==='perplexity'){
@@ -1450,11 +1470,25 @@ async function apiCapture(){
 function chatgptVisibleRows(){
   const rows=[],occurrences=new Map();
   const legacy=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
-  const elements=legacy.length?legacy:document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
+  const modern=document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
+  const elements=legacy.length?legacy:(modern.length?modern:document.querySelectorAll('[data-content-search-turn-key]'));
   for(const el of elements){
     if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
     if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
-    const role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn'),text=displayText(el.innerText||el.textContent||'');
+    let role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn');
+    let text=displayText(el.innerText||el.textContent||'');
+    if(!role&&el.hasAttribute('data-content-search-turn-key')){
+      const parts=text.split(/(?=You said:|ChatGPT said:)/i);
+      if(parts.length>1){
+        for(const part of parts){
+          const m=part.match(/^\s*(You said:|ChatGPT said:)/i);if(!m)continue;
+          const r=/You/i.test(m[1])?'user':'assistant',body=displayText(part.slice(m[0].length));
+          if(body)rows.push({key:'fallback:'+el.getAttribute('data-content-search-turn-key')+':'+rows.length,turn:{role:r,text:body}});
+        }
+        continue;
+      }
+      role=/^You said:/i.test(text)?'user':/^ChatGPT said:/i.test(text)?'assistant':null;
+    }
     if(!role||!text)continue;
     const id=el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
       el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
@@ -1513,23 +1547,46 @@ async function collectChatGPTDomHistory(){
   }finally{try{if(location.pathname===pathname)move(initial);}catch(e){}S.topBusy=false;}
   return {turns:order.map(key=>stored.get(key)),reason:top?'Page start reached, but complete history is unverified':'History loading stopped or was interrupted',passes};
 }
+function reconcileExportTurns(apiTurns,domTurns){
+  const a=Array.isArray(apiTurns)?apiTurns:[],d=Array.isArray(domTurns)?domTurns:[];
+  if(!a.length)return {turns:d,note:'Only scrolling results available.'};
+  if(!d.length)return {turns:a,note:'Scrolling found no readable additions.'};
+  const key=t=>String(t?.role||'')+'|'+displayText(t?.text||'').trim().replace(/\s+/g,' ').slice(0,2000);
+  const out=a.slice(),indices=new Map();
+  const reindex=()=>{indices.clear();out.forEach((t,j)=>{if(!indices.has(key(t)))indices.set(key(t),j);});};
+  reindex();let added=0,unplaced=0;
+  for(let i=0;i<d.length;i++){
+    const k=key(d[i]);if(!k||indices.has(k))continue;
+    const prev=d.slice(0,i).reverse().find(t=>indices.has(key(t)));
+    const next=d.slice(i+1).find(t=>indices.has(key(t)));
+    let pos=-1;
+    if(prev&&next){const p=indices.get(key(prev)),n=indices.get(key(next));if(p<n)pos=n;}
+    else if(prev)pos=indices.get(key(prev))+1;
+    else if(next)pos=indices.get(key(next));
+    if(pos<0){unplaced++;continue;}
+    out.splice(pos,0,d[i]);added++;reindex();
+  }
+  return {turns:out,note:added+' additional entries placed using overlap; '+unplaced+' lacked reliable ordering.'};
+}
 async function captureExport(){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
   const api=await apiCapture();
   if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
   if(api?.turns?.length&&api.verified)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
-  // A paginated archive with unsupported rich content is still preferable to scrolling on mobile.
-  if(api?.turns?.length&&api.proof?.pages)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:true,note:'History pages were retrieved, but '+api.proof.reason+'. No mobile scrolling was required.',turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
+  // An incomplete archive is NOT the end: always try manual-style scrolling.
+  if(api?.turns?.length)recoveryNotice('Part one incomplete. Trying scrolling fallback.',api.turns.length);
   const failure=api?.failure?.reason||(api?.turns?.length?'Archive completeness could not be verified':'Platform history unavailable');
   if(HOST.id==='chatgpt'){
     S.detail=failure+'. Checking older messages...';render();
     const dom=await collectChatGPTDomHistory();
     if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
-    const archive=(api?.turns?.length||0)>dom.turns.length;
-    return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:archive?'platform archive (unverified)':'visible page fallback',partial:true,
-      note:'Full history could not be verified ('+failure+'). '+dom.reason+'. Some older messages or rich media may be missing.',
-      turns:archive?api.turns:dom.turns,diagnostic:{code:api?.failure?.kind||'unverified',httpStatus:api?.failure?.status||null,passes:dom.passes},
+    const recovered=reconcileExportTurns(api?.turns||[],dom.turns||[]);
+    return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'archive + scrolling (unverified)',partial:true,
+      note:'Archive incomplete ('+failure+'). '+dom.reason+'. '+recovered.note+' Some older messages or rich media may be missing.',
+      turns:recovered.turns,verification:api?.proof,
+      diagnostic:{code:api?.failure?.kind||'unverified',httpStatus:api?.failure?.status||null,passes:dom.passes,
+        apiEntries:api?.turns?.length||0,domEntries:dom.turns.length,mergedEntries:recovered.turns.length},
       ...(exportRaw&&api?.raw?{raw:api.raw}:{})};
   }
   const dom=domTurns();
@@ -1548,6 +1605,18 @@ function markdown(cap) {
     }
     lines.push(''); });
   return lines.join('\n');
+}
+function conversationHTML(cap){
+  const ctx=exportFileContext();
+  const title='GITL - '+ctx.platform+' - '+ctx.title;
+  const entries=(cap.turns||[]).map((turn,i)=>{
+    const label=turn.role==='user'?'You':turn.role==='activity'?'Activity':'Assistant';
+    const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(turn.thinking)+'</pre></details>':'';
+    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(turn.text||'')+'</pre>'+reasoning+'</article>';
+  }).join('\n');
+  const notice=cap.partial?'<p class="warning">PARTIAL EXPORT - some messages or media may be missing. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Platform history verified by Ghost; non-text media may vary.</p>';
+  const css=':root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Arial,sans-serif;background:#0d1521;color:#eef4fa}.wrap{max-width:850px;margin:auto;padding:16px}h1{font-size:1.3rem}.meta{color:#a8b8c9}.warning{border-left:4px solid #ffc869;padding:10px;background:#30251a}.success{border-left:4px solid #77dfad;padding:10px;background:#15322a}.turn{border:1px solid #3c516a;border-radius:10px;margin:12px 0;padding:12px;background:#172437}.turn.you{background:#122f35}.turn header{display:flex;justify-content:space-between;font-weight:700;color:#8fe6e5}.turn a{color:#92c8fa;text-decoration:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0 0}details{padding:6px;margin-top:8px;border-top:1px solid #465c70}summary{cursor:pointer}@media print{body{color:#111;background:#fff}.turn,.turn.you{background:#fff;border-color:#aaa;break-inside:avoid}.turn header{color:#111}.warning,.success{background:#fff;color:#111}}';
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+(cap.turns||[]).length+' exported entries / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+'</main></body></html>';
 }
 function download(name,text,type) {
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
@@ -1843,7 +1912,7 @@ function exportFileContext(){
 function exportFileName(cap,kind){
   const ctx=exportFileContext(),dt=new Date(cap.capturedAt||Date.now());
   const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
-  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':'md');
+  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
 function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
 function confirmPartialExport(cap){
@@ -1868,6 +1937,7 @@ async function doExport(kind){
   if(!(progress.savePartial&&cap.partial)&&!confirmPartialExport(cap))return;
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
   else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
+  else if(kind==='html'){download(exportFileName(cap,'html'),conversationHTML(cap),'text/html;charset=utf-8');S.detail=exportStatus(cap,'Conversation HTML saved');}
   else{download(exportFileName(cap,'json'),JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,source:cap.source,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
@@ -2146,10 +2216,45 @@ style.textContent += `/* Shared compact layout for two real, selectable Ghost sk
 #gitl9[data-skin="ghostdock"].collapsed .rail{min-height:64px;box-shadow:inset 0 0 0 1px #5554be;background:linear-gradient(180deg,#101a34,#24113e)}
 @media(prefers-reduced-motion:reduce){#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) *,#gitl9:is([data-skin="ghostwave"],[data-skin="ghostdock"]) *::before{animation:none!important;transition:none!important}}
 `;
+style.textContent += `
+@media(max-width:520px){
+#gitl9.compact-mobile:not(.collapsed){display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important;padding:5px!important}
+#gitl9.compact-mobile .g-nav-label,#gitl9.compact-mobile .g-pane-intro,#gitl9.compact-mobile .g-section-label{display:none!important}
+#gitl9.compact-mobile .head{order:0!important;min-height:30px!important;flex:none!important;margin:0!important;padding:4px 6px!important;border-radius:6px!important}
+#gitl9.compact-mobile .g-skin-nav{order:1!important;flex:none!important;margin:3px 0 0!important;padding:0!important;min-height:0!important}
+#gitl9.compact-mobile .g-status{order:2!important;flex:none!important;margin:3px 0!important;padding:3px 6px!important;min-height:0!important}
+#gitl9.compact-mobile .g-status .g-steps,#gitl9.compact-mobile .g-status .status-text,#gitl9.compact-mobile [data-live-workflow]{display:none!important}
+#gitl9.compact-mobile.status-open .g-status .status-text{display:block!important}
+#gitl9.compact-mobile .status-top{min-height:17px!important}
+#gitl9.compact-mobile .progline{height:3px!important;margin-top:2px!important}
+#gitl9.compact-mobile .g-scroll{order:3!important;flex:1 1 auto!important;min-height:0!important;padding:1px!important}
+#gitl9.compact-mobile .g-accordion{margin:3px 0!important;padding:0 6px 4px!important}
+#gitl9.compact-mobile .g-accordion>summary{min-height:31px!important}
+#gitl9.compact-mobile .g-action-well{margin:0!important;padding:2px 0!important}
+#gitl9.compact-mobile nav.g-site-nav{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;overscroll-behavior-x:contain!important;scrollbar-width:none!important;gap:3px!important;padding:2px!important;margin:0!important;background:var(--g-panel)!important;border:1px solid var(--g-border)!important;border-radius:7px!important}
+#gitl9.compact-mobile nav.g-site-nav button{display:block!important;flex:0 0 auto!important;min-width:53px!important;min-height:31px!important;padding:3px 5px!important;font-size:10px!important;white-space:nowrap!important;box-shadow:none!important}
+#gitl9.compact-mobile nav.g-site-nav button.on{border-color:var(--g-accent)!important;background:var(--g-accent-bg)!important;color:var(--g-text)!important;box-shadow:inset 0 -2px var(--g-accent)!important}
+#gitl9.compact-mobile .g-controls button{min-height:36px!important;font-size:10px!important}
+#gitl9.compact-mobile .g-export-buttons{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#gitl9[data-skin="micro-edge"]:not(.collapsed){width:min(244px,calc(100vw - 10px))!important;max-height:52dvh!important}
+#gitl9[data-skin="micro-edge"].collapsed{width:31px!important;min-width:31px!important;max-width:31px!important;padding:3px!important;top:40vh!important}
+#gitl9[data-skin="micro-edge"].collapsed .rail{min-height:48px!important;gap:2px!important}
+#gitl9[data-skin="micro-edge"].collapsed .rail .mini,#gitl9[data-skin="micro-edge"].collapsed .g-rail-progress{display:none!important}
+#gitl9[data-skin="tab-popover"]:not(.collapsed){width:min(262px,calc(100vw - 10px))!important;max-height:54dvh!important}
+#gitl9[data-skin="tab-popover"].collapsed .rail{min-height:44px!important}
+#gitl9[data-skin="tab-popover"].collapsed .rail .mini{display:none!important}
+#gitl9[data-skin="peek-sheet"]:not(.collapsed){position:fixed!important;width:min(350px,calc(100vw - 10px))!important;max-height:min(44dvh,340px)!important;bottom:calc(5px + env(safe-area-inset-bottom,0px))!important;top:auto!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;border-radius:14px 14px 8px 8px!important}
+#gitl9[data-skin="peek-sheet"].collapsed{position:fixed!important;bottom:calc(6px + env(safe-area-inset-bottom,0px))!important;top:auto!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:86px!important;min-width:86px!important;max-width:86px!important;border:1px solid var(--g-accent)!important;border-radius:18px!important;padding:2px 6px!important}
+#gitl9[data-skin="peek-sheet"].collapsed .rail{flex-direction:row!important;gap:4px!important;min-height:30px!important}
+#gitl9[data-skin="peek-sheet"].collapsed .rail .mini{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){#gitl9.compact-mobile *{transition:none!important;animation:none!important}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
   panel.dataset.skin = skinId;
+  panel.classList.toggle('compact-mobile', ['micro-edge','tab-popover','peek-sheet'].includes(skinId));
   const skin = SKINS[skinId] || SKINS.classic;
   panel.classList.toggle('skin-edge-rail',skinId==='edge-rail');
   panel.classList.toggle('skin-command-selector',skinId==='command-selector');
@@ -2478,11 +2583,11 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇩</span><div><b>Export</b><span class="tiny">Save conversation and projects</span></div></div>
-      <div class="g-action-well"><div class="g-section-label">SAVE CONVERSATION</div><div class="row"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD</button><button data-a="json">Save JSON</button></div></div>
+      <div class="g-action-well"><div class="g-section-label">SAVE CONVERSATION</div><div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD</button><button data-a="json">Save JSON</button><button data-a="html">Save Chat HTML</button></div></div>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
-      <div class="row"><button data-page-backup="html">Save Page HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
+      <div class="row"><button data-page-backup="html">Page Snapshot HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
       <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
       </details>
       <details class="g-accordion" data-g-acc="export-vault"><summary>Project Vault · across AI sites</summary>
@@ -2492,7 +2597,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Ghost uses the platform archive first when supported. Visible-page fallback is clearly marked as possibly incomplete. Platform-visible reasoning is included when exposed.</div></details>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">ChatGPT: paged history, alternate archive, then scrolling when incomplete. Other AI sites use supported archives or page capture. Chat HTML is readable offline; Page Snapshot HTML saves rendered evidence. Unknown content is marked PARTIAL.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
@@ -2601,6 +2706,7 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
+  panel.querySelector('[data-a="html"]')?.addEventListener('click', () => doExport('html'));
   panel.querySelectorAll('[data-page-backup]').forEach(btn=>btn.addEventListener('click',()=>doPageBackup(btn.dataset.pageBackup)));
   panel.querySelector('[data-vault-select]')?.addEventListener('change',e=>{vaultProjectId=e.target.value;GM_setValue('v9.vault.active',vaultProjectId);render();});
   panel.querySelectorAll('[data-vault-action]').forEach(btn=>btn.addEventListener('click',()=>{
