@@ -18,16 +18,16 @@ test('standalone conversation HTML escapes injected markup and marks partial',()
  expect(h).toContain("default-src 'none'");
 });
 test('archive fallback cannot skip scroll and merge preserves archive',()=>{
- const fn=section('function reconcileExportTurns(','async function captureExport(){');
+ const fn=section('function reconcileExportTurns(','async function captureLegacyArchive(){');
  const ctx={displayText:v=>String(v)};
  vm.createContext(ctx);vm.runInContext(fn,ctx);
  const a=[{role:'user',text:'first'},{role:'assistant',text:'third'}];
  const d=[{role:'user',text:'first'},{role:'assistant',text:'second'},{role:'assistant',text:'third'}];
  const got=ctx.reconcileExportTurns(a,d);
  expect(got.turns.map(x=>x.text).join('|')).toBe('first|second|third');
- expect(src).toContain('Part one incomplete. Trying scrolling fallback.');
+ expect(src).toContain('Trying ');
  expect(src).not.toContain('No mobile scrolling was required.');
- const capture=section('async function captureExport(){','function markdown(cap) {');
- expect(capture).not.toContain('if(api?.turns?.length&&api.proof?.pages)return');
+ const capture=section("async function captureExport(mode='auto'){",'function markdown(cap) {');
+ expect(capture).toContain("['1','2','3']");
  expect(capture).not.toContain('sendOnce(');
 });

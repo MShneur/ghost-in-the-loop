@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.21
+// @version      9.0.22
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.21';
+const VER = '9.0.22';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -258,6 +258,9 @@ const ON = {};
 for (const key of Object.keys(ACT)) ON[key] = !!GM_getValue(`v9.act.${key}`, false);
 let custom = String(GM_getValue('v9.custom', '') || '');
 let exportRaw = !!GM_getValue('v9.exportRaw', false);
+let exportFormat=String(GM_getValue('v9.exportFormat','html')||'html');
+if(!['md','html','json'].includes(exportFormat))exportFormat='html';
+let exportBusy=false;
 let skinId = String(GM_getValue('v9.skin', 'classic') || 'classic');
 if (!SKINS[skinId]) skinId = 'classic';
 let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
@@ -1490,11 +1493,14 @@ function chatgptVisibleRows(){
   const rows=[],occurrences=new Map();
   const legacy=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
   const modern=document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
-  const elements=legacy.length?legacy:(modern.length?modern:document.querySelectorAll('[data-content-search-turn-key]'));
+  const current=document.querySelectorAll('[data-user-message-bubble],[data-chatgpt-selection-message-id]');
+  const elements=legacy.length?legacy:(modern.length?modern:(current.length?current:document.querySelectorAll('[data-content-search-turn-key]')));
   for(const el of elements){
     if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
     if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
     let role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn');
+    if(!role&&el.matches('[data-user-message-bubble]'))role='user';
+    if(!role&&el.matches('[data-chatgpt-selection-message-id]'))role='assistant';
     let text=displayText(el.innerText||el.textContent||'');
     if(!role&&el.hasAttribute('data-content-search-turn-key')){
       const parts=text.split(/(?=You said:|ChatGPT said:)/i);
@@ -1509,7 +1515,10 @@ function chatgptVisibleRows(){
       role=/^You said:/i.test(text)?'user':/^ChatGPT said:/i.test(text)?'assistant':null;
     }
     if(!role||!text)continue;
-    const id=el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
+    const id=el.getAttribute('data-chatgpt-selection-message-id')||
+      el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
+      el.closest?.('[data-content-search-unit-key]')?.getAttribute('data-content-search-unit-key')||
+      el.closest?.('[data-turn-key]')?.getAttribute('data-turn-key')||
       el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
       el.closest?.('[data-testid^="conversation-turn-"]')?.getAttribute('data-testid');
     const fingerprint=role+':'+text,n=(occurrences.get(fingerprint)||0)+1;occurrences.set(fingerprint,n);
@@ -1520,19 +1529,28 @@ function chatgptVisibleRows(){
   return rows;
 }
 async function collectChatGPTDomHistory(){
-  const scroller=conversationScrollContainer(),page=!scroller||scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body;
-  const pos=()=>page?(window.scrollY||document.documentElement.scrollTop||0):scroller.scrollTop||0;
-  const move=y=>{if(page)window.scrollTo(0,y);else scroller.scrollTop=y;};
+  const scroller=document.querySelector('.thread-scroll-container')||conversationScrollContainer(),page=!scroller||scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body;
+  const reverse=!page&&(scroller.scrollTop<0||getComputedStyle(scroller).flexDirection==='column-reverse');
+  const range=()=>Math.max(0,(page?document.documentElement.scrollHeight:scroller.scrollHeight)-(page?window.innerHeight:scroller.clientHeight));
+  const raw=()=>page?(window.scrollY||document.documentElement.scrollTop||0):scroller.scrollTop||0;
+  const pos=()=>Math.max(0,Math.min(range(),raw()+(reverse?range():0)));
+  const move=y=>{
+    const v=Math.max(0,Math.min(range(),y));
+    if(page)window.scrollTo(0,v);else scroller.scrollTop=v-(reverse?range():0);
+  };
+  const originalScrollBehavior=page?'':scroller.style.scrollBehavior;
+  const originalScrollSnap=page?'':scroller.style.scrollSnapType;
+  if(!page){scroller.style.scrollBehavior='auto';scroller.style.scrollSnapType='none';}
   const initial=pos(),pathname=location.pathname,stored=new Map(),order=[];
-  let passes=0,stall=0,top=false;
+  let passes=0,stall=0,top=false,endReached=false;
   const started=Date.now();
-  function observe(){
+  function observe(earlier=true){
     const batch=chatgptVisibleRows(),keys=batch.map(row=>row.key);
     for(const row of batch)if(!stored.has(row.key))stored.set(row.key,row.turn);
     if(!order.length)order.push(...keys);
     else{
       const overlap=keys.findIndex(key=>order.includes(key));
-      if(overlap<0)order.unshift(...keys.filter(key=>!order.includes(key)));
+      if(overlap<0){const fresh=keys.filter(key=>!order.includes(key));if(earlier)order.unshift(...fresh);else order.push(...fresh);}
       else{
         const anchor=order.indexOf(keys[overlap]);
         order.splice(anchor,0,...keys.slice(0,overlap).filter(key=>!order.includes(key)));
@@ -1554,7 +1572,8 @@ async function collectChatGPTDomHistory(){
       if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled())break;}
       const old=pos(),count=stored.size;
       const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.75));
-      move(Math.max(0,old-step));await sleep(180);observe();
+      if(old<=2&&range()>3){move(Math.min(range(),Math.max(240,step/2)));await sleep(140);}
+      move(Math.max(0,old-step));await sleep(old<=2?450:210);observe(true);
       const current=pos();
       stall=current<=2&&old<=2&&stored.size===count?stall+1:0;
       S.detail='Collecting older messages: '+stored.size+' captured';
@@ -1563,8 +1582,34 @@ async function collectChatGPTDomHistory(){
       if(stall>=4){top=true;break;}
       if(current===old&&current>2&&stored.size===count&&passes>6)break;
     }
-  }finally{try{if(location.pathname===pathname)move(initial);}catch(e){}S.topBusy=false;}
-  return {turns:order.map(key=>stored.get(key)),reason:top?'Page start reached, but complete history is unverified':'History loading stopped or was interrupted',passes};
+    // Dialogue Export-inspired second pass: a virtualized ChatGPT page drops
+    // older nodes while scrolling. Cache from the earliest window to the end.
+    if(top&&!recoveryCancelled()&&location.pathname===pathname){
+      move(0);await sleep(220);observe(false);
+      let stableEnd=0,previousEnd='';
+      for(;passes<900&&Date.now()-started<240000;passes++){
+        if(location.pathname!==pathname||recoveryCancelled())break;
+        if(exportRecovery?.paused)await recoveryCheckpoint();
+        const before=pos(),step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.72));
+        move(before+step);await sleep(220);observe(false);
+        const atEnd=pos()+4>=range();
+        const state=Math.round(range())+':'+stored.size+':'+order.slice(-2).join('|');
+        stableEnd=atEnd&&state===previousEnd?stableEnd+1:0;
+        previousEnd=state;
+        recoveryNotice('Export 3: sweeping forward to the latest message',stored.size);
+        if(stableEnd>=5){endReached=true;break;}
+        if(!atEnd&&Math.abs(pos()-before)<1)break;
+      }
+    }
+  }finally{
+    try{if(location.pathname===pathname)move(initial);}catch(e){}
+    if(!page){scroller.style.scrollBehavior=originalScrollBehavior;scroller.style.scrollSnapType=originalScrollSnap;}
+    S.topBusy=false;
+  }
+  return {turns:order.map(key=>stored.get(key)).filter(Boolean),
+    reason:top&&endReached?'Start and end visited; full history still unverified':
+      top?'Reached start but did not confirm end':'History loading stopped before the start was confirmed',
+    passes,startReached:top,endReached};
 }
 function reconcileExportTurns(apiTurns,domTurns){
   const a=Array.isArray(apiTurns)?apiTurns:[],d=Array.isArray(domTurns)?domTurns:[];
@@ -1587,30 +1632,117 @@ function reconcileExportTurns(apiTurns,domTurns){
   }
   return {turns:out,note:added+' additional entries placed using overlap; '+unplaced+' lacked reliable ordering.'};
 }
-async function captureExport(){
+// Independent export engines, distilled from documented upstream mechanisms:
+// pionxzh ChatGPT Exporter (archive), Dialogue Export (virtualized scroll).
+// No third-party code copied. Each engine has its own data acquisition route.
+async function captureLegacyArchive(){
+  if(HOST.id==='perplexity'){
+    const item=await apiCapture();
+    return item?{...item,verified:false,proof:{verified:false,reason:'Perplexity archive completeness not proven'}}:
+      {failure:{kind:'unavailable',reason:'Perplexity thread unavailable'}};
+  }
+  if(HOST.id!=='chatgpt')return {failure:{kind:'unsupported',reason:'Legacy archive unsupported on this AI site'}};
+  const id=chatgptId();
+  if(!id)return {failure:{kind:'missing-id',reason:'Conversation ID unavailable'}};
+  let response=null,failed=null;
+  for(let attempt=0;attempt<3;attempt++){
+    if(recoveryCancelled())return {failure:{kind:'cancelled',reason:'Stopped by user'}};
+    if(exportRecovery?.paused)await recoveryCheckpoint();
+    const controller=typeof AbortController==='function'?new AbortController():null;
+    let timer=null;
+    try{
+      recoveryNotice('Export 2: fetching original conversation tree');
+      if(controller){timer=setTimeout(()=>controller.abort(),12000);if(exportRecovery)exportRecovery.controller=controller;}
+      response=await fetch('/backend-api/conversation/'+encodeURIComponent(id),
+        {credentials:'include',...(controller?{signal:controller.signal}:{})});
+    }catch(e){
+      failed={kind:e?.name==='AbortError'?'timeout':'request-error',reason:'Legacy archive request failed'};
+      if(recoveryCancelled())break;
+      if(attempt<2&&e?.name==='AbortError'){await sleep(350*(attempt+1));continue;}
+      break;
+    }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
+    if(response.ok)break;
+    failed={kind:'http',status:response.status,reason:exportReason(response.status,'http')};
+    if(attempt<2&&[429,502,503,504].includes(response.status)){
+      await sleep(400*(attempt+1));continue;
+    }
+    break;
+  }
+  if(!response?.ok)return {failure:failed||{kind:'unavailable',reason:'Legacy archive unavailable'}};
+  try{
+    const raw=await response.json();
+    if(raw?.conversation_id&&String(raw.conversation_id)!==id)
+      return {failure:{kind:'identity',reason:'Legacy archive belongs to another conversation'}};
+    const turns=parseChatGPTApi(raw),proof=chatgptArchiveProof(raw,turns.length);
+    return {source:'legacy conversation tree',turns,verified:proof.verified,proof,
+      ...(proof.verified?{}:{failure:{kind:'partial',reason:proof.reason}}),
+      ...(exportRaw?{raw}:{})};
+  }catch(_){return {failure:{kind:'parse',reason:'Legacy archive could not be parsed'}};}
+}
+async function captureEngine(engine){
+  if(engine==='1'){
+    recoveryNotice('Export 1: retrieving paged history');
+    if(HOST.id==='chatgpt')return captureChatGPTPages(chatgptId());
+    // No falsely labeled paged endpoint on other AI sites.
+    return {failure:{kind:'unsupported',reason:'Paged ChatGPT history is not available on this site'}};
+  }
+  if(engine==='2')return captureLegacyArchive();
+  if(engine==='3'){
+    recoveryNotice('Export 3: scrolling and recording visible conversation');
+    if(HOST.id==='chatgpt'){
+      const d=await collectChatGPTDomHistory();
+      return {source:'scrolling conversation',turns:d.turns,verified:false,proof:{verified:false,reason:d.reason,passes:d.passes},
+        failure:{kind:'dom-partial',reason:d.reason}};
+    }
+    const d=domTurns();
+    return {source:'visible conversation',turns:d,verified:false,proof:{verified:false,reason:'Full history not verified'},
+      failure:{kind:'dom-partial',reason:'Page may not contain all messages'}};
+  }
+  return {failure:{kind:'unsupported',reason:'Unknown export engine'}};
+}
+function chooseRecoveredExport(results,mode){
+  const successful=results.find(r=>r.result?.verified&&r.result?.turns?.length);
+  if(successful)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
+    source:'Export '+successful.id+' - '+successful.result.source,engine:successful.id,partial:false,
+    turns:successful.result.turns,verification:successful.result.proof,
+    ...(exportRaw&&successful.result.raw?{raw:successful.result.raw}:{})};
+  const nonempty=results.filter(r=>r.result?.turns?.length);
+  let turns=[],reason='';
+  if(nonempty.length){
+    turns=nonempty[0].result.turns;
+    for(const entry of nonempty.slice(1)){
+      const merged=reconcileExportTurns(turns,entry.result.turns);turns=merged.turns;
+      reason+=merged.note+' ';
+    }
+  }
+  return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
+    source:(mode==='auto'?'Auto export lanes':'Export '+mode)+' (unverified)',
+    engine:mode,partial:true,turns,
+    note:'Could not verify complete history. '+results.map(r=>'Export '+r.id+': '+(r.result?.failure?.reason||r.result?.proof?.reason||'unavailable')).join(' / ')+'. '+reason,
+    verification:{verified:false,attempted:results.map(r=>r.id),laneProofs:results.map(r=>({engine:r.id,source:r.result?.source||null,
+      count:r.result?.turns?.length||0,verified:!!r.result?.verified,reason:r.result?.proof?.reason||r.result?.failure?.reason||'unavailable'}))},
+    ...(exportRaw&&nonempty[0]?.result?.raw?{raw:nonempty[0].result.raw}:{})};
+}
+async function captureExport(mode='auto'){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
-  const api=await apiCapture();
-  if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
-  if(api?.turns?.length&&api.verified)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:api.source,partial:false,turns:api.turns,verification:api.proof,...(exportRaw?{raw:api.raw}:{})};
-  // An incomplete archive is NOT the end: always try manual-style scrolling.
-  if(api?.turns?.length)recoveryNotice('Part one incomplete. Trying scrolling fallback.',api.turns.length);
-  const failure=api?.failure?.reason||(api?.turns?.length?'Archive completeness could not be verified':'Platform history unavailable');
-  if(HOST.id==='chatgpt'){
-    S.detail=failure+'. Checking older messages...';render();
-    const dom=await collectChatGPTDomHistory();
-    if(recoveryCancelled()&&!exportRecovery?.savePartial)return null;
-    const recovered=reconcileExportTurns(api?.turns||[],dom.turns||[]);
-    return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'archive + scrolling (unverified)',partial:true,
-      note:'Archive incomplete ('+failure+'). '+dom.reason+'. '+recovered.note+' Some older messages or rich media may be missing.',
-      turns:recovered.turns,verification:api?.proof,
-      diagnostic:{code:api?.failure?.kind||'unverified',httpStatus:api?.failure?.status||null,passes:dom.passes,
-        apiEntries:api?.turns?.length||0,domEntries:dom.turns.length,mergedEntries:recovered.turns.length},
-      ...(exportRaw&&api?.raw?{raw:api.raw}:{})};
+  const order=mode==='auto'?['1','2','3']:[String(mode)];
+  const results=[];
+  for(const id of order){
+    if(recoveryCancelled()){if(exportRecovery?.savePartial)break;return null;}
+    if(exportRecovery?.paused)await recoveryCheckpoint();
+    let result;
+    try{result=await captureEngine(id);}
+    catch(e){result={failure:{kind:'unexpected',reason:'Export '+id+' could not finish'}};}
+    results.push({id,result:result||{failure:{kind:'unavailable',reason:'No result'}}});
+    if(recoveryCancelled()&&exportRecovery?.savePartial)break;
+    recoveryNotice('Export '+id+' complete: '+(result?.verified?'verified':'incomplete'),
+      result?.turns?.length||0);
+    if(result?.verified&&result?.turns?.length)break;
+    if(id!=='3'&&mode==='auto'&&!recoveryCancelled())
+      recoveryNotice('Export '+id+' incomplete. Trying '+(Number(id)+1)+'.');
   }
-  const dom=domTurns();
-  return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),source:'visible page fallback',partial:true,
-    note:'This export uses currently visible content and may be incomplete. '+failure,turns:dom,...(exportRaw&&api?.raw?{raw:api.raw}:{})};
+  return chooseRecoveredExport(results,mode);
 }
 function markdown(cap) {
   const ctx=exportFileContext();
@@ -1931,7 +2063,7 @@ function exportFileContext(){
 function exportFileName(cap,kind){
   const ctx=exportFileContext(),dt=new Date(cap.capturedAt||Date.now());
   const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
-  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
+  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
 function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
 function confirmPartialExport(cap){
@@ -1941,24 +2073,26 @@ function confirmPartialExport(cap){
   if(!yes){S.detail='Partial export cancelled. No file saved. '+(cap.note||'');render();}
   return yes;
 }
-async function doExport(kind){
-  S.detail='Checking full conversation history...';render();let cap;
+async function doExport(kind,engine='auto'){
+  if(exportBusy){S.detail='An export is already running. Pause or cancel it first.';return;}
+  exportBusy=true;
+  S.detail='Checking conversation with '+(engine==='auto'?'automatic fallback':'Export '+engine)+'...';render();let cap;
   const progress=recoveryOpen();
   try{
-    cap=await captureExport();
+    cap=await captureExport(engine);
     if(progress.cancelled&&!progress.savePartial){S.detail='Export cancelled. No file saved.';render();return;}
     if(progress.savePartial&&cap){cap.partial=true;cap.note=(cap.note||'')+' User requested partial save during recovery.';}
   }catch(e){
     S.detail=progress.cancelled?'Export cancelled. No file saved.':'Export failed. No file saved.';
     log('export-failed',{kind:progress.cancelled?'cancelled':'unexpected'});render();return;
-  }finally{recoveryClose(progress);}
+  }finally{recoveryClose(progress);exportBusy=false;}
   if(!cap?.turns?.length&&!cap?.raw){S.detail='No conversation data was available. '+(cap?.note||'');render();return;}
   if(!(progress.savePartial&&cap.partial)&&!confirmPartialExport(cap))return;
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
   else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
   else if(kind==='html'){download(exportFileName(cap,'html'),conversationHTML(cap),'text/html;charset=utf-8');S.detail=exportStatus(cap,'Conversation HTML saved');}
   else{download(exportFileName(cap,'json'),JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
-  S.lastExport={partial:!!cap.partial,turns:cap.turns.length,source:cap.source,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
+  S.lastExport={partial:!!cap.partial,turns:cap.turns.length,engine:cap.engine||'platform',attempted:cap.verification?.attempted||null,source:cap.source,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
 }
 function report() {
@@ -2268,6 +2402,12 @@ style.textContent += `
 #gitl9[data-skin="peek-sheet"].collapsed .rail .mini{display:none!important}
 }
 @media(prefers-reduced-motion:reduce){#gitl9.compact-mobile *{transition:none!important;animation:none!important}}
+`;
+style.textContent += `#gitl9 .g-export-methods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:5px 0}
+#gitl9 .g-export-methods button{min-height:37px;font-weight:700;padding:4px 2px;font-size:11px}
+#gitl9 .g-export-methods button[data-export-engine="auto"]{border-color:var(--g-accent);background:var(--g-accent-bg)}
+#gitl9 .g-export-format-label{display:flex;align-items:center;justify-content:space-between;gap:6px;min-height:37px;padding:3px 6px}
+#gitl9 .g-export-format-label select{width:60%;min-height:32px}
 `;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
@@ -2602,7 +2742,18 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇩</span><div><b>Export</b><span class="tiny">Save conversation and projects</span></div></div>
-      <div class="g-action-well"><div class="g-section-label">SAVE CONVERSATION</div><div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD</button><button data-a="json">Save JSON</button><button data-a="html">Save Chat HTML</button></div></div>
+      <div class="g-action-well"><div class="g-section-label">EXPORT METHODS</div>
+      <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
+      <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
+      <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">Auto 1-2-3</button>
+      <button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
+      <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
+      <button data-export-engine="3" title="Scroll conversation and collect messages">Export 3</button></div>
+      <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
+      </div>
+      <details class="g-accordion" data-g-acc="export-quick"><summary>Other save options</summary>
+      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button><button data-a="html">Save Chat HTML (Auto)</button></div>
+      </details>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
@@ -2616,7 +2767,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">ChatGPT: paged history, alternate archive, then scrolling when incomplete. Other AI sites use supported archives or page capture. Chat HTML is readable offline; Page Snapshot HTML saves rendered evidence. Unknown content is marked PARTIAL.</div></details>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries three independent methods. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
@@ -2726,6 +2877,13 @@ function render() {
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
   panel.querySelector('[data-a="html"]')?.addEventListener('click', () => doExport('html'));
+  panel.querySelector('[data-export-format]')?.addEventListener('change',e=>{
+    exportFormat=['md','html','json'].includes(e.target.value)?e.target.value:'html';
+    GM_setValue('v9.exportFormat',exportFormat);render();
+  });
+  panel.querySelectorAll('[data-export-engine]').forEach(btn=>btn.addEventListener('click',()=>{
+    doExport(exportFormat,btn.dataset.exportEngine);
+  }));
   panel.querySelectorAll('[data-page-backup]').forEach(btn=>btn.addEventListener('click',()=>doPageBackup(btn.dataset.pageBackup)));
   panel.querySelector('[data-vault-select]')?.addEventListener('change',e=>{vaultProjectId=e.target.value;GM_setValue('v9.vault.active',vaultProjectId);render();});
   panel.querySelectorAll('[data-vault-action]').forEach(btn=>btn.addEventListener('click',()=>{

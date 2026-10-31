@@ -42,3 +42,7 @@ Research drew design/product mechanisms only, not code copying.
 - Check real ChatGPT Firefox Android with a long authenticated conversation; verify fallback scroll moves physically, state cancellation and progress dialog, first/last turns and partial report.
 - Compare one Claude, Gemini, DeepSeek, Qwen, Grok conversation per platform in the actual host/browser before claiming cross-AI extraction.
 - Full release/package certification requires approval; this is a review candidate, not stable.
+
+## 9.0.22 method selector correction
+
+The former 9.0.21 candidate only had automatic fallback, not independent method buttons. v9.0.22 implements Auto / Export 1 / 2 / 3, a format selector, and compact advanced save options. Details: docs/research/GITL_9_0_22_COMPETITOR_EXPORT_METHODS.md.

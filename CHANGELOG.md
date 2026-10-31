@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.0.22] - review candidate: independently selectable export engines
+
+- Adds **Auto / Export 1 / Export 2 / Export 3** real export buttons and an HTML/Markdown/JSON selector in the existing Export tab. Preserve existing explicit save options under a compact accordion.
+- Export 1 is a read-only paginated ChatGPT archive; Export 2 is a read-only independent legacy conversation tree (Perplexity archive as supported); Export 3 scrolls and caches virtualized messages.
+- Auto attempts each engine until a fully verified conversation is returned, or combines anchorable partial messages without claiming completeness. Explicit methods run only their chosen lane.
+- Two-way DOM scroll improvements, newer message selectors and recovery status derived from documented competitor mechanisms. Reports keep partial labels.
+- Public upstream source research and proof levels are recorded in docs/research. No user-conversation data leaves the current browser.
+- Draft only, no main update, no field-certification claim.
+
+
 ## [9.0.21] - candidate: compact on-page mobile layouts and recovery export
 
 - Added three opt-in mobile layout skins: Micro Edge Tab, Top Tab Popover, Peek Sheet. All 17 existing skins retained, including original A/D. Seven real tabs and one-Send flow preserved.

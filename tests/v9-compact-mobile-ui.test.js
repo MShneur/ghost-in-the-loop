@@ -82,7 +82,8 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
       expect(p.querySelectorAll('.g-subnav [data-tab]')).toHaveLength(0);
       expect(p.querySelector('[data-pane="play"] .g-controls [data-a="play"]')).toBeTruthy();
-      expect(p.querySelector('[data-pane="export"] .g-action-well [data-a="md"]')).toBeTruthy();
+      expect(p.querySelector('[data-pane="export"] .g-action-well [data-export-engine="1"]')).toBeTruthy();
+      expect(p.querySelector('[data-pane="export"] [data-a="md"]')).toBeTruthy();
       expect(p.querySelectorAll('.g-scroll .g-controls')).toHaveLength(1);
     }finally{close()}
   });
