@@ -1,7 +1,7 @@
 {
   "schema": "gitl-exporter-upstreams/1",
   "reviewedAt": "2026-11-01",
-  "policy": "read-only release watch; never automatically import vendor code, run third-party scripts, or change Play/Send",
+  "policy": "read-only watch via existing scripts/upstream-exporter-radar.py; never automatically import vendor code, run third-party scripts, or change Play/Send",
   "sources": [
     {
       "name": "ChatGPT Exporter",

@@ -23,7 +23,7 @@ Play-first mobile panel, version in header, one Export conversation primary acti
 - world-wide-dev/chatgpt-export (license unverified): hydration -> local IndexedDB snapshot -> deterministic export. Snapshot coverage must still be verified.
 - gildas-lormeau/SingleFile (AGPL): page archival and deferred-content loading, not server conversation authority.
 
-No third-party source was pasted into Ghost. Pinned source-revision registry: GITL_EXPORTER_UPSTREAMS_20261101.json. Read-only revision checker: scripts/check-exporter-upstreams.js. It produces REVIEW/UNCHANGED without installing anything. No hosted Actions, automatic code merges, or release jobs.
+No third-party source was pasted into Ghost. Pinned source-revision registry: GITL_EXPORTER_UPSTREAMS_20261101.json. Read-only pinned checks integrated into existing scripts/upstream-exporter-radar.py --head-only. It produces needs_review true/false without installing anything. No hosted Actions, automatic code merges, or release jobs.
 
 ## Tests and acceptance ceiling
 
