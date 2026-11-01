@@ -52,7 +52,7 @@ describe('Ghost 9.0.23 candidate visibility contract',()=>{
   test('stable three-component Tampermonkey version and main update channel',()=>{
     expect(src).toContain('// @version      9.0.23');
     expect(src).toContain("const VER = '9.0.23'");
-    expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/repair/9.0.23-mobile-recovery-field-candidate/ghost-in-the-loop.user.js');
-    expect(src).not.toContain('// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/');
+    expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js');
+    expect(src).not.toContain('// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/repair/');
   });
 });
