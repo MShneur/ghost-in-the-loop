@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.23';
+const VER = '9.0.24';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -249,6 +249,7 @@ let exportFormat=String(GM_getValue('v9.exportFormat','html')||'html');
 if(!['md','html','json'].includes(exportFormat))exportFormat='html';
 let exportBusy=false,exportConfirmationBusy=false;
 let skinId = String(GM_getValue('v9.skin', 'edge-rail') || 'edge-rail');
+let cleanMenuOpen=false;
 if (!SKINS[skinId]) skinId = 'edge-rail';
 let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
 if (!(accentId in ACCENTS)) accentId = 'auto';
@@ -1413,7 +1414,7 @@ async function captureChatGPTPages(conversationId){
         !msg?.metadata?.is_visually_hidden_from_conversation)unreadable++;
       if(msg?.metadata?.attachments?.length||
         msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
-      if(text||thinking)all.push(thinking?{role,text,thinking}:{role,text});
+      if(text||thinking)all.push(thinking?{id,role,text,thinking}:{id,role,text});
     }
     const oldest=pages[0].info,newest=pages[pages.length-1].info;
     const finished=oldest.has_previous_page===false&&newest.has_next_page===false&&!failed;
@@ -1480,15 +1481,26 @@ function chatgptVisibleRows(){
   const rows=[],occurrences=new Map();
   const legacy=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
   const modern=document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
-  const current=document.querySelectorAll('[data-user-message-bubble],[data-chatgpt-selection-message-id]');
-  const elements=legacy.length?legacy:(modern.length?modern:(current.length?current:document.querySelectorAll('[data-content-search-turn-key]')));
+  const current=document.querySelectorAll('[data-content-search-unit-key],[data-chatgpt-search-unit-key]');
+  const uniqueUnits=[...current].filter(el=>el.hasAttribute('data-content-search-unit-key'));
+  const elements=legacy.length?legacy:(modern.length?modern:(uniqueUnits.length?uniqueUnits:
+    document.querySelectorAll('[data-user-message-bubble],[data-chatgpt-selection-message-id],[data-content-search-turn-key]')));
   for(const el of elements){
     if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
     if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
     let role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn');
     if(!role&&el.matches('[data-user-message-bubble]'))role='user';
     if(!role&&el.matches('[data-chatgpt-selection-message-id]'))role='assistant';
-    let text=displayText(el.innerText||el.textContent||'');
+    const unitKey=el.getAttribute('data-content-search-unit-key')||el.getAttribute('data-chatgpt-search-unit-key');
+    if(!role&&unitKey)role=unitKey.match(/:(user|assistant)$/)?.[1]||null;
+    // Skip search-unit wrappers containing only the accessible speaker label.
+    let contentEl=el;
+    if(unitKey){
+      if(role==='user')contentEl=el.querySelector('[data-user-message-bubble]')||el;
+      if(role==='assistant')contentEl=el.querySelector('[data-chatgpt-selection-message-id]')||el;
+    }
+    let text=displayText(contentEl.innerText||contentEl.textContent||'');
+    if(unitKey&&role==='assistant')text=text.replace(/^ChatGPT said:\s*ChatGPT\s*/i,'').trim();
     if(!role&&el.hasAttribute('data-content-search-turn-key')){
       const parts=text.split(/(?=You said:|ChatGPT said:)/i);
       if(parts.length>1){
@@ -1502,16 +1514,18 @@ function chatgptVisibleRows(){
       role=/^You said:/i.test(text)?'user':/^ChatGPT said:/i.test(text)?'assistant':null;
     }
     if(!role||!text)continue;
-    const id=el.getAttribute('data-chatgpt-selection-message-id')||
+    const id=el.getAttribute('data-chatgpt-search-message-ids')?.split(/\s+/)[0]||
+      el.querySelector?.('[data-chatgpt-selection-message-id]')?.getAttribute('data-chatgpt-selection-message-id')||
+      el.getAttribute('data-chatgpt-selection-message-id')||
       el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
       el.closest?.('[data-content-search-unit-key]')?.getAttribute('data-content-search-unit-key')||
       el.closest?.('[data-turn-key]')?.getAttribute('data-turn-key')||
       el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
       el.closest?.('[data-testid^="conversation-turn-"]')?.getAttribute('data-testid');
     const fingerprint=role+':'+text,n=(occurrences.get(fingerprint)||0)+1;occurrences.set(fingerprint,n);
-    const key=id?'id:'+id+':'+role:'text:'+fingerprint+':'+n;
+    const key=id?'id:'+id+':'+role:unitKey?'unit:'+unitKey:'text:'+fingerprint+':'+n;
     const thinking=role==='assistant'?visibleReasoningText(el):'';
-    rows.push({key,turn:thinking?{role,text,thinking}:{role,text}});
+    rows.push({key,turn:thinking?{...(id?{id}:{}),role,text,thinking}:{...(id?{id}:{}),role,text}});
   }
   return rows;
 }
@@ -1619,7 +1633,8 @@ function reconcileExportTurns(apiTurns,domTurns){
   const a=Array.isArray(apiTurns)?apiTurns:[],d=Array.isArray(domTurns)?domTurns:[];
   if(!a.length)return {turns:d,note:'Only scrolling results available.'};
   if(!d.length)return {turns:a,note:'Scrolling found no readable additions.'};
-  const key=t=>String(t?.role||'')+'|'+displayText(t?.text||'').trim().replace(/\s+/g,' ').slice(0,2000);
+  const key=t=>t?.id?'id:'+String(t.id)+':'+String(t.role||''):
+    String(t?.role||'')+'|'+displayText(t?.text||'').trim().replace(/\s+/g,' ').slice(0,2000);
   const out=a.slice(),indices=new Map();
   const reindex=()=>{indices.clear();out.forEach((t,j)=>{if(!indices.has(key(t)))indices.set(key(t),j);});};
   reindex();let added=0,unplaced=0;const unplacedTurns=[];
@@ -2482,6 +2497,34 @@ style.textContent += `
 @keyframes gitl-gw-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media(prefers-reduced-motion:reduce){#gitl9[data-skin="ghostwave"] .g-orbit,#gitl9[data-skin="ghostwave"] .rail .ghost{animation:none!important}}
 `;
+style.textContent += `
+@media(max-width:600px){
+#gitl9:not(.collapsed){display:flex!important;flex-direction:column!important;width:min(288px,calc(100vw - 12px))!important;max-height:min(46dvh,390px)!important;padding:5px!important;overflow:hidden!important}
+#gitl9:not(.collapsed) .head{order:0!important;min-height:44px!important;display:flex!important;padding:4px!important}
+#gitl9 .headtools{display:flex!important;gap:3px!important;align-items:center!important}
+#gitl9 .headtools [data-a="quick-play"]{background:#14785c!important;color:#fff!important;font-weight:700!important;min-width:71px!important;min-height:41px!important}
+#gitl9 .headtools [data-a="quick-export"],#gitl9 .headtools [data-a="quick-menu"]{min-width:40px!important;min-height:41px!important}
+#gitl9 .headtools .meta{display:none!important}
+#gitl9:not(.collapsed) .g-status{order:1!important;flex:none!important;margin:2px 0!important;padding:3px!important}
+#gitl9:not(.collapsed) .g-status .g-steps,#gitl9:not(.collapsed) .g-status .status-text,#gitl9:not(.collapsed) .g-status [data-live-workflow]{display:none!important}
+#gitl9:not(.collapsed).status-open .g-status .status-text{display:block!important}
+#gitl9:not(.collapsed) .g-status .progline{height:3px!important}
+#gitl9:not(.collapsed) .g-skin-nav{order:2!important;display:none!important;margin:0!important}
+#gitl9:not(.collapsed).clean-menu-open .g-skin-nav{display:block!important}
+#gitl9:not(.collapsed) .g-nav-label{display:none!important}
+#gitl9:not(.collapsed) nav.g-site-nav{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:3px!important;padding:2px!important}
+#gitl9:not(.collapsed) nav.g-site-nav button{flex:0 0 auto!important;min-width:60px!important;min-height:42px!important}
+#gitl9:not(.collapsed) .g-scroll{order:3!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+#gitl9:not(.collapsed) .g-pane-intro,#gitl9:not(.collapsed) .g-section-label{display:none!important}
+#gitl9:not(.collapsed) .g-export-methods{display:block!important}
+#gitl9:not(.collapsed) .g-export-methods>button{width:100%!important;min-height:43px!important}
+#gitl9:not(.collapsed) .g-export-diagnostic button{min-height:42px!important;margin:2px!important}
+#gitl9:not(.collapsed) .g-accordion>summary{min-height:40px!important}
+#gitl9:not(.collapsed) [data-pane="play"] .g-controls{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+#gitl9:not(.collapsed) [data-pane="play"] .g-controls button{min-height:43px!important}
+}
+@media(min-width:601px){#gitl9 [data-a="quick-play"],#gitl9 [data-a="quick-export"],#gitl9 [data-a="quick-menu"]{display:none!important}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2744,12 +2787,13 @@ function render() {
   panel.classList.toggle('collapsed',panelCollapsed);
   panel.classList.toggle('more-open',mobileMoreOpen);
   panel.classList.toggle('status-open',statusExpanded);
+  panel.classList.toggle('clean-menu-open',cleanMenuOpen);
   panel.dataset.running=S.mode==='RUNNING'?'1':'0';
   const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
   const moreActive=!!moreLabels[S.tab];
   const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
-    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ Play</button><button data-a="quick-export" aria-label="Export">⇩</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
@@ -2818,10 +2862,10 @@ function render() {
       <div class="g-action-well"><div class="g-section-label">EXPORT METHODS</div>
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
-      <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">Auto 1-2-3</button>
-      <button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
+      <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">⇩ Export conversation</button>
+      <details class="g-accordion g-export-diagnostic"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
       <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
-      <button data-export-engine="3" title="Scroll conversation and collect messages">Export 3</button></div>
+      <button data-export-engine="3" title="Scroll conversation and collect messages">Scroll</button></details></div>
       <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
       </div>
       <details class="g-accordion" data-g-acc="export-quick"><summary>Other save options</summary>
@@ -2898,6 +2942,9 @@ function render() {
   panel.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { if (S.mode==='RUNNING') return; runMode=btn.dataset.mode; GM_setValue('v9.runMode',runMode); render(); }));
   panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
   panel.querySelector('[data-skin-posture]')?.addEventListener('change',e=>{postureId=POSTURES[e.target.value]?e.target.value:'standard';GM_setValue('v9.posture',postureId);render();});
+  panel.querySelector('[data-a="quick-play"]')?.addEventListener('click',()=>play().catch(e=>fail('PLAY',String(e?.message||e))));
+  panel.querySelector('[data-a="quick-export"]')?.addEventListener('click',()=>{S.tab='export';cleanMenuOpen=false;render();});
+  panel.querySelector('[data-a="quick-menu"]')?.addEventListener('click',()=>{cleanMenuOpen=!cleanMenuOpen;render();});
   panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);

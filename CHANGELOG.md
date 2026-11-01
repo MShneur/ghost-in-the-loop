@@ -1,5 +1,15 @@
 # Changelog
 
+## [9.0.24] - Cleanerz mobile UI and structured export candidate
+
+- Cleanerz rejected accumulating theme-only patches and unverified competing export buttons. One primary Export conversation action now leads, with three advanced diagnostics preserved behind disclosure.
+- Play-first mobile controls: Play, Export, Sections, Minimize share a single toolbar. Mobile navigation is hidden until Sections is opened; the full seven original functional sections remain.
+- Uses contemporary ChatGPT keyed message units, roles and stable IDs when available. API and page entries retain message IDs for better reconciliation; visiting the top is not proof of completeness.
+- Original Edge Rail, Ghostwave and three newer mobile skins stay selectable, but no longer define different feature layouts.
+- Play/Send transport, approval gates, project vault and MD/HTML/JSON output were not modified.
+- Candidate: real authenticated Firefox Android long-chat field acceptance is NOT TESTED. No stable release yet.
+
+
 ## [9.0.23] - field-recovery candidate
 
 - Five visible mobile UI options, original Edge Rail, animated Ghostwave, and three new compact skins. The 20 underlying skin implementations remain intact.
