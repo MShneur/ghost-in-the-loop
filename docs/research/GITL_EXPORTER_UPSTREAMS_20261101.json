@@ -1,0 +1,57 @@
+{
+  "schema": "gitl-exporter-upstreams/1",
+  "reviewedAt": "2026-11-01",
+  "policy": "read-only release watch; never automatically import vendor code, run third-party scripts, or change Play/Send",
+  "sources": [
+    {
+      "name": "ChatGPT Exporter",
+      "repo": "pionxzh/chatgpt-exporter",
+      "revision": "6935bc1f9aba",
+      "license": "MIT",
+      "role": "Archive data ingestion, caching, Markdown/HTML/JSON rendering",
+      "priority": "primary",
+      "knownRelease": "2.37.1 (2026-10-12)"
+    },
+    {
+      "name": "Dialogue Export",
+      "repo": "vaulthunt3r/dialogue-export",
+      "revision": "70c60e901897",
+      "license": "MIT",
+      "role": "Firefox virtualized scrolling and caching across mounted windows",
+      "priority": "fallback",
+      "knownRelease": "0.5.5 (2026-10-24)"
+    },
+    {
+      "name": "AnyChat Exporter",
+      "repo": "Kin-Zhang/anychat-exporter",
+      "revision": "84d3a035b3a9",
+      "license": "MIT",
+      "role": "Cross-AI format conventions and attachment-free defaults",
+      "priority": "multi-platform"
+    },
+    {
+      "name": "AI Exporter",
+      "repo": "sisodiabhumca/ai-exporter",
+      "revision": "a1f1090c47da9f3ed938bcef1e8729796afc5a4d",
+      "license": "unverified",
+      "role": "Compare cursor pagination, Projects and independent canonical schema",
+      "priority": "research-only"
+    },
+    {
+      "name": "SingleFile",
+      "repo": "gildas-lormeau/SingleFile",
+      "revision": "b98ad61e8bc09ceed8edb7a5efca17980afe040d",
+      "license": "AGPL-3.0",
+      "role": "Full-page visual archiving; not the default text handoff or conversation-completeness proof",
+      "priority": "optional-page-capture"
+    },
+    {
+      "name": "Local IndexedDB chat exporter",
+      "repo": "world-wide-dev/chatgpt-export",
+      "revision": "a3b961d2f460e371827cbc64d55ce7142a1ad0a9",
+      "license": "unverified",
+      "role": "Research extraction -> local persistence -> deterministic export separation",
+      "priority": "research-only"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.24
+// @version      9.0.25
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -37,8 +37,8 @@
 // @grant        GM_notification
 // @run-at       document-idle
 // @noframes
-// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/repair/9.0.23-mobile-recovery-field-candidate/ghost-in-the-loop.user.js
-// @downloadURL   https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/repair/9.0.23-mobile-recovery-field-candidate/ghost-in-the-loop.user.js
+// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js
+// @downloadURL   https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js
 // @license      AGPL-3.0
 // ==/UserScript==
 
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.24';
+const VER = '9.0.25';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -264,7 +264,7 @@ const ON = {};
 for (const key of Object.keys(ACT)) ON[key] = !!GM_getValue(`v9.act.${key}`, false);
 let custom = String(GM_getValue('v9.custom', '') || '');
 let exportRaw = !!GM_getValue('v9.exportRaw', false);
-let exportFormat=String(GM_getValue('v9.exportFormat','html')||'html');
+let exportFormat=String(GM_getValue('v9.exportFormat','md')||'md');
 if(!['md','html','json'].includes(exportFormat))exportFormat='html';
 let exportBusy=false,exportConfirmationBusy=false;
 let skinId = String(GM_getValue('v9.skin', 'edge-rail') || 'edge-rail');
@@ -1267,10 +1267,26 @@ function domTurns() {
 function chatgptId() { const m = location.pathname.match(/\/c\/([0-9a-z-]+)/i); return m ? m[1] : ''; }
 function perplexitySlug() { const m = location.pathname.match(/\/search\/([^/?#]+)/i); return m ? decodeURIComponent(m[1]) : ''; }
 function asText(value) {
-  if (typeof value === 'string') return displayText(value);
-  if (Array.isArray(value)) return displayText(value.map(v => typeof v === 'string' ? v : (v?.text || v?.content || '')).filter(Boolean).join('\n'));
-  if (value && typeof value === 'object') return displayText(value.text || value.content || value.answer || value.query || value.message || '');
-  return '';
+  // Read explicit text fields only. Never stringify a structured object as
+  // '[object Object]' or include binary/image payloads as conversation text.
+  const seen=new Set();
+  function walk(v,depth=0){
+    if(v==null||depth>8)return '';
+    if(typeof v==='string')return v;
+    if(Array.isArray(v))return v.map(item=>walk(item,depth+1)).filter(Boolean).join('\n');
+    if(typeof v!=='object'||seen.has(v))return '';
+    seen.add(v);
+    const type=String(v.content_type||v.type||'');
+    if(/^(?:image|audio|video|file|asset|spatial|svg)/i.test(type))return '';
+    for(const key of ['text','markdown','fallbackMarkdown','parts','content','answer','query','message','code']){
+      if(v[key]!=null){
+        const found=walk(v[key],depth+1);
+        if(found)return found;
+      }
+    }
+    return '';
+  }
+  return displayText(walk(value));
 }
 function visibleThinkingFrom(value) {
   if (!value || typeof value !== 'object') return '';
@@ -1295,15 +1311,17 @@ function chatgptArchiveProof(data,count) {
     if(role==='user'||role==='assistant'){
       const value=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
-      if(value||thinking)supported++;else if(m?.content)unknown++;
-      if(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
+      const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
+      if(value||thinking)supported++;else if(m?.content&&!hasMedia)unknown++;
+      if(hasMedia)assets++;
     }
     id=node.parent||null;
   }
   if(!supported||supported!==count)return {verified:false,reason:'message count mismatch',nodes:seen.size};
   if(unknown)return {verified:false,reason:'unreadable messages',nodes:seen.size,unreadable:unknown};
-  if(assets)return {verified:false,reason:'files or media not captured',nodes:seen.size,assets};
-  return {verified:true,reason:'connected conversation history',nodes:seen.size};
+  return {verified:true,textVerified:true,mediaExcluded:assets,
+    reason:assets?'Connected text history; media intentionally excluded':'Connected conversation text history',
+    nodes:seen.size,assets};
 }
 function parseChatGPTApi(data){
   if(!data?.mapping||typeof data.mapping!=='object')return [];
@@ -1423,25 +1441,29 @@ async function captureChatGPTPages(conversationId){
     const all=[],seenMessage=new Set();let unreadable=0,assets=0;
     for(const page of pages)for(const item of page.messages){
       const msg=item?.message||item,id=String(item?.id||msg?.id||'');
+      const role=msg?.author?.role;
+      // Unsupported non-conversational activity must not fail text completeness.
+      if(role!=='user'&&role!=='assistant')continue;
       if(!id){unreadable++;continue;}
       if(seenMessage.has(id))continue;seenMessage.add(id);
-      const role=msg?.author?.role;if(role!=='user'&&role!=='assistant')continue;
       const text=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content)||
         asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
       const thinking=role==='assistant'?(visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata)):'';
-      if(!text&&!thinking&&msg?.content&&
+      const hasMedia=!!(msg?.metadata?.attachments?.length||
+        msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
+      if(!text&&!thinking&&msg?.content&&!hasMedia&&
         !msg?.metadata?.is_visually_hidden_from_conversation)unreadable++;
-      if(msg?.metadata?.attachments?.length||
-        msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
+      if(hasMedia)assets++;
       if(text||thinking)all.push(thinking?{id,role,text,thinking}:{id,role,text});
     }
     const oldest=pages[0].info,newest=pages[pages.length-1].info;
     const finished=oldest.has_previous_page===false&&newest.has_next_page===false&&!failed;
-    const verified=finished&&!!all.length&&!unreadable&&!assets;
+    const verified=finished&&!!all.length&&!unreadable;
     const reason=failed?.reason||(!finished?'Some history pages could not be retrieved':
-      unreadable?'Some messages could not be converted':assets?'Some files or media could not be converted':
-      all.length?'Complete paginated history':'No readable messages');
-    const proof={verified,reason,pages:pages.length,nodes:seenMessage.size,unreadable,assets};
+      unreadable?'Some text messages could not be converted':
+      all.length?(assets?'Complete text history; media intentionally excluded':'Complete text history'):'No readable messages');
+    const proof={verified,textVerified:verified,reason,pages:pages.length,nodes:seenMessage.size,
+      readable:all.length,unreadable,assets,mediaExcluded:assets,scope:'user-and-assistant-text'};
     log('export-history-pages',{host:HOST.id,pages:proof.pages,messages:proof.nodes,verified:proof.verified,reason:proof.reason});
     return {source:'platform archive (paged)',turns:all,verified,proof,
       ...(verified?{}:{failure:{kind:failed?.kind||'partial',reason}}),
@@ -1783,38 +1805,61 @@ async function captureExport(mode='auto'){
   }
   return chooseRecoveredExport(results,mode);
 }
+// Text-first output only. Archive proofs and stable IDs are left untouched.
+function cleanHandoffText(value){
+  return String(value||'')
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg\s*>/gi,'[SVG vector omitted]')
+    .replace(/data:(?:image|video|audio|font|application\/(?:pdf|octet-stream))\/[^\s)"'<>]*?;base64,[A-Za-z0-9+/=]+/gi,'[embedded media omitted]')
+    .replace(/data:image\/svg\+xml[^\s)"'<>]*/gi,'[SVG data omitted]')
+    .replace(/!\[([^\]]*)\]\((?:https?:|data:|blob:)[^)]*\)/gi,(_m,alt)=>'[image omitted'+(alt?': '+alt:'')+']')
+    .replace(/<img\b[^>]*>/gi,'[image omitted]');
+}
+function handoffTurns(turns){
+  return (Array.isArray(turns)?turns:[]).filter(t=>t?.role==='user'||t?.role==='assistant');
+}
+function textOnlyExport(cap){
+  const cleanTurn=t=>{
+    const out={...(t.id?{id:String(t.id)}:{}),role:String(t.role||'assistant'),
+      text:cleanHandoffText(t.text||'')};
+    if(t.thinking)out.thinking=cleanHandoffText(t.thinking);
+    return out;
+  };
+  return {schema:'ghost-text-handoff/1',version:VER,platform:cap.platform,
+    capturedAt:cap.capturedAt,source:cap.source,partial:!!cap.partial,
+    note:cap.note||'',coverage:cap.verification||null,
+    turns:handoffTurns(cap.turns).map(cleanTurn),
+    unplacedTurns:handoffTurns(cap.unplacedTurns).map(cleanTurn)};
+}
 function markdown(cap) {
   const ctx=exportFileContext();
   const lines=['# GITL · '+ctx.platform+' · '+ctx.title,'','- Conversation ID: '+(ctx.id||'not available'),
     ...(ctx.project?['- Project: '+ctx.project]:[]),'- Exported: '+cap.capturedAt,
-    '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),''];
+    '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),
+    '- Scope: text only; images, SVG, audio and binary files excluded',''];
   if (cap.note) lines.push('> '+cap.note,'');
-  cap.turns.forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',turn.text||''); if(turn.thinking) lines.push('','### Platform-visible reasoning','',turn.thinking); if (cap.platform==='codex' && turn.metadata?.visibleDomText && (!turn.metadata.groupHasUser || turn.role==='user')) {
-      lines.push('','### Rendered turn context (includes visible activity)','',turn.metadata.visibleDomText);
-      if (turn.metadata.links?.length) lines.push('','### Captured links','',...turn.metadata.links.map(link=>'- '+(link.text||'Link')+': '+link.href));
-    }
+  handoffTurns(cap.turns).forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',cleanHandoffText(turn.text||'')); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
     lines.push(''); });
   if(cap.unplacedTurns?.length){
     lines.push('## Unplaced additional evidence (chronology unknown)','',
       'These readable entries were recovered but could not be positioned safely in the main conversation. They are preserved, not silently discarded.','');
-    cap.unplacedTurns.forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',t.text||'',''));
+    handoffTurns(cap.unplacedTurns).forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',cleanHandoffText(t.text||''),''));
   }
   return lines.join('\n');
 }
 function conversationHTML(cap){
   const ctx=exportFileContext();
   const title='GITL - '+ctx.platform+' - '+ctx.title;
-  const entries=(cap.turns||[]).map((turn,i)=>{
+  const entries=handoffTurns(cap.turns).map((turn,i)=>{
     const label=turn.role==='user'?'You':turn.role==='activity'?'Activity':'Assistant';
-    const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(turn.thinking)+'</pre></details>':'';
-    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(turn.text||'')+'</pre>'+reasoning+'</article>';
+    const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(cleanHandoffText(turn.thinking))+'</pre></details>':'';
+    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(cleanHandoffText(turn.text||''))+'</pre>'+reasoning+'</article>';
   }).join('\n');
-  const extras=(cap.unplacedTurns||[]).map((t,i)=>
-    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(t.text||'')+'</pre></article>').join('\n');
+  const extras=handoffTurns(cap.unplacedTurns).map((t,i)=>
+    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(cleanHandoffText(t.text||''))+'</pre></article>').join('\n');
   const extraSection=extras?'<h2>Additional recovered evidence (chronology unknown)</h2><p class="warning">These entries could not be reliably placed in sequence and were preserved separately.</p>'+extras:'';
-  const notice=cap.partial?'<p class="warning">PARTIAL EXPORT - some messages or media may be missing. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Platform history verified by Ghost; non-text media may vary.</p>';
+  const notice=cap.partial?'<p class="warning">PARTIAL EXPORT - some messages or media may be missing. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Complete text history verified; images, SVG and binary media deliberately excluded.</p>';
   const css=':root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Arial,sans-serif;background:#0d1521;color:#eef4fa}.wrap{max-width:850px;margin:auto;padding:16px}h1{font-size:1.3rem}.meta{color:#a8b8c9}.warning{border-left:4px solid #ffc869;padding:10px;background:#30251a}.success{border-left:4px solid #77dfad;padding:10px;background:#15322a}.turn{border:1px solid #3c516a;border-radius:10px;margin:12px 0;padding:12px;background:#172437}.turn.you{background:#122f35}.turn header{display:flex;justify-content:space-between;font-weight:700;color:#8fe6e5}.turn a{color:#92c8fa;text-decoration:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0 0}details{padding:6px;margin-top:8px;border-top:1px solid #465c70}summary{cursor:pointer}@media print{body{color:#111;background:#fff}.turn,.turn.you{background:#fff;border-color:#aaa;break-inside:avoid}.turn header{color:#111}.warning,.success{background:#fff;color:#111}}';
-  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+(cap.turns||[]).length+' exported entries / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+handoffTurns(cap.turns).length+' exported text messages / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
 }
 function download(name,text,type) {
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
@@ -2133,7 +2178,7 @@ function exportFileName(cap,kind){
   const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
   return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
-function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
+function exportStatus(cap,action){return action+' · '+cap.turns.length+' text entries · '+(cap.partial?'text coverage unverified':'text history verified');}
 function confirmPartialExport(cap){
   if(!cap.partial)return Promise.resolve('save');
   // Avoid Android's blocking window.confirm. Retain retry and partial results.
@@ -2191,7 +2236,7 @@ async function doExport(kind,engine='auto'){
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
   else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
   else if(kind==='html'){download(exportFileName(cap,'html'),conversationHTML(cap),'text/html;charset=utf-8');S.detail=exportStatus(cap,'Conversation HTML saved');}
-  else{download(exportFileName(cap,'json'),JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
+  else{download(exportFileName(cap,'json'),JSON.stringify(exportRaw?cap:textOnlyExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'Text-only JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,engine:cap.engine||'platform',attempted:cap.verification?.attempted||null,source:cap.source,unplaced:cap.unplacedTurns?.length||0,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
 }
@@ -2900,7 +2945,7 @@ function render() {
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
       <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">⇩ Export conversation</button>
-      <details class="g-accordion g-export-diagnostic"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
+      <details class="g-accordion g-export-diagnostic" data-g-acc="export-methods"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
       <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
       <button data-export-engine="3" title="Scroll conversation and collect messages">Scroll</button></details></div>
       <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
@@ -2909,7 +2954,7 @@ function render() {
       <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button></div>
       </details>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
-      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Expert-only raw JSON (may include images, SVG, large attachments and private data; OFF by default)</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
       <div class="row"><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
       <div class="tiny">Page HTML is a sanitized, text-only snapshot, not a full-fidelity SingleFile archive. Diagnostic JSON also captures tables and accessible frames. Review files before sharing.</div>

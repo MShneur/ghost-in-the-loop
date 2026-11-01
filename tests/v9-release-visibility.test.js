@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-describe('Ghost 9.0.23 candidate visibility contract',()=>{
+describe('Ghost 9.0.25 candidate visibility contract',()=>{
   test('loop status is explicit in full panel and collapsed rail',()=>{
     expect(src).toContain('data-live-step');
     expect(src).toContain('data-rail-round');
@@ -50,9 +50,9 @@ describe('Ghost 9.0.23 candidate visibility contract',()=>{
     }
   });
   test('stable three-component Tampermonkey version and main update channel',()=>{
-    expect(src).toContain('// @version      9.0.23');
-    expect(src).toContain("const VER = '9.0.23'");
-    expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js');
-    expect(src).not.toContain('// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/repair/');
+    expect(src).toContain('// @version      9.0.25');
+    expect(src).toContain("const VER = '9.0.25'");
+    expect(src).toContain('https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js');
+    expect(src).not.toContain('// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/');
   });
 });

@@ -1,5 +1,14 @@
 # Changelog
 
+## [9.0.25] - text-first handoff and truthful text completeness (draft)
+
+- Make Markdown the default for AI-to-AI handoff, retain direct HTML and optional JSON, but strip embedded image/SVG/audio/vector resources from all generated conversation exports.
+- Correct paginated ChatGPT completeness: media attachments don't mean the requested text is incomplete; non-conversational tool events without IDs must not count as unreadable user/assistant messages. Unsupported real text remains PARTIAL.
+- Export compact structured JSON containing only normalized text, metadata and coverage evidence; avoid raw platform media payloads. Existing manual page diagnostic/backup stays separate.
+- Track upstream exporter revisions in a pinned review registry; no automatic third-party code execution or silent dependency update.
+- Field result still unverified on authenticated Android Firefox. This is a draft candidate, not a stable release.
+
+
 ## [9.0.24] - Cleanerz mobile UI and structured export candidate
 
 - Restore the permanently visible `GHOST v9.0.24` title on mobile: the prior version was inside metadata that mobile CSS hid. Add direct `Save Chat HTML` to the Play toolbar and two first-level export actions (`Save Chat HTML`, `Save Page HTML`), removing hidden duplicate HTML controls. Clarify the styled offline chat archive versus sanitized text-only current-page snapshot.

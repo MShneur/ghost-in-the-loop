@@ -39,10 +39,28 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     const go=loader(async url=>url==='/api/auth/session'?response({}):response(page(0,3,false,false,'different')));
     const r=await go('chat-test');expect(r.failure.kind).toBe('identity');expect(r.turns).toBeUndefined();
   });
-  test('reports attachments instead of claiming a complete text archive',async()=>{
+  test('verifies complete text despite intentionally excluded media attachments',async()=>{
     const p=page(0,3,false,false);p.messages[1].metadata={attachments:[{id:'f1'}]};
     const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
-    const r=await go('chat-test');expect(r.verified).toBe(false);expect(r.proof.assets).toBe(1);
+    const r=await go('chat-test');
+    expect(r.verified).toBe(true);expect(r.proof.textVerified).toBe(true);
+    expect(r.proof.mediaExcluded).toBe(1);
+    expect(r.proof.reason).toContain('Complete text history');
+  });
+  test('non-conversational tool messages with missing IDs cannot falsely block complete text',async()=>{
+    const p=page(0,2,false,false);
+    p.messages.push({author:{role:'tool'},content:{parts:[{image:'large'}]}});
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(true);expect(r.proof.unreadable).toBe(0);
+    expect(r.turns).toHaveLength(2);
+  });
+  test('unreadable genuine assistant text still blocks full text verification',async()=>{
+    const p=page(0,2,false,false);
+    p.messages[1].content={content_type:'unsupported_text',parts:[{unexpected:'x'}]};
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(false);expect(r.proof.unreadable).toBe(1);
   });
   test('tries alternate modern route on HTTP 404',async()=>{
     let calls=0;const go=loader(async url=>{if(url==='/api/auth/session')return response({});calls++;return calls===1?response({},404):response(page(0,3,false,false))});
