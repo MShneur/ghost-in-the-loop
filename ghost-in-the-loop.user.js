@@ -2544,6 +2544,22 @@ style.textContent += `
 }
 @media(min-width:601px){#gitl9 [data-a="quick-play"],#gitl9 [data-a="quick-export"],#gitl9 [data-a="quick-menu"]{display:none!important}}
 `;
+style.textContent += `
+#gitl9 .g-version{display:inline-block;font-size:10px;line-height:1.3;font-weight:750;color:var(--g-accent);letter-spacing:.01em;white-space:nowrap;vertical-align:middle}
+#gitl9 .g-primary-html-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:3px 0}
+#gitl9 .g-primary-html-actions button{min-height:44px;font-weight:700;padding:7px 5px;line-height:1.2}
+#gitl9 .g-html-explainer{margin:4px 1px 8px}
+@media(max-width:600px){
+#gitl9:not(.collapsed) .head{flex-wrap:wrap!important;gap:3px!important}
+#gitl9:not(.collapsed) .head .brand{flex:0 0 100%!important;display:flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important;min-height:23px!important}
+#gitl9:not(.collapsed) .head .headtools{flex:0 0 100%!important;justify-content:space-between!important;margin-top:2px!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-play"]{flex:1 1 70px!important;min-width:60px!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-html"]{flex:1 1 70px!important;min-width:64px!important;min-height:41px!important;white-space:nowrap!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-menu"],#gitl9:not(.collapsed) .headtools [data-a="collapse"]{flex:0 0 40px!important;min-width:40px!important;min-height:41px!important}
+#gitl9:not(.collapsed) .g-primary-html-actions{grid-template-columns:1fr 1fr!important}
+}
+@media(min-width:601px){#gitl9 .g-version{font-size:11px}}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2812,7 +2828,7 @@ function render() {
   const moreActive=!!moreLabels[S.tab];
   const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
-    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ Play</button><button data-a="quick-export" aria-label="Export">⇩</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-version" aria-label="Ghost version">v${VER}</span> <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ Play</button><button data-a="quick-html" title="Save offline conversation HTML" aria-label="Save Chat HTML">↓ HTML</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
@@ -2878,7 +2894,9 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇩</span><div><b>Export</b><span class="tiny">Save conversation and projects</span></div></div>
-      <div class="g-action-well"><div class="g-section-label">EXPORT METHODS</div>
+      <div class="g-primary-html-actions" role="group" aria-label="Direct HTML downloads"><button type="button" class="on" data-a="html">↓ Save Chat HTML</button><button type="button" data-page-backup="html">↓ Save Page HTML</button></div>
+      <div class="tiny g-html-explainer"><b>Chat HTML</b> is an offline readable conversation (marked PARTIAL when needed). <b>Page HTML</b> saves text currently loaded on this page; unlike SingleFile, images and styling are not included.</div>
+      <div class="g-action-well"><div class="g-section-label">OTHER FORMATS &amp; METHODS</div>
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
       <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">⇩ Export conversation</button>
@@ -2888,13 +2906,13 @@ function render() {
       <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
       </div>
       <details class="g-accordion" data-g-acc="export-quick"><summary>Other save options</summary>
-      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button><button data-a="html">Save Chat HTML (Auto)</button></div>
+      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button></div>
       </details>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
-      <div class="row"><button data-page-backup="html">Page Snapshot HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
-      <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
+      <div class="row"><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
+      <div class="tiny">Page HTML is a sanitized, text-only snapshot, not a full-fidelity SingleFile archive. Diagnostic JSON also captures tables and accessible frames. Review files before sharing.</div>
       </details>
       <details class="g-accordion" data-g-acc="export-vault"><summary>Project Vault · across AI sites</summary>
       <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
@@ -2962,7 +2980,7 @@ function render() {
   panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
   panel.querySelector('[data-skin-posture]')?.addEventListener('change',e=>{postureId=POSTURES[e.target.value]?e.target.value:'standard';GM_setValue('v9.posture',postureId);render();});
   panel.querySelector('[data-a="quick-play"]')?.addEventListener('click',()=>play().catch(e=>fail('PLAY',String(e?.message||e))));
-  panel.querySelector('[data-a="quick-export"]')?.addEventListener('click',()=>{S.tab='export';cleanMenuOpen=false;render();});
+  panel.querySelector('[data-a="quick-html"]')?.addEventListener('click',()=>doExport('html'));
   panel.querySelector('[data-a="quick-menu"]')?.addEventListener('click',()=>{cleanMenuOpen=!cleanMenuOpen;render();});
   panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));

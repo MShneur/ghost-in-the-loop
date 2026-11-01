@@ -2,6 +2,7 @@
 
 ## [9.0.24] - Cleanerz mobile UI and structured export candidate
 
+- Restore the permanently visible `GHOST v9.0.24` title on mobile: the prior version was inside metadata that mobile CSS hid. Add direct `Save Chat HTML` to the Play toolbar and two first-level export actions (`Save Chat HTML`, `Save Page HTML`), removing hidden duplicate HTML controls. Clarify the styled offline chat archive versus sanitized text-only current-page snapshot.
 - Cleanerz rejected accumulating theme-only patches and unverified competing export buttons. One primary Export conversation action now leads, with three advanced diagnostics preserved behind disclosure.
 - Play-first mobile controls: Play, Export, Sections, Minimize share a single toolbar. Mobile navigation is hidden until Sections is opened; the full seven original functional sections remain.
 - Uses contemporary ChatGPT keyed message units, roles and stable IDs when available. API and page entries retain message IDs for better reconciliation; visiting the top is not proof of completeness.
