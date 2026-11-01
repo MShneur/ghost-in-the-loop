@@ -8,7 +8,7 @@ const functions=source.slice(start,end);
 function harness(){
  const dom=new JSDOM('<html><body><main></main></body></html>',{url:'https://chatgpt.com/c/12345678-1234-1234-1234-123456789abc',pretendToBeVisual:true});
  const w=dom.window;let name='My export · ChatGPT',project='Penny Clearance';
- const ctx={document:w.document,window:w,HOST:{id:'chatgpt'},vaultProjectId:'p',ProjectVault:{get:()=>({name:project})},chatgptId:()=> '12345678-1234-1234-1234-123456789abc',perplexitySlug:()=>'',Date,Number,sleep:async()=>{},trustedHTML:s=>s};
+ const ctx={document:w.document,window:w,HOST:{id:'chatgpt'},vaultProjectId:'p',ProjectVault:{get:()=>({name:project})},chatgptId:()=> '12345678-1234-1234-1234-123456789abc',perplexitySlug:()=>'',Date,Number,sleep:async()=>{},trustedHTML:s=>s,EXPORT_PATIENCE_MS:900000,setInterval,clearInterval};
  Object.defineProperty(w.document,'title',{get:()=>name,set:v=>{name=v},configurable:true});
  vm.createContext(ctx);vm.runInContext(functions,ctx);
  return {w,ctx,close:()=>w.close()};
@@ -42,13 +42,14 @@ describe('recover conversation controller and identifying filenames',()=>{
  test('Cancel does not authorize partial save',()=>{
   const t=harness();try{
     const op=t.ctx.recoveryOpen();op.root.querySelector('[data-recovery-cancel]').click();
-    expect(op.cancelled).toBe(true);expect(op.savePartial).toBe(false);
+    expect(op.cancelled).toBe(true);expect(op.savePartial).toBe(false);t.ctx.recoveryClose(op);
   }finally{t.close()}
  });
  test('paused collector checks are cancellable and bound collection is explicit',()=>{
-  expect(source).toContain('for(passes=0;passes<900&&Date.now()-started<240000;passes++)');
+  expect(source).toContain('for(passes=0;passes<3600&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++)');
   expect(source).toContain('if(recoveryCancelled())break;');
   expect(source).toContain('await recoveryCheckpoint()');
-  expect(source).toContain("if(!(progress.savePartial&&cap.partial)&&!confirmPartialExport(cap))return;");
+  expect(source).toContain('decision=await confirmPartialExport(cap)');
+  expect(source).toContain('waitForHistoryGrowth(');
  });
 });

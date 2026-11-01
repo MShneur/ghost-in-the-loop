@@ -59,7 +59,7 @@ describe('compact Ghost mobile UI',()=>{
   test('all thirteen existing skins and exporting still available',()=>{
     const {p,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
-      expect(p.querySelectorAll('select[data-skin] option').length).toBeGreaterThanOrEqual(13);
+      expect([...p.querySelectorAll('select[data-skin] option')].map(o=>o.value)).toEqual(['edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']);
       p.querySelector('[data-tab="export"]').click();
       for(const action of ['copy','md','json'])expect(p.querySelector('[data-a="'+action+'"]')).toBeTruthy();
       expect(p.querySelector('[data-vault-action="save"]')).toBeTruthy();
@@ -108,7 +108,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(20);
+      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(5);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
     }finally{close()}
   });
@@ -116,10 +116,11 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
     const {p,w,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
       let picker=p.querySelector('[data-skin]');
-      expect([...picker.options].map(x=>x.value)).toContain('ghostdock');
-      picker.value='ghostdock';picker.dispatchEvent(new w.Event('change',{bubbles:true}));
-      expect(p.dataset.skin).toBe('ghostdock');
-      expect(p.style.getPropertyValue('--g-bg')).toBe('#090f22');
+      expect(src).toContain("ghostdock:{ name:'Ghostwave Compact'");
+      expect([...picker.options].map(x=>x.value)).toContain('micro-edge');
+      picker.value='micro-edge';picker.dispatchEvent(new w.Event('change',{bubbles:true}));
+      expect(p.dataset.skin).toBe('micro-edge');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#111827');
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
       expect(p.querySelectorAll('[data-place]')).toHaveLength(5);
       p.querySelector('[data-place="dock-left"]').click();
@@ -138,7 +139,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
     const {p,w,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
       let picker=p.querySelector('[data-skin]');
-      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Ghostwave')).toBe(true);
+      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Animated - Ghostwave')).toBe(true);
       picker.value='ghostwave';
       picker.dispatchEvent(new w.Event('change',{bubbles:true}));
       expect(p.dataset.skin).toBe('ghostwave');
@@ -147,10 +148,10 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
       expect(p.querySelectorAll('[data-a="play"]')).toHaveLength(1);
       picker=p.querySelector('[data-skin]');
-      picker.value='classic';
+      picker.value='edge-rail';
       picker.dispatchEvent(new w.Event('change',{bubbles:true}));
-      expect(p.dataset.skin).toBe('classic');
-      expect(p.style.getPropertyValue('--g-bg')).toBe('#121922');
+      expect(p.dataset.skin).toBe('edge-rail');
+      expect(p.style.getPropertyValue('--g-bg')).toBe('#07182a');
     }finally{close()}
   });
 });
@@ -185,7 +186,7 @@ describe('original A Edge Rail and D Command Selector as selectable GitL skins',
   test('Setup permits switching A to D and to Classic without leakage',()=>{
     const {p,stored,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      for(const id of ['edge-rail','command-selector','classic']){
+      for(const id of ['edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']){
         const el=p.querySelector('[data-skin]');el.value=id;el.dispatchEvent(new p.ownerDocument.defaultView.Event('change'));
         expect(stored['v9.skin']).toBe(id);
         expect(p.classList.contains('skin-edge-rail')).toBe(id==='edge-rail');

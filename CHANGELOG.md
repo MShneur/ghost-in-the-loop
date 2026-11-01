@@ -1,6 +1,14 @@
 # Changelog
 
-## [9.0.22] - review candidate: independently selectable export engines
+## [9.0.23] - field-recovery candidate
+
+- Five visible mobile UI options, original Edge Rail, animated Ghostwave, and three new compact skins. The 20 underlying skin implementations remain intact.
+- 15-minute recovery budget with explicit +5-minute extensions, elapsed clock, slow API timeout tolerance and load-aware scrolling.
+- Replaces Android native confirmation with nonblocking retry/save/cancel; preserves HTML/Markdown/JSON and all existing Play/Send permissions.
+- Candidate only; authenticated Firefox Android completeness still must be verified.
+
+
+## [9.0.22] - independently selectable export engines (main channel release)
 
 - Adds **Auto / Export 1 / Export 2 / Export 3** real export buttons and an HTML/Markdown/JSON selector in the existing Export tab. Preserve existing explicit save options under a compact accordion.
 - Export 1 is a read-only paginated ChatGPT archive; Export 2 is a read-only independent legacy conversation tree (Perplexity archive as supported); Export 3 scrolls and caches virtualized messages.
