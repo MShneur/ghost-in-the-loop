@@ -1,5 +1,13 @@
 # Changelog
 
+## [9.0.26] - heritage circular Play skins and source-coverage evidence (draft)
+
+- Restores the **actual v8.0.0 layout hierarchy** as Heritage v8: visible top section tabs, 46-pixel round Play, each section in its own pane, and status below controls. Origin: Ghost 8.0.0 source at commit 6bcdc91ea8; modern one-Send engine is preserved rather than restored from obsolete code.
+- Adds two distinct selectable structural skins, Orbit (large circular Play plus on-demand section drawer) and Folio (two-row section grid), with one-tap quick skin cycling on mobile. Existing five choices remain.
+- Changes paged-history proof to distinguish unreadable text bodies, missing message IDs, platform-redacted tool output placeholders, archive boundary verification, and intentionally excluded media. Visiting the scroll top never implies complete readable source history.
+- Tested the live source's paginated-reader function using five isolated mock API conditions. Real Firefox Android logged-in field export and visual skin acceptance remain NOT TESTED; stable release remains HOLD.
+
+
 ## [9.0.25] - text-first handoff and truthful text completeness (draft)
 
 - Make Markdown the default for AI-to-AI handoff, retain direct HTML and optional JSON, but strip embedded image/SVG/audio/vector resources from all generated conversation exports.

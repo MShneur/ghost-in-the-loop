@@ -11,7 +11,7 @@ function boot(skin='edge-rail'){
   w.eval(src);return {w,p:w.document.querySelector('#gitl9'),close:()=>w.close()};
 }
 describe('version title and direct HTML export regression',()=>{
-  test.each(['edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet'])('%s always places real version in visible title, not mobile-hidden metadata',skin=>{
+  test.each(['heritage-v8','orbit-one','folio-top','edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet'])('%s always places real version in visible title, not mobile-hidden metadata',skin=>{
     const {p,close}=boot(skin);try{
       const v=src.match(/const VER = '([^']+)'/)[1];
       expect(p.querySelector('.head .brand .g-version').textContent).toBe('v'+v);

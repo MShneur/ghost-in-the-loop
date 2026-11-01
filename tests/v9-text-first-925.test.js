@@ -3,7 +3,7 @@ const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),
 function slice(a,b){const x=src.indexOf(a),y=src.indexOf(b,x+a.length);if(x<0||y<0)throw Error(a);return src.slice(x,y)}
 function make(){
  const ctx={
-  VER:'9.0.25',displayText:v=>String(v||'').trim(),
+  VER:'9.0.26',displayText:v=>String(v||'').trim(),
   exportFileContext:()=>({platform:'ChatGPT',title:'Test',id:'test'}),esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),
  };
  vm.createContext(ctx);

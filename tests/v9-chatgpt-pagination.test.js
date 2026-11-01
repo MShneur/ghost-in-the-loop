@@ -62,6 +62,25 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     const r=await go('chat-test');
     expect(r.verified).toBe(false);expect(r.proof.unreadable).toBe(1);
   });
+  test('redacted platform tool output is counted and never relabeled full because the page reached both ends',async()=>{
+    const p=page(0,2,false,false);
+    p.messages.push({id:'redacted',author:{role:'assistant'},content:{parts:['The output of this plugin was redacted.']}});
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(false);
+    expect(r.proof.redacted).toBe(1);
+    expect(r.proof.historyBoundariesConfirmed).toBe(true);
+    expect(r.proof.reason).toMatch(/Source redacted/);
+  });
+  test('unreadable user/assistant message reports specific counts and does not claim FULL',async()=>{
+    const p=page(0,2,false,false);
+    p.messages[1].content={parts:[{unknown_text_format:true}]};
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.proof.undecodable).toBe(1);
+    expect(r.proof.missingId).toBe(0);
+    expect(r.verified).toBe(false);
+  });
   test('tries alternate modern route on HTTP 404',async()=>{
     let calls=0;const go=loader(async url=>{if(url==='/api/auth/session')return response({});calls++;return calls===1?response({},404):response(page(0,3,false,false))});
     const r=await go('chat-test');expect(calls).toBe(2);expect(r.verified).toBe(true);

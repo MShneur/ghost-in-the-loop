@@ -56,10 +56,10 @@ describe('compact Ghost mobile UI',()=>{
       expect(w.document.activeElement).toBe(queue);
     }finally{close()}
   });
-  test('all thirteen existing skins and exporting still available',()=>{
+  test('all previous skins, heritage and new layouts still available',()=>{
     const {p,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
-      expect([...p.querySelectorAll('select[data-skin] option')].map(o=>o.value)).toEqual(['edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']);
+      expect([...p.querySelectorAll('select[data-skin] option')].map(o=>o.value)).toEqual(['heritage-v8','orbit-one','folio-top','edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']);
       p.querySelector('[data-tab="export"]').click();
       for(const action of ['copy','md','json'])expect(p.querySelector('[data-a="'+action+'"]')).toBeTruthy();
       expect(p.querySelector('[data-vault-action="save"]')).toBeTruthy();
@@ -108,7 +108,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
   test('blue-tinted classic remains one option, other skins stay intact',()=>{
     const {p,close}=boot();try{
       p.querySelector('nav.g-site-nav [data-tab="settings"]').click();
-      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(5);
+      expect(p.querySelectorAll('select[data-skin] option')).toHaveLength(8);
       expect(src).toContain("classic:{ name:'Classic', bg:'#121922'");
     }finally{close()}
   });
@@ -122,7 +122,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
       expect(p.dataset.skin).toBe('micro-edge');
       expect(p.style.getPropertyValue('--g-bg')).toBe('#111827');
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
-      expect(p.querySelectorAll('[data-place]')).toHaveLength(5);
+      expect(p.querySelectorAll('[data-place]')).toHaveLength(8);
       p.querySelector('[data-place="dock-left"]').click();
       expect(p.dataset.placement).toBe('dock-left');
       p.querySelector('[data-tab="play"]').click();
@@ -139,7 +139,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
     const {p,w,close}=boot();try{
       p.querySelector('[data-tab="settings"]').click();
       let picker=p.querySelector('[data-skin]');
-      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Animated - Ghostwave')).toBe(true);
+      expect([...picker.options].some(o=>o.value==='ghostwave'&&o.textContent==='Previous · Animated Ghostwave')).toBe(true);
       picker.value='ghostwave';
       picker.dispatchEvent(new w.Event('change',{bubbles:true}));
       expect(p.dataset.skin).toBe('ghostwave');
