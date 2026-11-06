@@ -56,3 +56,21 @@ test('handoff excludes activity and redundant rendered context but preserves use
  }
  expect(ctx.textOnlyExport(cap).turns).toHaveLength(2);
 });
+
+test('AI handoff retains accessible activity, citations, filenames and visible reasoning',()=>{
+ const ctx=make();
+ const cap={platform:'chatgpt',source:'archive',capturedAt:'2026-11-05T12:00:00Z',partial:true,
+   verification:{historyBoundariesConfirmed:true,redacted:1},
+   turns:[{id:'u1',role:'user',text:'Keep the full code: const x = 1;',metadata:{model:'model-example',
+     attachments:[{id:'f1',name:'report.pdf',mimeType:'application/pdf'}],
+     citations:[{title:'Source',url:'https://example.org/report'}],rawDomHtml:'DO_NOT_EXPORT'}}],
+   unplacedTurns:[{role:'assistant',text:'Unplaced',thinking:'Visible summary'}],
+   activities:[{role:'tool',text:'Accessible tool result',metadata:{status:'finished'}}]};
+ const handoff=ctx.aiHandoffExport(cap);
+ const json=JSON.stringify(handoff);
+ expect(handoff.schema).toBe('ghost-ai-handoff/1');
+ expect(json).toContain('report.pdf');expect(json).toContain('Accessible tool result');
+ expect(json).toContain('Visible summary');expect(json).toContain('const x = 1');
+ expect(json).not.toContain('DO_NOT_EXPORT');
+ expect(handoff.partial).toBe(true);
+});

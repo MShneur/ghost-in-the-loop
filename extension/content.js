@@ -1266,7 +1266,12 @@ function asText(value) {
     seen.add(v);
     const type=String(v.content_type||v.type||'');
     if(/^(?:image|audio|video|file|asset|spatial|svg)/i.test(type))return '';
-    for(const key of ['text','markdown','fallbackMarkdown','parts','content','answer','query','message','code']){
+    // Prefer the complete ordered parts array over a potentially abbreviated text field.
+    if(Array.isArray(v.parts)){
+      const whole=walk(v.parts,depth+1);
+      if(whole)return whole;
+    }
+    for(const key of ['text','markdown','fallbackMarkdown','content','answer','query','message','code']){
       if(v[key]!=null){
         const found=walk(v[key],depth+1);
         if(found)return found;
@@ -1289,7 +1294,7 @@ function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
   if(!key || !map[key])return {verified:false,reason:'missing current message'};
-  let id=key, seen=new Set(), supported=0, unknown=0, assets=0;
+  let id=key, seen=new Set(), supported=0, unknown=0, assets=0, redacted=0;
   while(id){
     if(seen.has(id))return {verified:false,reason:'conversation branch cycle',nodes:seen.size};
     if(seen.size>=50000)return {verified:false,reason:'conversation history too large',nodes:seen.size};
@@ -1300,13 +1305,15 @@ function chatgptArchiveProof(data,count) {
       const value=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
       const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
-      if(value||thinking)supported++;else if(m?.content&&!hasMedia)unknown++;
+      if(value||thinking||hasMedia)supported++;else if(m?.content)unknown++;
+      if(value==='The output of this plugin was redacted.')redacted++;
       if(hasMedia)assets++;
     }
     id=node.parent||null;
   }
   if(!supported||supported!==count)return {verified:false,reason:'message count mismatch',nodes:seen.size};
   if(unknown)return {verified:false,reason:'unreadable messages',nodes:seen.size,unreadable:unknown};
+  if(redacted)return {verified:false,reason:'platform-redacted source content',nodes:seen.size,redacted};
   return {verified:true,textVerified:true,mediaExcluded:assets,
     reason:assets?'Connected text history; media intentionally excluded':'Connected conversation text history',
     nodes:seen.size,assets};
@@ -1325,9 +1332,25 @@ function parseChatGPTApi(data){
     const m=node?.message,role=m?.author?.role;if(!['user','assistant'].includes(role))continue;
     const text=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
     const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
-    if(text||thinking)out.push(thinking?{role,text,thinking}:{role,text});
+    const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(part=>
+      part&&typeof part==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(part.content_type||part.type||''))));
+    if(text||thinking||hasMedia){
+      const item={...(m?.id||node?.id?{id:String(m?.id||node.id)}:{}),role,text,
+        metadata:archiveMessageEvidence(m,node)};
+      if(thinking)item.thinking=thinking;
+      out.push(item);
+    }
   }
   return out;
+}
+function parseChatGPTActivities(data){
+  const map=data?.mapping;if(!map||typeof map!=='object'||!map[data?.current_node])return [];
+  const nodes=[],seen=new Set();let key=data.current_node;
+  while(key&&!seen.has(key)&&map[key]){seen.add(key);nodes.unshift(map[key]);key=map[key].parent||null;}
+  return nodes.filter(n=>n?.message&&!['user','assistant'].includes(n.message?.author?.role))
+    .map(n=>({role:String(n.message?.author?.role||'activity'),
+      text:asText(n.message?.content?.parts?.length?n.message.content.parts:n.message?.content),
+      metadata:archiveMessageEvidence(n.message,n)}));
 }
 function parsePerplexityApi(data){
   if(!data||typeof data!=='object')return [];
@@ -1355,6 +1378,35 @@ function exportReason(status,kind){
   if(status===401||status===403)return 'History access denied (HTTP '+status+')';
   if(status===429)return 'History request rate-limited (HTTP 429)';
   return status?'History request returned HTTP '+status:'Full history was unavailable';
+}
+// Deliberately allowlist structured evidence. No blobs, signed file URLs or credentials.
+function archiveMessageEvidence(msg,node){
+  const meta=msg?.metadata||{};
+  const str=v=>typeof v==='string'?v:'';
+  const attachments=(Array.isArray(meta.attachments)?meta.attachments:[]).map(a=>({
+    id:str(a?.id||a?.asset_pointer),
+    name:str(a?.name||a?.file_name||a?.filename),
+    mimeType:str(a?.mime_type||a?.mimeType),
+    size:Number.isFinite(a?.size)?a.size:undefined
+  })).filter(a=>a.id||a.name);
+  const citations=(Array.isArray(meta.citations)?meta.citations:[]).map(c=>{
+    const raw=str(c?.url||c?.source?.url);
+    return {title:str(c?.title||c?.source?.title),
+      url:/^https?:\/\//i.test(raw)?raw.split(/[?#]/)[0]:''};
+  }).filter(c=>c.title||c.url);
+  const out={
+    parentId:str(node?.parent||node?.parent_id||msg?.parent_id),
+    createTime:typeof msg?.create_time==='number'?msg.create_time:undefined,
+    updateTime:typeof msg?.update_time==='number'?msg.update_time:undefined,
+    model:str(meta.model_slug||meta.model||meta.invoked_model),
+    status:str(msg?.status),
+    recipient:str(msg?.recipient),
+    contentType:str(msg?.content?.content_type),
+    finishReason:str(meta.finish_details?.type||meta.finish_reason),
+    attachments,citations
+  };
+  return Object.fromEntries(Object.entries(out).filter(([_,v])=>
+    v!==undefined&&v!==''&&(!Array.isArray(v)||v.length>0)));
 }
 // Same-origin session headers, scoped to one archive attempt. Never log, export or persist tokens.
 async function chatgptExportAuthHeaders(){
@@ -1441,12 +1493,18 @@ async function captureChatGPTPages(conversationId){
       if(lastFailure.status===404||lastFailure.status===405||lastFailure.kind==='shape')continue;
       return {failure:lastFailure};
     }
-    const all=[],seenMessage=new Set();let unreadable=0,assets=0,redacted=0,missingId=0,undecodable=0,skippedNonConversation=0;
+    const all=[],activities=[],seenMessage=new Set();let unreadable=0,assets=0,redacted=0,missingId=0,undecodable=0,skippedNonConversation=0;
     for(const page of pages)for(const item of page.messages){
       const msg=item?.message||item,id=String(item?.id||msg?.id||'');
       const role=msg?.author?.role;
       // Unsupported non-conversational activity must not fail text completeness.
-      if(role!=='user'&&role!=='assistant'){skippedNonConversation++;continue;}
+      if(role!=='user'&&role!=='assistant'){
+        skippedNonConversation++;
+        if(msg)activities.push({role:String(role||'activity'),
+          text:asText(msg?.content?.parts?.length?msg.content.parts:msg?.content),
+          metadata:archiveMessageEvidence(msg,item)});
+        continue;
+      }
       if(!id){unreadable++;missingId++;continue;}
       if(seenMessage.has(id))continue;seenMessage.add(id);
       const text=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content)||
@@ -1458,7 +1516,11 @@ async function captureChatGPTPages(conversationId){
         !msg?.metadata?.is_visually_hidden_from_conversation){unreadable++;undecodable++;}
       if(text==='The output of this plugin was redacted.')redacted++;
       if(hasMedia)assets++;
-      if(text||thinking)all.push(thinking?{id,role,text,thinking}:{id,role,text});
+      if(text||thinking||hasMedia){
+        const entry={id,role,text,metadata:archiveMessageEvidence(msg,item)};
+        if(thinking)entry.thinking=thinking;
+        all.push(entry);
+      }
     }
     const oldest=pages[0].info,newest=pages[pages.length-1].info;
     const finished=oldest.has_previous_page===false&&newest.has_next_page===false&&!failed;
@@ -1472,7 +1534,7 @@ async function captureChatGPTPages(conversationId){
       nodes:seenMessage.size,readable:all.length,unreadable,missingId,undecodable,redacted,
       skippedNonConversation,assets,mediaExcluded:assets,scope:'user-and-assistant-text'};
     log('export-history-pages',{host:HOST.id,pages:proof.pages,messages:proof.nodes,verified:proof.verified,reason:proof.reason});
-    return {source:'platform archive (paged)',turns:all,verified,proof,
+    return {source:'platform archive (paged)',turns:all,activities,verified,proof,
       ...(verified?{}:{failure:{kind:failed?.kind||'partial',reason}}),
       ...(exportRaw?{raw:{messages:pages.flatMap(p=>p.messages),page_info:{has_previous_page:oldest.has_previous_page,has_next_page:newest.has_next_page}}}:{})};
   }
@@ -1745,7 +1807,7 @@ async function captureLegacyArchive(){
     if(raw?.conversation_id&&String(raw.conversation_id)!==id)
       return {failure:{kind:'identity',reason:'Legacy archive belongs to another conversation'}};
     const turns=parseChatGPTApi(raw),proof=chatgptArchiveProof(raw,turns.length);
-    return {source:'legacy conversation tree',turns,verified:proof.verified,proof,
+    return {source:'legacy conversation tree',turns,activities:parseChatGPTActivities(raw),verified:proof.verified,proof,
       ...(proof.verified?{}:{failure:{kind:'partial',reason:proof.reason}}),
       ...(exportRaw?{raw}:{})};
   }catch(_){return {failure:{kind:'parse',reason:'Legacy archive could not be parsed'}};}
@@ -1775,7 +1837,7 @@ function chooseRecoveredExport(results,mode){
   const successful=results.find(r=>r.result?.verified&&r.result?.turns?.length);
   if(successful)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
     source:'Export '+successful.id+' - '+successful.result.source,engine:successful.id,partial:false,
-    turns:successful.result.turns,verification:successful.result.proof,
+    turns:successful.result.turns,activities:successful.result.activities||[],verification:successful.result.proof,
     ...(exportRaw&&successful.result.raw?{raw:successful.result.raw}:{})};
   const nonempty=results.filter(r=>r.result?.turns?.length);
   let turns=[],reason='',unplacedTurns=[];
@@ -1788,7 +1850,7 @@ function chooseRecoveredExport(results,mode){
   }
   return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
     source:(mode==='auto'?'Auto export lanes':'Export '+mode)+' (unverified)',
-    engine:mode,partial:true,turns,unplacedTurns,
+    engine:mode,partial:true,turns,unplacedTurns,activities:nonempty[0]?.result?.activities||[],
     note:(mode==='auto'?'Fast archive readers finished; no automatic page scrolling. ':'')+'Source coverage remains unverified. '+results.map(r=>{
       const p=r.result?.proof||{};
       const count=p.unreadable?(' ['+p.unreadable+' undecoded; '+(p.missingId||0)+' missing IDs]'):'';
@@ -1850,6 +1912,36 @@ function textOnlyExport(cap){
     note:cap.note||'',coverage:cap.verification||null,
     turns:handoffTurns(cap.turns).map(cleanTurn),
     unplacedTurns:handoffTurns(cap.unplacedTurns).map(cleanTurn)};
+}
+function aiHandoffExport(cap){
+  // Portable, evidence-oriented JSON without opaque binary or signed attachment URLs.
+  // Detailed private source JSON remains an independently opt-in Expert raw export.
+  const ctx=exportFileContext();
+  const evidence=t=>{
+    const item={...(t?.id?{id:String(t.id)}:{}),role:String(t?.role||'activity'),
+      text:cleanHandoffText(t?.text||'')};
+    if(t?.thinking)item.visibleThinking=cleanHandoffText(t.thinking);
+    if(t?.metadata&&typeof t.metadata==='object'){
+      const keys=['parentId','createTime','updateTime','model','status','recipient',
+        'contentType','finishReason','attachments','citations'];
+      const metadata={};
+      for(const key of keys)if(t.metadata[key]!==undefined)metadata[key]=t.metadata[key];
+      if(Object.keys(metadata).length)item.metadata=metadata;
+    }
+    return item;
+  };
+  return {schema:'ghost-ai-handoff/1',version:VER,platform:cap.platform,
+    conversation:{title:ctx.title,project:ctx.project||null,id:ctx.id||null},
+    capturedAt:cap.capturedAt,source:cap.source,partial:!!cap.partial,
+    verification:cap.verification||null,
+    fidelity:{scope:'accessible source text, platform-visible reasoning and allowlisted metadata',
+      binaryAttachments:'manifest only; binary contents not fetched',
+      hiddenInternalReasoning:'not accessible',rawSourceJson:'excluded; use Expert raw JSON separately',
+      unplacedChronology:'not inferred',platformRedactions:'cannot be reconstructed'},
+    note:cap.note||'',
+    turns:handoffTurns(cap.turns).map(evidence),
+    unplacedTurns:handoffTurns(cap.unplacedTurns).map(evidence),
+    activities:(cap.activities||[]).map(evidence)};
 }
 function markdown(cap) {
   const ctx=exportFileContext();
@@ -2265,6 +2357,7 @@ async function doExport(kind,engine='auto'){
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
   else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
   else if(kind==='html'){download(exportFileName(cap,'html'),conversationHTML(cap),'text/html;charset=utf-8');S.detail=exportStatus(cap,'Conversation HTML saved');}
+  else if(kind==='handoff'){download(exportFileName(cap,'json').replace(/\.json$/,'_AI_HANDOFF.json'),JSON.stringify(aiHandoffExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'AI handoff saved');}
   else{download(exportFileName(cap,'json'),JSON.stringify(exportRaw?cap:textOnlyExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'Text-only JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,engine:cap.engine||'platform',attempted:cap.verification?.attempted||null,source:cap.source,unplaced:cap.unplacedTurns?.length||0,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
@@ -3040,14 +3133,14 @@ function render() {
       <div class="g-action-well"><div class="g-section-label">OTHER FORMATS &amp; METHODS</div>
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
-      <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">⇩ Export conversation</button>
+      <button data-export-engine="auto" class="on" title="Try two fast archive readers; page scanning is optional">⇩ Export conversation</button>
       <details class="g-accordion g-export-diagnostic" data-g-acc="export-methods"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
       <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
       <button data-export-engine="3" title="Scroll conversation and collect messages">Scroll</button></details></div>
       <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
       </div>
       <details class="g-accordion" data-g-acc="export-quick"><summary>Other save options</summary>
-      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button></div>
+      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button><button data-a="handoff" title="Metadata-rich structured handoff; review before sharing">AI Handoff JSON</button></div>
       </details>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
       <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Expert-only raw JSON (may include images, SVG, large attachments and private data; OFF by default)</label></details>
@@ -3062,7 +3155,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries three independent methods. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries two fast archive readers without scrolling. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
@@ -3178,6 +3271,7 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
+  panel.querySelector('[data-a="handoff"]')?.addEventListener('click', () => doExport('handoff'));
   panel.querySelector('[data-a="html"]')?.addEventListener('click', () => doExport('html'));
   panel.querySelector('[data-export-format]')?.addEventListener('change',e=>{
     exportFormat=['md','html','json'].includes(e.target.value)?e.target.value:'html';

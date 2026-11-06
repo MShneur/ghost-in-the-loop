@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path'),vm=require('vm');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-const a=src.indexOf('async function captureChatGPTPages('),b=src.indexOf('async function apiCapture(){',a);
+const a=src.indexOf('function archiveMessageEvidence('),b=src.indexOf('async function apiCapture(){',a);
 if(a<0||b<=a)throw Error('Modern ChatGPT history loader missing');
 const code=src.slice(a,b);
 const page=(start,n,older,newer,id='chat-test')=>({conversation_id:id,messages:Array.from({length:n},(_,i)=>{const j=start+i;return {id:'m'+j,author:{role:j%2?'assistant':'user'},content:{parts:['Message '+j]}}}),page_info:{has_previous_page:older,has_next_page:newer,start_cursor:'m'+start,end_cursor:'m'+(start+n-1)}});
@@ -94,4 +94,17 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     expect(exportSection).toContain('chooseRecoveredExport(');
     expect(exportSection).not.toContain('sendOnce(');
   });
+});
+
+test('paged archive preserves evidence and tool activity without embedded binary payloads',async()=>{
+ const p=page(0,2,false,false);
+ p.messages[0].metadata={model_slug:'model-example',attachments:[{id:'f-1',name:'work.pdf',mime_type:'application/pdf',size:1024}]};
+ p.messages.push({id:'tool-1',author:{role:'tool'},content:{parts:['Tool output visible']},create_time:1760000000});
+ const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+ const r=await go('chat-test');
+ expect(r.verified).toBe(true);
+ expect(r.turns[0].metadata.model).toBe('model-example');
+ expect(r.turns[0].metadata.attachments[0].name).toBe('work.pdf');
+ expect(r.activities).toHaveLength(1);
+ expect(r.activities[0].text).toBe('Tool output visible');
 });
