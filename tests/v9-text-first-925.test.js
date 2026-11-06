@@ -74,3 +74,15 @@ test('AI handoff retains accessible activity, citations, filenames and visible r
  expect(json).not.toContain('DO_NOT_EXPORT');
  expect(handoff.partial).toBe(true);
 });
+
+test('multipart decoder retains all text parts and excludes binary objects',()=>{
+ const ctx={displayText:v=>String(v||'').trim()};vm.createContext(ctx);
+ vm.runInContext(slice('function asText(value) {','function visibleThinkingFrom(value) {'),ctx);
+ const mixed={text:'abbreviated preview',parts:[
+   'Full beginning',
+   {content_type:'text',text:'Full ending'},
+   {content_type:'image',data:'SECRET_BINARY_NOT_TEXT'}
+ ]};
+ expect(ctx.asText(mixed)).toBe('Full beginning\nFull ending');
+ expect(ctx.asText(mixed)).not.toContain('SECRET_BINARY_NOT_TEXT');
+});

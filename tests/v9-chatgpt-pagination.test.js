@@ -45,7 +45,7 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     const r=await go('chat-test');
     expect(r.verified).toBe(true);expect(r.proof.textVerified).toBe(true);
     expect(r.proof.mediaExcluded).toBe(1);
-    expect(r.proof.reason).toContain('Complete text history');
+    expect(r.proof.reason).toContain('Complete readable text history');
   });
   test('non-conversational tool messages with missing IDs cannot falsely block complete text',async()=>{
     const p=page(0,2,false,false);
