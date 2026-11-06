@@ -1819,13 +1819,8 @@ async function captureExport(mode='auto'){
     recoveryNotice('Export '+id+' complete: '+(result?.verified?'verified':'incomplete'),
       result?.turns?.length||0);
     if(result?.verified&&result?.turns?.length)break;
-    // A complete archive with only source redactions cannot be healed by scrolling.
-    if(mode==='auto'&&id==='1'&&result?.turns?.length&&
-       result?.proof?.historyBoundariesConfirmed&&
-       !result?.proof?.unreadable&&result?.proof?.redacted>0){
-      recoveryNotice('Archive text captured; platform-redacted output cannot be restored by scrolling.',result.turns.length);
-      break;
-    }
+    // An incomplete first API result still gets one independent API fallback.
+    // Neither result triggers an automatic scroll, including platform redactions.
     if(mode==='auto'&&id==='1'&&!recoveryCancelled())
       recoveryNotice('First archive reader incomplete; trying the other API reader.',result?.turns?.length||0);
   }

@@ -27,10 +27,11 @@ describe('fast auto archive router behavior',()=>{
     const r=route({'1':{verified:true,turns:[{role:'user',text:'complete'}]}});
     await r.run('auto');expect(r.calls).toEqual(['1']);
   });
-  test('terminal source redaction never triggers a DOM sweep',async()=>{
+  test('source redaction tries the other API but never triggers a DOM sweep',async()=>{
     const r=route({'1':{verified:false,turns:[{role:'assistant',text:'redacted'}],
-      proof:{historyBoundariesConfirmed:true,redacted:1,unreadable:0}}});
-    await r.run('auto');expect(r.calls).toEqual(['1']);
+      proof:{historyBoundariesConfirmed:true,redacted:1,unreadable:0}},
+      '2':{failure:{kind:'http',status:404}}});
+    await r.run('auto');expect(r.calls).toEqual(['1','2']);
   });
   test('both fast archives can fail without launching minutes of scrolling',async()=>{
     const r=route({'1':{failure:{kind:'shape'}},'2':{failure:{kind:'http',status:404}}});
