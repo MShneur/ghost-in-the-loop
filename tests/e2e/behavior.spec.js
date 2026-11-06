@@ -61,17 +61,54 @@ test.describe('Behavioral — continue click + export', () => {
     expect(observerSawAttr).toBe(true);
   });
 
-  test('export with real assistant messages triggers download', async ({ page }) => {
-    await page.addInitScript(GM);
-    await page.addInitScript(SCRIPT);
-    await page.goto(MOCK);
-    await page.waitForTimeout(800);
-
-    // mock-chat.html already has one .message.assistant — confirm extract works
-    const msgCount = await page.evaluate(() => {
-      return document.querySelectorAll('.message.assistant, [data-message-author-role="assistant"]').length;
+  test('API-backed ChatGPT handoff really downloads a readable evidence JSON', async ({ page }) => {
+    const chatId='abcd-1234';
+    const fixture=fs.readFileSync(path.join(__dirname,'mock-chat.html'),'utf8');
+    const archive={
+      conversation_id:chatId,
+      messages:[
+        {id:'u1',author:{role:'user'},content:{parts:['Test user prompt']}},
+        {id:'a1',author:{role:'assistant'},content:{parts:['Test assistant answer']},
+          metadata:{model_slug:'fixture-model',attachments:[
+            {id:'file-1',name:'evidence.pdf',mime_type:'application/pdf',size:1234}
+          ]}},
+        {id:'t1',author:{role:'tool'},content:{parts:['Tool output']}}
+      ],
+      page_info:{has_previous_page:false,has_next_page:false,start_cursor:'u1',end_cursor:'t1'}
+    };
+    // All host requests are locally fulfilled. No real ChatGPT account or conversation is accessed.
+    await page.route('https://chatgpt.com/**', route => {
+      const url=new URL(route.request().url());
+      if(url.pathname==='/c/'+chatId)
+        return route.fulfill({status:200,contentType:'text/html',body:fixture});
+      if(url.pathname==='/api/auth/session')
+        return route.fulfill({status:200,contentType:'application/json',
+          body:JSON.stringify({accessToken:'fixture-token'})});
+      if(url.pathname.startsWith('/backend-api/conversations/'))
+        return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(archive)});
+      return route.fulfill({status:404,body:'not part of the isolated fixture'});
     });
-    expect(msgCount).toBeGreaterThan(0);
+    await page.addInitScript(GM);
+    await page.goto('https://chatgpt.com/c/'+chatId);
+    await page.addScriptTag({content:SCRIPT});
+    await expect(page.locator('[data-export-engine="auto"]')).toHaveCount(1);
+    await page.locator('[data-tab="export"]').click();
+    await page.locator('[data-g-acc="export-quick"] summary').click();
+    const got=page.waitForEvent('download',{timeout:15000});
+    await page.locator('[data-a="handoff"]').click();
+    const download=await got;
+    expect(download.suggestedFilename()).toContain('AI_HANDOFF.json');
+    const readable=await download.createReadStream();
+    const buffers=[];
+    for await (const chunk of readable)buffers.push(chunk);
+    const result=JSON.parse(Buffer.concat(buffers).toString('utf8'));
+    expect(result.schema).toBe('ghost-ai-handoff/1');
+    expect(result.partial).toBe(false);
+    expect(result.turns.map(t=>t.text)).toEqual(['Test user prompt','Test assistant answer']);
+    expect(result.turns[1].metadata.model).toBe('fixture-model');
+    expect(result.turns[1].metadata.attachments[0].name).toBe('evidence.pdf');
+    expect(result.activities[0].text).toBe('Tool output');
   });
 
 });
+
