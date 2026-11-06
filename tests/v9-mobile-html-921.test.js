@@ -3,21 +3,21 @@ const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),
 function section(start,end){const a=src.indexOf(start),b=src.indexOf(end,a+start.length);if(a<0||b<0)throw Error('function missing '+start);return src.slice(a,b)}
 test('all legacy skins preserved and three structural choices added',()=>{
  const part=section('const SKINS =','const ACCENTS =');
- expect((part.match(/name:'[^']+'/g)||[])).toHaveLength(20);
+ expect((part.match(/name:'[^']+'/g)||[])).toHaveLength(23);
  for(const id of ['classic','ghostwave','ghostdock','edge-rail','command-selector','micro-edge','tab-popover','peek-sheet'])expect(part).toContain(id);
  for(const id of ['micro-edge','tab-popover','peek-sheet'])expect(src).toContain('data-skin="'+id+'"');
 });
 test('standalone conversation HTML escapes injected markup and marks partial',()=>{
- const fn=section('function conversationHTML(cap){','function download(');
+ const fn=section('function cleanHandoffText(value){','function download(');
  const ctx={exportFileContext:()=>({platform:'ChatGPT',title:'Test'}),esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))};
  vm.createContext(ctx);vm.runInContext(fn,ctx);
  const h=ctx.conversationHTML({partial:true,note:'missing <page>',capturedAt:'today',turns:[{role:'user',text:'<script>alert("x")</script>'},{role:'assistant',text:'safe'}]});
  expect(h).toContain('&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;');
  expect(h).not.toContain('<script>');
- expect(h).toContain('PARTIAL EXPORT');
+ expect(h).toContain('TEXT COVERAGE UNVERIFIED');
  expect(h).toContain("default-src 'none'");
 });
-test('archive fallback cannot skip scroll and merge preserves archive',()=>{
+test('archive fallback never auto-scrolls and merge preserves archive',()=>{
  const fn=section('function reconcileExportTurns(','async function captureLegacyArchive(){');
  const ctx={displayText:v=>String(v)};
  vm.createContext(ctx);vm.runInContext(fn,ctx);
@@ -25,9 +25,9 @@ test('archive fallback cannot skip scroll and merge preserves archive',()=>{
  const d=[{role:'user',text:'first'},{role:'assistant',text:'second'},{role:'assistant',text:'third'}];
  const got=ctx.reconcileExportTurns(a,d);
  expect(got.turns.map(x=>x.text).join('|')).toBe('first|second|third');
- expect(src).toContain('Trying ');
+ expect(src).toContain('First archive reader incomplete; trying the other API reader.');
  expect(src).not.toContain('No mobile scrolling was required.');
  const capture=section("async function captureExport(mode='auto'){",'function markdown(cap) {');
- expect(capture).toContain("['1','2','3']");
+ expect(capture).toContain("['1','2']");
  expect(capture).not.toContain('sendOnce(');
 });
