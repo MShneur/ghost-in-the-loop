@@ -1356,21 +1356,30 @@ function exportReason(status,kind){
   if(status===429)return 'History request rate-limited (HTTP 429)';
   return status?'History request returned HTTP '+status:'Full history was unavailable';
 }
-// ChatGPT's October 2026 history interface is paginated. All requests remain same-origin;
-// the short-lived session bearer token is never persisted, exported or logged.
-async function captureChatGPTPages(conversationId){
-  let token='',lastFailure=null;
+// Same-origin session headers, scoped to one archive attempt. Never log, export or persist tokens.
+async function chatgptExportAuthHeaders(){
   try{
     const session=await fetch('/api/auth/session',{credentials:'include'});
-    if(session.ok){const j=await session.json();if(typeof j?.accessToken==='string')token=j.accessToken;}
+    if(session.ok){
+      const body=await session.json();
+      if(typeof body?.accessToken==='string'&&body.accessToken)return {Authorization:'Bearer '+body.accessToken};
+    }
   }catch(_){}
-  const auth=token?{Authorization:'Bearer '+token}:{};
+  return {};
+}
+// ChatGPT's history interface is paginated. Preserve content already recovered when a
+// server changes shape, times out or rate-limits. Never fall through to a surprise DOM sweep.
+async function captureChatGPTPages(conversationId){
+  let lastFailure=null;
+  const deadline=Date.now()+45000;
+  const auth=await chatgptExportAuthHeaders();
   const roots=['/backend-api/conversations/'+encodeURIComponent(conversationId),
     '/backend-api/conversations/'+encodeURIComponent(conversationId)+'/messages'];
   for(const root of roots){
     const pages=[],seenCursor=new Set();
     let before='',previous=true,failed=null;
     for(let pageNumber=0;previous&&pageNumber<100;pageNumber++){
+      if(Date.now()>=deadline){failed={kind:'budget',reason:'API time budget reached; no page-scrolling was started'};break;}
       if(recoveryCancelled()) {failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}
       if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled()){failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}}
       recoveryNotice('Retrieving history page '+(pageNumber+1)+'…',pages.reduce((total,p)=>total+p.messages.length,0));
@@ -1380,7 +1389,7 @@ async function captureChatGPTPages(conversationId){
         const ctl=typeof AbortController==='function'?new AbortController():null;
         let timer=null;
         try{
-          if(ctl){timer=setTimeout(()=>ctl.abort(),45000);if(exportRecovery)exportRecovery.controller=ctl;}
+          if(ctl){timer=setTimeout(()=>ctl.abort(),Math.max(500,Math.min(12000,deadline-Date.now())));if(exportRecovery)exportRecovery.controller=ctl;}
           response=await fetch(root+q,{credentials:'include',headers:auth,...(ctl?{signal:ctl.signal}:{})});
         }catch(err){
           failed={kind:err?.name==='AbortError'?'timeout':'request-error',
@@ -1389,10 +1398,16 @@ async function captureChatGPTPages(conversationId){
           break;
         }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
         if(recoveryCancelled())break;
-        if(response?.ok)break;
+        if(response?.ok){failed=null;break;}
         const status=response?.status||0;
         failed={kind:'http',status,reason:exportReason(status,'http')};
-        if(attempt<2&&[429,502,503,504].includes(status)){await sleep(400*(attempt+1));continue;}
+        if(attempt<2&&[429,502,503,504].includes(status)){
+          const retryAfter=Number(response?.headers?.get?.('Retry-After'));
+          const delay=status===429&&Number.isFinite(retryAfter)&&retryAfter>0?
+            retryAfter*1000:400*(attempt+1);
+          if(Date.now()+delay>=deadline){failed={kind:'budget',status,reason:'Archive retry would exceed the API time budget'};break;}
+          await sleep(delay);continue;
+        }
         break;
       }
       if(!response?.ok){
@@ -1696,6 +1711,7 @@ async function captureLegacyArchive(){
   if(HOST.id!=='chatgpt')return {failure:{kind:'unsupported',reason:'Legacy archive unsupported on this AI site'}};
   const id=chatgptId();
   if(!id)return {failure:{kind:'missing-id',reason:'Conversation ID unavailable'}};
+  const auth=await chatgptExportAuthHeaders();
   let response=null,failed=null;
   for(let attempt=0;attempt<3;attempt++){
     if(recoveryCancelled())return {failure:{kind:'cancelled',reason:'Stopped by user'}};
@@ -1706,7 +1722,7 @@ async function captureLegacyArchive(){
       recoveryNotice('Export 2: fetching original conversation tree');
       if(controller){timer=setTimeout(()=>controller.abort(),45000);if(exportRecovery)exportRecovery.controller=controller;}
       response=await fetch('/backend-api/conversation/'+encodeURIComponent(id),
-        {credentials:'include',...(controller?{signal:controller.signal}:{})});
+        {credentials:'include',headers:auth,...(controller?{signal:controller.signal}:{})});
     }catch(e){
       failed={kind:e?.name==='AbortError'?'timeout':'request-error',reason:'Legacy archive request failed'};
       if(recoveryCancelled())break;
@@ -1717,7 +1733,9 @@ async function captureLegacyArchive(){
     failed={kind:response.status===404?'not-supported':'http',status:response.status,
       reason:response.status===404?'Old ChatGPT archive endpoint is unavailable on this version (HTTP 404)':exportReason(response.status,'http')};
     if(attempt<2&&[429,502,503,504].includes(response.status)){
-      await sleep(400*(attempt+1));continue;
+      const after=Number(response.headers?.get?.('Retry-After'));
+      await sleep(response.status===429&&Number.isFinite(after)&&after>0?
+        Math.min(after*1000,30000):400*(attempt+1));continue;
     }
     break;
   }
@@ -1771,20 +1789,24 @@ function chooseRecoveredExport(results,mode){
   return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
     source:(mode==='auto'?'Auto export lanes':'Export '+mode)+' (unverified)',
     engine:mode,partial:true,turns,unplacedTurns,
-    note:'Source coverage remains unverified. '+results.map(r=>{
+    note:(mode==='auto'?'Fast archive readers finished; no automatic page scrolling. ':'')+'Source coverage remains unverified. '+results.map(r=>{
       const p=r.result?.proof||{};
       const count=p.unreadable?(' ['+p.unreadable+' undecoded; '+(p.missingId||0)+' missing IDs]'):'';
       const red=p.redacted?(' ['+p.redacted+' platform-redacted]'):'';
       return 'Reader '+r.id+': '+(r.result?.failure?.reason||p.reason||'unavailable')+count+red;
     }).join(' / ')+'. '+reason,
     verification:{verified:false,attempted:results.map(r=>r.id),laneProofs:results.map(r=>({engine:r.id,source:r.result?.source||null,
-      count:r.result?.turns?.length||0,verified:!!r.result?.verified,reason:r.result?.proof?.reason||r.result?.failure?.reason||'unavailable'}))},
+      count:r.result?.turns?.length||0,verified:!!r.result?.verified,
+      historyBoundariesConfirmed:!!r.result?.proof?.historyBoundariesConfirmed,
+      unreadable:r.result?.proof?.unreadable||0,redacted:r.result?.proof?.redacted||0,
+      reason:r.result?.proof?.reason||r.result?.failure?.reason||'unavailable'}))},
     ...(exportRaw&&nonempty[0]?.result?.raw?{raw:nonempty[0].result.raw}:{})};
 }
 async function captureExport(mode='auto'){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
-  const order=mode==='auto'?['1','2','3']:[String(mode)];
+  // Auto is a fast archive path. A potentially multi-minute DOM scan is opt-in only.
+  const order=mode==='auto'?['1','2']:[String(mode)];
   const results=[];
   for(const id of order){
     if(recoveryCancelled()){if(exportRecovery?.savePartial)break;return null;}
@@ -1797,8 +1819,15 @@ async function captureExport(mode='auto'){
     recoveryNotice('Export '+id+' complete: '+(result?.verified?'verified':'incomplete'),
       result?.turns?.length||0);
     if(result?.verified&&result?.turns?.length)break;
-    if(id!=='3'&&mode==='auto'&&!recoveryCancelled())
-      recoveryNotice('Export '+id+' incomplete. Trying '+(Number(id)+1)+'.');
+    // A complete archive with only source redactions cannot be healed by scrolling.
+    if(mode==='auto'&&id==='1'&&result?.turns?.length&&
+       result?.proof?.historyBoundariesConfirmed&&
+       !result?.proof?.unreadable&&result?.proof?.redacted>0){
+      recoveryNotice('Archive text captured; platform-redacted output cannot be restored by scrolling.',result.turns.length);
+      break;
+    }
+    if(mode==='auto'&&id==='1'&&!recoveryCancelled())
+      recoveryNotice('First archive reader incomplete; trying the other API reader.',result?.turns?.length||0);
   }
   return chooseRecoveredExport(results,mode);
 }
@@ -2176,9 +2205,12 @@ function exportFileName(cap,kind){
   return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
 function exportStatus(cap,action){return action+' · '+cap.turns.length+' text entries · '+(cap.partial?'text coverage unverified':'text history verified');}
-function confirmPartialExport(cap){
+function confirmPartialExport(cap,scanAlreadyTried=false){
   if(!cap.partial)return Promise.resolve('save');
-  // Avoid Android's blocking window.confirm. Retain retry and partial results.
+  const sourceRedacted=cap.verification?.laneProofs?.some(p=>
+    p.engine==='1'&&p.historyBoundariesConfirmed&&p.redacted>0&&!p.unreadable);
+  const allowSlowScan=!scanAlreadyTried&&!sourceRedacted;
+  // Avoid Android's blocking window.confirm. An expensive DOM scan is explicit and one-shot.
   S.detail='Incomplete export: '+cap.turns.length+' entries. '+(cap.note||'Full history unverified.');render();
   return new Promise(resolve=>{
     const host=document.body||document.documentElement;
@@ -2186,7 +2218,12 @@ function confirmPartialExport(cap){
     layer.id='gitl-partial-choice';layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','false');
     layer.style.cssText='position:fixed;inset:0;z-index:2147483647;pointer-events:none;display:flex;align-items:flex-end;justify-content:flex-end;padding:8px 8px calc(14px + env(safe-area-inset-bottom,0px));box-sizing:border-box';
-    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. Some source text may be unreadable or platform-redacted; see export diagnostic.</p><div style="display:flex;flex-direction:column;gap:5px"><button data-partial="retry" style="min-height:39px;background:#273f63;color:white;border-radius:7px">Keep searching older messages</button><button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
+    const retryButton=allowSlowScan?
+      '<button data-partial="retry" style="min-height:39px;background:#273f63;color:white;border-radius:7px">Optional slow page scan (may take minutes)</button>':'';
+    const explanation=sourceRedacted?'The platform redacted some source output; scanning cannot reconstruct it.':
+      scanAlreadyTried?'Page scan already attempted. No automatic repeat.':
+      'The fast archive readers could not prove complete text history.';
+    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. '+explanation+'</p><div style="display:flex;flex-direction:column;gap:5px">'+retryButton+'<button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
     for(const btn of layer.querySelectorAll('[data-partial]'))
       btn.addEventListener('click',()=>{
         const action=btn.dataset.partial;layer.remove();resolve(action);
@@ -2223,8 +2260,8 @@ async function doExport(kind,engine='auto'){
         cap.partial=true;
         if(moreProgress.cancelled&&!moreProgress.savePartial)decision='cancel';
         else if(moreProgress.savePartial)decision='save';
-        else decision=await confirmPartialExport(cap);
-      }catch(_){decision=moreProgress.cancelled?'cancel':await confirmPartialExport(cap);}
+        else decision=await confirmPartialExport(cap,true);
+      }catch(_){decision=moreProgress.cancelled?'cancel':await confirmPartialExport(cap,true);}
       finally{recoveryClose(moreProgress);}
     }
     exportConfirmationBusy=false;

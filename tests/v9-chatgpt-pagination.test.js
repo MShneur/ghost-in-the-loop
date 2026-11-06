@@ -28,7 +28,7 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
   });
   test('retries a transient 429 and then succeeds',async()=>{
     let calls=0;const go=loader(async url=>{if(url==='/api/auth/session')return response({});calls++;return calls===1?response({},429):response(page(0,3,false,false))});
-    const r=await go('chat-test');expect(calls).toBe(2);expect(r.turns).toHaveLength(3);
+    const r=await go('chat-test');expect(calls).toBe(2);expect(r.turns).toHaveLength(3);expect(r.verified).toBe(true);
   });
   test('rejects a repeated history cursor',async()=>{
     const p=page(0,4,true,false);p.page_info.start_cursor='repeat';
