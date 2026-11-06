@@ -274,6 +274,7 @@ let exportRaw = !!GM_getValue('v9.exportRaw', false);
 let exportFormat=String(GM_getValue('v9.exportFormat','md')||'md');
 if(!['md','html','json'].includes(exportFormat))exportFormat='html';
 let exportBusy=false,exportConfirmationBusy=false;
+let exportFieldCheck=null; // One-shot, in-memory timing/counts only. Never stores messages or tokens.
 let skinId = String(GM_getValue('v9.skin', 'heritage-v8') || 'heritage-v8');
 let cleanMenuOpen=false;
 if (!SKINS[skinId]) skinId = 'heritage-v8';
@@ -1433,7 +1434,10 @@ async function chatgptExportAuthHeaders(){
     const session=await fetch('/api/auth/session',{credentials:'include'});
     if(session.ok){
       const body=await session.json();
-      if(typeof body?.accessToken==='string'&&body.accessToken)return {Authorization:'Bearer '+body.accessToken};
+      if(typeof body?.accessToken==='string'&&body.accessToken){
+        if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.sessionBearerObserved=true;
+        return {Authorization:'Bearer '+body.accessToken};
+      }
     }
   }catch(_){}
   return {};
@@ -1469,7 +1473,10 @@ async function captureChatGPTPages(conversationId){
           break;
         }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
         if(recoveryCancelled())break;
-        if(response?.ok){failed=null;break;}
+        if(response?.ok){
+          if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.archiveHTTPok++;
+          failed=null;break;
+        }
         const status=response?.status||0;
         failed={kind:'http',status,reason:exportReason(status,'http')};
         if(attempt<2&&[429,502,503,504].includes(status)){
@@ -1659,6 +1666,7 @@ function chatgptVisibleRows(){
   return rows;
 }
 async function collectChatGPTDomHistory(){
+  if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.domScannerInvocations++;
   const scroller=document.querySelector('.thread-scroll-container')||conversationScrollContainer(),page=!scroller||scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body;
   const reverse=!page&&(scroller.scrollTop<0||getComputedStyle(scroller).flexDirection==='column-reverse');
   const range=()=>Math.max(0,(page?document.documentElement.scrollHeight:scroller.scrollHeight)-(page?window.innerHeight:scroller.clientHeight));
@@ -1810,7 +1818,10 @@ async function captureLegacyArchive(){
       if(attempt<2&&e?.name==='AbortError'){await sleep(350*(attempt+1));continue;}
       break;
     }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
-    if(response.ok)break;
+    if(response.ok){
+      if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.archiveHTTPok++;
+      break;
+    }
     failed={kind:response.status===404?'not-supported':'http',status:response.status,
       reason:response.status===404?'Old ChatGPT archive endpoint is unavailable on this version (HTTP 404)':exportReason(response.status,'http')};
     if(attempt<2&&[429,502,503,504].includes(response.status)){
@@ -1893,9 +1904,21 @@ async function captureExport(mode='auto'){
     if(recoveryCancelled()){if(exportRecovery?.savePartial)break;return null;}
     if(exportRecovery?.paused)await recoveryCheckpoint();
     let result;
+    const laneStarted=Date.now();
     try{result=await captureEngine(id);}
     catch(e){result={failure:{kind:'unexpected',reason:'Export '+id+' could not finish'}};}
     results.push({id,result:result||{failure:{kind:'unavailable',reason:'No result'}}});
+    if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck){
+      const p=result?.proof||{};
+      exportFieldCheck.lanes.push({engine:id,durationMs:Math.max(0,Date.now()-laneStarted),
+        status:result?.verified?'verified':result?.turns?.length?'partial':'unavailable',
+        errorKind:result?.failure?.kind||null,entries:result?.turns?.length||0,
+        pages:p.pages??null,nodes:p.nodes??null,readable:p.readable??null,
+        unreadable:p.unreadable??null,missingId:p.missingId??null,
+        undecodable:p.undecodable??null,redacted:p.redacted??null,
+        mediaExcluded:p.mediaExcluded??null,nonConversation:p.skippedNonConversation??null,
+        historyBoundariesConfirmed:p.historyBoundariesConfirmed??null});
+    }
     if(recoveryCancelled()&&exportRecovery?.savePartial)break;
     recoveryNotice('Export '+id+' complete: '+(result?.verified?'verified':'incomplete'),
       result?.turns?.length||0);
@@ -2380,6 +2403,94 @@ async function doExport(kind,engine='auto'){
   else{download(exportFileName(cap,'json'),JSON.stringify(exportRaw?cap:textOnlyExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'Text-only JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,engine:cap.engine||'platform',attempted:cap.verification?.attempted||null,source:cap.source,unplaced:cap.unplacedTurns?.length||0,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
+}
+// One-tap Android field check reuses the existing export readers and progress overlay.
+// Report is intentionally aggregate-only. It is NOT an export of conversation data.
+const EXPORT_FIELD_LIMIT_MS=75000;
+function fieldCheckSummary(trial,cap,durationMs,cancelled){
+  const lanes=trial.lanes;
+  const proof=cap?.partial?null:cap?.verification;
+  const selected=lanes.find(l=>l.status==='verified')||lanes.find(l=>l.entries>0)||null;
+  const counts=selected||{};
+  const ua=typeof navigator==='object'?String(navigator.userAgent||''):'';
+  return {
+    schema:'gitl-export-field-check/1',testId:'pr59-android-export-one-tap-1',
+    candidate:{pr:59,baselineCommit:'fd8746bd4bc30618583901a61450024c38f38f41',
+      version:VER,verifiedBuildCommit:null},
+    when:new Date().toISOString(),environment:{platform:HOST.id,
+      android:/Android/i.test(ua),firefox:/Firefox/i.test(ua)},
+    time:{totalMs:Math.max(0,Math.round(durationMs)),limitMs:EXPORT_FIELD_LIMIT_MS,
+      timedOut:!!trial.timedOut,foregroundRequired:true},
+    authentication:{sameOriginCredentialedRequests:true,
+      shortLivedBearerAvailable:!!trial.sessionBearerObserved,
+      successfulArchiveHTTPResponses:trial.archiveHTTPok||0,
+      liveAccountIndependentlyVerified:false},
+    readers:{attempted:lanes.map(l=>l.engine),lanes,
+      automaticDOMCollectorCalls:trial.domScannerInvocations,
+      noAutomaticDOMCollector:trial.domScannerInvocations===0},
+    coverage:{archiveTextVerified:!!cap&&!cap.partial,
+      historyBoundariesConfirmed:proof?.historyBoundariesConfirmed??counts.historyBoundariesConfirmed??null,
+      exportedTurns:cap?.turns?.length||0,unplacedTurns:cap?.unplacedTurns?.length||0,
+      activities:cap?.activities?.length||0,archiveNodes:counts.nodes??null,
+      archivePages:counts.pages??null,unreadable:counts.unreadable??null,
+      redacted:counts.redacted??null,missingId:counts.missingId??null,
+      mediaExcluded:counts.mediaExcluded??null,
+      independentSourceComparison:false},
+    result:trial.timedOut?'TIME_LIMIT':cancelled?'CANCELLED':
+      !cap?'NO_ARCHIVE_RESULT':cap.partial?'SOURCE_UNVERIFIED':'ARCHIVE_TEXT_VERIFIED',
+    acceptance:'PENDING_REAL_FIREFOX_ANDROID_REVIEW',release:'HOLD',
+    limitations:['Archive boundary proof is not an independent comparison with the live conversation.',
+      'Platform-redacted source output cannot be recovered by page scrolling.',
+      'Host scrolling outside the GITL export collector is not monitored.',
+      'Backgrounded Android tabs may suspend timer execution.',
+      'No transcript, message IDs, conversation titles, URLs, credentials or media bytes are in this report.']
+  };
+}
+async function runExportFieldCheck(){
+  if(exportBusy||exportConfirmationBusy||exportFieldCheck){
+    S.detail='Finish the current export before running the field check.';render();return;
+  }
+  if(HOST.id!=='chatgpt'||!chatgptId()){
+    S.detail='Open a regular ChatGPT conversation to run the field check.';render();return;
+  }
+  if(S.mode==='RUNNING'||S.sending||S.watchdogBusy){
+    S.detail='Pause Play before running the field check. No prompts will be sent.';render();return;
+  }
+  exportBusy=true;
+  const trial={lanes:[],domScannerInvocations:0,timedOut:false,
+    sessionBearerObserved:false,archiveHTTPok:0};
+  exportFieldCheck=trial;
+  const previousRawExport=exportRaw;
+  exportRaw=false; // no bulky raw source collection while timing; restore user's setting.
+  const started=Date.now();
+  let op=null,timer=null,cap=null,wasCancelled=false;
+  try{
+    op=recoveryOpen();op.deadline=started+EXPORT_FIELD_LIMIT_MS;
+    // This check is always bounded: keep Cancel, remove Pause/Extend/Save Partial.
+    op.root.querySelectorAll('[data-recovery-pause],[data-recovery-extend],[data-recovery-save]')
+      .forEach(button=>button.remove());
+    recoveryNotice('One-tap field check: API history only, no page scan');
+    timer=setTimeout(()=>{
+      trial.timedOut=true;op.cancelled=true;op.controller?.abort();
+      recoveryNotice('Field check time limit reached; recording counts only');
+    },EXPORT_FIELD_LIMIT_MS);
+    cap=await captureExport('auto');
+    wasCancelled=!!op.cancelled;
+  }catch(_){wasCancelled=!!op?.cancelled;}
+  finally{
+    if(timer)clearTimeout(timer);
+    if(op){wasCancelled=wasCancelled||!!op.cancelled;recoveryClose(op);}
+    exportRaw=previousRawExport;
+    exportFieldCheck=null;exportBusy=false;
+  }
+  const report=fieldCheckSummary(trial,cap,Date.now()-started,wasCancelled);
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  try{
+    download('GITL_Android_Field_Check_'+stamp+'.json',JSON.stringify(report,null,2),
+      'application/json;charset=utf-8');
+    S.detail='Field check saved (counts only) - '+report.result+' - '+report.time.totalMs+' ms. Review before sharing.';
+  }catch(_){S.detail='Field check finished, but the report could not be downloaded.';}
+  render();
 }
 function report() {
   return {
@@ -3152,6 +3263,7 @@ function render() {
       <div class="g-action-well"><div class="g-section-label">OTHER FORMATS &amp; METHODS</div>
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
+      <button type="button" data-a="field-check" title="One tap: test API export and download privacy-safe counts; no transcript, no auto scroll">Field check (75s max)</button>
       <button data-export-engine="auto" class="on" title="Try two fast archive readers; page scanning is optional">⇩ Export conversation</button>
       <details class="g-accordion g-export-diagnostic" data-g-acc="export-methods"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
       <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
@@ -3291,6 +3403,7 @@ function render() {
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
   panel.querySelector('[data-a="handoff"]')?.addEventListener('click', () => doExport('handoff'));
+  panel.querySelector('[data-a="field-check"]')?.addEventListener('click', () => runExportFieldCheck());
   panel.querySelector('[data-a="html"]')?.addEventListener('click', () => doExport('html'));
   panel.querySelector('[data-export-format]')?.addEventListener('change',e=>{
     exportFormat=['md','html','json'].includes(e.target.value)?e.target.value:'html';
