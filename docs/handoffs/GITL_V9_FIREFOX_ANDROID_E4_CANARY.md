@@ -1,5 +1,30 @@
 # Ghost in the Loop v9 — Firefox Android E4 Canary
 
+## PR #59 - one-tap Firefox Android exporter field check (2026-11-05, DRAFT/HOLD)
+
+This is the new exporter-only E4 evidence lane. The v9.0.0-alpha.2 Play/HUMAN/Top canary below is historical; it is NOT evidence for the v9.0.26 exporter candidate.
+
+**Preparation (live Tampermonkey update channel; explicit owner-authorized field test):**
+1. In Firefox Android, open Tampermonkey and choose **Check for userscript updates**. The existing Ghost update URL points to main; no second userscript is needed.
+2. Verify Ghost reads version 9.0.26 and its Export pane shows **Field check (75s max)**. If it does not, the installed script did not update. Do not mark E4 PASS.
+3. Open your previously failing authenticated long ChatGPT /c/ conversation, pause Play and keep Firefox in the foreground.
+
+**One tap:** Ghost > Export > Field check (75s max). This invokes the existing same-origin ChatGPT fast archive readers (1, then 2 only if incomplete), with no automatic DOM history scanning. The existing progress overlay offers Cancel but cannot be paused or extended during this bounded check. A counts-only GITL_Android_Field_Check_*.json downloads automatically even when source coverage is partial or the time limit is reached. No prompt is sent. Expert raw capture is temporarily disabled in memory and the prior preference restored after the check. Review the JSON before sharing.
+
+**Read the report correctly:**
+- environment.android and environment.firefox reflect UA flags only; these do not independently authenticate the device.
+- authentication.shortLivedBearerAvailable and authentication.successfulArchiveHTTPResponses are booleans/counts of access observed, not credentials or independent account verification.
+- time.totalMs, time.timedOut and time.limitMs (75000) give elapsed timing and the foreground limit. Background tabs may suspend timers.
+- readers.attempted and each lane duration/outcome identify the API attempts; readers.noAutomaticDOMCollector reflects instrumented Ghost collector invocations, not arbitrary host scrolling.
+- coverage.historyBoundariesConfirmed, archivePages, archiveNodes, exportedTurns, unplacedTurns, activities, unreadable, missingId, redacted and mediaExcluded quantify accessible history and decode gaps. archiveTextVerified concerns accessible text only; media, hidden reasoning and parallel branches are not certified.
+- coverage.independentSourceComparison defaults to false: the reviewer must compare independently with the actual conversation or prior trusted export before declaring full accessible source coverage.
+- TIME_LIMIT, SOURCE_UNVERIFIED, unreadable or platform-redacted content remain HOLD. Scrolling cannot reconstruct redacted platform output.
+
+**Return:** Share only the reviewed counts-only JSON and optionally a screenshot showing the Ghost version/button with chat contents obscured. The live test build always writes acceptance=PENDING_REAL_FIREFOX_ANDROID_REVIEW and release=HOLD, regardless of desktop tests. Genuine Firefox Android E4 and separate release identity gates must be reviewed before any merge, release, deployment or installation beyond the manual opt-in test.
+
+---
+
+
 Exact runtime payload commit: `27564568ebfb505a4aad780b1be03756384ee973`
 Version: `9.0.0-alpha.2`
 Payload SHA-256: `779ec984eccedfe7c63aea2dd08eab3ea6eda4f3f55848cfc487da4bc8cd004f`

@@ -1,0 +1,88 @@
+const fs=require('fs'),vm=require('vm'),path=require('path');
+const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
+function slice(a,b){const x=src.indexOf(a),y=src.indexOf(b,x+a.length);if(x<0||y<0)throw Error(a);return src.slice(x,y)}
+function make(){
+ const ctx={
+  VER:'9.0.26',displayText:v=>String(v||'').trim(),
+  exportFileContext:()=>({platform:'ChatGPT',title:'Test',id:'test'}),esc:s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'),
+ };
+ vm.createContext(ctx);
+ vm.runInContext(slice('function cleanHandoffText(value){','function download(name,text,type) {'),ctx);
+ return ctx;
+}
+test('default handoff output is Markdown, not image-heavy HTML',()=>{
+ expect(src).toContain("GM_getValue('v9.exportFormat','md')");
+ expect(src).toContain("GM_getValue('v9.exportRaw', false)");
+});
+test('media payloads are removed from markdown, HTML, and structured JSON without truncating code',()=>{
+ const ctx=make(),image='data:image/png;base64,'+'A'.repeat(80000);
+ const full='Message source code: const ok = true;\n![thumbnail]('+image+')\n<svg viewBox="0 0 2 2"><path d="M0 0"/></svg>\nKeep end marker END';
+ const cap={platform:'chatgpt',source:'paged',capturedAt:'2026-11-01T12:00:00Z',partial:false,
+  turns:[{id:'u1',role:'user',text:full}],verification:{verified:true,assets:2}};
+ const md=ctx.markdown(cap),html=ctx.conversationHTML(cap),json=JSON.stringify(ctx.textOnlyExport(cap));
+ for(const rendered of [md,html,json]){
+  expect(rendered).toContain('const ok = true');
+  expect(rendered).toContain('END');
+  expect(rendered).not.toContain('data:image');
+  expect(rendered).not.toContain('A'.repeat(250));
+  expect(rendered).not.toContain('<svg');
+  expect(rendered.length).toBeLessThan(3500);
+ }
+ expect(JSON.parse(json).schema).toBe('ghost-text-handoff/1');
+ expect(JSON.parse(json).coverage.verified).toBe(true);
+});
+test('structured arrays extract known text but never binary blobs or stringified objects',()=>{
+ const ctx={displayText:v=>String(v||'').trim()};vm.createContext(ctx);
+ vm.runInContext(slice('function asText(value) {','function visibleThinkingFrom(value) {'),ctx);
+ expect(ctx.asText([{text:'User'},{parts:[{content:{text:'Assistant'}}]}])).toContain('Assistant');
+ expect(ctx.asText({content:{parts:[{type:'image',data:'AAA'},{markdown:'Readable source'}]}})).toBe('Readable source');
+ expect(ctx.asText({foo:{bar:123}})).toBe('');
+});
+test('page snapshot exporter separately strips images and vectors',()=>{
+ const f=slice('function pageEvidence() {','function doPageBackup(kind) {');
+ expect(f).toContain('svg,img,picture,canvas,video,audio');
+});
+
+test('handoff excludes activity and redundant rendered context but preserves user/assistant text',()=>{
+ const ctx=make();
+ const cap={platform:'chatgpt',source:'pages',partial:false,capturedAt:'2026-11-01T00:00:00Z',
+  turns:[{role:'user',text:'Question'},{role:'activity',text:'30000 activity tokens '+('ABC'.repeat(10000))},
+         {role:'assistant',text:'Answer',metadata:{visibleDomText:'Duplicated rendered context'}}]};
+ const json=JSON.stringify(ctx.textOnlyExport(cap)),md=ctx.markdown(cap),html=ctx.conversationHTML(cap);
+ for(const output of [json,md,html]){
+  expect(output).toContain('Question');expect(output).toContain('Answer');
+  expect(output).not.toContain('30000 activity');expect(output).not.toContain('Duplicated rendered context');
+  expect(output.length).toBeLessThan(3600);
+ }
+ expect(ctx.textOnlyExport(cap).turns).toHaveLength(2);
+});
+
+test('AI handoff retains accessible activity, citations, filenames and visible reasoning',()=>{
+ const ctx=make();
+ const cap={platform:'chatgpt',source:'archive',capturedAt:'2026-11-05T12:00:00Z',partial:true,
+   verification:{historyBoundariesConfirmed:true,redacted:1},
+   turns:[{id:'u1',role:'user',text:'Keep the full code: const x = 1;',metadata:{model:'model-example',
+     attachments:[{id:'f1',name:'report.pdf',mimeType:'application/pdf'}],
+     citations:[{title:'Source',url:'https://example.org/report'}],rawDomHtml:'DO_NOT_EXPORT'}}],
+   unplacedTurns:[{role:'assistant',text:'Unplaced',thinking:'Visible summary'}],
+   activities:[{role:'tool',text:'Accessible tool result',metadata:{status:'finished'}}]};
+ const handoff=ctx.aiHandoffExport(cap);
+ const json=JSON.stringify(handoff);
+ expect(handoff.schema).toBe('ghost-ai-handoff/1');
+ expect(json).toContain('report.pdf');expect(json).toContain('Accessible tool result');
+ expect(json).toContain('Visible summary');expect(json).toContain('const x = 1');
+ expect(json).not.toContain('DO_NOT_EXPORT');
+ expect(handoff.partial).toBe(true);
+});
+
+test('multipart decoder retains all text parts and excludes binary objects',()=>{
+ const ctx={displayText:v=>String(v||'').trim()};vm.createContext(ctx);
+ vm.runInContext(slice('function asText(value) {','function visibleThinkingFrom(value) {'),ctx);
+ const mixed={text:'abbreviated preview',parts:[
+   'Full beginning',
+   {content_type:'text',text:'Full ending'},
+   {content_type:'image',data:'SECRET_BINARY_NOT_TEXT'}
+ ]};
+ expect(ctx.asText(mixed)).toBe('Full beginning\nFull ending');
+ expect(ctx.asText(mixed)).not.toContain('SECRET_BINARY_NOT_TEXT');
+});

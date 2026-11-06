@@ -1,6 +1,6 @@
 const fs=require('fs'),path=require('path'),vm=require('vm');
 const src=fs.readFileSync(path.join(__dirname,'..','ghost-in-the-loop.user.js'),'utf8');
-const a=src.indexOf('async function captureChatGPTPages('),b=src.indexOf('async function apiCapture(){',a);
+const a=src.indexOf('function archiveMessageEvidence('),b=src.indexOf('async function apiCapture(){',a);
 if(a<0||b<=a)throw Error('Modern ChatGPT history loader missing');
 const code=src.slice(a,b);
 const page=(start,n,older,newer,id='chat-test')=>({conversation_id:id,messages:Array.from({length:n},(_,i)=>{const j=start+i;return {id:'m'+j,author:{role:j%2?'assistant':'user'},content:{parts:['Message '+j]}}}),page_info:{has_previous_page:older,has_next_page:newer,start_cursor:'m'+start,end_cursor:'m'+(start+n-1)}});
@@ -28,7 +28,7 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
   });
   test('retries a transient 429 and then succeeds',async()=>{
     let calls=0;const go=loader(async url=>{if(url==='/api/auth/session')return response({});calls++;return calls===1?response({},429):response(page(0,3,false,false))});
-    const r=await go('chat-test');expect(calls).toBe(2);expect(r.turns).toHaveLength(3);
+    const r=await go('chat-test');expect(calls).toBe(2);expect(r.turns).toHaveLength(3);expect(r.verified).toBe(true);
   });
   test('rejects a repeated history cursor',async()=>{
     const p=page(0,4,true,false);p.page_info.start_cursor='repeat';
@@ -39,10 +39,47 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     const go=loader(async url=>url==='/api/auth/session'?response({}):response(page(0,3,false,false,'different')));
     const r=await go('chat-test');expect(r.failure.kind).toBe('identity');expect(r.turns).toBeUndefined();
   });
-  test('reports attachments instead of claiming a complete text archive',async()=>{
+  test('verifies complete text despite intentionally excluded media attachments',async()=>{
     const p=page(0,3,false,false);p.messages[1].metadata={attachments:[{id:'f1'}]};
     const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
-    const r=await go('chat-test');expect(r.verified).toBe(false);expect(r.proof.assets).toBe(1);
+    const r=await go('chat-test');
+    expect(r.verified).toBe(true);expect(r.proof.textVerified).toBe(true);
+    expect(r.proof.mediaExcluded).toBe(1);
+    expect(r.proof.reason).toContain('Complete readable text history');
+  });
+  test('non-conversational tool messages with missing IDs cannot falsely block complete text',async()=>{
+    const p=page(0,2,false,false);
+    p.messages.push({author:{role:'tool'},content:{parts:[{image:'large'}]}});
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(true);expect(r.proof.unreadable).toBe(0);
+    expect(r.turns).toHaveLength(2);
+  });
+  test('unreadable genuine assistant text still blocks full text verification',async()=>{
+    const p=page(0,2,false,false);
+    p.messages[1].content={content_type:'unsupported_text',parts:[{unexpected:'x'}]};
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(false);expect(r.proof.unreadable).toBe(1);
+  });
+  test('redacted platform tool output is counted and never relabeled full because the page reached both ends',async()=>{
+    const p=page(0,2,false,false);
+    p.messages.push({id:'redacted',author:{role:'assistant'},content:{parts:['The output of this plugin was redacted.']}});
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(false);
+    expect(r.proof.redacted).toBe(1);
+    expect(r.proof.historyBoundariesConfirmed).toBe(true);
+    expect(r.proof.reason).toMatch(/Source redacted/);
+  });
+  test('unreadable user/assistant message reports specific counts and does not claim FULL',async()=>{
+    const p=page(0,2,false,false);
+    p.messages[1].content={parts:[{unknown_text_format:true}]};
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.proof.undecodable).toBe(1);
+    expect(r.proof.missingId).toBe(0);
+    expect(r.verified).toBe(false);
   });
   test('tries alternate modern route on HTTP 404',async()=>{
     let calls=0;const go=loader(async url=>{if(url==='/api/auth/session')return response({});calls++;return calls===1?response({},404):response(page(0,3,false,false))});
@@ -57,4 +94,17 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     expect(exportSection).toContain('chooseRecoveredExport(');
     expect(exportSection).not.toContain('sendOnce(');
   });
+});
+
+test('paged archive preserves evidence and tool activity without embedded binary payloads',async()=>{
+ const p=page(0,2,false,false);
+ p.messages[0].metadata={model_slug:'model-example',attachments:[{id:'f-1',name:'work.pdf',mime_type:'application/pdf',size:1024}]};
+ p.messages.push({id:'tool-1',author:{role:'tool'},content:{parts:['Tool output visible']},create_time:1760000000});
+ const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+ const r=await go('chat-test');
+ expect(r.verified).toBe(true);
+ expect(r.turns[0].metadata.model).toBe('model-example');
+ expect(r.turns[0].metadata.attachments[0].name).toBe('work.pdf');
+ expect(r.activities).toHaveLength(1);
+ expect(r.activities[0].text).toBe('Tool output visible');
 });

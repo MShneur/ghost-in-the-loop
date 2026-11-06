@@ -23,11 +23,11 @@ describe('Three independent Ghost export engines',()=>{
   const h=harness({'1':partial('paged'),'2':verified('tree')});const r=await h.run('auto');
   expect(h.calls).toEqual(['1','2']);expect(r.partial).toBe(false);expect(r.engine).toBe('2');
  });
- test('Auto actually invokes third scrolling engine after two failures',async()=>{
+ test('Auto never launches an unapproved DOM sweep after two API failures',async()=>{
   const h=harness({'1':partial('paged'),'2':{failure:{reason:'tree blocked'}},'3':partial('scroll')});
   const r=await h.run('auto');
-  expect(h.calls).toEqual(['1','2','3']);expect(r.partial).toBe(true);
-  expect(r.verification.attempted).toEqual(['1','2','3']);
+  expect(h.calls).toEqual(['1','2']);expect(r.partial).toBe(true);
+  expect(r.verification.attempted).toEqual(['1','2']);
   expect(r.turns).toHaveLength(1);
  });
  test.each(['1','2','3'])('Manual Export %s does not touch other engines',async(engine)=>{

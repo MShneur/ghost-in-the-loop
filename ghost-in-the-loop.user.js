@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ghost in the Loop
 // @namespace    https://github.com/MShneur/ghost-in-the-loop
-// @version      9.0.23
+// @version      9.0.26
 // @description  Full Ghost shell + one-Send mechanical relay. AI owns reasoning; Ghost injects text, watches exact markers, and advances exact queues.
 // @author       Michael S (CTRL-AI)
 // @match        https://chatgpt.com/*
@@ -48,7 +48,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.23';
+const VER = '9.0.26';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -106,12 +106,19 @@ const SKINS = Object.freeze({
   ghostdock:{ name:'Ghostwave Compact', bg:'#090f22', surface:'#16213b', panel:'#101b31', border:'#355684', text:'#f3f7ff', muted:'#afc1de', accent:'#9f8cff', accentBg:'#362361', radius:'11px', shadow:'0 0 0 1px rgba(82,135,235,.35),0 10px 26px rgba(2,7,19,.72)' },
   'micro-edge':{ name:'New 1 - Micro Edge Tab', bg:'#111827', surface:'#1d2939', panel:'#0b1220', border:'#3e556f', text:'#f0f7ff', muted:'#a9bad1', accent:'#6ee7b7', accentBg:'#134e41', radius:'10px', shadow:'0 8px 22px #0009' },
   'tab-popover':{ name:'New 2 - Top Tab Popover', bg:'#111a25', surface:'#1c2b3c', panel:'#0a121d', border:'#48607a', text:'#f0f6ff', muted:'#a9bacb', accent:'#a5b4fc', accentBg:'#343c71', radius:'11px', shadow:'0 8px 22px #0009' },
-  'peek-sheet':{ name:'New 3 - Peek Sheet', bg:'#141c27', surface:'#202b39', panel:'#0d141f', border:'#506276', text:'#f3f6fc', muted:'#b2bece', accent:'#67e8f9', accentBg:'#164e63', radius:'14px', shadow:'0 8px 22px #0009' }
+  'peek-sheet':{ name:'New 3 - Peek Sheet', bg:'#141c27', surface:'#202b39', panel:'#0d141f', border:'#506276', text:'#f3f6fc', muted:'#b2bece', accent:'#67e8f9', accentBg:'#164e63', radius:'14px', shadow:'0 8px 22px #0009' },
+  // Structural layouts, independently selectable. Heritage follows the real 8.0.0 header/section/control hierarchy.
+  'heritage-v8':{ name:'Heritage v8 · Circular Play', bg:'#111215', surface:'#1b1d24', panel:'#101117', border:'#343640', text:'#e6e7ea', muted:'#999fae', accent:'#34d399', accentBg:'#073b2c', radius:'9px', shadow:'0 9px 22px rgba(0,0,0,.65)' },
+  'orbit-one':{ name:'Orbit · Floating Play', bg:'#0e1520', surface:'#17243a', panel:'#101a29', border:'#39687c', text:'#f4fbff', muted:'#9bbbc9', accent:'#44dfe0', accentBg:'#12474b', radius:'15px', shadow:'0 10px 28px rgba(0,8,25,.75)' },
+  'folio-top':{ name:'Folio · Section Cards', bg:'#eeeef2', surface:'#fff', panel:'#f8f9fc', border:'#bdc4d4', text:'#202435', muted:'#535c72', accent:'#445bd4', accentBg:'#dce1ff', radius:'7px', shadow:'0 9px 24px rgba(30,40,80,.20)' }
 });
-// Five on-page mobile interfaces; legacy skin CSS remains intact.
-const ACTIVE_UI_SKINS=Object.freeze(['edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']);
-const ACTIVE_SKIN_NAMES=Object.freeze({'edge-rail':'Original - Edge Rail',ghostwave:'Animated - Ghostwave',
-  'micro-edge':'New 1 - Micro Edge Tab','tab-popover':'New 2 - Top Tab Popover','peek-sheet':'New 3 - Peek Sheet'});
+// Existing five remain unchanged; three separately structured mobile layouts are added.
+const ACTIVE_UI_SKINS=Object.freeze(['heritage-v8','orbit-one','folio-top','edge-rail','ghostwave','micro-edge','tab-popover','peek-sheet']);
+const ACTIVE_SKIN_NAMES=Object.freeze({'heritage-v8':'Heritage v8 · circular Play + top sections',
+  'orbit-one':'Orbit · floating circular Play','folio-top':'Folio · section cards',
+  'edge-rail':'Previous · Edge Rail',ghostwave:'Previous · Animated Ghostwave',
+  'micro-edge':'Previous · Micro Edge','tab-popover':'Previous · Top Popover','peek-sheet':'Previous · Peek Sheet'});
+const QUICK_LAYOUT_SKINS=Object.freeze(['heritage-v8','orbit-one','folio-top']);
 const EXPORT_PATIENCE_MS=15*60*1000;
 const EXPORT_WAIT_FOR_HISTORY_MS=12*1000;
 const ACCENTS = Object.freeze({
@@ -264,11 +271,13 @@ const ON = {};
 for (const key of Object.keys(ACT)) ON[key] = !!GM_getValue(`v9.act.${key}`, false);
 let custom = String(GM_getValue('v9.custom', '') || '');
 let exportRaw = !!GM_getValue('v9.exportRaw', false);
-let exportFormat=String(GM_getValue('v9.exportFormat','html')||'html');
+let exportFormat=String(GM_getValue('v9.exportFormat','md')||'md');
 if(!['md','html','json'].includes(exportFormat))exportFormat='html';
 let exportBusy=false,exportConfirmationBusy=false;
-let skinId = String(GM_getValue('v9.skin', 'edge-rail') || 'edge-rail');
-if (!SKINS[skinId]) skinId = 'edge-rail';
+let exportFieldCheck=null; // One-shot, in-memory timing/counts only. Never stores messages or tokens.
+let skinId = String(GM_getValue('v9.skin', 'heritage-v8') || 'heritage-v8');
+let cleanMenuOpen=false;
+if (!SKINS[skinId]) skinId = 'heritage-v8';
 let accentId = String(GM_getValue('v9.accent', 'auto') || 'auto');
 if (!(accentId in ACCENTS)) accentId = 'auto';
 let quickStartOpen = false; // Discoverable through Setup > Extras; not a persistent first-run obstruction.
@@ -1266,10 +1275,31 @@ function domTurns() {
 function chatgptId() { const m = location.pathname.match(/\/c\/([0-9a-z-]+)/i); return m ? m[1] : ''; }
 function perplexitySlug() { const m = location.pathname.match(/\/search\/([^/?#]+)/i); return m ? decodeURIComponent(m[1]) : ''; }
 function asText(value) {
-  if (typeof value === 'string') return displayText(value);
-  if (Array.isArray(value)) return displayText(value.map(v => typeof v === 'string' ? v : (v?.text || v?.content || '')).filter(Boolean).join('\n'));
-  if (value && typeof value === 'object') return displayText(value.text || value.content || value.answer || value.query || value.message || '');
-  return '';
+  // Read explicit text fields only. Never stringify a structured object as
+  // '[object Object]' or include binary/image payloads as conversation text.
+  const seen=new Set();
+  function walk(v,depth=0){
+    if(v==null||depth>8)return '';
+    if(typeof v==='string')return v;
+    if(Array.isArray(v))return v.map(item=>walk(item,depth+1)).filter(Boolean).join('\n');
+    if(typeof v!=='object'||seen.has(v))return '';
+    seen.add(v);
+    const type=String(v.content_type||v.type||'');
+    if(/^(?:image|audio|video|file|asset|spatial|svg)/i.test(type))return '';
+    // Prefer the complete ordered parts array over a potentially abbreviated text field.
+    if(Array.isArray(v.parts)){
+      const whole=walk(v.parts,depth+1);
+      if(whole)return whole;
+    }
+    for(const key of ['text','markdown','fallbackMarkdown','content','answer','query','message','code']){
+      if(v[key]!=null){
+        const found=walk(v[key],depth+1);
+        if(found)return found;
+      }
+    }
+    return '';
+  }
+  return displayText(walk(value));
 }
 function visibleThinkingFrom(value) {
   if (!value || typeof value !== 'object') return '';
@@ -1284,7 +1314,7 @@ function chatgptArchiveProof(data,count) {
   const map=data?.mapping, key=data?.current_node;
   if(!map || Array.isArray(map) || typeof map!=='object')return {verified:false,reason:'unsupported archive'};
   if(!key || !map[key])return {verified:false,reason:'missing current message'};
-  let id=key, seen=new Set(), supported=0, unknown=0, assets=0;
+  let id=key, seen=new Set(), supported=0, unknown=0, assets=0, redacted=0;
   while(id){
     if(seen.has(id))return {verified:false,reason:'conversation branch cycle',nodes:seen.size};
     if(seen.size>=50000)return {verified:false,reason:'conversation history too large',nodes:seen.size};
@@ -1294,15 +1324,19 @@ function chatgptArchiveProof(data,count) {
     if(role==='user'||role==='assistant'){
       const value=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
-      if(value||thinking)supported++;else if(m?.content)unknown++;
-      if(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
+      const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
+      if(value||thinking||hasMedia)supported++;else if(m?.content)unknown++;
+      if(value==='The output of this plugin was redacted.')redacted++;
+      if(hasMedia)assets++;
     }
     id=node.parent||null;
   }
   if(!supported||supported!==count)return {verified:false,reason:'message count mismatch',nodes:seen.size};
   if(unknown)return {verified:false,reason:'unreadable messages',nodes:seen.size,unreadable:unknown};
-  if(assets)return {verified:false,reason:'files or media not captured',nodes:seen.size,assets};
-  return {verified:true,reason:'connected conversation history',nodes:seen.size};
+  if(redacted)return {verified:false,reason:'platform-redacted source content',nodes:seen.size,redacted};
+  return {verified:true,textVerified:true,mediaExcluded:assets,
+    reason:assets?'Connected text history; media intentionally excluded':'Connected conversation text history',
+    nodes:seen.size,assets};
 }
 function parseChatGPTApi(data){
   if(!data?.mapping||typeof data.mapping!=='object')return [];
@@ -1318,9 +1352,25 @@ function parseChatGPTApi(data){
     const m=node?.message,role=m?.author?.role;if(!['user','assistant'].includes(role))continue;
     const text=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
     const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
-    if(text||thinking)out.push(thinking?{role,text,thinking}:{role,text});
+    const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(part=>
+      part&&typeof part==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(part.content_type||part.type||''))));
+    if(text||thinking||hasMedia){
+      const item={...(m?.id||node?.id?{id:String(m?.id||node.id)}:{}),role,text,
+        metadata:archiveMessageEvidence(m,node)};
+      if(thinking)item.thinking=thinking;
+      out.push(item);
+    }
   }
   return out;
+}
+function parseChatGPTActivities(data){
+  const map=data?.mapping;if(!map||typeof map!=='object'||!map[data?.current_node])return [];
+  const nodes=[],seen=new Set();let key=data.current_node;
+  while(key&&!seen.has(key)&&map[key]){seen.add(key);nodes.unshift(map[key]);key=map[key].parent||null;}
+  return nodes.filter(n=>n?.message&&!['user','assistant'].includes(n.message?.author?.role))
+    .map(n=>({role:String(n.message?.author?.role||'activity'),
+      text:asText(n.message?.content?.parts?.length?n.message.content.parts:n.message?.content),
+      metadata:archiveMessageEvidence(n.message,n)}));
 }
 function parsePerplexityApi(data){
   if(!data||typeof data!=='object')return [];
@@ -1349,21 +1399,62 @@ function exportReason(status,kind){
   if(status===429)return 'History request rate-limited (HTTP 429)';
   return status?'History request returned HTTP '+status:'Full history was unavailable';
 }
-// ChatGPT's October 2026 history interface is paginated. All requests remain same-origin;
-// the short-lived session bearer token is never persisted, exported or logged.
-async function captureChatGPTPages(conversationId){
-  let token='',lastFailure=null;
+// Deliberately allowlist structured evidence. No blobs, signed file URLs or credentials.
+function archiveMessageEvidence(msg,node){
+  const meta=msg?.metadata||{};
+  const str=v=>typeof v==='string'?v:'';
+  const attachments=(Array.isArray(meta.attachments)?meta.attachments:[]).map(a=>({
+    id:str(a?.id||a?.asset_pointer),
+    name:str(a?.name||a?.file_name||a?.filename),
+    mimeType:str(a?.mime_type||a?.mimeType),
+    size:Number.isFinite(a?.size)?a.size:undefined
+  })).filter(a=>a.id||a.name);
+  const citations=(Array.isArray(meta.citations)?meta.citations:[]).map(c=>{
+    const raw=str(c?.url||c?.source?.url);
+    return {title:str(c?.title||c?.source?.title),
+      url:/^https?:\/\//i.test(raw)?raw.split(/[?#]/)[0]:''};
+  }).filter(c=>c.title||c.url);
+  const out={
+    parentId:str(node?.parent||node?.parent_id||msg?.parent_id),
+    createTime:typeof msg?.create_time==='number'?msg.create_time:undefined,
+    updateTime:typeof msg?.update_time==='number'?msg.update_time:undefined,
+    model:str(meta.model_slug||meta.model||meta.invoked_model),
+    status:str(msg?.status),
+    recipient:str(msg?.recipient),
+    contentType:str(msg?.content?.content_type),
+    finishReason:str(meta.finish_details?.type||meta.finish_reason),
+    attachments,citations
+  };
+  return Object.fromEntries(Object.entries(out).filter(([_,v])=>
+    v!==undefined&&v!==''&&(!Array.isArray(v)||v.length>0)));
+}
+// Same-origin session headers, scoped to one archive attempt. Never log, export or persist tokens.
+async function chatgptExportAuthHeaders(){
   try{
     const session=await fetch('/api/auth/session',{credentials:'include'});
-    if(session.ok){const j=await session.json();if(typeof j?.accessToken==='string')token=j.accessToken;}
+    if(session.ok){
+      const body=await session.json();
+      if(typeof body?.accessToken==='string'&&body.accessToken){
+        if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.sessionBearerObserved=true;
+        return {Authorization:'Bearer '+body.accessToken};
+      }
+    }
   }catch(_){}
-  const auth=token?{Authorization:'Bearer '+token}:{};
+  return {};
+}
+// ChatGPT's history interface is paginated. Preserve content already recovered when a
+// server changes shape, times out or rate-limits. Never fall through to a surprise DOM sweep.
+async function captureChatGPTPages(conversationId){
+  let lastFailure=null;
+  const deadline=Date.now()+45000;
+  const auth=await chatgptExportAuthHeaders();
   const roots=['/backend-api/conversations/'+encodeURIComponent(conversationId),
     '/backend-api/conversations/'+encodeURIComponent(conversationId)+'/messages'];
   for(const root of roots){
     const pages=[],seenCursor=new Set();
     let before='',previous=true,failed=null;
     for(let pageNumber=0;previous&&pageNumber<100;pageNumber++){
+      if(Date.now()>=deadline){failed={kind:'budget',reason:'API time budget reached; no page-scrolling was started'};break;}
       if(recoveryCancelled()) {failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}
       if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled()){failed={kind:'cancelled',reason:'Recovery stopped by user'};break;}}
       recoveryNotice('Retrieving history page '+(pageNumber+1)+'…',pages.reduce((total,p)=>total+p.messages.length,0));
@@ -1373,7 +1464,7 @@ async function captureChatGPTPages(conversationId){
         const ctl=typeof AbortController==='function'?new AbortController():null;
         let timer=null;
         try{
-          if(ctl){timer=setTimeout(()=>ctl.abort(),45000);if(exportRecovery)exportRecovery.controller=ctl;}
+          if(ctl){timer=setTimeout(()=>ctl.abort(),Math.max(500,Math.min(12000,deadline-Date.now())));if(exportRecovery)exportRecovery.controller=ctl;}
           response=await fetch(root+q,{credentials:'include',headers:auth,...(ctl?{signal:ctl.signal}:{})});
         }catch(err){
           failed={kind:err?.name==='AbortError'?'timeout':'request-error',
@@ -1382,10 +1473,19 @@ async function captureChatGPTPages(conversationId){
           break;
         }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
         if(recoveryCancelled())break;
-        if(response?.ok)break;
+        if(response?.ok){
+          if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.archiveHTTPok++;
+          failed=null;break;
+        }
         const status=response?.status||0;
         failed={kind:'http',status,reason:exportReason(status,'http')};
-        if(attempt<2&&[429,502,503,504].includes(status)){await sleep(400*(attempt+1));continue;}
+        if(attempt<2&&[429,502,503,504].includes(status)){
+          const retryAfter=Number(response?.headers?.get?.('Retry-After'));
+          const delay=status===429&&Number.isFinite(retryAfter)&&retryAfter>0?
+            retryAfter*1000:400*(attempt+1);
+          if(Date.now()+delay>=deadline){failed={kind:'budget',status,reason:'Archive retry would exceed the API time budget'};break;}
+          await sleep(delay);continue;
+        }
         break;
       }
       if(!response?.ok){
@@ -1419,30 +1519,48 @@ async function captureChatGPTPages(conversationId){
       if(lastFailure.status===404||lastFailure.status===405||lastFailure.kind==='shape')continue;
       return {failure:lastFailure};
     }
-    const all=[],seenMessage=new Set();let unreadable=0,assets=0;
+    const all=[],activities=[],seenMessage=new Set();let unreadable=0,assets=0,redacted=0,missingId=0,undecodable=0,skippedNonConversation=0;
     for(const page of pages)for(const item of page.messages){
       const msg=item?.message||item,id=String(item?.id||msg?.id||'');
-      if(!id){unreadable++;continue;}
+      const role=msg?.author?.role;
+      // Unsupported non-conversational activity must not fail text completeness.
+      if(role!=='user'&&role!=='assistant'){
+        skippedNonConversation++;
+        if(msg)activities.push({role:String(role||'activity'),
+          text:asText(msg?.content?.parts?.length?msg.content.parts:msg?.content),
+          metadata:archiveMessageEvidence(msg,item)});
+        continue;
+      }
+      if(!id){unreadable++;missingId++;continue;}
       if(seenMessage.has(id))continue;seenMessage.add(id);
-      const role=msg?.author?.role;if(role!=='user'&&role!=='assistant')continue;
       const text=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content)||
         asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
       const thinking=role==='assistant'?(visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata)):'';
-      if(!text&&!thinking&&msg?.content&&
-        !msg?.metadata?.is_visually_hidden_from_conversation)unreadable++;
-      if(msg?.metadata?.attachments?.length||
-        msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial/i.test(String(v.content_type||v.type||''))))assets++;
-      if(text||thinking)all.push(thinking?{role,text,thinking}:{role,text});
+      const hasMedia=!!(msg?.metadata?.attachments?.length||
+        msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
+      if(!text&&!thinking&&msg?.content&&!hasMedia&&
+        !msg?.metadata?.is_visually_hidden_from_conversation){unreadable++;undecodable++;}
+      if(text==='The output of this plugin was redacted.')redacted++;
+      if(hasMedia)assets++;
+      if(text||thinking||hasMedia){
+        const entry={id,role,text,metadata:archiveMessageEvidence(msg,item)};
+        if(thinking)entry.thinking=thinking;
+        all.push(entry);
+      }
     }
     const oldest=pages[0].info,newest=pages[pages.length-1].info;
     const finished=oldest.has_previous_page===false&&newest.has_next_page===false&&!failed;
-    const verified=finished&&!!all.length&&!unreadable&&!assets;
-    const reason=failed?.reason||(!finished?'Some history pages could not be retrieved':
-      unreadable?'Some messages could not be converted':assets?'Some files or media could not be converted':
-      all.length?'Complete paginated history':'No readable messages');
-    const proof={verified,reason,pages:pages.length,nodes:seenMessage.size,unreadable,assets};
+    // FULL needs both archive coverage and readable source text. Top-of-page alone cannot certify either.
+    const verified=finished&&!!all.length&&!unreadable&&!redacted;
+    const reason=failed?.reason||(!finished?'Older or newer archive pages are missing':
+      unreadable?'Text decode gaps: '+undecodable+' unreadable message bodies, '+missingId+' messages without IDs':
+      redacted?'Source redacted '+redacted+' plugin outputs; they cannot be reconstructed by scrolling':
+      all.length?'Complete readable text history; media intentionally excluded':'No readable messages');
+    const proof={verified,textVerified:verified,historyBoundariesConfirmed:finished,reason,pages:pages.length,
+      nodes:seenMessage.size,readable:all.length,unreadable,missingId,undecodable,redacted,
+      skippedNonConversation,assets,mediaExcluded:assets,scope:'user-and-assistant-text'};
     log('export-history-pages',{host:HOST.id,pages:proof.pages,messages:proof.nodes,verified:proof.verified,reason:proof.reason});
-    return {source:'platform archive (paged)',turns:all,verified,proof,
+    return {source:'platform archive (paged)',turns:all,activities,verified,proof,
       ...(verified?{}:{failure:{kind:failed?.kind||'partial',reason}}),
       ...(exportRaw?{raw:{messages:pages.flatMap(p=>p.messages),page_info:{has_previous_page:oldest.has_previous_page,has_next_page:newest.has_next_page}}}:{})};
   }
@@ -1499,15 +1617,26 @@ function chatgptVisibleRows(){
   const rows=[],occurrences=new Map();
   const legacy=document.querySelectorAll('[data-message-author-role="user"],[data-message-author-role="assistant"]');
   const modern=document.querySelectorAll('section[data-turn="user"],section[data-turn="assistant"]');
-  const current=document.querySelectorAll('[data-user-message-bubble],[data-chatgpt-selection-message-id]');
-  const elements=legacy.length?legacy:(modern.length?modern:(current.length?current:document.querySelectorAll('[data-content-search-turn-key]')));
+  const current=document.querySelectorAll('[data-content-search-unit-key],[data-chatgpt-search-unit-key]');
+  const uniqueUnits=[...current].filter(el=>el.hasAttribute('data-content-search-unit-key'));
+  const elements=legacy.length?legacy:(modern.length?modern:(uniqueUnits.length?uniqueUnits:
+    document.querySelectorAll('[data-user-message-bubble],[data-chatgpt-selection-message-id],[data-content-search-turn-key]')));
   for(const el of elements){
     if(el.closest?.('[hidden],[aria-hidden="true"]'))continue;
     if(typeof el.getClientRects==='function'&&!el.getClientRects().length)continue;
     let role=el.getAttribute('data-message-author-role')||el.getAttribute('data-turn');
     if(!role&&el.matches('[data-user-message-bubble]'))role='user';
     if(!role&&el.matches('[data-chatgpt-selection-message-id]'))role='assistant';
-    let text=displayText(el.innerText||el.textContent||'');
+    const unitKey=el.getAttribute('data-content-search-unit-key')||el.getAttribute('data-chatgpt-search-unit-key');
+    if(!role&&unitKey)role=unitKey.match(/:(user|assistant)$/)?.[1]||null;
+    // Skip search-unit wrappers containing only the accessible speaker label.
+    let contentEl=el;
+    if(unitKey){
+      if(role==='user')contentEl=el.querySelector('[data-user-message-bubble]')||el;
+      if(role==='assistant')contentEl=el.querySelector('[data-chatgpt-selection-message-id]')||el;
+    }
+    let text=displayText(contentEl.innerText||contentEl.textContent||'');
+    if(unitKey&&role==='assistant')text=text.replace(/^ChatGPT said:\s*ChatGPT\s*/i,'').trim();
     if(!role&&el.hasAttribute('data-content-search-turn-key')){
       const parts=text.split(/(?=You said:|ChatGPT said:)/i);
       if(parts.length>1){
@@ -1521,20 +1650,23 @@ function chatgptVisibleRows(){
       role=/^You said:/i.test(text)?'user':/^ChatGPT said:/i.test(text)?'assistant':null;
     }
     if(!role||!text)continue;
-    const id=el.getAttribute('data-chatgpt-selection-message-id')||
+    const id=el.getAttribute('data-chatgpt-search-message-ids')?.split(/\s+/)[0]||
+      el.querySelector?.('[data-chatgpt-selection-message-id]')?.getAttribute('data-chatgpt-selection-message-id')||
+      el.getAttribute('data-chatgpt-selection-message-id')||
       el.getAttribute('data-message-id')||el.closest?.('[data-message-id]')?.getAttribute('data-message-id')||
       el.closest?.('[data-content-search-unit-key]')?.getAttribute('data-content-search-unit-key')||
       el.closest?.('[data-turn-key]')?.getAttribute('data-turn-key')||
       el.getAttribute('data-turn-id')||el.closest?.('[data-turn-id]')?.getAttribute('data-turn-id')||
       el.closest?.('[data-testid^="conversation-turn-"]')?.getAttribute('data-testid');
     const fingerprint=role+':'+text,n=(occurrences.get(fingerprint)||0)+1;occurrences.set(fingerprint,n);
-    const key=id?'id:'+id+':'+role:'text:'+fingerprint+':'+n;
+    const key=id?'id:'+id+':'+role:unitKey?'unit:'+unitKey:'text:'+fingerprint+':'+n;
     const thinking=role==='assistant'?visibleReasoningText(el):'';
-    rows.push({key,turn:thinking?{role,text,thinking}:{role,text}});
+    rows.push({key,turn:thinking?{...(id?{id}:{}),role,text,thinking}:{...(id?{id}:{}),role,text}});
   }
   return rows;
 }
 async function collectChatGPTDomHistory(){
+  if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.domScannerInvocations++;
   const scroller=document.querySelector('.thread-scroll-container')||conversationScrollContainer(),page=!scroller||scroller===document.scrollingElement||scroller===document.documentElement||scroller===document.body;
   const reverse=!page&&(scroller.scrollTop<0||getComputedStyle(scroller).flexDirection==='column-reverse');
   const range=()=>Math.max(0,(page?document.documentElement.scrollHeight:scroller.scrollHeight)-(page?window.innerHeight:scroller.clientHeight));
@@ -1630,7 +1762,7 @@ async function collectChatGPTDomHistory(){
     S.topBusy=false;
   }
   return {turns:order.map(key=>stored.get(key)).filter(Boolean),
-    reason:top&&endReached?'Start and end visited; full history still unverified':
+    reason:top&&endReached?'Scrolled to both ends; DOM view does not prove server text completeness':
       top?'Reached start but did not confirm end':'History loading stopped before the start was confirmed',
     passes,startReached:top,endReached};
 }
@@ -1638,7 +1770,8 @@ function reconcileExportTurns(apiTurns,domTurns){
   const a=Array.isArray(apiTurns)?apiTurns:[],d=Array.isArray(domTurns)?domTurns:[];
   if(!a.length)return {turns:d,note:'Only scrolling results available.'};
   if(!d.length)return {turns:a,note:'Scrolling found no readable additions.'};
-  const key=t=>String(t?.role||'')+'|'+displayText(t?.text||'').trim().replace(/\s+/g,' ').slice(0,2000);
+  const key=t=>t?.id?'id:'+String(t.id)+':'+String(t.role||''):
+    String(t?.role||'')+'|'+displayText(t?.text||'').trim().replace(/\s+/g,' ').slice(0,2000);
   const out=a.slice(),indices=new Map();
   const reindex=()=>{indices.clear();out.forEach((t,j)=>{if(!indices.has(key(t)))indices.set(key(t),j);});};
   reindex();let added=0,unplaced=0;const unplacedTurns=[];
@@ -1667,6 +1800,7 @@ async function captureLegacyArchive(){
   if(HOST.id!=='chatgpt')return {failure:{kind:'unsupported',reason:'Legacy archive unsupported on this AI site'}};
   const id=chatgptId();
   if(!id)return {failure:{kind:'missing-id',reason:'Conversation ID unavailable'}};
+  const auth=await chatgptExportAuthHeaders();
   let response=null,failed=null;
   for(let attempt=0;attempt<3;attempt++){
     if(recoveryCancelled())return {failure:{kind:'cancelled',reason:'Stopped by user'}};
@@ -1677,18 +1811,23 @@ async function captureLegacyArchive(){
       recoveryNotice('Export 2: fetching original conversation tree');
       if(controller){timer=setTimeout(()=>controller.abort(),45000);if(exportRecovery)exportRecovery.controller=controller;}
       response=await fetch('/backend-api/conversation/'+encodeURIComponent(id),
-        {credentials:'include',...(controller?{signal:controller.signal}:{})});
+        {credentials:'include',headers:auth,...(controller?{signal:controller.signal}:{})});
     }catch(e){
       failed={kind:e?.name==='AbortError'?'timeout':'request-error',reason:'Legacy archive request failed'};
       if(recoveryCancelled())break;
       if(attempt<2&&e?.name==='AbortError'){await sleep(350*(attempt+1));continue;}
       break;
     }finally{if(timer)clearTimeout(timer);if(exportRecovery)exportRecovery.controller=null;}
-    if(response.ok)break;
+    if(response.ok){
+      if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck)exportFieldCheck.archiveHTTPok++;
+      break;
+    }
     failed={kind:response.status===404?'not-supported':'http',status:response.status,
       reason:response.status===404?'Old ChatGPT archive endpoint is unavailable on this version (HTTP 404)':exportReason(response.status,'http')};
     if(attempt<2&&[429,502,503,504].includes(response.status)){
-      await sleep(400*(attempt+1));continue;
+      const after=Number(response.headers?.get?.('Retry-After'));
+      await sleep(response.status===429&&Number.isFinite(after)&&after>0?
+        Math.min(after*1000,30000):400*(attempt+1));continue;
     }
     break;
   }
@@ -1698,7 +1837,7 @@ async function captureLegacyArchive(){
     if(raw?.conversation_id&&String(raw.conversation_id)!==id)
       return {failure:{kind:'identity',reason:'Legacy archive belongs to another conversation'}};
     const turns=parseChatGPTApi(raw),proof=chatgptArchiveProof(raw,turns.length);
-    return {source:'legacy conversation tree',turns,verified:proof.verified,proof,
+    return {source:'legacy conversation tree',turns,activities:parseChatGPTActivities(raw),verified:proof.verified,proof,
       ...(proof.verified?{}:{failure:{kind:'partial',reason:proof.reason}}),
       ...(exportRaw?{raw}:{})};
   }catch(_){return {failure:{kind:'parse',reason:'Legacy archive could not be parsed'}};}
@@ -1715,7 +1854,7 @@ async function captureEngine(engine){
     recoveryNotice('Export 3: scrolling and recording visible conversation');
     if(HOST.id==='chatgpt'){
       const d=await collectChatGPTDomHistory();
-      return {source:'scrolling conversation',turns:d.turns,verified:false,proof:{verified:false,reason:d.reason,passes:d.passes},
+      return {source:'scrolling conversation',turns:d.turns,verified:false,proof:{verified:false,reason:d.reason,passes:d.passes,startReached:d.startReached,endReached:d.endReached},
         failure:{kind:'dom-partial',reason:d.reason}};
     }
     const d=domTurns();
@@ -1728,7 +1867,7 @@ function chooseRecoveredExport(results,mode){
   const successful=results.find(r=>r.result?.verified&&r.result?.turns?.length);
   if(successful)return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
     source:'Export '+successful.id+' - '+successful.result.source,engine:successful.id,partial:false,
-    turns:successful.result.turns,verification:successful.result.proof,
+    turns:successful.result.turns,activities:successful.result.activities||[],verification:successful.result.proof,
     ...(exportRaw&&successful.result.raw?{raw:successful.result.raw}:{})};
   const nonempty=results.filter(r=>r.result?.turns?.length);
   let turns=[],reason='',unplacedTurns=[];
@@ -1741,65 +1880,141 @@ function chooseRecoveredExport(results,mode){
   }
   return {version:VER,platform:HOST.id,capturedAt:new Date().toISOString(),
     source:(mode==='auto'?'Auto export lanes':'Export '+mode)+' (unverified)',
-    engine:mode,partial:true,turns,unplacedTurns,
-    note:'Could not verify complete history. '+results.map(r=>'Export '+r.id+': '+(r.result?.failure?.reason||r.result?.proof?.reason||'unavailable')).join(' / ')+'. '+reason,
+    engine:mode,partial:true,turns,unplacedTurns,activities:nonempty[0]?.result?.activities||[],
+    note:(mode==='auto'?'Fast archive readers finished; no automatic page scrolling. ':'')+'Source coverage remains unverified. '+results.map(r=>{
+      const p=r.result?.proof||{};
+      const count=p.unreadable?(' ['+p.unreadable+' undecoded; '+(p.missingId||0)+' missing IDs]'):'';
+      const red=p.redacted?(' ['+p.redacted+' platform-redacted]'):'';
+      return 'Reader '+r.id+': '+(r.result?.failure?.reason||p.reason||'unavailable')+count+red;
+    }).join(' / ')+'. '+reason,
     verification:{verified:false,attempted:results.map(r=>r.id),laneProofs:results.map(r=>({engine:r.id,source:r.result?.source||null,
-      count:r.result?.turns?.length||0,verified:!!r.result?.verified,reason:r.result?.proof?.reason||r.result?.failure?.reason||'unavailable'}))},
+      count:r.result?.turns?.length||0,verified:!!r.result?.verified,
+      historyBoundariesConfirmed:!!r.result?.proof?.historyBoundariesConfirmed,
+      unreadable:r.result?.proof?.unreadable||0,redacted:r.result?.proof?.redacted||0,
+      reason:r.result?.proof?.reason||r.result?.failure?.reason||'unavailable'}))},
     ...(exportRaw&&nonempty[0]?.result?.raw?{raw:nonempty[0].result.raw}:{})};
 }
 async function captureExport(mode='auto'){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
-  const order=mode==='auto'?['1','2','3']:[String(mode)];
+  // Auto is a fast archive path. A potentially multi-minute DOM scan is opt-in only.
+  const order=mode==='auto'?['1','2']:[String(mode)];
   const results=[];
   for(const id of order){
     if(recoveryCancelled()){if(exportRecovery?.savePartial)break;return null;}
     if(exportRecovery?.paused)await recoveryCheckpoint();
     let result;
+    const laneStarted=Date.now();
     try{result=await captureEngine(id);}
     catch(e){result={failure:{kind:'unexpected',reason:'Export '+id+' could not finish'}};}
     results.push({id,result:result||{failure:{kind:'unavailable',reason:'No result'}}});
+    if(typeof exportFieldCheck!=='undefined'&&exportFieldCheck){
+      const p=result?.proof||{};
+      exportFieldCheck.lanes.push({engine:id,durationMs:Math.max(0,Date.now()-laneStarted),
+        status:result?.verified?'verified':result?.turns?.length?'partial':'unavailable',
+        errorKind:result?.failure?.kind||null,entries:result?.turns?.length||0,
+        pages:p.pages??null,nodes:p.nodes??null,readable:p.readable??null,
+        unreadable:p.unreadable??null,missingId:p.missingId??null,
+        undecodable:p.undecodable??null,redacted:p.redacted??null,
+        mediaExcluded:p.mediaExcluded??null,nonConversation:p.skippedNonConversation??null,
+        historyBoundariesConfirmed:p.historyBoundariesConfirmed??null});
+    }
     if(recoveryCancelled()&&exportRecovery?.savePartial)break;
     recoveryNotice('Export '+id+' complete: '+(result?.verified?'verified':'incomplete'),
       result?.turns?.length||0);
     if(result?.verified&&result?.turns?.length)break;
-    if(id!=='3'&&mode==='auto'&&!recoveryCancelled())
-      recoveryNotice('Export '+id+' incomplete. Trying '+(Number(id)+1)+'.');
+    // An incomplete first API result still gets one independent API fallback.
+    // Neither result triggers an automatic scroll, including platform redactions.
+    if(mode==='auto'&&id==='1'&&!recoveryCancelled())
+      recoveryNotice('First archive reader incomplete; trying the other API reader.',result?.turns?.length||0);
   }
   return chooseRecoveredExport(results,mode);
+}
+// Text-first output only. Archive proofs and stable IDs are left untouched.
+function cleanHandoffText(value){
+  return String(value||'')
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg\s*>/gi,'[SVG vector omitted]')
+    .replace(/data:(?:image|video|audio|font|application\/(?:pdf|octet-stream))\/[^\s)"'<>]*?;base64,[A-Za-z0-9+/=]+/gi,'[embedded media omitted]')
+    .replace(/data:image\/svg\+xml[^\s)"'<>]*/gi,'[SVG data omitted]')
+    .replace(/!\[([^\]]*)\]\((?:https?:|data:|blob:)[^)]*\)/gi,(_m,alt)=>'[image omitted'+(alt?': '+alt:'')+']')
+    .replace(/<img\b[^>]*>/gi,'[image omitted]');
+}
+function handoffTurns(turns){
+  return (Array.isArray(turns)?turns:[]).filter(t=>t?.role==='user'||t?.role==='assistant');
+}
+function textOnlyExport(cap){
+  const cleanTurn=t=>{
+    const out={...(t.id?{id:String(t.id)}:{}),role:String(t.role||'assistant'),
+      text:cleanHandoffText(t.text||'')};
+    if(t.thinking)out.thinking=cleanHandoffText(t.thinking);
+    return out;
+  };
+  return {schema:'ghost-text-handoff/1',version:VER,platform:cap.platform,
+    capturedAt:cap.capturedAt,source:cap.source,partial:!!cap.partial,
+    note:cap.note||'',coverage:cap.verification||null,
+    turns:handoffTurns(cap.turns).map(cleanTurn),
+    unplacedTurns:handoffTurns(cap.unplacedTurns).map(cleanTurn)};
+}
+function aiHandoffExport(cap){
+  // Portable, evidence-oriented JSON without opaque binary or signed attachment URLs.
+  // Detailed private source JSON remains an independently opt-in Expert raw export.
+  const ctx=exportFileContext();
+  const evidence=t=>{
+    const item={...(t?.id?{id:String(t.id)}:{}),role:String(t?.role||'activity'),
+      text:cleanHandoffText(t?.text||'')};
+    if(t?.thinking)item.visibleThinking=cleanHandoffText(t.thinking);
+    if(t?.metadata&&typeof t.metadata==='object'){
+      const keys=['parentId','createTime','updateTime','model','status','recipient',
+        'contentType','finishReason','attachments','citations'];
+      const metadata={};
+      for(const key of keys)if(t.metadata[key]!==undefined)metadata[key]=t.metadata[key];
+      if(Object.keys(metadata).length)item.metadata=metadata;
+    }
+    return item;
+  };
+  return {schema:'ghost-ai-handoff/1',version:VER,platform:cap.platform,
+    conversation:{title:ctx.title,project:ctx.project||null,id:ctx.id||null},
+    capturedAt:cap.capturedAt,source:cap.source,partial:!!cap.partial,
+    verification:cap.verification||null,
+    fidelity:{scope:'accessible source text, platform-visible reasoning and allowlisted metadata',
+      binaryAttachments:'manifest only; binary contents not fetched',
+      hiddenInternalReasoning:'not accessible',rawSourceJson:'excluded; use Expert raw JSON separately',
+      unplacedChronology:'not inferred',platformRedactions:'cannot be reconstructed'},
+    note:cap.note||'',
+    turns:handoffTurns(cap.turns).map(evidence),
+    unplacedTurns:handoffTurns(cap.unplacedTurns).map(evidence),
+    activities:(cap.activities||[]).map(evidence)};
 }
 function markdown(cap) {
   const ctx=exportFileContext();
   const lines=['# GITL · '+ctx.platform+' · '+ctx.title,'','- Conversation ID: '+(ctx.id||'not available'),
     ...(ctx.project?['- Project: '+ctx.project]:[]),'- Exported: '+cap.capturedAt,
-    '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),''];
+    '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),
+    '- Scope: text only; images, SVG, audio and binary files excluded',''];
   if (cap.note) lines.push('> '+cap.note,'');
-  cap.turns.forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',turn.text||''); if(turn.thinking) lines.push('','### Platform-visible reasoning','',turn.thinking); if (cap.platform==='codex' && turn.metadata?.visibleDomText && (!turn.metadata.groupHasUser || turn.role==='user')) {
-      lines.push('','### Rendered turn context (includes visible activity)','',turn.metadata.visibleDomText);
-      if (turn.metadata.links?.length) lines.push('','### Captured links','',...turn.metadata.links.map(link=>'- '+(link.text||'Link')+': '+link.href));
-    }
+  handoffTurns(cap.turns).forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',cleanHandoffText(turn.text||'')); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
     lines.push(''); });
   if(cap.unplacedTurns?.length){
     lines.push('## Unplaced additional evidence (chronology unknown)','',
       'These readable entries were recovered but could not be positioned safely in the main conversation. They are preserved, not silently discarded.','');
-    cap.unplacedTurns.forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',t.text||'',''));
+    handoffTurns(cap.unplacedTurns).forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',cleanHandoffText(t.text||''),''));
   }
   return lines.join('\n');
 }
 function conversationHTML(cap){
   const ctx=exportFileContext();
   const title='GITL - '+ctx.platform+' - '+ctx.title;
-  const entries=(cap.turns||[]).map((turn,i)=>{
+  const entries=handoffTurns(cap.turns).map((turn,i)=>{
     const label=turn.role==='user'?'You':turn.role==='activity'?'Activity':'Assistant';
-    const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(turn.thinking)+'</pre></details>':'';
-    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(turn.text||'')+'</pre>'+reasoning+'</article>';
+    const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(cleanHandoffText(turn.thinking))+'</pre></details>':'';
+    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(cleanHandoffText(turn.text||''))+'</pre>'+reasoning+'</article>';
   }).join('\n');
-  const extras=(cap.unplacedTurns||[]).map((t,i)=>
-    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(t.text||'')+'</pre></article>').join('\n');
+  const extras=handoffTurns(cap.unplacedTurns).map((t,i)=>
+    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(cleanHandoffText(t.text||''))+'</pre></article>').join('\n');
   const extraSection=extras?'<h2>Additional recovered evidence (chronology unknown)</h2><p class="warning">These entries could not be reliably placed in sequence and were preserved separately.</p>'+extras:'';
-  const notice=cap.partial?'<p class="warning">PARTIAL EXPORT - some messages or media may be missing. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Platform history verified by Ghost; non-text media may vary.</p>';
+  const notice=cap.partial?'<p class="warning">TEXT COVERAGE UNVERIFIED - see diagnostic details. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Complete text history verified; images, SVG and binary media deliberately excluded.</p>';
   const css=':root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Arial,sans-serif;background:#0d1521;color:#eef4fa}.wrap{max-width:850px;margin:auto;padding:16px}h1{font-size:1.3rem}.meta{color:#a8b8c9}.warning{border-left:4px solid #ffc869;padding:10px;background:#30251a}.success{border-left:4px solid #77dfad;padding:10px;background:#15322a}.turn{border:1px solid #3c516a;border-radius:10px;margin:12px 0;padding:12px;background:#172437}.turn.you{background:#122f35}.turn header{display:flex;justify-content:space-between;font-weight:700;color:#8fe6e5}.turn a{color:#92c8fa;text-decoration:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0 0}details{padding:6px;margin-top:8px;border-top:1px solid #465c70}summary{cursor:pointer}@media print{body{color:#111;background:#fff}.turn,.turn.you{background:#fff;border-color:#aaa;break-inside:avoid}.turn header{color:#111}.warning,.success{background:#fff;color:#111}}';
-  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+(cap.turns||[]).length+' exported entries / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+handoffTurns(cap.turns).length+' exported text messages / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
 }
 function download(name,text,type) {
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
@@ -2118,10 +2333,13 @@ function exportFileName(cap,kind){
   const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
   return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
-function exportStatus(cap,action){return action+' · '+cap.turns.length+' turns · '+(cap.partial?'may be incomplete':'full platform history');}
-function confirmPartialExport(cap){
+function exportStatus(cap,action){return action+' · '+cap.turns.length+' text entries · '+(cap.partial?'text coverage unverified':'text history verified');}
+function confirmPartialExport(cap,scanAlreadyTried=false){
   if(!cap.partial)return Promise.resolve('save');
-  // Avoid Android's blocking window.confirm. Retain retry and partial results.
+  const sourceRedacted=cap.verification?.laneProofs?.some(p=>
+    p.engine==='1'&&p.historyBoundariesConfirmed&&p.redacted>0&&!p.unreadable);
+  const allowSlowScan=!scanAlreadyTried&&!sourceRedacted;
+  // Avoid Android's blocking window.confirm. An expensive DOM scan is explicit and one-shot.
   S.detail='Incomplete export: '+cap.turns.length+' entries. '+(cap.note||'Full history unverified.');render();
   return new Promise(resolve=>{
     const host=document.body||document.documentElement;
@@ -2129,7 +2347,12 @@ function confirmPartialExport(cap){
     layer.id='gitl-partial-choice';layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','false');
     layer.style.cssText='position:fixed;inset:0;z-index:2147483647;pointer-events:none;display:flex;align-items:flex-end;justify-content:flex-end;padding:8px 8px calc(14px + env(safe-area-inset-bottom,0px));box-sizing:border-box';
-    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. Some messages, attachments or media may be missing.</p><div style="display:flex;flex-direction:column;gap:5px"><button data-partial="retry" style="min-height:39px;background:#273f63;color:white;border-radius:7px">Keep searching older messages</button><button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
+    const retryButton=allowSlowScan?
+      '<button data-partial="retry" style="min-height:39px;background:#273f63;color:white;border-radius:7px">Optional slow page scan (may take minutes)</button>':'';
+    const explanation=sourceRedacted?'The platform redacted some source output; scanning cannot reconstruct it.':
+      scanAlreadyTried?'Page scan already attempted. No automatic repeat.':
+      'The fast archive readers could not prove complete text history.';
+    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. '+explanation+'</p><div style="display:flex;flex-direction:column;gap:5px">'+retryButton+'<button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
     for(const btn of layer.querySelectorAll('[data-partial]'))
       btn.addEventListener('click',()=>{
         const action=btn.dataset.partial;layer.remove();resolve(action);
@@ -2166,8 +2389,8 @@ async function doExport(kind,engine='auto'){
         cap.partial=true;
         if(moreProgress.cancelled&&!moreProgress.savePartial)decision='cancel';
         else if(moreProgress.savePartial)decision='save';
-        else decision=await confirmPartialExport(cap);
-      }catch(_){decision=moreProgress.cancelled?'cancel':await confirmPartialExport(cap);}
+        else decision=await confirmPartialExport(cap,true);
+      }catch(_){decision=moreProgress.cancelled?'cancel':await confirmPartialExport(cap,true);}
       finally{recoveryClose(moreProgress);}
     }
     exportConfirmationBusy=false;
@@ -2176,9 +2399,98 @@ async function doExport(kind,engine='auto'){
   if(kind==='copy'){const text=markdown(cap);try{GM_setClipboard(text,'text');}catch(e){await navigator.clipboard?.writeText(text);}S.detail=exportStatus(cap,'Copied Markdown');}
   else if(kind==='md'){download(exportFileName(cap,'md'),markdown(cap),'text/markdown;charset=utf-8');S.detail=exportStatus(cap,'Markdown saved');}
   else if(kind==='html'){download(exportFileName(cap,'html'),conversationHTML(cap),'text/html;charset=utf-8');S.detail=exportStatus(cap,'Conversation HTML saved');}
-  else{download(exportFileName(cap,'json'),JSON.stringify(cap,null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'JSON saved');}
+  else if(kind==='handoff'){download(exportFileName(cap,'json').replace(/\.json$/,'_AI_HANDOFF.json'),JSON.stringify(aiHandoffExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'AI handoff saved');}
+  else{download(exportFileName(cap,'json'),JSON.stringify(exportRaw?cap:textOnlyExport(cap),null,2),'application/json;charset=utf-8');S.detail=exportStatus(cap,'Text-only JSON saved');}
   S.lastExport={partial:!!cap.partial,turns:cap.turns.length,engine:cap.engine||'platform',attempted:cap.verification?.attempted||null,source:cap.source,unplaced:cap.unplacedTurns?.length||0,reason:cap.note||null,status:cap.diagnostic?.httpStatus||null};
   if(cap.partial)S.detail+=' · '+(cap.note||'Unverified');render();
+}
+// One-tap Android field check reuses the existing export readers and progress overlay.
+// Report is intentionally aggregate-only. It is NOT an export of conversation data.
+const EXPORT_FIELD_LIMIT_MS=75000;
+function fieldCheckSummary(trial,cap,durationMs,cancelled){
+  const lanes=trial.lanes;
+  const proof=cap?.partial?null:cap?.verification;
+  const selected=lanes.find(l=>l.status==='verified')||lanes.find(l=>l.entries>0)||null;
+  const counts=selected||{};
+  const ua=typeof navigator==='object'?String(navigator.userAgent||''):'';
+  return {
+    schema:'gitl-export-field-check/1',testId:'pr59-android-export-one-tap-1',
+    candidate:{pr:59,baselineCommit:'fd8746bd4bc30618583901a61450024c38f38f41',
+      version:VER,verifiedBuildCommit:null},
+    when:new Date().toISOString(),environment:{platform:HOST.id,
+      android:/Android/i.test(ua),firefox:/Firefox/i.test(ua)},
+    time:{totalMs:Math.max(0,Math.round(durationMs)),limitMs:EXPORT_FIELD_LIMIT_MS,
+      timedOut:!!trial.timedOut,foregroundRequired:true},
+    authentication:{sameOriginCredentialedRequests:true,
+      shortLivedBearerAvailable:!!trial.sessionBearerObserved,
+      successfulArchiveHTTPResponses:trial.archiveHTTPok||0,
+      liveAccountIndependentlyVerified:false},
+    readers:{attempted:lanes.map(l=>l.engine),lanes,
+      automaticDOMCollectorCalls:trial.domScannerInvocations,
+      noAutomaticDOMCollector:trial.domScannerInvocations===0},
+    coverage:{archiveTextVerified:!!cap&&!cap.partial,
+      historyBoundariesConfirmed:proof?.historyBoundariesConfirmed??counts.historyBoundariesConfirmed??null,
+      exportedTurns:cap?.turns?.length||0,unplacedTurns:cap?.unplacedTurns?.length||0,
+      activities:cap?.activities?.length||0,archiveNodes:counts.nodes??null,
+      archivePages:counts.pages??null,unreadable:counts.unreadable??null,
+      redacted:counts.redacted??null,missingId:counts.missingId??null,
+      mediaExcluded:counts.mediaExcluded??null,
+      independentSourceComparison:false},
+    result:trial.timedOut?'TIME_LIMIT':cancelled?'CANCELLED':
+      !cap?'NO_ARCHIVE_RESULT':cap.partial?'SOURCE_UNVERIFIED':'ARCHIVE_TEXT_VERIFIED',
+    acceptance:'PENDING_REAL_FIREFOX_ANDROID_REVIEW',release:'HOLD',
+    limitations:['Archive boundary proof is not an independent comparison with the live conversation.',
+      'Platform-redacted source output cannot be recovered by page scrolling.',
+      'Host scrolling outside the GITL export collector is not monitored.',
+      'Backgrounded Android tabs may suspend timer execution.',
+      'No transcript, message IDs, conversation titles, URLs, credentials or media bytes are in this report.']
+  };
+}
+async function runExportFieldCheck(){
+  if(exportBusy||exportConfirmationBusy||exportFieldCheck){
+    S.detail='Finish the current export before running the field check.';render();return;
+  }
+  if(HOST.id!=='chatgpt'||!chatgptId()){
+    S.detail='Open a regular ChatGPT conversation to run the field check.';render();return;
+  }
+  if(S.mode==='RUNNING'||S.sending||S.watchdogBusy){
+    S.detail='Pause Play before running the field check. No prompts will be sent.';render();return;
+  }
+  exportBusy=true;
+  const trial={lanes:[],domScannerInvocations:0,timedOut:false,
+    sessionBearerObserved:false,archiveHTTPok:0};
+  exportFieldCheck=trial;
+  const previousRawExport=exportRaw;
+  exportRaw=false; // no bulky raw source collection while timing; restore user's setting.
+  const started=Date.now();
+  let op=null,timer=null,cap=null,wasCancelled=false;
+  try{
+    op=recoveryOpen();op.deadline=started+EXPORT_FIELD_LIMIT_MS;
+    // This check is always bounded: keep Cancel, remove Pause/Extend/Save Partial.
+    op.root.querySelectorAll('[data-recovery-pause],[data-recovery-extend],[data-recovery-save]')
+      .forEach(button=>button.remove());
+    recoveryNotice('One-tap field check: API history only, no page scan');
+    timer=setTimeout(()=>{
+      trial.timedOut=true;op.cancelled=true;op.controller?.abort();
+      recoveryNotice('Field check time limit reached; recording counts only');
+    },EXPORT_FIELD_LIMIT_MS);
+    cap=await captureExport('auto');
+    wasCancelled=!!op.cancelled;
+  }catch(_){wasCancelled=!!op?.cancelled;}
+  finally{
+    if(timer)clearTimeout(timer);
+    if(op){wasCancelled=wasCancelled||!!op.cancelled;recoveryClose(op);}
+    exportRaw=previousRawExport;
+    exportFieldCheck=null;exportBusy=false;
+  }
+  const report=fieldCheckSummary(trial,cap,Date.now()-started,wasCancelled);
+  const stamp=new Date().toISOString().replace(/[:.]/g,'-');
+  try{
+    download('GITL_Android_Field_Check_'+stamp+'.json',JSON.stringify(report,null,2),
+      'application/json;charset=utf-8');
+    S.detail='Field check saved (counts only) - '+report.result+' - '+report.time.totalMs+' ms. Review before sharing.';
+  }catch(_){S.detail='Field check finished, but the report could not be downloaded.';}
+  render();
 }
 function report() {
   return {
@@ -2501,6 +2813,117 @@ style.textContent += `
 @keyframes gitl-gw-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 @media(prefers-reduced-motion:reduce){#gitl9[data-skin="ghostwave"] .g-orbit,#gitl9[data-skin="ghostwave"] .rail .ghost{animation:none!important}}
 `;
+style.textContent += `
+@media(max-width:600px){
+#gitl9:not(.collapsed){display:flex!important;flex-direction:column!important;width:min(288px,calc(100vw - 12px))!important;max-height:min(46dvh,390px)!important;padding:5px!important;overflow:hidden!important}
+#gitl9:not(.collapsed) .head{order:0!important;min-height:44px!important;display:flex!important;padding:4px!important}
+#gitl9 .headtools{display:flex!important;gap:3px!important;align-items:center!important}
+#gitl9 .headtools [data-a="quick-play"]{background:#14785c!important;color:#fff!important;font-weight:700!important;min-width:71px!important;min-height:41px!important}
+#gitl9 .headtools [data-a="quick-export"],#gitl9 .headtools [data-a="quick-menu"]{min-width:40px!important;min-height:41px!important}
+#gitl9 .headtools .meta{display:none!important}
+#gitl9:not(.collapsed) .g-status{order:1!important;flex:none!important;margin:2px 0!important;padding:3px!important}
+#gitl9:not(.collapsed) .g-status .g-steps,#gitl9:not(.collapsed) .g-status .status-text,#gitl9:not(.collapsed) .g-status [data-live-workflow]{display:none!important}
+#gitl9:not(.collapsed).status-open .g-status .status-text{display:block!important}
+#gitl9:not(.collapsed) .g-status .progline{height:3px!important}
+#gitl9:not(.collapsed) .g-skin-nav{order:2!important;display:none!important;margin:0!important}
+#gitl9:not(.collapsed).clean-menu-open .g-skin-nav{display:block!important}
+#gitl9:not(.collapsed) .g-nav-label{display:none!important}
+#gitl9:not(.collapsed) nav.g-site-nav{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;gap:3px!important;padding:2px!important}
+#gitl9:not(.collapsed) nav.g-site-nav button{flex:0 0 auto!important;min-width:60px!important;min-height:42px!important}
+#gitl9:not(.collapsed) .g-scroll{order:3!important;flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+#gitl9:not(.collapsed) .g-pane-intro,#gitl9:not(.collapsed) .g-section-label{display:none!important}
+#gitl9:not(.collapsed) .g-export-methods{display:block!important}
+#gitl9:not(.collapsed) .g-export-methods>button{width:100%!important;min-height:43px!important}
+#gitl9:not(.collapsed) .g-export-diagnostic button{min-height:42px!important;margin:2px!important}
+#gitl9:not(.collapsed) .g-accordion>summary{min-height:40px!important}
+#gitl9:not(.collapsed) [data-pane="play"] .g-controls{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:5px!important}
+#gitl9:not(.collapsed) [data-pane="play"] .g-controls button{min-height:43px!important}
+}
+@media(min-width:601px){#gitl9 [data-a="quick-play"],#gitl9 [data-a="quick-export"],#gitl9 [data-a="quick-menu"]{display:none!important}}
+`;
+style.textContent += `
+#gitl9 .g-version{display:inline-block;font-size:10px;line-height:1.3;font-weight:750;color:var(--g-accent);letter-spacing:.01em;white-space:nowrap;vertical-align:middle}
+#gitl9 .g-primary-html-actions{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:3px 0}
+#gitl9 .g-primary-html-actions button{min-height:44px;font-weight:700;padding:7px 5px;line-height:1.2}
+#gitl9 .g-html-explainer{margin:4px 1px 8px}
+@media(max-width:600px){
+#gitl9:not(.collapsed) .head{flex-wrap:wrap!important;gap:3px!important}
+#gitl9:not(.collapsed) .head .brand{flex:0 0 100%!important;display:flex!important;align-items:center!important;gap:4px!important;white-space:nowrap!important;min-height:23px!important}
+#gitl9:not(.collapsed) .head .headtools{flex:0 0 100%!important;justify-content:space-between!important;margin-top:2px!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-play"]{flex:1 1 70px!important;min-width:60px!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-html"]{flex:1 1 70px!important;min-width:64px!important;min-height:41px!important;white-space:nowrap!important}
+#gitl9:not(.collapsed) .headtools [data-a="quick-menu"],#gitl9:not(.collapsed) .headtools [data-a="collapse"]{flex:0 0 40px!important;min-width:40px!important;min-height:41px!important}
+#gitl9:not(.collapsed) .g-primary-html-actions{grid-template-columns:1fr 1fr!important}
+}
+@media(min-width:601px){#gitl9 .g-version{font-size:11px}}
+`;
+style.textContent += `
+/* STRUCTURAL SKINS 9.0.26: not recolored copies. No Play/Send function changes. */
+@media(max-width:600px){
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"],
+  #gitl9:not(.collapsed)[data-skin="orbit-one"],
+  #gitl9:not(.collapsed)[data-skin="folio-top"]{
+    width:min(292px,calc(100vw - 12px))!important;max-height:min(44dvh,365px)!important;
+  }
+  #gitl9:not(.collapsed):is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools [data-a="quick-play"]{
+    border-radius:50%!important;flex:0 0 46px!important;width:46px!important;min-width:46px!important;
+    min-height:46px!important;height:46px!important;font-size:20px!important;padding:0!important;
+    display:inline-flex!important;align-items:center!important;justify-content:center!important;
+    background:var(--g-accent-bg)!important;color:var(--g-accent)!important;border:2px solid var(--g-accent)!important;
+  }
+  #gitl9:is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools .g-play-word{display:none!important}
+  #gitl9:not(.collapsed):is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools [data-a="quick-html"]{
+    flex:1 1 58px!important;min-width:53px!important;font-size:11px!important;
+  }
+  #gitl9:not(.collapsed):is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools [data-a="quick-skin"],
+  #gitl9:not(.collapsed):is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools [data-a="quick-menu"],
+  #gitl9:not(.collapsed):is([data-skin="heritage-v8"],[data-skin="orbit-one"],[data-skin="folio-top"]) .headtools [data-a="collapse"]{
+    flex:0 0 37px!important;min-width:37px!important;height:43px!important;min-height:43px!important;
+  }
+  /* Heritage: actual 8.x navigation-first hierarchy: title, round Play, top tabs, active section, footer status. */
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] .g-skin-nav{order:1!important;display:block!important;margin:2px 0 4px!important}
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] nav.g-site-nav{display:flex!important;gap:3px!important;overflow-x:auto!important}
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] nav.g-site-nav button{
+    flex:0 0 auto!important;min-width:53px!important;min-height:35px!important;padding:4px!important;
+    font-size:10px!important;
+  }
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] .g-scroll{order:2!important;min-height:0!important}
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] .g-status{
+    order:3!important;flex:0 0 auto!important;min-height:22px!important;max-height:58px!important;
+  }
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] .head{min-height:69px!important}
+  #gitl9:not(.collapsed)[data-skin="heritage-v8"] .head .brand{min-height:19px!important}
+  /* Orbit: large circular Play floats at the left, sections appear only on demand. */
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .head{
+    display:grid!important;grid-template-columns:60px minmax(0,1fr)!important;
+    grid-template-rows:24px 53px!important;min-height:84px!important;align-items:center!important;
+  }
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .head .brand{grid-column:2!important;grid-row:1!important;flex:unset!important;font-size:11px!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .head .headtools{grid-column:1/3!important;grid-row:2!important;display:flex!important;flex:unset!important;margin:0!important;gap:4px!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .headtools [data-a="quick-play"]{flex:0 0 56px!important;width:56px!important;height:56px!important;min-height:56px!important;box-shadow:0 0 0 4px var(--g-accent-bg)!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .g-skin-nav{order:2!important;display:none!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"].clean-menu-open .g-skin-nav{display:block!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .g-scroll{order:1!important;min-height:0!important}
+  #gitl9:not(.collapsed)[data-skin="orbit-one"] .g-status{order:3!important;min-height:28px!important}
+  /* Folio: always-visible two-row segmented sections, no horizontal carousel. */
+  #gitl9:not(.collapsed)[data-skin="folio-top"] .g-skin-nav{order:1!important;display:block!important}
+  #gitl9:not(.collapsed)[data-skin="folio-top"] nav.g-site-nav{
+    display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;
+    grid-auto-rows:minmax(32px,auto)!important;overflow:visible!important;
+    gap:2px!important;background:var(--g-panel)!important;
+  }
+  #gitl9:not(.collapsed)[data-skin="folio-top"] nav.g-site-nav button{
+    min-width:0!important;min-height:32px!important;font-size:9px!important;padding:2px!important;
+  }
+  #gitl9:not(.collapsed)[data-skin="folio-top"] .g-scroll{order:2!important;min-height:0!important}
+  #gitl9:not(.collapsed)[data-skin="folio-top"] .g-status{order:3!important}
+  #gitl9:not(.collapsed)[data-skin="folio-top"] .head{min-height:68px!important}
+  #gitl9:not(.collapsed)[data-skin="folio-top"] .g-scroll .pane.show{background:var(--g-surface)!important;border-radius:var(--g-radius)!important}
+}
+@media(min-width:601px){
+  #gitl9 .headtools [data-a="quick-skin"]{display:none!important}
+}
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2763,12 +3186,13 @@ function render() {
   panel.classList.toggle('collapsed',panelCollapsed);
   panel.classList.toggle('more-open',mobileMoreOpen);
   panel.classList.toggle('status-open',statusExpanded);
+  panel.classList.toggle('clean-menu-open',cleanMenuOpen);
   panel.dataset.running=S.mode==='RUNNING'?'1':'0';
   const moreLabels={flow:'Flow',prompt:'Personas',aoa:'AoA',settings:'Setup'};
   const moreActive=!!moreLabels[S.tab];
   const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
-    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button class="collapsebtn" data-a="collapse" title="Minimize Ghost to side" aria-label="Minimize Ghost">▶</button><button class="helpbtn" data-a="help" aria-label="Help">?</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-version" aria-label="Ghost version">v${VER}</span> <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ <span class="g-play-word">Play</span></button><button data-a="quick-html" title="Save offline conversation HTML" aria-label="Save Chat HTML">↓ HTML</button><button data-a="quick-skin" title="Switch between three new layouts" aria-label="Next Ghost layout">◐</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
@@ -2834,23 +3258,26 @@ function render() {
     </div>
     <div class="pane ${S.tab==='export'?'show':''}" data-pane="export">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⇩</span><div><b>Export</b><span class="tiny">Save conversation and projects</span></div></div>
-      <div class="g-action-well"><div class="g-section-label">EXPORT METHODS</div>
+      <div class="g-primary-html-actions" role="group" aria-label="Direct HTML downloads"><button type="button" class="on" data-a="html">↓ Save Chat HTML</button><button type="button" data-page-backup="html">↓ Save Page HTML</button></div>
+      <div class="tiny g-html-explainer"><b>Chat HTML</b> is an offline readable conversation (marked PARTIAL when needed). <b>Page HTML</b> saves text currently loaded on this page; unlike SingleFile, images and styling are not included.</div>
+      <div class="g-action-well"><div class="g-section-label">OTHER FORMATS &amp; METHODS</div>
       <label class="g-export-format-label">Save as <select data-export-format aria-label="Conversation export format"><option value="html" ${exportFormat==='html'?'selected':''}>HTML</option><option value="md" ${exportFormat==='md'?'selected':''}>Markdown</option><option value="json" ${exportFormat==='json'?'selected':''}>JSON</option></select></label>
       <div class="g-export-methods" role="group" aria-label="Choose an independent export recovery method">
-      <button data-export-engine="auto" class="on" title="Try Export 1, then 2, then 3 until complete">Auto 1-2-3</button>
-      <button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
+      <button type="button" data-a="field-check" title="One tap: test API export and download privacy-safe counts; no transcript, no auto scroll">Field check (75s max)</button>
+      <button data-export-engine="auto" class="on" title="Try two fast archive readers; page scanning is optional">⇩ Export conversation</button>
+      <details class="g-accordion g-export-diagnostic" data-g-acc="export-methods"><summary>Diagnostic readers</summary><button data-export-engine="1" title="Read paginated ChatGPT history">Export 1</button>
       <button data-export-engine="2" title="Read original ChatGPT conversation tree">Export 2</button>
-      <button data-export-engine="3" title="Scroll conversation and collect messages">Export 3</button></div>
+      <button data-export-engine="3" title="Scroll conversation and collect messages">Scroll</button></details></div>
       <div class="tiny">1: Paged history; 2: Conversation tree; 3: Scroll page. Auto tries the next if incomplete.</div>
       </div>
       <details class="g-accordion" data-g-acc="export-quick"><summary>Other save options</summary>
-      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button><button data-a="html">Save Chat HTML (Auto)</button></div>
+      <div class="row g-export-buttons"><button data-a="copy">Copy MD</button><button data-a="md" class="on">Save MD (Auto)</button><button data-a="json">Save JSON (Auto)</button><button data-a="handoff" title="Metadata-rich structured handoff; review before sharing">AI Handoff JSON</button></div>
       </details>
       <details class="g-accordion" data-g-acc="export-advanced"><summary>Advanced export</summary>
-      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Include raw platform JSON / Codex rendered HTML (may contain private data) in saved JSON</label></details>
+      <label style="margin-top:6px"><input type="checkbox" data-export-raw ${exportRaw?'checked':''}>Expert-only raw JSON (may include images, SVG, large attachments and private data; OFF by default)</label></details>
       <details class="g-accordion" data-g-acc="export-backup"><summary>Page backup</summary><div class="sectionTitle">Works without chat detection</div>
-      <div class="row"><button data-page-backup="html">Page Snapshot HTML</button><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
-      <div class="tiny">Read-only page snapshot with tables and accessible frames. No images, SVG or scripts. URLs and inputs are sanitized. Review files before sharing; visible page text may still be private.</div>
+      <div class="row"><button data-page-backup="diagnostic">Diagnostic JSON</button></div>
+      <div class="tiny">Page HTML is a sanitized, text-only snapshot, not a full-fidelity SingleFile archive. Diagnostic JSON also captures tables and accessible frames. Review files before sharing.</div>
       </details>
       <details class="g-accordion" data-g-acc="export-vault"><summary>Project Vault · across AI sites</summary>
       <div class="row"><input data-vault-name type="text" placeholder="Project name" maxlength="80"><button data-vault-action="create">Create</button></div>
@@ -2859,7 +3286,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries three independent methods. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries two fast archive readers without scrolling. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
@@ -2917,6 +3344,13 @@ function render() {
   panel.querySelectorAll('[data-mode]').forEach(btn => btn.addEventListener('click', () => { if (S.mode==='RUNNING') return; runMode=btn.dataset.mode; GM_setValue('v9.runMode',runMode); render(); }));
   panel.querySelectorAll('[data-posture-btn]').forEach(btn => btn.addEventListener('click', () => { postureId=POSTURES[btn.dataset.postureBtn]?btn.dataset.postureBtn:'standard'; GM_setValue('v9.posture',postureId); render(); }));
   panel.querySelector('[data-skin-posture]')?.addEventListener('change',e=>{postureId=POSTURES[e.target.value]?e.target.value:'standard';GM_setValue('v9.posture',postureId);render();});
+  panel.querySelector('[data-a="quick-play"]')?.addEventListener('click',()=>play().catch(e=>fail('PLAY',String(e?.message||e))));
+  panel.querySelector('[data-a="quick-html"]')?.addEventListener('click',()=>doExport('html'));
+  panel.querySelector('[data-a="quick-skin"]')?.addEventListener('click',()=>{
+    const next=QUICK_LAYOUT_SKINS[(QUICK_LAYOUT_SKINS.indexOf(skinId)+1)%QUICK_LAYOUT_SKINS.length];
+    skinId=next;GM_setValue('v9.skin',skinId);cleanMenuOpen=false;applyAppearance();render();
+  });
+  panel.querySelector('[data-a="quick-menu"]')?.addEventListener('click',()=>{cleanMenuOpen=!cleanMenuOpen;render();});
   panel.querySelector('[data-a="pause"]')?.addEventListener('click', () => pause('Paused by you.'));
   panel.querySelector('[data-a="play"]')?.addEventListener('click', () => play().catch(e => fail('PLAY', String(e?.message || e))));
   panel.querySelector('[data-a="stop"]')?.addEventListener('click', stop);
@@ -2968,6 +3402,8 @@ function render() {
   panel.querySelector('[data-a="copy"]')?.addEventListener('click', () => doExport('copy'));
   panel.querySelector('[data-a="md"]')?.addEventListener('click', () => doExport('md'));
   panel.querySelector('[data-a="json"]')?.addEventListener('click', () => doExport('json'));
+  panel.querySelector('[data-a="handoff"]')?.addEventListener('click', () => doExport('handoff'));
+  panel.querySelector('[data-a="field-check"]')?.addEventListener('click', () => runExportFieldCheck());
   panel.querySelector('[data-a="html"]')?.addEventListener('click', () => doExport('html'));
   panel.querySelector('[data-export-format]')?.addEventListener('change',e=>{
     exportFormat=['md','html','json'].includes(e.target.value)?e.target.value:'html';

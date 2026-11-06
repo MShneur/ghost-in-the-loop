@@ -8,5 +8,5 @@ describe('v9 product shell 5B',()=>{
  test('canonical sendOnce remains sole send actuator',()=>{const matches=src.match(/button\.click\(\)/g)||[];expect(matches.length).toBe(1);expect(src).toContain('async function sendOnce(text, reason)');});
  test('Workshop import is bounded additive JSON',()=>{expect(src).toContain("const WORKSHOP_SCHEMA = 'gitl-workshop/1'");expect(src).toContain('fileBytes:512*1024');expect(src).toContain('maxItems:100');expect(src).toContain('new Set([...Object.keys(PERSONA_LIBRARY)');expect(src).toContain('new Set([...Object.keys(WORKFLOW_LIBRARY)');expect(src).not.toContain('eval(');});
  test('custom labels render through esc',()=>{expect(src).toContain("'<option value=\"'+esc(id)+'\"");expect(src).toContain("'+esc(p.label)");expect(src).toContain("'+esc(w.label)");});
- test('workflow ownership stays with AI',()=>{expect(src).toContain('You own workflow progress.');expect(src).toContain('Ghost will not interpret or auto-advance them');});
+ test('workflow ownership stays with AI',()=>{expect(src).toContain('You own the plan.');expect(src).toContain('Ghost will not interpret that plan; it only relays exact prompts');});
 });

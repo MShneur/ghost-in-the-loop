@@ -11,8 +11,9 @@ function between(startNeedle, endNeedle) {
 }
 
 describe('v9 Top navigation', () => {
-  test('Top is compact and immediately beside Page', () => {
-    expect(src).toContain('<button data-a="reload">↻ Page</button><button data-a="top"');
+  test('Top remains in Run controls with Play, Pause and End', () => {
+    expect(src).toContain('data-a="play">▶ Play</button>');
+    expect(src).toContain('data-a="top"');
     expect(src).toContain('>↑ Top</button>');
   });
 
@@ -67,7 +68,7 @@ describe('v9 Top navigation', () => {
   test('Top never writes URL/hash, loop state, or panel position', () => {
     const goTop = between('async function goTop()', 'function domTurns()');
     expect(goTop).not.toMatch(/location\.(assign|replace)|history\.(pushState|replaceState)|location\.hash\s*=/);
-    expect(goTop).not.toMatch(/S\.(mode|round|sending|uncertain|lastHandled|awaitingFrom|stableHash|stableSince|drift|relay|stallState|stopAttempts|recoveryCount)\s*=/);
+    expect(goTop).not.toMatch(/S\.(mode|round|sending|uncertain|lastHandled|awaitingFrom|stableHash|stableSince|drift|relay|stallState|stopAttempts|recoveryCount)\s*=(?!=)/);
     expect(goTop).not.toMatch(/panel\.style|gitl9.*(top|left|right|bottom)/i);
   });
 

@@ -1,5 +1,33 @@
 # Changelog
 
+## [9.0.26] - Tampermonkey live-channel field-test build (Firefox Android acceptance pending)
+
+- Restores the **actual v8.0.0 layout hierarchy** as Heritage v8: visible top section tabs, 46-pixel round Play, each section in its own pane, and status below controls. Origin: Ghost 8.0.0 source at commit 6bcdc91ea8; modern one-Send engine is preserved rather than restored from obsolete code.
+- Adds two distinct selectable structural skins, Orbit (large circular Play plus on-demand section drawer) and Folio (two-row section grid), with one-tap quick skin cycling on mobile. Existing five choices remain.
+- Changes paged-history proof to distinguish unreadable text bodies, missing message IDs, platform-redacted tool output placeholders, archive boundary verification, and intentionally excluded media. Visiting the scroll top never implies complete readable source history.
+- Tested the live source's paginated-reader function using five isolated mock API conditions. Real Firefox Android logged-in field export and visual skin acceptance remain NOT TESTED; stable release remains HOLD.
+
+
+## [9.0.25] - text-first handoff and truthful text completeness (draft)
+
+- Make Markdown the default for AI-to-AI handoff, retain direct HTML and optional JSON, but strip embedded image/SVG/audio/vector resources from all generated conversation exports.
+- Correct paginated ChatGPT completeness: media attachments don't mean the requested text is incomplete; non-conversational tool events without IDs must not count as unreadable user/assistant messages. Unsupported real text remains PARTIAL.
+- Export compact structured JSON containing only normalized text, metadata and coverage evidence; avoid raw platform media payloads. Existing manual page diagnostic/backup stays separate.
+- Track upstream exporter revisions with the existing upstream radar and a pinned review registry; no automatic third-party code execution or silent dependency update.
+- Field result still unverified on authenticated Android Firefox. This is a draft candidate, not a stable release.
+
+
+## [9.0.24] - Cleanerz mobile UI and structured export candidate
+
+- Restore the permanently visible `GHOST v9.0.24` title on mobile: the prior version was inside metadata that mobile CSS hid. Add direct `Save Chat HTML` to the Play toolbar and two first-level export actions (`Save Chat HTML`, `Save Page HTML`), removing hidden duplicate HTML controls. Clarify the styled offline chat archive versus sanitized text-only current-page snapshot.
+- Cleanerz rejected accumulating theme-only patches and unverified competing export buttons. One primary Export conversation action now leads, with three advanced diagnostics preserved behind disclosure.
+- Play-first mobile controls: Play, Export, Sections, Minimize share a single toolbar. Mobile navigation is hidden until Sections is opened; the full seven original functional sections remain.
+- Uses contemporary ChatGPT keyed message units, roles and stable IDs when available. API and page entries retain message IDs for better reconciliation; visiting the top is not proof of completeness.
+- Original Edge Rail, Ghostwave and three newer mobile skins stay selectable, but no longer define different feature layouts.
+- Play/Send transport, approval gates, project vault and MD/HTML/JSON output were not modified.
+- Candidate: real authenticated Firefox Android long-chat field acceptance is NOT TESTED. No stable release yet.
+
+
 ## [9.0.23] - field-recovery candidate
 
 - Five visible mobile UI options, original Edge Rail, animated Ghostwave, and three new compact skins. The 20 underlying skin implementations remain intact.
