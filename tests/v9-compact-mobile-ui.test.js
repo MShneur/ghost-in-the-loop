@@ -122,7 +122,7 @@ describe('editorial UX hierarchy (v8-inspired)',()=>{
       expect(p.dataset.skin).toBe('micro-edge');
       expect(p.style.getPropertyValue('--g-bg')).toBe('#111827');
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
-      expect(p.querySelectorAll('[data-place]')).toHaveLength(8);
+      expect([...p.querySelectorAll('[data-place]')].map(b=>b.dataset.place)).toEqual(['dock-left','dock-right','float','composer-row','header-row']);
       p.querySelector('[data-place="dock-left"]').click();
       expect(p.dataset.placement).toBe('dock-left');
       p.querySelector('[data-tab="play"]').click();

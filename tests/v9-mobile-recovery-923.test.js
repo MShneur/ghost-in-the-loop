@@ -46,7 +46,7 @@ test('nonblocking mobile progress has timer, 5-minute extension and protected ca
 test('partial export uses buttons and keeps retry path without native Android prompt',async()=>{
  const dom=new JSDOM('<html><body></body></html>',{url:'https://chatgpt.com/c/123'});
  const ctx={document:dom.window.document,window:dom.window,S:{detail:''},render:()=>{},trustedHTML:v=>v};
- vm.createContext(ctx);vm.runInContext(take('function confirmPartialExport(cap){','async function doExport('),ctx);
+ vm.createContext(ctx);vm.runInContext(take('function confirmPartialExport(cap,scanAlreadyTried=false){','async function doExport('),ctx);
  const prompt=ctx.confirmPartialExport({partial:true,turns:[{role:'user',text:'hello'}]});
  expect(dom.window.document.querySelector('#gitl-partial-choice')).toBeTruthy();
  expect(dom.window.document.querySelector('[data-partial="retry"]')).toBeTruthy();

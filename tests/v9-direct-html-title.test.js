@@ -50,7 +50,7 @@ describe('version title and direct HTML export regression',()=>{
   });
   test('the HTML chat format includes inline CSS and an explicit partial warning',()=>{
     expect(src).toContain('function conversationHTML(cap){');
-    expect(src).toContain('PARTIAL EXPORT - some messages or media may be missing.');
+    expect(src).toContain('TEXT COVERAGE UNVERIFIED - see diagnostic details.');
     expect(src).toContain('style-src ');
     expect(src).toContain("doExport('html')");
     expect(src).toContain('unlike SingleFile, images and styling are not included');

@@ -9,6 +9,7 @@ const {
   verifyPackage,
   writePackage
 } = require('../scripts/package-candidate');
+const { collectCurrentIdentity } = require('../scripts/build-identity');
 
 const SOURCE_ROOT = path.resolve(__dirname, '..');
 const FIXTURE_FILES = [
@@ -20,8 +21,7 @@ const FIXTURE_FILES = [
   'extension/content.js',
   'extension/icon-48.png',
   'extension/icon-96.png',
-  '.gitl/autopilot-state.json',
-  '.gitl/evidence/round-7/candidate-identity.json'
+  '.gitl/autopilot-state.json'
 ];
 
 function copyFixture() {
@@ -32,6 +32,20 @@ function copyFixture() {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(source, target);
   }
+  // Synthetic release-shaped fixture only. The actual PR #59 cannot pass publication gates.
+  const statePath=path.join(root,'.gitl/autopilot-state.json');
+  const state=JSON.parse(fs.readFileSync(statePath,'utf8'));
+  state.branch='fixture/isolated-candidate';state.publishReady=false;
+  state.releaseTarget=require('../package.json').version;
+  fs.writeFileSync(statePath,JSON.stringify(state,null,2)+'\n');
+  const userPath=path.join(root,'ghost-in-the-loop.user.js');
+  const user=fs.readFileSync(userPath,'utf8')
+    .replaceAll('/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js','/main/ghost-in-the-loop.user.js');
+  fs.writeFileSync(userPath,user);
+  const identity=collectCurrentIdentity(root,{head:'a'.repeat(40)});
+  const recordPath=path.join(root,'.gitl/evidence/v9/candidate-identity.json');
+  fs.mkdirSync(path.dirname(recordPath),{recursive:true});
+  fs.writeFileSync(recordPath,JSON.stringify(identity,null,2)+'\n');
   return root;
 }
 

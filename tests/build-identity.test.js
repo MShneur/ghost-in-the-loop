@@ -34,6 +34,16 @@ function makeFixture() {
     'scripts/build-extension.js',
     '.gitl/autopilot-state.json'
   ]) copy(relativePath, fixtureRoot);
+  // Controlled releasable candidate fixture, NOT an assertion about PR #59 publish readiness.
+  const statePath=path.join(fixtureRoot,'.gitl/autopilot-state.json');
+  const state=JSON.parse(fs.readFileSync(statePath,'utf8'));
+  state.branch='fixture/isolated-candidate';state.publishReady=false;
+  state.releaseTarget=require('../package.json').version;
+  fs.writeFileSync(statePath,JSON.stringify(state,null,2)+'\n');
+  const userPath=path.join(fixtureRoot,'ghost-in-the-loop.user.js');
+  const user=fs.readFileSync(userPath,'utf8')
+    .replaceAll('/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js','/main/ghost-in-the-loop.user.js');
+  fs.writeFileSync(userPath,user);
   return fixtureRoot;
 }
 
@@ -44,6 +54,9 @@ function mutateJson(filePath, mutator) {
 }
 
 describe('BUILD-IDENTITY oracle', () => {
+  test('current draft still fails real release identity gate',()=>{
+    expect(()=>collectCurrentIdentity(ROOT,{head:HEAD_A})).toThrow(/Candidate channel must be isolated/);
+  });
   const fixtures = [];
   afterEach(() => {
     while (fixtures.length) fs.rmSync(fixtures.pop(), { recursive: true, force: true });
@@ -54,7 +67,7 @@ describe('BUILD-IDENTITY oracle', () => {
     fixtures.push(fixture);
     const current = collectCurrentIdentity(fixture, { head: HEAD_A });
     expect(current.releaseTarget).toBe(require('../package.json').version);
-    expect(current.channels.candidate).toBe(require('../.gitl/autopilot-state.json').branch);
+    expect(current.channels.candidate).toBe('fixture/isolated-candidate');
     expect(current.channels.stable).toBe('main');
     expect(current.channels.publishReady).toBe(false);
     expect(current.payload).toHaveLength(5);

@@ -21,19 +21,20 @@ describe('v9 final integration contract',()=>{
     expect(src).toContain("Agents-of-AI/main/workflows/quorum.md");
   });
   test('candidate identity is internally mapped',()=>{
-    expect(pkg.version).toBe('9.0.0-alpha.2');
-    expect(manifest.version).toBe('9.0.0');
-    expect(manifest.version_name).toBe('9.0.0-alpha.2');
-    expect(src).toContain('// @version      9.0.0-alpha.2');
-    expect(src).toContain("const VER = '9.0.0-alpha.2'");
+    expect(manifest.version).toBe(pkg.version.split('-')[0]);
+    expect(manifest.version_name).toBe(pkg.version);
+    expect(src).toContain('// @version      '+pkg.version);
+    expect(src).toContain("const VER = '"+pkg.version+"'");
   });
-  test('stable update channel remains main',()=>{
+  test('draft candidate update channel is isolated from stable main',()=>{
+    const candidate='https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/redesign/9.1-cleaner-mobile-export-core-20261101/ghost-in-the-loop.user.js';
     const stable='https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js';
-    expect(src).toContain('// @updateURL     '+stable);
-    expect(src).toContain('// @downloadURL   '+stable);
+    expect(src).toContain('// @updateURL     '+candidate);
+    expect(src).toContain('// @downloadURL   '+candidate);
+    expect(src).not.toContain('// @updateURL     '+stable);
   });
   test('generated extension embeds v9 runtime, not v8 engine',()=>{
-    expect(ext).toContain("const VER = '9.0.0-alpha.2'");
+    expect(ext).toContain("const VER = '"+pkg.version+"'");
     expect(ext).toContain('window.__GITL_V9__');
     expect(ext).not.toContain("const VER = '8.8.5'");
   });
