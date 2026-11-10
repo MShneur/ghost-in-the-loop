@@ -55,6 +55,19 @@ describe('ChatGPT modern paginated history (isolated read-only)',()=>{
     expect(r.verified).toBe(true);expect(r.proof.unreadable).toBe(0);
     expect(r.turns).toHaveLength(2);
   });
+  test('empty assistant tool calls remain activities rather than false unreadable replies',async()=>{
+    const p=page(0,2,false,false);
+    p.messages.push({id:'tool-route',author:{role:'assistant'},recipient:'browser',
+      content:{parts:[]},metadata:{model_slug:'gpt-example'}});
+    const go=loader(async url=>url==='/api/auth/session'?response({}):response(p));
+    const r=await go('chat-test');
+    expect(r.verified).toBe(true);
+    expect(r.turns).toHaveLength(2);
+    expect(r.proof.unreadable).toBe(0);
+    expect(r.proof.routedToolOnly).toBe(1);
+    expect(r.activities).toHaveLength(1);
+    expect(r.activities[0].metadata.recipient).toBe('browser');
+  });
   test('unreadable genuine assistant text still blocks full text verification',async()=>{
     const p=page(0,2,false,false);
     p.messages[1].content={content_type:'unsupported_text',parts:[{unexpected:'x'}]};

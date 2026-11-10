@@ -1,3 +1,9 @@
+## [9.0.27] - menu-first UI and export text-gap clarity (field candidate)
+
+- Always show seven navigation tabs beneath version and live state, with only the selected section scrolling. Retains circular Play, all saved skin choices and one Send authority.
+- Use backward-cursor archive API readers for Auto without moving the visible conversation. Manual Scroll is a separate opt-in Diagnostic reader, never an automatic rescue prompt.
+- If archive pages reach both ends but some bodies remain unreadable, label the saved file TEXT_GAPS instead of falsely claiming FULL; preserve the counts and unanswered evidence.
+
 # Changelog
 
 ## [9.0.26] - Tampermonkey live-channel field-test build (Firefox Android acceptance pending)

@@ -12,11 +12,11 @@ function boot(settings={}){
   w.eval(src);
   return {p:w.document.querySelector('#gitl9'),store,close:()=>w.close()};
 }
-describe('9.0.26 heritage and new structural mobile layouts',()=>{
+describe('9.0.27 heritage and new structural mobile layouts',()=>{
   test('fresh install defaults to actual v8-inspired circular Play top-tab layout',()=>{
     const {p,close}=boot();try{
       expect(p.dataset.skin).toBe('heritage-v8');
-      expect(p.querySelector('.head .g-version').textContent).toBe('v9.0.26');
+      expect(p.querySelector('.head .g-version').textContent).toBe('v9.0.27');
       expect(p.querySelector('[data-a="quick-play"] .g-play-word')).toBeTruthy();
       expect(p.querySelectorAll('nav.g-site-nav [data-tab]')).toHaveLength(7);
       expect(src).toContain('#gitl9:not(.collapsed)[data-skin="heritage-v8"] .g-skin-nav{order:1');

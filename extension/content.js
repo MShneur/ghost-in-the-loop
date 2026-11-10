@@ -29,7 +29,7 @@ if (window.__GITL_V9__ === true) return;
 if (window.__GITL_V9_BOOTING__ && Date.now() - window.__GITL_V9_BOOTING__ < 15000) return;
 window.__GITL_V9_BOOTING__ = Date.now();
 
-const VER = '9.0.26';
+const VER = '9.0.27';
 const TICK_MS = 1000;
 const VALID_QUIET_MS = 1400;
 const DRIFT_QUIET_MS = 9000;
@@ -1500,7 +1500,7 @@ async function captureChatGPTPages(conversationId){
       if(lastFailure.status===404||lastFailure.status===405||lastFailure.kind==='shape')continue;
       return {failure:lastFailure};
     }
-    const all=[],activities=[],seenMessage=new Set();let unreadable=0,assets=0,redacted=0,missingId=0,undecodable=0,skippedNonConversation=0;
+    const all=[],activities=[],seenMessage=new Set();let unreadable=0,assets=0,redacted=0,missingId=0,undecodable=0,skippedNonConversation=0,routedToolOnly=0;
     for(const page of pages)for(const item of page.messages){
       const msg=item?.message||item,id=String(item?.id||msg?.id||'');
       const role=msg?.author?.role;
@@ -1519,6 +1519,14 @@ async function captureChatGPTPages(conversationId){
       const thinking=role==='assistant'?(visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata)):'';
       const hasMedia=!!(msg?.metadata?.attachments?.length||
         msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
+      // A blank assistant invocation addressed to a tool isn't a missing visible reply.
+      // Preserve its metadata in activities; still reject blank user-facing assistant bodies.
+      const toolOnly=role==='assistant'&&typeof msg?.recipient==='string'&&
+        msg.recipient!==''&&msg.recipient!=='all'&&!text&&!thinking&&!hasMedia;
+      if(toolOnly){
+        routedToolOnly++;activities.push({role:'assistant-tool-call',text:'',metadata:archiveMessageEvidence(msg,item)});
+        continue;
+      }
       if(!text&&!thinking&&msg?.content&&!hasMedia&&
         !msg?.metadata?.is_visually_hidden_from_conversation){unreadable++;undecodable++;}
       if(text==='The output of this plugin was redacted.')redacted++;
@@ -1539,7 +1547,7 @@ async function captureChatGPTPages(conversationId){
       all.length?'Complete readable text history; media intentionally excluded':'No readable messages');
     const proof={verified,textVerified:verified,historyBoundariesConfirmed:finished,reason,pages:pages.length,
       nodes:seenMessage.size,readable:all.length,unreadable,missingId,undecodable,redacted,
-      skippedNonConversation,assets,mediaExcluded:assets,scope:'user-and-assistant-text'};
+      skippedNonConversation,routedToolOnly,assets,mediaExcluded:assets,scope:'user-and-assistant-text'};
     log('export-history-pages',{host:HOST.id,pages:proof.pages,messages:proof.nodes,verified:proof.verified,reason:proof.reason});
     return {source:'platform archive (paged)',turns:all,activities,verified,proof,
       ...(verified?{}:{failure:{kind:failed?.kind||'partial',reason}}),
@@ -2312,14 +2320,14 @@ function exportFileContext(){
 function exportFileName(cap,kind){
   const ctx=exportFileContext(),dt=new Date(cap.capturedAt||Date.now());
   const utc=Number.isFinite(dt.getTime())?dt.toISOString().replace('T','_').replace(/:/g,'-').slice(0,19):new Date().toISOString().replace('T','_').replace(/:/g,'-').slice(0,19);
-  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?'PARTIAL':'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
+  return ['GITL',ctx.platform,ctx.project,ctx.title,ctx.id,cap.engine&&('E'+cap.engine),utc,cap.partial?(cap.verification?.laneProofs?.some(p=>p.engine==='1'&&p.historyBoundariesConfirmed)?'TEXT_GAPS':'PARTIAL'):'FULL'].filter(Boolean).join('_')+'.'+(kind==='json'?'json':kind==='html'?'html':'md');
 }
-function exportStatus(cap,action){return action+' · '+cap.turns.length+' text entries · '+(cap.partial?'text coverage unverified':'text history verified');}
+function exportStatus(cap,action){const proof=cap.verification?.laneProofs?.find(p=>p.engine==='1'&&p.historyBoundariesConfirmed);return action+' · '+cap.turns.length+' text entries · '+(cap.partial?(proof?'archive boundaries reached; text gaps remain':'archive coverage unverified'):'text history verified');}
 function confirmPartialExport(cap,scanAlreadyTried=false){
   if(!cap.partial)return Promise.resolve('save');
-  const sourceRedacted=cap.verification?.laneProofs?.some(p=>
-    p.engine==='1'&&p.historyBoundariesConfirmed&&p.redacted>0&&!p.unreadable);
-  const allowSlowScan=!scanAlreadyTried&&!sourceRedacted;
+  const archiveProof=cap.verification?.laneProofs?.find(p=>p.engine==='1'&&p.historyBoundariesConfirmed);
+  const textGaps=(archiveProof?.unreadable||0)+(archiveProof?.redacted||0);
+  // Manual scrolling is in Diagnostic readers only: never invite expensive retries.
   // Avoid Android's blocking window.confirm. An expensive DOM scan is explicit and one-shot.
   S.detail='Incomplete export: '+cap.turns.length+' entries. '+(cap.note||'Full history unverified.');render();
   return new Promise(resolve=>{
@@ -2328,12 +2336,11 @@ function confirmPartialExport(cap,scanAlreadyTried=false){
     layer.id='gitl-partial-choice';layer.setAttribute('role','dialog');
     layer.setAttribute('aria-modal','false');
     layer.style.cssText='position:fixed;inset:0;z-index:2147483647;pointer-events:none;display:flex;align-items:flex-end;justify-content:flex-end;padding:8px 8px calc(14px + env(safe-area-inset-bottom,0px));box-sizing:border-box';
-    const retryButton=allowSlowScan?
-      '<button data-partial="retry" style="min-height:39px;background:#273f63;color:white;border-radius:7px">Optional slow page scan (may take minutes)</button>':'';
-    const explanation=sourceRedacted?'The platform redacted some source output; scanning cannot reconstruct it.':
-      scanAlreadyTried?'Page scan already attempted. No automatic repeat.':
-      'The fast archive readers could not prove complete text history.';
-    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. '+explanation+'</p><div style="display:flex;flex-direction:column;gap:5px">'+retryButton+'<button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
+    const explanation=archiveProof&&textGaps
+      ?'API history reached both ends, but '+textGaps+' bodies were unreadable or redacted. Scrolling cannot prove them recovered.'
+      :archiveProof?'API history reached both ends, but some source evidence is unverified.'
+      :'The archive readers could not verify every message. Manual Scroll is under Diagnostics.';
+    layer.innerHTML=trustedHTML('<section style="pointer-events:auto;width:min(286px,calc(100vw - 16px));padding:12px;background:#121a27;color:#e8f2ff;border:1px solid #567595;border-radius:12px;box-shadow:0 8px 28px #000a;font:12px/1.5 system-ui,sans-serif"><b>👻 Full export not confirmed</b><p style="margin:6px 0">Recovered <strong>'+cap.turns.length+'</strong> entries. '+explanation+'</p><div style="display:flex;flex-direction:column;gap:5px"><button data-partial="save" style="min-height:39px;background:#145052;color:white;border-radius:7px">Save clearly marked PARTIAL</button><button data-partial="cancel" style="min-height:39px;background:#35232b;color:white;border-radius:7px">Cancel without saving</button></div></section>');
     for(const btn of layer.querySelectorAll('[data-partial]'))
       btn.addEventListener('click',()=>{
         const action=btn.dataset.partial;layer.remove();resolve(action);
@@ -2905,6 +2912,97 @@ style.textContent += `
   #gitl9 .headtools [data-a="quick-skin"]{display:none!important}
 }
 `;
+style.textContent += `
+
+/* 9.0.27 visual contract: version/state, then always-visible tabs, then scrollable pane. */
+#gitl9:not(.collapsed)[data-skin] {
+  display:flex!important;flex-direction:column!important;
+  width:min(335px,calc(100vw - 12px))!important;
+  max-height:min(78dvh,calc(100dvh - 18px - env(safe-area-inset-bottom,0px)))!important;
+  overflow:hidden!important;padding:6px!important
+}
+#gitl9:not(.collapsed)[data-skin]>.head {
+  display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+  order:0!important;flex:0 0 auto!important;align-items:center!important;
+  min-height:43px!important;height:auto!important;margin:0 0 5px!important;
+  padding:4px 6px!important;gap:4px!important;background:var(--g-panel)!important
+}
+#gitl9:not(.collapsed)[data-skin]>.head .brand {
+  display:flex!important;flex:1 1 auto!important;align-items:center!important;
+  min-width:0!important;min-height:0!important;white-space:nowrap!important;
+  gap:4px!important;font-size:11px!important;grid-column:auto!important;grid-row:auto!important
+}
+#gitl9:not(.collapsed)[data-skin] .g-top-state {
+  border:1px solid var(--g-border);border-radius:999px;background:var(--g-surface);
+  color:var(--g-text);font-size:9px;font-weight:700;padding:2px 5px;white-space:nowrap
+}
+#gitl9:not(.collapsed)[data-skin]>.head .headtools {
+  display:flex!important;flex:0 0 auto!important;align-items:center!important;
+  margin:0!important;gap:3px!important;grid-column:auto!important;grid-row:auto!important
+}
+#gitl9:not(.collapsed)[data-skin] .headtools [data-a="quick-play"] {
+  display:inline-flex!important;flex:0 0 38px!important;align-items:center!important;
+  justify-content:center!important;min-width:38px!important;width:38px!important;
+  min-height:38px!important;height:38px!important;padding:0!important;
+  font-size:18px!important;border-radius:50%!important;
+  background:var(--g-accent-bg)!important;border:2px solid var(--g-accent)!important;
+  color:var(--g-accent)!important
+}
+#gitl9:not(.collapsed)[data-skin] .headtools .g-play-word,
+#gitl9:not(.collapsed)[data-skin] .headtools [data-a="quick-html"],
+#gitl9:not(.collapsed)[data-skin] .headtools [data-a="quick-skin"],
+#gitl9:not(.collapsed)[data-skin] .headtools [data-a="quick-menu"],
+#gitl9:not(.collapsed)[data-skin] .headtools .meta {display:none!important}
+#gitl9:not(.collapsed)[data-skin] .headtools [data-a="collapse"] {
+  flex:0 0 33px!important;min-width:33px!important;min-height:38px!important
+}
+#gitl9:not(.collapsed)[data-skin]>.g-nav-label {display:none!important}
+#gitl9:not(.collapsed)[data-skin]>.g-skin-nav {
+  order:1!important;display:block!important;position:static!important;
+  grid-column:auto!important;grid-row:auto!important;flex:0 0 auto!important;
+  margin:0 0 5px!important;padding:0!important;min-height:0!important;
+  max-height:none!important;overflow:visible!important;background:transparent!important;
+  border:0!important
+}
+#gitl9:not(.collapsed)[data-skin] .g-command-trigger,
+#gitl9:not(.collapsed)[data-skin] .g-command-count {display:none!important}
+#gitl9:not(.collapsed)[data-skin] nav.g-site-nav {
+  display:grid!important;position:static!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  grid-auto-rows:minmax(34px,auto)!important;flex-direction:unset!important;
+  width:100%!important;max-height:none!important;overflow:visible!important;
+  gap:3px!important;padding:4px!important;margin:0!important;
+  border:1px solid var(--g-border)!important;border-radius:9px!important;
+  background:var(--g-panel)!important;box-shadow:none!important
+}
+#gitl9:not(.collapsed)[data-skin] nav.g-site-nav button {
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  min-width:0!important;min-height:35px!important;
+  padding:3px 2px!important;font-size:10px!important;font-weight:700!important;
+  white-space:nowrap!important;text-align:center!important;border-radius:7px!important
+}
+#gitl9:not(.collapsed)[data-skin]>.g-status {
+  order:2!important;display:block!important;flex:0 0 auto!important;
+  grid-column:auto!important;grid-row:auto!important;
+  min-height:0!important;max-height:80px!important;
+  margin:0 0 5px!important;padding:4px 6px!important;
+  border:1px solid var(--g-border)!important;border-left:2px solid var(--g-accent)!important
+}
+#gitl9:not(.collapsed)[data-skin]>.g-status .g-steps,
+#gitl9:not(.collapsed)[data-skin]>.g-status [data-live-workflow],
+#gitl9:not(.collapsed)[data-skin]>.g-status .status-text {display:none!important}
+#gitl9:not(.collapsed)[data-skin].status-open>.g-status .status-text {display:block!important}
+#gitl9:not(.collapsed)[data-skin]>.g-scroll {
+  order:3!important;display:block!important;flex:1 1 auto!important;
+  grid-column:auto!important;grid-row:auto!important;
+  min-height:0!important;overflow-y:auto!important;border:0!important;padding:1px 2px 4px!important
+}
+@media(max-width:600px){
+  #gitl9:not(.collapsed)[data-skin] {width:min(316px,calc(100vw - 12px))!important}
+  #gitl9:not(.collapsed)[data-skin] nav.g-site-nav button {font-size:9px!important;min-height:36px!important}
+}
+
+`;
 document.documentElement.appendChild(style);
 const panel = document.createElement('div'); panel.id = 'gitl9'; (document.body || document.documentElement).appendChild(panel);
 function applyAppearance() {
@@ -2995,6 +3093,7 @@ function updateLiveStatus() {
     'Workflow: '+prog.workflow+' · '+(prog.stage ? 'stage '+prog.stage.step+'/'+prog.stage.total : prog.stages+' stages · waiting for stage')
     : 'Manual workflow';
   const set=(node,value)=>{if(node&&node.textContent!==value)node.textContent=value;};
+  set(liveStatusNodes.topState,S.mode);
   set(liveStatusNodes.mode,S.mode);
   set(liveStatusNodes.round,'round '+S.round+'/'+S.max);
   set(liveStatusNodes.step,S.round+' / '+S.max);
@@ -3173,7 +3272,10 @@ function render() {
   const moreActive=!!moreLabels[S.tab];
   const markup = `
     <div class="rail" data-a="expand" title="Expand Ghost"><span class="ghost">👻</span><span class="arrow">◀</span><span class="mini">GHOST</span><span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span><span class="g-rail-progress" data-rail-round>0/25</span></div>
-    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-version" aria-label="Ghost version">v${VER}</span> <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ <span class="g-play-word">Play</span></button><button data-a="quick-html" title="Save offline conversation HTML" aria-label="Save Chat HTML">↓ HTML</button><button data-a="quick-skin" title="Switch between three new layouts" aria-label="Next Ghost layout">◐</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="head drag" data-drag><span class="brand"><span class="g-orbit" data-live-orbit></span> GHOST <span class="g-version" aria-label="Ghost version">v${VER}</span> <span class="g-top-state" data-top-state>${esc(S.mode)}</span> <span class="g-aa-badge ${autoApproveOn?'is-on':''} ${aaLimited?'is-limited':''}" title="${esc(aaTitle)}">${aaLimited?'AA!':'AA'}</span></span><span class="headtools"><button data-a="quick-play" aria-label="Play Ghost">▶ <span class="g-play-word">Play</span></button><button data-a="quick-html" title="Save offline conversation HTML" aria-label="Save Chat HTML">↓ HTML</button><button data-a="quick-skin" title="Switch between three new layouts" aria-label="Next Ghost layout">◐</button><button data-a="quick-menu" aria-label="Sections">☰</button><button class="collapsebtn" data-a="collapse" aria-label="Minimize Ghost">−</button><span class="meta">${esc(HOST.id)} · ${VER}</span></span></div>
+    <div class="g-nav-label">NAVIGATION</div>
+    <div class="g-skin-nav"><button type="button" class="g-command-trigger" data-a="skin-nav-trigger" aria-expanded="${commandMenuOpen?'true':'false'}" aria-controls="gitl-skin-nav" aria-label="Choose Ghost section">◉ <b>${skinTabNames[S.tab]||'Run'}</b><span>▾</span></button><span class="g-command-count">7 sections</span>
+    <nav id="gitl-skin-nav" class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav></div>
     <div class="status g-status" data-live-status>
       <div class="status-top"><b data-live-mode></b><span data-live-round></span><button data-a="status-toggle" aria-label="Expand or collapse status detail" title="Status details">▾</button></div>
       <div class="status-text" data-live-detail></div>
@@ -3181,9 +3283,6 @@ function render() {
       <div class="tiny" data-live-workflow></div>
     </div>
 
-    <div class="g-nav-label">NAVIGATION</div>
-    <div class="g-skin-nav"><button type="button" class="g-command-trigger" data-a="skin-nav-trigger" aria-expanded="${commandMenuOpen?'true':'false'}" aria-controls="gitl-skin-nav" aria-label="Choose Ghost section">◉ <b>${skinTabNames[S.tab]||'Run'}</b><span>▾</span></button><span class="g-command-count">7 sections</span>
-    <nav id="gitl-skin-nav" class="tabs g-site-nav" aria-label="Ghost sections"><button type="button" data-tab="play" class="${S.tab==='play'?'on':''}" aria-current="${S.tab==='play'?'page':'false'}">▶ Run</button><button type="button" data-tab="auto" class="${S.tab==='auto'?'on':''}" aria-current="${S.tab==='auto'?'page':'false'}">▤ Auto</button><button type="button" data-tab="flow" class="${S.tab==='flow'?'on':''}" aria-current="${S.tab==='flow'?'page':'false'}">⇢ Flow</button><button type="button" data-tab="prompt" class="${S.tab==='prompt'?'on':''}" aria-current="${S.tab==='prompt'?'page':'false'}">◈ Personas</button><button type="button" data-tab="aoa" class="${S.tab==='aoa'?'on':''}" aria-current="${S.tab==='aoa'?'page':'false'}">✧ AoA</button><button type="button" data-tab="export" class="${S.tab==='export'?'on':''}" aria-current="${S.tab==='export'?'page':'false'}">⇩ Export</button><button type="button" data-tab="settings" class="${S.tab==='settings'?'on':''}" aria-current="${S.tab==='settings'?'page':'false'}">⚙ Setup</button></nav></div>
     <div class="g-scroll" role="region" aria-label="Ghost controls" tabindex="0">
     <div class="pane ${S.tab==='play'?'show':''}" data-pane="play">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">▶</span><div><b>Run</b><span class="tiny">Your conversation controls</span></div></div>
@@ -3267,7 +3366,7 @@ function render() {
       ${(()=>{const u=ProjectVault.usage(vaultProjectId);if(!u)return '';const percent=Math.min(100,Math.round(u.bytes/u.limit*100));return '<div class="tiny">Batch '+u.batch+' · '+(u.bytes/1000000).toFixed(2)+' / '+(u.limit/1000000).toFixed(0)+' MB · '+percent+'%</div><div role="progressbar" aria-label="Batch storage" aria-valuenow="'+percent+'" aria-valuemin="0" aria-valuemax="100" style="background:var(--g-border);height:8px;border-radius:5px;overflow:hidden"><span style="display:block;background:var(--g-accent);height:100%;width:'+percent+'%"></span></div>'})()}
       ${ProjectVault.get(vaultProjectId)?.pending?'<div class="row" style="margin-top:5px"><button data-vault-action="retry">Download again</button><button data-vault-action="confirm">Confirm saved</button></div><div class="tiny">Only confirm after you see the downloaded file. Nothing is erased beforehand.</div>':''}
       <div class="tiny">Chats are saved locally only when you tap Add chat. Visit another supported AI site to continue collecting. Export a backup before clearing browser data. Partial captures stay labeled partial; Play is unchanged.</div></details>
-      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries two fast archive readers without scrolling. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. A PARTIAL label means completeness is not proven. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
+      <details class="g-accordion" data-g-acc="export-help"><summary>About exports</summary>      <div class="tiny">Auto tries two fast archive readers without scrolling. Explicit Export 1/2/3 tests just one method. Export 1 and 2 are ChatGPT archive routes; 2 also supports Perplexity. Export 3 captures the rendered page; on ChatGPT it scrolls to discover older messages. Text gaps remain unverified even when API pages reach both boundaries. Manual Scroll moves the page and cannot recover redacted source. Page Snapshot HTML is separate from readable Chat HTML.</div></details>
     </div>
     <div class="pane ${S.tab==='settings'?'show':''}" data-pane="settings">
       <div class="g-pane-intro"><span class="g-pane-symbol" aria-hidden="true">⚙</span><div><b>Setup</b><span class="tiny">Appearance and preferences</span></div></div>
@@ -3302,6 +3401,7 @@ function render() {
   panel.innerHTML=trustedHTML(markup);
   lastPanelMarkup=markup;
   liveStatusNodes={
+    topState:panel.querySelector('[data-top-state]'),
     mode:panel.querySelector('[data-live-mode]'),round:panel.querySelector('[data-live-round]'),
     detail:panel.querySelector('[data-live-detail]'),workflow:panel.querySelector('[data-live-workflow]'),
     bar:panel.querySelector('[data-live-bar]'),orbit:panel.querySelector('[data-live-orbit]'),
