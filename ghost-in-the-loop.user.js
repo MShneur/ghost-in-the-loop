@@ -37,8 +37,8 @@
 // @grant        GM_notification
 // @run-at       document-idle
 // @noframes
-// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
-// @downloadURL   https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/main/ghost-in-the-loop.user.js
+// @updateURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/fix/claude-code-virtual-transcript-20261121/ghost-in-the-loop.user.js
+// @downloadURL     https://raw.githubusercontent.com/MShneur/ghost-in-the-loop/fix/claude-code-virtual-transcript-20261121/ghost-in-the-loop.user.js
 // @license      AGPL-3.0
 // ==/UserScript==
 
