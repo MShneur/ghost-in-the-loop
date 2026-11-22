@@ -1207,6 +1207,103 @@ async function captureCodexExport() {
     visibility:{renderedTurnGroups:collected.size,traversed,reachedBottom,passes,scrollTraversalAvailable:!!scroller},
     turns};
 }
+// Claude Code is a distinct virtualized transcript, not a regular Claude chat.
+// SingleFile evidence (2026-11-21): rows 44-52 and 330-331 were present while
+// the virtual scroller contained a 182793px unloaded spacer.
+function claudeCodeTranscriptRoot(){
+  if(!/^(?:www\.)?claude\.ai$/i.test(location.hostname)||!/^\/code\/session_[^/]+\/?$/i.test(location.pathname))return null;
+  return document.querySelector('[data-testid="epitaxy-virtual-transcript"]');
+}
+function claudeCodeVisibleRows(root,cache){
+  if(!root)return;
+  for(const row of root.querySelectorAll('[data-testid="transcript-row"][data-index]')){
+    const index=Number(row.getAttribute('data-index'));
+    if(!Number.isSafeInteger(index)||index<0)continue;
+    const entry=row.querySelector('[data-epitaxy-entry]');
+    const entryIndex=Number(entry?.getAttribute('data-epitaxy-entry-index'));
+    const itemIndex=Number(entry?.getAttribute('data-epitaxy-item-index'));
+    const role=row.getAttribute('data-perf-row')==='human'?'user':
+      row.getAttribute('data-perf-row')==='assistant'?'assistant':'activity';
+    const content=row.querySelector('[data-testid="user-message"],[data-testid="assistant-message"]')||row;
+    const text=displayText(content.innerText||content.textContent||'');
+    if(!text)continue;
+    const collapsed=!!row.querySelector('[data-testid="user-message-show-more"]')||
+      (role==='assistant'&&/^Ran \d+ commands?\b/.test(text));
+    const metadata={transcriptRow:index,
+      ...(Number.isSafeInteger(entryIndex)&&entryIndex>=0?{entryIndex}:{}),
+      ...(Number.isSafeInteger(itemIndex)&&itemIndex>=0?{itemIndex}:{}),
+      collapsed,visibleOnly:true};
+    const prior=cache.get(index);
+    // Revisited windows may load more text. Never replace longer text with a placeholder.
+    if(!prior||text.length>prior.text.length||(text.length===prior.text.length&&prior.metadata.collapsed&&!collapsed))
+      cache.set(index,{role,text,metadata});
+  }
+}
+function claudeCodeIndexCoverage(cache){
+  const keys=[...cache.keys()].sort((a,b)=>a-b),missing=[];
+  let from=0,missingCount=0;
+  for(const key of keys){
+    if(key>from){missingCount+=key-from;if(missing.length<32)missing.push([from,key-1]);}
+    from=key+1;
+  }
+  return {renderedRows:keys.length,firstIndex:keys[0]??null,lastIndex:keys[keys.length-1]??null,
+    missingCount,missingRanges:missing,missingRangesTruncated:missing.length===32&&missingCount>0};
+}
+async function captureClaudeCodeExport(){
+  const root=claudeCodeTranscriptRoot();
+  if(!root)return null;
+  const cache=new Map(),originalTop=root.scrollTop,originalLeft=root.scrollLeft;
+  const originalBehavior=root.style.scrollBehavior,originalSnap=root.style.scrollSnapType;
+  const route=location.pathname,started=Date.now();
+  let passes=0,startReached=false,endReached=false,changedRoute=false;
+  const blocked=S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy;
+  if(blocked)claudeCodeVisibleRows(root,cache);
+  else{
+    S.topBusy=true;
+    try{
+      root.style.scrollBehavior='auto';root.style.scrollSnapType='none';
+      root.scrollTop=0;await sleep(250);claudeCodeVisibleRows(root,cache);
+      startReached=root.scrollTop<=2;
+      let stalled=0;
+      for(;passes<2400&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++){
+        if(recoveryCancelled()||location.pathname!==route||!root.isConnected){changedRoute=location.pathname!==route;break;}
+        if(exportRecovery?.paused)await recoveryCheckpoint();
+        const before=root.scrollTop,count=cache.size;
+        const max=Math.max(0,root.scrollHeight-root.clientHeight);
+        const step=Math.max(160,Math.round((root.clientHeight||600)*0.60));
+        if(before+3>=max){
+          await sleep(350);claudeCodeVisibleRows(root,cache);
+          if(cache.size===count){stalled++;if(stalled>=3){endReached=true;break;}}
+          else stalled=0;
+        }else{
+          root.scrollTop=Math.min(max,before+step);
+          await sleep(160);claudeCodeVisibleRows(root,cache);
+          stalled=root.scrollTop<=before+1?stalled+1:0;
+          if(stalled>=3)break;
+        }
+        if(passes%12===0)recoveryNotice('Claude Code: collecting virtual transcript rows',cache.size);
+      }
+      claudeCodeVisibleRows(root,cache);
+    }finally{
+      try{if(root.isConnected&&location.pathname===route){root.scrollTop=originalTop;root.scrollLeft=originalLeft;}}catch(_){}
+      root.style.scrollBehavior=originalBehavior;root.style.scrollSnapType=originalSnap;
+      S.topBusy=false;
+    }
+  }
+  const coverage=claudeCodeIndexCoverage(cache);
+  const turns=[...cache.entries()].sort((a,b)=>a[0]-b[0]).map(([,value])=>value);
+  const collapsed=turns.filter(t=>t.metadata.collapsed).length;
+  const reason=blocked?'Pause Play before scanning older Claude Code messages':
+    changedRoute?'Claude Code session changed during capture':
+    !startReached||!endReached?'Transcript traversal did not reach both ends':
+    coverage.missingCount?'Missing virtual transcript row indices':'Rendered rows collected; server history not independently verified';
+  return {version:VER,platform:'claude-code',capturedAt:new Date().toISOString(),
+    source:'Claude Code virtual transcript (visible rows)',engine:'3',partial:true,
+    conversationId:location.pathname.split('/')[2]||'',title:document.title||'Claude Code',
+    note:reason+'. '+collapsed+' rows have collapsed or summarized content. Commands and hidden details are not inferred. No server completeness claim.',
+    verification:{verified:false,reason,startReached,endReached,passes,collapsedRows:collapsed,
+      ...coverage},turns};
+}
 function captureDotExport() {
   // Dot uses the messaging UI, not the regular ChatGPT conversation DOM/API.
   if (HOST.id !== 'chatgpt' || !/^\/dots(?:\/|$)/.test(location.pathname)) return null;
@@ -1905,6 +2002,7 @@ function chooseRecoveredExport(results,mode){
 async function captureExport(mode='auto'){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
+  const claudeCode=await captureClaudeCodeExport();if(claudeCode)return claudeCode;
   // Auto is a fast archive path. A potentially multi-minute DOM scan is opt-in only.
   const order=mode==='auto'?['1','2']:[String(mode)];
   const results=[];
@@ -1947,21 +2045,22 @@ function cleanHandoffText(value){
     .replace(/!\[([^\]]*)\]\((?:https?:|data:|blob:)[^)]*\)/gi,(_m,alt)=>'[image omitted'+(alt?': '+alt:'')+']')
     .replace(/<img\b[^>]*>/gi,'[image omitted]');
 }
-function handoffTurns(turns){
-  return (Array.isArray(turns)?turns:[]).filter(t=>t?.role==='user'||t?.role==='assistant');
+function handoffTurns(turns,includeActivity=false){
+  return (Array.isArray(turns)?turns:[]).filter(t=>t?.role==='user'||t?.role==='assistant'||(includeActivity&&t?.role==='activity'));
 }
 function textOnlyExport(cap){
   const cleanTurn=t=>{
     const out={...(t.id?{id:String(t.id)}:{}),role:String(t.role||'assistant'),
       text:cleanHandoffText(t.text||'')};
     if(t.thinking)out.thinking=cleanHandoffText(t.thinking);
+    if(cap.platform==='claude-code'&&t.metadata)out.metadata=t.metadata;
     return out;
   };
   return {schema:'ghost-text-handoff/1',version:VER,platform:cap.platform,
     capturedAt:cap.capturedAt,source:cap.source,partial:!!cap.partial,
     note:cap.note||'',coverage:cap.verification||null,
-    turns:handoffTurns(cap.turns).map(cleanTurn),
-    unplacedTurns:handoffTurns(cap.unplacedTurns).map(cleanTurn)};
+    turns:handoffTurns(cap.turns,cap.platform==='claude-code').map(cleanTurn),
+    unplacedTurns:handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').map(cleanTurn)};
 }
 function aiHandoffExport(cap){
   // Portable, evidence-oriented JSON without opaque binary or signed attachment URLs.
@@ -1973,7 +2072,7 @@ function aiHandoffExport(cap){
     if(t?.thinking)item.visibleThinking=cleanHandoffText(t.thinking);
     if(t?.metadata&&typeof t.metadata==='object'){
       const keys=['parentId','createTime','updateTime','model','status','recipient',
-        'contentType','finishReason','attachments','citations'];
+        'contentType','finishReason','attachments','citations','transcriptRow','entryIndex','itemIndex','collapsed','visibleOnly'];
       const metadata={};
       for(const key of keys)if(t.metadata[key]!==undefined)metadata[key]=t.metadata[key];
       if(Object.keys(metadata).length)item.metadata=metadata;
@@ -1989,8 +2088,8 @@ function aiHandoffExport(cap){
       hiddenInternalReasoning:'not accessible',rawSourceJson:'excluded; use Expert raw JSON separately',
       unplacedChronology:'not inferred',platformRedactions:'cannot be reconstructed'},
     note:cap.note||'',
-    turns:handoffTurns(cap.turns).map(evidence),
-    unplacedTurns:handoffTurns(cap.unplacedTurns).map(evidence),
+    turns:handoffTurns(cap.turns,cap.platform==='claude-code').map(evidence),
+    unplacedTurns:handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').map(evidence),
     activities:(cap.activities||[]).map(evidence)};
 }
 function markdown(cap) {
@@ -2000,29 +2099,29 @@ function markdown(cap) {
     '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),
     '- Scope: text only; images, SVG, audio and binary files excluded',''];
   if (cap.note) lines.push('> '+cap.note,'');
-  handoffTurns(cap.turns).forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',cleanHandoffText(turn.text||'')); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
+  handoffTurns(cap.turns,cap.platform==='claude-code').forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',cleanHandoffText(turn.text||'')); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
     lines.push(''); });
   if(cap.unplacedTurns?.length){
     lines.push('## Unplaced additional evidence (chronology unknown)','',
       'These readable entries were recovered but could not be positioned safely in the main conversation. They are preserved, not silently discarded.','');
-    handoffTurns(cap.unplacedTurns).forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',cleanHandoffText(t.text||''),''));
+    handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',cleanHandoffText(t.text||''),''));
   }
   return lines.join('\n');
 }
 function conversationHTML(cap){
   const ctx=exportFileContext();
   const title='GITL - '+ctx.platform+' - '+ctx.title;
-  const entries=handoffTurns(cap.turns).map((turn,i)=>{
+  const entries=handoffTurns(cap.turns,cap.platform==='claude-code').map((turn,i)=>{
     const label=turn.role==='user'?'You':turn.role==='activity'?'Activity':'Assistant';
     const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(cleanHandoffText(turn.thinking))+'</pre></details>':'';
     return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(cleanHandoffText(turn.text||''))+'</pre>'+reasoning+'</article>';
   }).join('\n');
-  const extras=handoffTurns(cap.unplacedTurns).map((t,i)=>
+  const extras=handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').map((t,i)=>
     '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(cleanHandoffText(t.text||''))+'</pre></article>').join('\n');
   const extraSection=extras?'<h2>Additional recovered evidence (chronology unknown)</h2><p class="warning">These entries could not be reliably placed in sequence and were preserved separately.</p>'+extras:'';
   const notice=cap.partial?'<p class="warning">TEXT COVERAGE UNVERIFIED - see diagnostic details. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Complete text history verified; images, SVG and binary media deliberately excluded.</p>';
   const css=':root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Arial,sans-serif;background:#0d1521;color:#eef4fa}.wrap{max-width:850px;margin:auto;padding:16px}h1{font-size:1.3rem}.meta{color:#a8b8c9}.warning{border-left:4px solid #ffc869;padding:10px;background:#30251a}.success{border-left:4px solid #77dfad;padding:10px;background:#15322a}.turn{border:1px solid #3c516a;border-radius:10px;margin:12px 0;padding:12px;background:#172437}.turn.you{background:#122f35}.turn header{display:flex;justify-content:space-between;font-weight:700;color:#8fe6e5}.turn a{color:#92c8fa;text-decoration:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0 0}details{padding:6px;margin-top:8px;border-top:1px solid #465c70}summary{cursor:pointer}@media print{body{color:#111;background:#fff}.turn,.turn.you{background:#fff;border-color:#aaa;break-inside:avoid}.turn header{color:#111}.warning,.success{background:#fff;color:#111}}';
-  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+handoffTurns(cap.turns).length+' exported text messages / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
+  return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'"><title>'+esc(title)+'</title><style>'+css+'</style></head><body><main class="wrap"><h1>'+esc(title)+'</h1><p class="meta">'+esc(ctx.platform)+' / '+handoffTurns(cap.turns,cap.platform==='claude-code').length+' exported text messages / '+esc(cap.capturedAt||'')+'</p>'+notice+entries+extraSection+'</main></body></html>';
 }
 function download(name,text,type) {
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name;
@@ -2331,10 +2430,10 @@ function exportFileContext(){
     .replace(/\s*[-|–—]\s*Perplexity\s*$/i,'').trim();
   const title=raw&&raw.toLowerCase()!=='chatgpt'?raw:'Conversation';
   const project=ProjectVault.get(vaultProjectId)?.name||'';
-  const id=HOST.id==='chatgpt'?chatgptId():(HOST.id==='perplexity'?perplexitySlug():'');
+  const id=HOST.id==='chatgpt'?chatgptId():(HOST.id==='perplexity'?perplexitySlug():(claudeCodeTranscriptRoot()?location.pathname.split('/')[2]:''));
   const clean=v=>String(v||'').normalize('NFKC').replace(/[\/\\:*?"<>|\x00-\x1f]/g,'_')
     .replace(/\s+/g,' ').replace(/[. ]+$/,'').trim().slice(0,65);
-  return {title:clean(title),project:clean(project),id:clean(id).slice(-12),platform:HOST.id==='chatgpt'?'ChatGPT':HOST.id==='perplexity'?'Perplexity':HOST.id};
+  return {title:clean(title),project:clean(project),id:clean(id).slice(-12),platform:HOST.id==='chatgpt'?'ChatGPT':HOST.id==='perplexity'?'Perplexity':claudeCodeTranscriptRoot()?'Claude Code':HOST.id};
 }
 function exportFileName(cap,kind){
   const ctx=exportFileContext(),dt=new Date(cap.capturedAt||Date.now());
