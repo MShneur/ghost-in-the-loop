@@ -2019,7 +2019,9 @@ function chooseRecoveredExport(results,mode){
 async function captureExport(mode='auto'){
   const dot=captureDotExport();if(dot)return dot;
   const codex=await captureCodexExport();if(codex)return codex;
-  const claudeCode=await captureClaudeCodeExport();if(claudeCode)return claudeCode;
+  if(typeof captureClaudeCodeExport==='function'){
+    const claudeCode=await captureClaudeCodeExport();if(claudeCode)return claudeCode;
+  }
   // Auto is a fast archive path. A potentially multi-minute DOM scan is opt-in only.
   const order=mode==='auto'?['1','2']:[String(mode)];
   const results=[];
