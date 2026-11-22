@@ -1214,10 +1214,11 @@ function claudeCodeVisibleRows(root,cache){
     const entry=row.querySelector('[data-epitaxy-entry]');
     const entryIndex=Number(entry?.getAttribute('data-epitaxy-entry-index'));
     const itemIndex=Number(entry?.getAttribute('data-epitaxy-item-index'));
-    const role=row.getAttribute('data-perf-row')==='human'?'user':
+    let role=row.getAttribute('data-perf-row')==='human'?'user':
       row.getAttribute('data-perf-row')==='assistant'?'assistant':'activity';
     const content=row.querySelector('[data-testid="user-message"],[data-testid="assistant-message"]')||row;
     const text=displayText(content.innerText||content.textContent||'');
+    if(role==='assistant'&&/^(?:Ran \d+ commands?|Used \w+ \d+ times?)\b/i.test(text))role='activity';
     if(!text)continue;
     const collapsed=!!row.querySelector('button[data-testid="user-message-show-more"][aria-expanded="false"],button[data-cds-row-toggle][aria-expanded="false"]');
     const metadata={transcriptRow:index,
