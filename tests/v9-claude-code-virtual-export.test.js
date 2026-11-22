@@ -62,6 +62,7 @@ describe('Claude Code virtual transcript gap recovery',()=>{
     expect(cap.partial).toBe(true);
     expect(cap.turns.map(t=>t.metadata.transcriptRow)).toEqual([0,1,2,3]);
     expect(cap.turns[2].text).toBe('Ran 2 commands');
+    expect(cap.turns[2].role).toBe('activity');
     expect(cap.verification.missingCount).toBe(0);
     expect(cap.verification.verified).toBe(false); // DOM continuity != server completeness
   });
