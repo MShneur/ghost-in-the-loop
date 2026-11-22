@@ -1212,8 +1212,10 @@ function claudeCodeVisibleRows(root,cache){
     const index=Number(row.getAttribute('data-index'));
     if(!Number.isSafeInteger(index)||index<0)continue;
     const entry=row.querySelector('[data-epitaxy-entry]');
-    const entryIndex=Number(entry?.getAttribute('data-epitaxy-entry-index'));
-    const itemIndex=Number(entry?.getAttribute('data-epitaxy-item-index'));
+    const entryValue=entry?.getAttribute('data-epitaxy-entry-index');
+    const itemValue=entry?.getAttribute('data-epitaxy-item-index');
+    const entryIndex=entryValue==null?NaN:Number(entryValue);
+    const itemIndex=itemValue==null?NaN:Number(itemValue);
     let role=row.getAttribute('data-perf-row')==='human'?'user':
       row.getAttribute('data-perf-row')==='assistant'?'assistant':'activity';
     const content=row.querySelector('[data-testid="user-message"],[data-testid="assistant-message"]')||row;
