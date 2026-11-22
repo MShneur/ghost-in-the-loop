@@ -1214,6 +1214,17 @@ function claudeCodeTranscriptRoot(){
   if(!/^(?:www\.)?claude\.ai$/i.test(location.hostname)||!/^\/code\/session_[^/]+\/?$/i.test(location.pathname))return null;
   return document.querySelector('[data-testid="epitaxy-virtual-transcript"]');
 }
+function claudeCodeExpandVisibleRows(root,budget){
+  let clicked=0;
+  for(const row of root.querySelectorAll('[data-testid="transcript-row"][data-index]')){
+    for(const button of row.querySelectorAll('button[data-testid="user-message-show-more"][aria-expanded="false"],button[data-cds-row-toggle][aria-expanded="false"]')){
+      if(clicked>=budget)return clicked;
+      if(button.disabled||button.getAttribute('aria-disabled')==='true')continue;
+      button.click();clicked++;
+    }
+  }
+  return clicked;
+}
 function claudeCodeVisibleRows(root,cache){
   if(!root)return;
   for(const row of root.querySelectorAll('[data-testid="transcript-row"][data-index]')){
@@ -1227,8 +1238,7 @@ function claudeCodeVisibleRows(root,cache){
     const content=row.querySelector('[data-testid="user-message"],[data-testid="assistant-message"]')||row;
     const text=displayText(content.innerText||content.textContent||'');
     if(!text)continue;
-    const collapsed=!!row.querySelector('[data-testid="user-message-show-more"]')||
-      (role==='assistant'&&/^Ran \d+ commands?\b/.test(text));
+    const collapsed=!!row.querySelector('button[data-testid="user-message-show-more"][aria-expanded="false"],button[data-cds-row-toggle][aria-expanded="false"]');
     const metadata={transcriptRow:index,
       ...(Number.isSafeInteger(entryIndex)&&entryIndex>=0?{entryIndex}:{}),
       ...(Number.isSafeInteger(itemIndex)&&itemIndex>=0?{itemIndex}:{}),
@@ -1255,14 +1265,17 @@ async function captureClaudeCodeExport(){
   const cache=new Map(),originalTop=root.scrollTop,originalLeft=root.scrollLeft;
   const originalBehavior=root.style.scrollBehavior,originalSnap=root.style.scrollSnapType;
   const route=location.pathname,started=Date.now();
-  let passes=0,startReached=false,endReached=false,changedRoute=false;
+  let passes=0,startReached=false,endReached=false,changedRoute=false,expandedControls=0;
   const blocked=S.mode==='RUNNING'||S.sending||S.watchdogBusy||S.topBusy;
   if(blocked)claudeCodeVisibleRows(root,cache);
   else{
     S.topBusy=true;
     try{
       root.style.scrollBehavior='auto';root.style.scrollSnapType='none';
-      root.scrollTop=0;await sleep(250);claudeCodeVisibleRows(root,cache);
+      root.scrollTop=0;await sleep(250);
+      expandedControls+=claudeCodeExpandVisibleRows(root,12);
+      if(expandedControls)await sleep(90);
+      claudeCodeVisibleRows(root,cache);
       startReached=root.scrollTop<=2;
       let stalled=0;
       for(;passes<2400&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++){
@@ -1272,12 +1285,16 @@ async function captureClaudeCodeExport(){
         const max=Math.max(0,root.scrollHeight-root.clientHeight);
         const step=Math.max(160,Math.round((root.clientHeight||600)*0.60));
         if(before+3>=max){
-          await sleep(350);claudeCodeVisibleRows(root,cache);
+          await sleep(350);
+          if(expandedControls<900){const n=claudeCodeExpandVisibleRows(root,12);expandedControls+=n;if(n)await sleep(90);}
+          claudeCodeVisibleRows(root,cache);
           if(cache.size===count){stalled++;if(stalled>=3){endReached=true;break;}}
           else stalled=0;
         }else{
           root.scrollTop=Math.min(max,before+step);
-          await sleep(160);claudeCodeVisibleRows(root,cache);
+          await sleep(160);
+          if(expandedControls<900){const n=claudeCodeExpandVisibleRows(root,12);expandedControls+=n;if(n)await sleep(90);}
+          claudeCodeVisibleRows(root,cache);
           stalled=root.scrollTop<=before+1?stalled+1:0;
           if(stalled>=3)break;
         }
@@ -1301,7 +1318,7 @@ async function captureClaudeCodeExport(){
     source:'Claude Code virtual transcript (visible rows)',engine:'3',partial:true,
     conversationId:location.pathname.split('/')[2]||'',title:document.title||'Claude Code',
     note:reason+'. '+collapsed+' rows have collapsed or summarized content. Commands and hidden details are not inferred. No server completeness claim.',
-    verification:{verified:false,reason,startReached,endReached,passes,collapsedRows:collapsed,
+    verification:{verified:false,reason,startReached,endReached,passes,collapsedRows:collapsed,expandedControls,
       ...coverage},turns};
 }
 function captureDotExport() {
