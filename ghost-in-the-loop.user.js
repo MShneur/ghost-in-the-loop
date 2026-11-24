@@ -1448,8 +1448,10 @@ function isChatGPTToolInvocation(msg,text=''){
   try{
     const payload=JSON.parse(raw);
     return !!(payload&&typeof payload==='object'&&(
-      (typeof payload.path==='string'&&payload.args&&typeof payload.args==='object')||
-      (typeof payload.agent_id==='string'&&typeof payload.message==='string')));
+      (typeof payload.path==='string'&&/^\/[^/]+\/link_[a-z0-9]{12,}\/[a-z_]+$/i.test(payload.path)&&
+        payload.args&&typeof payload.args==='object')||
+      (typeof payload.agent_id==='string'&&/^agt_[a-z0-9]{12,}$/i.test(payload.agent_id)&&
+        typeof payload.message==='string')));
   }catch(_){return false;}
 }
 function isChatGPTUiStatus(msg,text){
@@ -1537,8 +1539,10 @@ function parseChatGPTActivities(data){
       const m=n?.message;if(!m)return false;
       const role=m?.author?.role,text=chatgptPlainMessageText(m);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
+      const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(part=>
+        part&&typeof part==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(part.content_type||part.type||''))));
       return !['user','assistant'].includes(role)||isChatGPTToolInvocation(m,text)||
-        isChatGPTUiStatus(m,text)||isChatGPTReasoningOnly(role,text,thinking,false);
+        isChatGPTUiStatus(m,text)||isChatGPTReasoningOnly(role,text,thinking,hasMedia);
     }).map(n=>{
       const m=n.message,raw=chatgptPlainMessageText(m),tool=isChatGPTToolInvocation(m,raw),
         status=isChatGPTUiStatus(m,raw);
@@ -2153,7 +2157,8 @@ function cleanHandoffText(value){
 // Convert only known presentation tags to readable text; preserve fenced code.
 function readableChatGPTExportText(turn,platform){
   const raw=cleanHandoffText(turn?.text||'');
-  if(!raw&&platform==='chatgpt'&&turn?.metadata?.attachments?.length)
+  if(!raw&&platform==='chatgpt'&&(turn?.metadata?.attachments?.length||
+      /^(?:image|audio|video|file|asset)/i.test(String(turn?.metadata?.contentType||''))))
     return '[Attached media omitted from text-only export]';
   if(platform!=='chatgpt'||turn?.role!=='assistant')return raw;
   const tags=raw.match(/<\/?(?:box|grid|grid-item|row|col|flow|title|text|caption|icon|card|badge|table|table-row|table-cell)\b/gi);
