@@ -1437,6 +1437,30 @@ function asText(value) {
   }
   return displayText(walk(value));
 }
+// Archive records addressed to tools are operational messages, not chat replies.
+// Some host versions expose them as assistant text containing a JSON call envelope.
+function isChatGPTToolInvocation(msg,text=''){
+  if(msg?.author?.role!=='assistant')return false;
+  const recipient=String(msg?.recipient||'').trim();
+  if(recipient&&recipient!=='all')return true;
+  const raw=String(text||'').trim();
+  if(!/^\{\s*"(?:path|agent_id)"\s*:/.test(raw)||raw.length>150000)return false;
+  try{
+    const payload=JSON.parse(raw);
+    return !!(payload&&typeof payload==='object'&&(
+      (typeof payload.path==='string'&&payload.args&&typeof payload.args==='object')||
+      (typeof payload.agent_id==='string'&&typeof payload.message==='string')));
+  }catch(_){return false;}
+}
+function chatgptPlainMessageText(msg){
+  const raw=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content);
+  const fallback=asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
+  const rich=raw.match(/<\/?(?:box|grid|row|title|text|caption|icon|card|grid-item)\b/gi);
+  return rich&&rich.length>=2&&fallback?fallback:raw||fallback;
+}
+function isChatGPTReasoningOnly(role,text,thinking,hasMedia){
+  return role==='assistant'&&!text&&!!thinking&&!hasMedia;
+}
 function visibleThinkingFrom(value) {
   if (!value || typeof value !== 'object') return '';
   const out = [];
@@ -1458,10 +1482,12 @@ function chatgptArchiveProof(data,count) {
     seen.add(id);
     const m=node.message, role=m?.author?.role;
     if(role==='user'||role==='assistant'){
-      const value=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
+      const value=chatgptPlainMessageText(m);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
       const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
-      if(value||thinking||hasMedia)supported++;else if(m?.content)unknown++;
+      if(!isChatGPTToolInvocation(m,value)&&!isChatGPTReasoningOnly(role,value,thinking,hasMedia)){
+        if(value||thinking||hasMedia)supported++;else if(m?.content)unknown++;
+      }
       if(value==='The output of this plugin was redacted.')redacted++;
       if(hasMedia)assets++;
     }
@@ -1486,10 +1512,11 @@ function parseChatGPTApi(data){
   const out=[];
   for(const node of chain){
     const m=node?.message,role=m?.author?.role;if(!['user','assistant'].includes(role))continue;
-    const text=asText(m?.content?.parts?.length?m.content.parts:m?.content)||asText(m?.metadata?.model_dil_v2?.fallbackMarkdown);
+    const text=chatgptPlainMessageText(m);
     const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
     const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(part=>
       part&&typeof part==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(part.content_type||part.type||''))));
+    if(isChatGPTToolInvocation(m,text)||isChatGPTReasoningOnly(role,text,thinking,hasMedia))continue;
     if(text||thinking||hasMedia){
       const item={...(m?.id||node?.id?{id:String(m?.id||node.id)}:{}),role,text,
         metadata:archiveMessageEvidence(m,node)};
@@ -1503,10 +1530,20 @@ function parseChatGPTActivities(data){
   const map=data?.mapping;if(!map||typeof map!=='object'||!map[data?.current_node])return [];
   const nodes=[],seen=new Set();let key=data.current_node;
   while(key&&!seen.has(key)&&map[key]){seen.add(key);nodes.unshift(map[key]);key=map[key].parent||null;}
-  return nodes.filter(n=>n?.message&&!['user','assistant'].includes(n.message?.author?.role))
-    .map(n=>({role:String(n.message?.author?.role||'activity'),
-      text:asText(n.message?.content?.parts?.length?n.message.content.parts:n.message?.content),
-      metadata:archiveMessageEvidence(n.message,n)}));
+  return nodes.filter(n=>{
+      const m=n?.message;if(!m)return false;
+      const role=m?.author?.role,text=chatgptPlainMessageText(m);
+      const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
+      return !['user','assistant'].includes(role)||isChatGPTToolInvocation(m,text)||
+        isChatGPTReasoningOnly(role,text,thinking,false);
+    }).map(n=>{
+      const m=n.message,tool=isChatGPTToolInvocation(m,chatgptPlainMessageText(m));
+      const thinking=tool?'':(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata));
+      return {role:tool?'assistant-tool-call':String(m?.author?.role||'activity'),
+        // Default handoff retains metadata, not raw tool requests or embedded code.
+        text:tool?'':chatgptPlainMessageText(m),...(thinking?{thinking}:{}),
+        metadata:archiveMessageEvidence(m,n)};
+    });
 }
 function parsePerplexityApi(data){
   if(!data||typeof data!=='object')return [];
@@ -1669,17 +1706,20 @@ async function captureChatGPTPages(conversationId){
       }
       if(!id){unreadable++;missingId++;continue;}
       if(seenMessage.has(id))continue;seenMessage.add(id);
-      const text=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content)||
-        asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
+      const text=chatgptPlainMessageText(msg);
       const thinking=role==='assistant'?(visibleThinkingFrom(msg?.content)||visibleThinkingFrom(msg?.metadata)):'';
       const hasMedia=!!(msg?.metadata?.attachments?.length||
         msg?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
-      // A blank assistant invocation addressed to a tool isn't a missing visible reply.
-      // Preserve its metadata in activities; still reject blank user-facing assistant bodies.
-      const toolOnly=role==='assistant'&&typeof msg?.recipient==='string'&&
-        msg.recipient!==''&&msg.recipient!=='all'&&!text&&!thinking&&!hasMedia;
-      if(toolOnly){
-        routedToolOnly++;activities.push({role:'assistant-tool-call',text:'',metadata:archiveMessageEvidence(msg,item)});
+      // A tool-directed assistant call is activity even when its body contains JSON or code.
+      // Reasoning-only records also remain separate from the readable dialogue.
+      if(isChatGPTToolInvocation(msg,text)){
+        routedToolOnly++;activities.push({role:'assistant-tool-call',text:'',
+          metadata:archiveMessageEvidence(msg,item)});
+        continue;
+      }
+      if(isChatGPTReasoningOnly(role,text,thinking,hasMedia)){
+        activities.push({role:'assistant-visible-reasoning',text:'',thinking,
+          metadata:archiveMessageEvidence(msg,item)});
         continue;
       }
       if(!text&&!thinking&&msg?.content&&!hasMedia&&
@@ -2101,13 +2141,30 @@ function cleanHandoffText(value){
     .replace(/!\[([^\]]*)\]\((?:https?:|data:|blob:)[^)]*\)/gi,(_m,alt)=>'[image omitted'+(alt?': '+alt:'')+']')
     .replace(/<img\b[^>]*>/gi,'[image omitted]');
 }
+// Static HTML/Markdown exports cannot execute ChatGPT's DIL UI components.
+// Convert only known presentation tags to readable text; preserve fenced code.
+function readableChatGPTExportText(turn,platform){
+  const raw=cleanHandoffText(turn?.text||'');
+  if(platform!=='chatgpt'||turn?.role!=='assistant')return raw;
+  const tags=raw.match(/<\/?(?:box|grid|grid-item|row|col|flow|title|text|caption|icon|card|badge|table|table-row|table-cell)\b/gi);
+  if(!tags||tags.length<2)return raw;
+  return raw.split(/(```[\s\S]*?```)/g).map((part,i)=>{
+    if(i%2===1)return part;
+    return part
+      .replace(/<icon\b[^>]*\/?>/gi,'')
+      .replace(/<AsyncImage\b[^>]*\/?>/gi,'[image omitted]')
+      .replace(/<\/?(?:grid-item|table-row|row|flow-item|list-item|divider)\b[^>]*\/?>/gi,'\n')
+      .replace(/<\/?(?:box|grid|col|flow|card|table|list)\b[^>]*\/?>/gi,'\n')
+      .replace(/<\/?(?:title|text|caption|badge|bold|italic|underline|table-cell|Link|Entity|Cite)\b[^>]*\/?>/gi,'');
+  }).join('').replace(/\n[ \t]*\n[ \t]*\n+/g,'\n\n').trim();
+}
 function handoffTurns(turns,includeActivity=false){
   return (Array.isArray(turns)?turns:[]).filter(t=>t?.role==='user'||t?.role==='assistant'||(includeActivity&&t?.role==='activity'));
 }
 function textOnlyExport(cap){
   const cleanTurn=t=>{
     const out={...(t.id?{id:String(t.id)}:{}),role:String(t.role||'assistant'),
-      text:cleanHandoffText(t.text||'')};
+      text:readableChatGPTExportText(t,cap.platform)};
     if(t.thinking)out.thinking=cleanHandoffText(t.thinking);
     if(cap.platform==='claude-code'&&t.metadata)out.metadata=t.metadata;
     return out;
@@ -2124,7 +2181,7 @@ function aiHandoffExport(cap){
   const ctx=exportFileContext();
   const evidence=t=>{
     const item={...(t?.id?{id:String(t.id)}:{}),role:String(t?.role||'activity'),
-      text:cleanHandoffText(t?.text||'')};
+      text:readableChatGPTExportText(t,cap.platform)};
     if(t?.thinking)item.visibleThinking=cleanHandoffText(t.thinking);
     if(t?.metadata&&typeof t.metadata==='object'){
       const keys=['parentId','createTime','updateTime','model','status','recipient',
@@ -2155,12 +2212,12 @@ function markdown(cap) {
     '- Source: '+cap.source+(cap.partial?' (may be incomplete)':''),
     '- Scope: text only; images, SVG, audio and binary files excluded',''];
   if (cap.note) lines.push('> '+cap.note,'');
-  handoffTurns(cap.turns,cap.platform==='claude-code').forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',cleanHandoffText(turn.text||'')); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
+  handoffTurns(cap.turns,cap.platform==='claude-code').forEach((turn,i)=>{ lines.push('## '+(i+1)+'. '+(turn.role==='user'?'User':turn.role==='activity'?'Activity':'Assistant'),'',readableChatGPTExportText(turn,cap.platform)); if(turn.thinking) lines.push('','### Platform-visible reasoning','',cleanHandoffText(turn.thinking));
     lines.push(''); });
   if(cap.unplacedTurns?.length){
     lines.push('## Unplaced additional evidence (chronology unknown)','',
       'These readable entries were recovered but could not be positioned safely in the main conversation. They are preserved, not silently discarded.','');
-    handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',cleanHandoffText(t.text||''),''));
+    handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').forEach((t,i)=>lines.push('### Unplaced '+(i+1)+' · '+(t.role||'unknown'),'',readableChatGPTExportText(t,cap.platform),''));
   }
   return lines.join('\n');
 }
@@ -2170,10 +2227,10 @@ function conversationHTML(cap){
   const entries=handoffTurns(cap.turns,cap.platform==='claude-code').map((turn,i)=>{
     const label=turn.role==='user'?'You':turn.role==='activity'?'Activity':'Assistant';
     const reasoning=turn.thinking?'<details><summary>Platform-visible reasoning</summary><pre>'+esc(cleanHandoffText(turn.thinking))+'</pre></details>':'';
-    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(cleanHandoffText(turn.text||''))+'</pre>'+reasoning+'</article>';
+    return '<article id="turn-'+(i+1)+'" class="turn '+(turn.role==='user'?'you':'assistant')+'"><header><span>'+esc(label)+'</span><a href="#turn-'+(i+1)+'">#'+(i+1)+'</a></header><pre>'+esc(readableChatGPTExportText(turn,cap.platform))+'</pre>'+reasoning+'</article>';
   }).join('\n');
   const extras=handoffTurns(cap.unplacedTurns,cap.platform==='claude-code').map((t,i)=>
-    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(cleanHandoffText(t.text||''))+'</pre></article>').join('\n');
+    '<article class="turn"><header>Unplaced '+(i+1)+' · '+esc(t.role||'unknown')+'</header><pre>'+esc(readableChatGPTExportText(t,cap.platform))+'</pre></article>').join('\n');
   const extraSection=extras?'<h2>Additional recovered evidence (chronology unknown)</h2><p class="warning">These entries could not be reliably placed in sequence and were preserved separately.</p>'+extras:'';
   const notice=cap.partial?'<p class="warning">TEXT COVERAGE UNVERIFIED - see diagnostic details. '+esc(cap.note||'Completeness unverified.')+'</p>':'<p class="success">Complete text history verified; images, SVG and binary media deliberately excluded.</p>';
   const css=':root{color-scheme:dark light}*{box-sizing:border-box}body{margin:0;font:15px/1.55 system-ui,Arial,sans-serif;background:#0d1521;color:#eef4fa}.wrap{max-width:850px;margin:auto;padding:16px}h1{font-size:1.3rem}.meta{color:#a8b8c9}.warning{border-left:4px solid #ffc869;padding:10px;background:#30251a}.success{border-left:4px solid #77dfad;padding:10px;background:#15322a}.turn{border:1px solid #3c516a;border-radius:10px;margin:12px 0;padding:12px;background:#172437}.turn.you{background:#122f35}.turn header{display:flex;justify-content:space-between;font-weight:700;color:#8fe6e5}.turn a{color:#92c8fa;text-decoration:none}pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:8px 0 0}details{padding:6px;margin-top:8px;border-top:1px solid #465c70}summary{cursor:pointer}@media print{body{color:#111;background:#fff}.turn,.turn.you{background:#fff;border-color:#aaa;break-inside:avoid}.turn header{color:#111}.warning,.success{background:#fff;color:#111}}';
