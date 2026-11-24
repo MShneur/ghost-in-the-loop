@@ -1433,6 +1433,9 @@ function isChatGPTToolInvocation(msg,text=''){
       (typeof payload.agent_id==='string'&&typeof payload.message==='string')));
   }catch(_){return false;}
 }
+function isChatGPTUiStatus(msg,text){
+  return msg?.author?.role==='assistant'&&/^Worked for \d+(?:h(?:\s+\d+m)?(?:\s+\d+s)?|m(?:\s+\d+s)?|s)$/i.test(String(text||'').trim());
+}
 function chatgptPlainMessageText(msg){
   const raw=asText(msg?.content?.parts?.length?msg.content.parts:msg?.content);
   const fallback=asText(msg?.metadata?.model_dil_v2?.fallbackMarkdown);
@@ -1466,7 +1469,7 @@ function chatgptArchiveProof(data,count) {
       const value=chatgptPlainMessageText(m);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
       const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(v=>v&&typeof v==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(v.content_type||v.type||''))));
-      if(!isChatGPTToolInvocation(m,value)&&!isChatGPTReasoningOnly(role,value,thinking,hasMedia)){
+      if(!isChatGPTToolInvocation(m,value)&&!isChatGPTUiStatus(m,value)&&!isChatGPTReasoningOnly(role,value,thinking,hasMedia)){
         if(value||thinking||hasMedia)supported++;else if(m?.content)unknown++;
       }
       if(value==='The output of this plugin was redacted.')redacted++;
@@ -1497,7 +1500,7 @@ function parseChatGPTApi(data){
     const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
     const hasMedia=!!(m?.metadata?.attachments?.length||m?.content?.parts?.some?.(part=>
       part&&typeof part==='object'&&/image|audio|video|file|asset|spatial|svg/i.test(String(part.content_type||part.type||''))));
-    if(isChatGPTToolInvocation(m,text)||isChatGPTReasoningOnly(role,text,thinking,hasMedia))continue;
+    if(isChatGPTToolInvocation(m,text)||isChatGPTUiStatus(m,text)||isChatGPTReasoningOnly(role,text,thinking,hasMedia))continue;
     if(text||thinking||hasMedia){
       const item={...(m?.id||node?.id?{id:String(m?.id||node.id)}:{}),role,text,
         metadata:archiveMessageEvidence(m,node)};
@@ -1516,13 +1519,14 @@ function parseChatGPTActivities(data){
       const role=m?.author?.role,text=chatgptPlainMessageText(m);
       const thinking=role==='assistant'?(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata)):'';
       return !['user','assistant'].includes(role)||isChatGPTToolInvocation(m,text)||
-        isChatGPTReasoningOnly(role,text,thinking,false);
+        isChatGPTUiStatus(m,text)||isChatGPTReasoningOnly(role,text,thinking,false);
     }).map(n=>{
-      const m=n.message,tool=isChatGPTToolInvocation(m,chatgptPlainMessageText(m));
+      const m=n.message,raw=chatgptPlainMessageText(m),tool=isChatGPTToolInvocation(m,raw),
+        status=isChatGPTUiStatus(m,raw);
       const thinking=tool?'':(visibleThinkingFrom(m?.content)||visibleThinkingFrom(m?.metadata));
-      return {role:tool?'assistant-tool-call':String(m?.author?.role||'activity'),
+      return {role:tool?'assistant-tool-call':status?'assistant-status':String(m?.author?.role||'activity'),
         // Default handoff retains metadata, not raw tool requests or embedded code.
-        text:tool?'':chatgptPlainMessageText(m),...(thinking?{thinking}:{}),
+        text:tool?'':raw,...(thinking?{thinking}:{}),
         metadata:archiveMessageEvidence(m,n)};
     });
 }
@@ -1696,6 +1700,10 @@ async function captureChatGPTPages(conversationId){
       if(isChatGPTToolInvocation(msg,text)){
         routedToolOnly++;activities.push({role:'assistant-tool-call',text:'',
           metadata:archiveMessageEvidence(msg,item)});
+        continue;
+      }
+      if(isChatGPTUiStatus(msg,text)){
+        activities.push({role:'assistant-status',text,metadata:archiveMessageEvidence(msg,item)});
         continue;
       }
       if(isChatGPTReasoningOnly(role,text,thinking,hasMedia)){
@@ -2126,6 +2134,8 @@ function cleanHandoffText(value){
 // Convert only known presentation tags to readable text; preserve fenced code.
 function readableChatGPTExportText(turn,platform){
   const raw=cleanHandoffText(turn?.text||'');
+  if(!raw&&platform==='chatgpt'&&turn?.metadata?.attachments?.length)
+    return '[Attached media omitted from text-only export]';
   if(platform!=='chatgpt'||turn?.role!=='assistant')return raw;
   const tags=raw.match(/<\/?(?:box|grid|grid-item|row|col|flow|title|text|caption|icon|card|badge|table|table-row|table-cell)\b/gi);
   if(!tags||tags.length<2)return raw;
@@ -2136,7 +2146,8 @@ function readableChatGPTExportText(turn,platform){
       .replace(/<AsyncImage\b[^>]*\/?>/gi,'[image omitted]')
       .replace(/<\/?(?:grid-item|table-row|row|flow-item|list-item|divider)\b[^>]*\/?>/gi,'\n')
       .replace(/<\/?(?:box|grid|col|flow|card|table|list)\b[^>]*\/?>/gi,'\n')
-      .replace(/<\/?(?:title|text|caption|badge|bold|italic|underline|table-cell|Link|Entity|Cite)\b[^>]*\/?>/gi,'');
+      .replace(/<\/?(?:title|caption|table-cell)\b[^>]*\/?>/gi,'\n')
+      .replace(/<\/?(?:text|badge|bold|italic|underline|Link|Entity|Cite)\b[^>]*\/?>/gi,tag=>/^<\//.test(tag)?' ':'');
   }).join('').replace(/\n[ \t]*\n[ \t]*\n+/g,'\n\n').trim();
 }
 function handoffTurns(turns,includeActivity=false){
