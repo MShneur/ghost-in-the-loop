@@ -1210,6 +1210,23 @@ async function captureCodexExport() {
 // Claude Code is a distinct virtualized transcript, not a regular Claude chat.
 // SingleFile evidence (2026-11-21): rows 44-52 and 330-331 were present while
 // the virtual scroller contained a 182793px unloaded spacer.
+// Shared export fallback: jump immediately, then wait only as long as the
+// virtualized host actually needs to render its next window. Never send/input.
+async function exportAwaitViewport(before,signature,maxWaitMs=260){
+  const steps=[16,24,36,48,64,72],deadline=Date.now()+maxWaitMs;
+  for(const delay of steps){
+    await sleep(Math.min(delay,Math.max(0,deadline-Date.now())));
+    if(signature()!==before)return true;
+    if(Date.now()>=deadline)break;
+  }
+  return signature()!==before;
+}
+function claudeCodeViewportSignature(root){
+  const rows=root.querySelectorAll('[data-testid="transcript-row"][data-index]');
+  const first=rows[0],last=rows[rows.length-1];
+  return (first?.getAttribute('data-index')||'-')+':'+(last?.getAttribute('data-index')||'-')+
+    ':'+rows.length+':'+String(root.textContent||'').length;
+}
 function claudeCodeTranscriptRoot(){
   if(!/^(?:www\.)?claude\.ai$/i.test(location.hostname)||!/^\/code\/session_[^/]+\/?$/i.test(location.pathname))return null;
   return document.querySelector('[data-testid="epitaxy-virtual-transcript"]');
@@ -1275,28 +1292,30 @@ async function captureClaudeCodeExport(){
     S.topBusy=true;
     try{
       root.style.scrollBehavior='auto';root.style.scrollSnapType='none';
-      root.scrollTop=0;await sleep(250);
+      const opening=claudeCodeViewportSignature(root);
+      root.scrollTop=0;
+      await exportAwaitViewport(opening,()=>claudeCodeViewportSignature(root),320);
       expandedControls+=claudeCodeExpandVisibleRows(root,12);
-      if(expandedControls)await sleep(90);
       claudeCodeVisibleRows(root,cache);
       startReached=root.scrollTop<=2;
       let stalled=0;
-      for(;passes<2400&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++){
+      for(;passes<1200&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++){
         if(recoveryCancelled()||location.pathname!==route||!root.isConnected){changedRoute=location.pathname!==route;break;}
         if(exportRecovery?.paused)await recoveryCheckpoint();
         const before=root.scrollTop,count=cache.size;
         const max=Math.max(0,root.scrollHeight-root.clientHeight);
-        const step=Math.max(160,Math.round((root.clientHeight||600)*0.60));
+        const step=Math.max(240,Math.round((root.clientHeight||600)*0.88));
+        const signature=claudeCodeViewportSignature(root);
         if(before+3>=max){
-          await sleep(350);
-          if(expandedControls<900){const n=claudeCodeExpandVisibleRows(root,12);expandedControls+=n;if(n)await sleep(90);}
+          await exportAwaitViewport(signature,()=>claudeCodeViewportSignature(root),300);
+          if(expandedControls<900)expandedControls+=claudeCodeExpandVisibleRows(root,12);
           claudeCodeVisibleRows(root,cache);
           if(cache.size===count){stalled++;if(stalled>=3){endReached=true;break;}}
           else stalled=0;
         }else{
           root.scrollTop=Math.min(max,before+step);
-          await sleep(160);
-          if(expandedControls<900){const n=claudeCodeExpandVisibleRows(root,12);expandedControls+=n;if(n)await sleep(90);}
+          await exportAwaitViewport(signature,()=>claudeCodeViewportSignature(root),260);
+          if(expandedControls<900)expandedControls+=claudeCodeExpandVisibleRows(root,12);
           claudeCodeVisibleRows(root,cache);
           stalled=root.scrollTop<=before+1?stalled+1:0;
           if(stalled>=3)break;
@@ -1851,9 +1870,17 @@ async function collectChatGPTDomHistory(){
       if(location.pathname!==pathname||recoveryCancelled())break;
       if(exportRecovery?.paused){await recoveryCheckpoint();if(recoveryCancelled())break;}
       const old=pos(),count=stored.size;
-      const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.75));
-      if(old<=2&&range()>3){move(Math.min(range(),Math.max(240,step/2)));await sleep(140);}
-      move(Math.max(0,old-step));await sleep(old<=2?450:210);observe(true);
+      const step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.88));
+      const signature=()=>chatgptVisibleRows().map(row=>row.key).join('|');
+      if(old<=2&&range()>3){
+        const before=signature();
+        move(Math.min(range(),Math.max(240,step/2)));
+        await exportAwaitViewport(before,signature,200);
+      }
+      const before=signature();
+      move(Math.max(0,old-step));
+      await exportAwaitViewport(before,signature,260);
+      observe(true);
       const current=pos();
       stall=current<=2&&old<=2&&stored.size===count?stall+1:0;
       S.detail='Collecting older messages: '+stored.size+' captured';
@@ -1865,13 +1892,20 @@ async function collectChatGPTDomHistory(){
     // Dialogue Export-inspired second pass: a virtualized ChatGPT page drops
     // older nodes while scrolling. Cache from the earliest window to the end.
     if(top&&!recoveryCancelled()&&location.pathname===pathname){
-      move(0);await sleep(220);observe(false);
+      const firstWindow=chatgptVisibleRows().map(row=>row.key).join('|');
+      move(0);
+      await exportAwaitViewport(firstWindow,()=>chatgptVisibleRows().map(row=>row.key).join('|'),260);
+      observe(false);
       let stableEnd=0,previousEnd='';
       for(;passes<3600&&(exportRecovery?Date.now()<exportRecovery.deadline:Date.now()-started<EXPORT_PATIENCE_MS);passes++){
         if(location.pathname!==pathname||recoveryCancelled())break;
         if(exportRecovery?.paused)await recoveryCheckpoint();
-        const before=pos(),step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.72));
-        move(before+step);await sleep(220);observe(false);
+        const before=pos(),step=Math.max(240,Math.round((page?window.innerHeight:scroller.clientHeight||700)*0.88));
+        const signature=()=>chatgptVisibleRows().map(row=>row.key).join('|');
+        const prior=signature();
+        move(before+step);
+        await exportAwaitViewport(prior,signature,260);
+        observe(false);
         const atEnd=pos()+4>=range();
         const state=Math.round(range())+':'+stored.size+':'+order.slice(-2).join('|');
         stableEnd=atEnd&&state===previousEnd?stableEnd+1:0;
